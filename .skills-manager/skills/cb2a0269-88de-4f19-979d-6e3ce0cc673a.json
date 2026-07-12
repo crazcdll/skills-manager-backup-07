@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "cb2a0269-88de-4f19-979d-6e3ce0cc673a",
+  "path": "storage-analyzer",
+  "path_key": "storage-analyzer",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "skillssh",
+    "ref": "kkkkhazix/khazix-skills/storage-analyzer",
+    "subpath": "storage-analyzer",
+    "branch": null
+  }
+}

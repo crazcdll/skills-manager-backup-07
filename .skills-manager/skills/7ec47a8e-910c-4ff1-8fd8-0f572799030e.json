@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "7ec47a8e-910c-4ff1-8fd8-0f572799030e",
+  "path": "baoyu-youtube-transcript",
+  "path_key": "baoyu-youtube-transcript",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "skillssh",
+    "ref": "jimliu/baoyu-skills/baoyu-youtube-transcript",
+    "subpath": "skills/baoyu-youtube-transcript",
+    "branch": null
+  }
+}

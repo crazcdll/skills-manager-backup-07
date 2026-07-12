@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "1f62d679-dec3-4bce-a03a-3f466bc085ef",
+  "path": "weread-skills",
+  "path_key": "weread-skills",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "skillssh",
+    "ref": "tencent/wechatreading/weread-skills",
+    "subpath": "skills",
+    "branch": null
+  }
+}

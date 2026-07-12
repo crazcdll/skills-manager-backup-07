@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "9186c66d-8d68-45d8-97d4-3be15824e4ae",
+  "path": "mtunion-product-ai-guide",
+  "path_key": "mtunion-product-ai-guide",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "import",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

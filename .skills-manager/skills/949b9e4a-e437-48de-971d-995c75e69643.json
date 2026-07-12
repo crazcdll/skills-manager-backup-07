@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "949b9e4a-e437-48de-971d-995c75e69643",
+  "path": "weekly-duty-report-ppt",
+  "path_key": "weekly-duty-report-ppt",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

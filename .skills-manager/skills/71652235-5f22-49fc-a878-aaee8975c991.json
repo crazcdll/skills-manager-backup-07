@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "71652235-5f22-49fc-a878-aaee8975c991",
+  "path": "baoyu-electron-extract",
+  "path_key": "baoyu-electron-extract",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "skillssh",
+    "ref": "jimliu/baoyu-skills/baoyu-electron-extract",
+    "subpath": "skills/baoyu-electron-extract",
+    "branch": null
+  }
+}

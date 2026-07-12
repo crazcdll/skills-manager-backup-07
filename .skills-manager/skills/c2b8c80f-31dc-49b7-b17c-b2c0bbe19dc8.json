@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "c2b8c80f-31dc-49b7-b17c-b2c0bbe19dc8",
+  "path": "wechat-article-video-download",
+  "path_key": "wechat-article-video-download",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

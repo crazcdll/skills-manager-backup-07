@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "e5b72cef-0a2a-4569-a206-84c9f9200527",
+  "path": "moore-wechat-article-downloader",
+  "path_key": "moore-wechat-article-downloader",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "git",
+    "ref": "https://github.com/Moore-developers/moore-wechat-article-downloader",
+    "subpath": null,
+    "branch": null
+  }
+}

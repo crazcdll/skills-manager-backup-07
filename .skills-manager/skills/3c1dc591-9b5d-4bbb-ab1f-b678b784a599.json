@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "3c1dc591-9b5d-4bbb-ab1f-b678b784a599",
+  "path": "flomo-shared",
+  "path_key": "flomo-shared",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "git",
+    "ref": "https://github.com/plidezus/flomo-skills",
+    "subpath": "skills/flomo-shared",
+    "branch": null
+  }
+}

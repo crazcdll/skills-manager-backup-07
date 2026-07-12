@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "5a3066b2-db6d-43bf-b42f-9020c8eac7fe",
+  "path": "flomo-save-reminder",
+  "path_key": "flomo-save-reminder",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "git",
+    "ref": "https://github.com/plidezus/flomo-skills",
+    "subpath": "skills/flomo-save-reminder",
+    "branch": null
+  }
+}

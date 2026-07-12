@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "cf71edd7-8c40-4681-a749-ddac6cf125e7",
+  "path": "flomo-daily-echo",
+  "path_key": "flomo-daily-echo",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "git",
+    "ref": "https://github.com/plidezus/flomo-skills",
+    "subpath": "skills/flomo-daily-echo",
+    "branch": null
+  }
+}

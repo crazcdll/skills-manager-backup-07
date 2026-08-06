@@ -1,0 +1,24 @@
+skill-manifest-version: 1
+skill-id: c46393d950c476da7369815610b50eb258419ddfc87ad59e99e82a3f37f1cd1d
+
+files:
+  9e5b3a006ea2caba06b2ac8ac0524f654b4e02ea313fceb013be808499e6f7eb  SKILL.md
+  62ae3fdc6684b7849ea0e908e51fa3038e3684849f3f39cf941934b2492514d8  assets/food-dev-assets.md
+  2d75c7e9286555f146719b52f39930d4a7f35b6b2b96f967419c7df968c1ce92  assets/gc-dev-assets.md
+  639b45adc533c0b843dca3a45355d60afce5df978801b9fd2085c72826b8d370  assets/hotel-dev-assets.md
+  4f8156f965dd29f2ff2ebbe80dfdacfbf142de08a08d16a6e04c34f9a178cbbb  assets/travel-dev-assets.md
+  dbad58ef8d1d0bdb37484f1b3c0184d8269da615c3f3dbd9344722ecdda2eb91  references/trade-stability-change-query/SKILL.md
+  950156fe84063c9f9d8243e09c6685636f29f95a297831be5ba2cd197fa81dd2  references/trade-stability-change-stop/SKILL.md
+  af039619b8a99df6e0c819bc72a3179ad81ad105764cdef867e8a4fc51a64b6c  references/trade-stability-information-fetch/SKILL.md
+  accc1a27a13bcf2a00b3d45069e3e419f9edaa37dc2651e89179dc921e22db64  references/trade-stability-issue-diagnosis/SKILL.md
+  3315f5e3401dc859a3538e7bd4d8e2732e59c305ee1cfd39d8bef6a9020bbcc6  references/trade-stability-issue-diagnosis/references/code-analysis.md
+  a0788c9ebeba0fb54d7ed5d097e330696909e7c1c98715004833eb1ae2ec2d33  references/trade-stability-issue-diagnosis/trade-stability-alert-diagnosis/SKILL.md
+  d666050b726d2052370a0a4c465b5e30dbba26fb87a3828c88e02c1a984ec90c  references/trade-stability-issue-diagnosis/trade-stability-complaint-diagnosis/SKILL.md
+  737d1d05118eedf67be21143634f5041618edea5dad0f7f9e9a9c49a47f1ebf1  references/trade-stability-issue-diagnosis/trade-stability-complaint-diagnosis/references/app-client-investigation.md
+  1baccb144416f1115d742a197fa99f26b620381143c2489d7efd77ab4c680596  references/trade-stability-issue-diagnosis/trade-stability-complaint-diagnosis/references/backend-log-query.md
+  a0e1553008f4a1ff26e82c3883260e949a5f5431feea9a4d932e8affa172a726  references/trade-stability-issue-diagnosis/trade-stability-complaint-diagnosis/references/get-uuid.md
+  60b701605d9c60b72e6c080d4f4dd223248b4b1b6ad501ec77e28dc977064f42  references/trade-stability-issue-diagnosis/trade-stability-complaint-diagnosis/references/h5-client-investigation.md
+  45cd99febc326e5a99ad14a89d34fd07e1babb71e303f9887f130601331e2ee5  references/trade-stability-issue-diagnosis/trade-stability-complaint-diagnosis/references/miniapp-investigation.md
+  f33bbc1304b5792778a5d971af80a2c04b1ae27d8ffb983fc060edae5803c929  references/trade-stability-issue-diagnosis/trade-stability-complaint-diagnosis/references/useful-links.md
+  7d3af584de330ce9dc59f2997fce397756d7b96e2fc96588d33cf1a2611dc77a  references/trade-stability-issue-remediation/SKILL.md
+  217534a092cf394e0c796c0f711be81641ec710a77e91ade185fcc19b83d798a  references/trade-stability-issue-report/SKILL.md

@@ -1,0 +1,7 @@
+skill-manifest-version: 1
+skill-id: e8554f5c88cb79e947fbd1c4d80fafaf961a2a1db1d8414b8384c4f2b8e77202
+
+files:
+  8e25995ca80d044923e060682a57b9935c7b116f8495033521c052772abd5bbc  SKILL.md
+  6ade31d16474cadb9fe1b2d67c1841f7900ae7d05c3a85a6edfcdfbdb85c581d  references/examples.md
+  ac8a3388a25312f560a67dcb8e5c8e5c63390a316da1526ffb6e27cabec570ad  references/faq.md

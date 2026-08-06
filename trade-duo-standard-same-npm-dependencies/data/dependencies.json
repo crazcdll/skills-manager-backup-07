@@ -1,0 +1,620 @@
+[
+  {
+    "name": "@analytics/mrn-sdk",
+    "version": "1.8.1",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@analytics/mrn-sdk/1.8.1/index.js"
+  },
+  {
+    "name": "@hfe/common-benchmark-level",
+    "version": "0.0.2",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/common-benchmark-level/0.0.2/index.js"
+  },
+  {
+    "name": "@hfe/global-shared-memory",
+    "version": "0.0.5",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/global-shared-memory/0.0.5/index.js"
+  },
+  {
+    "name": "@hfe/hotel-error-boundary",
+    "version": "0.1.1",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-error-boundary/0.1.1/index.js"
+  },
+  {
+    "name": "@hfe/hotel-luxury-brand-member-card",
+    "version": "1.18.0",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-luxury-brand-member-card/1.18.0/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-accommodation-preference",
+    "version": "0.0.13",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-accommodation-preference/0.0.13/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-base-info",
+    "version": "0.1.3",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-base-info/0.1.3/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-book-time",
+    "version": "0.0.22",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-book-time/0.0.22/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-booking-read",
+    "version": "0.1.4",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-booking-read/0.1.4/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-bottom-bar",
+    "version": "0.1.102",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-bottom-bar/0.1.102/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-bottom-toolTip-bar",
+    "version": "0.0.14",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-bottom-toolTip-bar/0.0.14/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-buy-notes",
+    "version": "0.0.1-beta-harmony.21",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-buy-notes/0.0.1-beta-harmony.21/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-credits",
+    "version": "0.1.36",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-credits/0.1.36/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-discount-card",
+    "version": "0.2.10",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-discount-card/0.2.10/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-end-comp",
+    "version": "0.1.4",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-end-comp/0.1.4/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-guest-card",
+    "version": "0.1.49",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-guest-card/0.1.49/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-inland-multiple-task",
+    "version": "0.0.3",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-inland-multiple-task/0.0.3/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-insurance-tying",
+    "version": "0.0.1-beta-harmony.21",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-insurance-tying/0.0.1-beta-harmony.21/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-invoice",
+    "version": "0.2.26",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-invoice/0.2.26/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-lifecycle-logic",
+    "version": "0.2.14",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-lifecycle-logic/0.2.14/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-lifecycle-logic-static",
+    "version": "0.0.7",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-lifecycle-logic-static/0.0.7/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-live-n-free-x",
+    "version": "0.1.31",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-live-n-free-x/0.1.31/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-loading-fill",
+    "version": "0.0.2",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-loading-fill/0.0.2/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-lower-carbon",
+    "version": "0.1.2",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-lower-carbon/0.1.2/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-lower-service",
+    "version": "0.1.0",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-lower-service/0.1.0/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-magical-coupon-package",
+    "version": "0.1.1",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-magical-coupon-package/0.1.1/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-marriott-member-card",
+    "version": "0.1.3",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-marriott-member-card/0.1.3/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-more-info",
+    "version": "0.0.1-beta.0",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-more-info/0.0.1-beta.0/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-muti-order-cash-back",
+    "version": "0.0.1-beta.3",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-muti-order-cash-back/0.0.1-beta.3/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-nav-bar",
+    "version": "0.0.2",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-nav-bar/0.0.2/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-order-gift",
+    "version": "0.1.3",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-order-gift/0.1.3/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-oversea-multiple-task",
+    "version": "0.0.1-beta-harmony.21",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-oversea-multiple-task/0.0.1-beta-harmony.21/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-pre-pay",
+    "version": "0.1.2",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-pre-pay/0.1.2/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-preview-logic",
+    "version": "0.0.4",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-preview-logic/0.0.4/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-privacy-protection",
+    "version": "0.0.1-beta.3",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-privacy-protection/0.0.1-beta.3/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-prompt-info",
+    "version": "0.1.2",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-prompt-info/0.1.2/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-register-flagship-member",
+    "version": "0.1.22",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-register-flagship-member/0.1.22/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-retain-modal",
+    "version": "0.1.2",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-retain-modal/0.1.2/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-return-after-checkin",
+    "version": "0.0.11",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-return-after-checkin/0.0.11/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-rights",
+    "version": "0.1.8",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-rights/0.1.8/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-room-detail",
+    "version": "0.1.6",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-room-detail/0.1.6/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-room-upgrade",
+    "version": "0.1.0-beta.9",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-room-upgrade/0.1.0-beta.9/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-simple-slide-modal-header",
+    "version": "0.1.0-beta.2",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-simple-slide-modal-header/0.1.0-beta.2/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-stay-gift",
+    "version": "0.0.5",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-stay-gift/0.0.5/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-superdeal-base-info",
+    "version": "0.0.21",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-superdeal-base-info/0.0.21/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-time-room",
+    "version": "0.0.1-beta.7",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-time-room/0.0.1-beta.7/index.js"
+  },
+  {
+    "name": "@hfe/hotel-submit-universal-calendar",
+    "version": "0.1.2",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-submit-universal-calendar/0.1.2/index.js"
+  },
+  {
+    "name": "@hfe/hotel-tip-bar",
+    "version": "0.0.1-beta-harmony.22",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hotel-tip-bar/0.0.1-beta-harmony.22/index.js"
+  },
+  {
+    "name": "@hfe/hoteltravel-dateutils",
+    "version": "0.21.0",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/hoteltravel-dateutils/0.21.0/index.js"
+  },
+  {
+    "name": "@hfe/magical-member-coupon-inflate-popup",
+    "version": "1.0.69",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/magical-member-coupon-inflate-popup/1.0.69/index.js"
+  },
+  {
+    "name": "@hfe/magical-member-coupon-inflate-popup-utils",
+    "version": "1.0.69",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/magical-member-coupon-inflate-popup-utils/1.0.69/index.js"
+  },
+  {
+    "name": "@hfe/magical-member-dependencies",
+    "version": "1.0.69",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/magical-member-dependencies/1.0.69/index.js"
+  },
+  {
+    "name": "@hfe/max-button",
+    "version": "4.0.4",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/max-button/4.0.4/index.js"
+  },
+  {
+    "name": "@hfe/max-image",
+    "version": "4.0.4",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/max-image/4.0.4/index.js"
+  },
+  {
+    "name": "@hfe/max-lifecycle",
+    "version": "5.0.5-beta.0",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/max-lifecycle/5.0.5-beta.0/index.js"
+  },
+  {
+    "name": "@hfe/max-linear-gradient",
+    "version": "5.0.1",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/max-linear-gradient/5.0.1/index.js"
+  },
+  {
+    "name": "@hfe/max-platform-magicmember-couponlist",
+    "version": "1.0.69",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/max-platform-magicmember-couponlist/1.0.69/index.js"
+  },
+  {
+    "name": "@hfe/max-scrollview",
+    "version": "4.0.15",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/max-scrollview/4.0.15/index.js"
+  },
+  {
+    "name": "@hfe/max-slider",
+    "version": "5.0.2",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/max-slider/5.0.2/index.js"
+  },
+  {
+    "name": "@hfe/max-text",
+    "version": "5.0.1",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/max-text/5.0.1/index.js"
+  },
+  {
+    "name": "@hfe/max-textinput",
+    "version": "4.0.9",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/max-textinput/4.0.9/index.js"
+  },
+  {
+    "name": "@hfe/max-view",
+    "version": "4.0.6",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/max-view/4.0.6/index.js"
+  },
+  {
+    "name": "@hfe/max-webview",
+    "version": "4.0.1",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@hfe/max-webview/4.0.1/index.js"
+  },
+  {
+    "name": "@max/leez-dependencies",
+    "version": "2.6.38",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@max/leez-dependencies/2.6.38/index.js"
+  },
+  {
+    "name": "@max/leez-icon",
+    "version": "2.6.38",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@max/leez-icon/2.6.38/index.js"
+  },
+  {
+    "name": "@max/leez-image",
+    "version": "2.6.38",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@max/leez-image/2.6.38/index.js"
+  },
+  {
+    "name": "@max/leez-line",
+    "version": "2.6.38",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@max/leez-line/2.6.38/index.js"
+  },
+  {
+    "name": "@max/leez-price",
+    "version": "2.6.38",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@max/leez-price/2.6.38/index.js"
+  },
+  {
+    "name": "@max/leez-simple-rich-html",
+    "version": "2.6.38",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@max/leez-simple-rich-html/2.6.38/index.js"
+  },
+  {
+    "name": "@max/leez-slide-modal",
+    "version": "2.6.38",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@max/leez-slide-modal/2.6.38/index.js"
+  },
+  {
+    "name": "@max/leez-style-util",
+    "version": "2.6.38",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@max/leez-style-util/2.6.38/index.js"
+  },
+  {
+    "name": "@max/leez-text",
+    "version": "2.6.38",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@max/leez-text/2.6.38/index.js"
+  },
+  {
+    "name": "@max/mbc-sensor",
+    "version": "0.0.11",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@max/mbc-sensor/0.0.11/index.js"
+  },
+  {
+    "name": "@max/meituan-uni-env",
+    "version": "1.1.3",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@max/meituan-uni-env/1.1.3/index.js"
+  },
+  {
+    "name": "@max/meituan-uni-getAB",
+    "version": "1.0.1",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@max/meituan-uni-getAB/1.0.1/index.js"
+  },
+  {
+    "name": "@max/meituan-uni-lx",
+    "version": "2.0.1",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@max/meituan-uni-lx/2.0.1/index.js"
+  },
+  {
+    "name": "@max/meituan-uni-screenInfo",
+    "version": "2.0.3",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@max/meituan-uni-screenInfo/2.0.3/index.js"
+  },
+  {
+    "name": "@max/meituan-uni-storage",
+    "version": "1.1.2",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/logic/@max/meituan-uni-storage/1.1.2/index.js"
+  },
+  {
+    "name": "@meishi/common-duo-lifecycle",
+    "version": "1.1.1-lifecycle-check.1",
+    "type": "logic",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/logic/@meishi/common-duo-lifecycle/1.1.1-lifecycle-check.1/index.js"
+  },
+  {
+    "name": "@meishi/common-duo-params",
+    "version": "0.1.0-beta.0",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@meishi/common-duo-params/0.1.0-beta.0/index.js"
+  },
+  {
+    "name": "@meishi/common-ele-line",
+    "version": "2.0.2",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@meishi/common-ele-line/2.0.2/index.js"
+  },
+  {
+    "name": "@meishi/common-event-nav",
+    "version": "2.1.5-hotel.0",
+    "type": "logic",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/logic/@meishi/common-event-nav/2.1.5-hotel.0/index.js"
+  },
+  {
+    "name": "@meishi/common-layout-top-bottom",
+    "version": "2.1.6",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@meishi/common-layout-top-bottom/2.1.6/index.js"
+  },
+  {
+    "name": "@meishi/duo-protocol",
+    "version": "2.0.45-beta-lifecycle-lock.4",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@meishi/duo-protocol/2.0.45-beta-lifecycle-lock.4/index.js"
+  },
+  {
+    "name": "@meishi/gc-layout-modules-container",
+    "version": "0.0.1",
+    "type": "component",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@meishi/gc-layout-modules-container/0.0.1/index.js"
+  },
+  {
+    "name": "@meishi/util-auto-reporter-instance",
+    "version": "1.1.9",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@meishi/util-auto-reporter-instance/1.1.9/index.js"
+  },
+  {
+    "name": "@meishi/util-auto-reporter-request",
+    "version": "1.1.0",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/logic/@meishi/util-auto-reporter-request/1.1.0/index.js"
+  },
+  {
+    "name": "@meishi/util-image",
+    "version": "1.0.2",
+    "type": "logic",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/logic/@meishi/util-image/1.0.2/index.js"
+  },
+  {
+    "name": "@meishi/util-keyboard",
+    "version": "0.1.1",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@meishi/util-keyboard/0.1.1/index.js"
+  },
+  {
+    "name": "@meishi/util-lx",
+    "version": "1.0.4",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@meishi/util-lx/1.0.4/index.js"
+  },
+  {
+    "name": "@meishi/util-modal-wrap",
+    "version": "0.0.1-beta.3",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@meishi/util-modal-wrap/0.0.1-beta.3/index.js"
+  },
+  {
+    "name": "@meishi/util-system-info",
+    "version": "1.1.8",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@meishi/util-system-info/1.1.8/index.js"
+  },
+  {
+    "name": "@mrn/hoteltravel-common",
+    "version": "1.235.0",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@mrn/hoteltravel-common/1.235.0/index.js"
+  },
+  {
+    "name": "@mrn/mrn-webview",
+    "version": "1.0.5",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@mrn/mrn-webview/1.0.5/index.js"
+  },
+  {
+    "name": "@mrn/overseahotel-go",
+    "version": "2.85.1-beta.2",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@mrn/overseahotel-go/2.85.1-beta.2/index.js"
+  },
+  {
+    "name": "@mrn/react-native-linear-gradient",
+    "version": "1.1.8",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@mrn/react-native-linear-gradient/1.1.8/index.js"
+  },
+  {
+    "name": "@mtfe/msi-dxsdk-public-api",
+    "version": "1.0.1",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@mtfe/msi-dxsdk-public-api/1.0.1/index.js"
+  },
+  {
+    "name": "@mtfe/msi-mrn",
+    "version": "1.81.0-beta.0",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@mtfe/msi-mrn/1.81.0-beta.0/index.js"
+  },
+  {
+    "name": "@nibfe/cross-base",
+    "version": "0.36.0",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@nibfe/cross-base/0.36.0/index.js"
+  },
+  {
+    "name": "@react-native-oh-tpl/react-native-webview",
+    "version": "13.10.2-0.2.23",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@react-native-oh-tpl/react-native-webview/13.10.2-0.2.23/index.js"
+  },
+  {
+    "name": "@yooz/common-date-picker-modal",
+    "version": "0.1.3",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@yooz/common-date-picker-modal/0.1.3/index.js"
+  },
+  {
+    "name": "@zhenguo/mrn-ironbox",
+    "version": "3.4.174",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/@zhenguo/mrn-ironbox/3.4.174/index.js"
+  },
+  {
+    "name": "dayjs",
+    "version": "1.11.13",
+    "type": "util",
+    "url": "https://s3plus-bj02.sankuai.com/yooz-assets/material/dayjs/1.11.13/index.js"
+  }
+]

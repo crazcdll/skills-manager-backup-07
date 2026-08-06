@@ -1,0 +1,403 @@
+{
+  "_description": "batchCreateGoods 钟点房参数 schema。字段注解 AI 和人类均可直接阅读。",
+  "_usage": "路径格式与模板 JSON 对齐。使用 --set 覆盖字段时，使用点分路径（如 goodsDetailList.0.goodsBaseInfo.typeLimitValue）",
+  "_diff_from_fullday": [
+    "goodsType 固定为 2",
+    "typeLimitValue 必填（可住时长，小时，1~23）",
+    "rpHourlyRoomUseModel 必填（接待时间，默认08:00-22:00）",
+    "rpBreakFastModel 固定为 null（钟点房不支持早餐）",
+    "rpSerialModel 固定为 null（钟点房不支持连住）",
+    "默认取消政策为免费取消（cancelItemType=1）",
+    "默认售价为 8000分（80元）",
+    "不支持 paid-cancel（收费取消）"
+  ],
+
+  "createFlag": {
+    "type": "bool",
+    "required": true,
+    "description": "固定为 true（创建商品）",
+    "default": true
+  },
+  "partnerId": {
+    "type": "long",
+    "required": true,
+    "description": "供应商ID（partnerId）",
+    "example": 4550589
+  },
+  "poiId": {
+    "type": "long",
+    "required": true,
+    "description": "门店ID（mtPoiId）",
+    "example": 1085927256096396
+  },
+
+  "goodsDetailList.0.goodsBaseInfo": {
+    "_section": "商品基本信息 GoodsBaseInfoModel",
+    "goodsName": {
+      "type": "string",
+      "required": true,
+      "description": "商品名称",
+      "example": "钟点房-4小时-免费取消"
+    },
+    "goodsType": {
+      "type": "int",
+      "required": true,
+      "description": "商品类型，钟点房固定为 2",
+      "enum": {
+        "1": "全日房",
+        "2": "钟点房（固定）"
+      },
+      "default": 2
+    },
+    "typeLimitValue": {
+      "type": "int",
+      "required": true,
+      "description": "钟点房可住时长（小时，1~23）。超出范围后端直接拦截",
+      "default": 4,
+      "range": "1~23",
+      "example": 4,
+      "common_values": [2, 3, 4, 6, 8, 12]
+    },
+    "paymentType": {
+      "type": "int",
+      "required": true,
+      "description": "付款方式。⚠️ 钟点房只支持预付（固定为 0），传其他值后端直接拦截",
+      "enum": {
+        "0": "预付（固定，钟点房唯一支持的付款方式）"
+      },
+      "default": 0,
+      "constraint": "钟点房 goodsType=2 时，paymentType 必须为 0（预付），传 1 或 2 后端返回错误"
+    },
+    "sellChannel": {
+      "type": "int",
+      "required": false,
+      "description": "售卖渠道",
+      "enum": {
+        "15": "全平台（美团+点评，默认）",
+        "9": "仅美团",
+        "10": "仅点评"
+      },
+      "default": 15
+    },
+    "channelNos": {
+      "type": "object",
+      "required": true,
+      "description": "销售渠道编号，隐性必填（不传后端报「参数错误」）。key 为渠道类型编号，value 为渠道号列表",
+      "default": {"8": ["001", "002"]},
+      "known_keys": {
+        "8": "分销渠道，001=美团，002=点评"
+      }
+    },
+    "priceChangeMode": {
+      "type": "int",
+      "required": true,
+      "description": "价格变更模式，隐性必填",
+      "default": 8
+    },
+    "contractNo": {
+      "type": "string",
+      "required": false,
+      "description": "合同编号，单渠道时建议填写",
+      "example": "ZSFW-A9-61760753"
+    }
+  },
+
+  "goodsDetailList.0.roomInfo": {
+    "_section": "房型信息 RoomInfoModel",
+    "roomId": {
+      "type": "int",
+      "required": true,
+      "description": "逻辑房型ID（room_id）",
+      "example": 77671480
+    },
+    "roomName": {
+      "type": "string",
+      "required": true,
+      "description": "逻辑房型名称，建议含「钟点」字样",
+      "example": "钟点房"
+    },
+    "capacity": {
+      "type": "int",
+      "required": true,
+      "description": "可住人数。固定传 0，后端从逻辑房型继承",
+      "default": 0
+    }
+  },
+
+  "goodsDetailList.0.rpInfo": {
+    "_section": "规则信息 RpInfoModel",
+
+    "rpBaseModel": {
+      "_section": "基本规则（必传）",
+      "isAutoRelay": {
+        "type": "int",
+        "description": "是否自动延期",
+        "enum": {"0": "自动延期30天（默认）", "1": "不自动延期"},
+        "default": 0
+      },
+      "autoRelayDays": {
+        "type": "int",
+        "description": "自动延期天数（isAutoRelay=0 时有效）",
+        "default": 30
+      },
+      "rpCustomName": {
+        "type": "string",
+        "description": "产品备注文字，会追加到产品名称后，用于区分同房型下多个产品（避免重名）",
+        "example": "4h钟点"
+      },
+      "customNameType": {
+        "type": "int",
+        "enum": {"0": "未自定义", "1": "自定义"},
+        "default": 1
+      },
+      "saleStrategyInfo.saleStrategy": {
+        "type": "array",
+        "description": "售卖策略，必传",
+        "enum": {
+          "0": "全日房",
+          "1": "套餐"
+        },
+        "default": [0, 1]
+      }
+    },
+
+    "rpCancelModel": {
+      "_section": "取消规则（必传）",
+      "_note": "钟点房默认免费取消（与全日房默认不可取消不同）；钟点房不支持 paid-cancel（收费取消）",
+      "normalRule.cancelItemType": {
+        "type": "int",
+        "required": true,
+        "description": "取消类型",
+        "enum": {
+          "0": "不可取消",
+          "1": "可取消（默认；需同时配置 moveUpCancelDays/moveUpCancelHour）"
+        },
+        "default": 1
+      },
+      "normalRule.moveUpCancelDays": {
+        "type": "int",
+        "description": "免费取消提前天数（cancelItemType=1 时必传；0=当天可取消）",
+        "default": 0
+      },
+      "normalRule.moveUpCancelHour": {
+        "type": "string",
+        "description": "免费取消提前时间，格式 HH:MM:SS（cancelItemType=1 时必传）",
+        "default": "23:59:00"
+      },
+      "weekendRule": {
+        "type": "object",
+        "description": "周末特殊取消规则（结构同 normalRule），不需要时传 null",
+        "example": {"cancelItemType": 1, "moveUpCancelDays": 0, "moveUpCancelHour": "18:00:00"}
+      }
+    },
+
+    "rpBreakFastModel": {
+      "_section": "早餐规则",
+      "_constraint": "钟点房固定为 null，不支持早餐规则（全日房必传）",
+      "_value": null
+    },
+
+    "rpHourlyRoomUseModel": {
+      "_section": "钟点房接待时间（钟点房必填，全日房传 null）",
+      "_constraint": "goodsType=2 时必填",
+      "normalRule.receiveTimeStart": {
+        "type": "string",
+        "required": true,
+        "description": "开始接待时间，格式 HH:MM（24小时制）",
+        "default": "08:00",
+        "note": "全天接待写 00:00"
+      },
+      "normalRule.receiveTimeEnd": {
+        "type": "string",
+        "required": true,
+        "description": "结束接待时间，格式 HH:MM",
+        "default": "22:00",
+        "note": "全天接待写 23:59（不能写 24:00）",
+        "constraint": "必须晚于 receiveTimeStart；建议窗口时长 >= typeLimitValue"
+      },
+      "common_presets": {
+        "全天接待": {"receiveTimeStart": "00:00", "receiveTimeEnd": "23:59"},
+        "标准（08-22，默认）": {"receiveTimeStart": "08:00", "receiveTimeEnd": "22:00"},
+        "早高峰（08-13）": {"receiveTimeStart": "08:00", "receiveTimeEnd": "13:00"},
+        "下午场（14-20）": {"receiveTimeStart": "14:00", "receiveTimeEnd": "20:00"}
+      }
+    },
+
+    "rpEarlyBookingModel": {
+      "_section": "预订规则（必传，不传报「参数错误」）",
+      "normalRule.latestBookingDays": {
+        "type": "int",
+        "description": "至少提前 N 天预订（-1=不限制）",
+        "default": -1,
+        "range": "-1 或 1~30"
+      },
+      "normalRule.earliestBookingDays": {
+        "type": "int",
+        "description": "至多提前 N 天预订（-1=不限制）",
+        "default": -1,
+        "range": "-1 或 1~30"
+      },
+      "normalRule.isDaybreakBooking": {
+        "type": "int",
+        "description": "是否支持0点后预订当天，固定传 1",
+        "default": 1
+      }
+    },
+
+    "rpGuaranteeModel": {
+      "_section": "担保规则（预付产品传 null；现付产品必填）",
+      "_constraint": "paymentType=1 时自动设置 isGuarantee=1；paymentType=2 时自动设置 isGuarantee=0 并需传 arrivalHour",
+      "normalRule.isGuarantee": {
+        "type": "int",
+        "enum": {"0": "非担保", "1": "担保（现付担保传1）"}
+      },
+      "normalRule.guaranteeType": {
+        "type": "int",
+        "enum": {"1": "首晚担保", "2": "整单担保（默认）"}
+      },
+      "normalRule.arrivalHour": {
+        "type": "string",
+        "description": "预计到店时间，格式 HH:MM:SS（paymentType=2 必填）",
+        "example": "14:00:00"
+      }
+    },
+
+    "rpSerialModel": {
+      "_section": "连住规则",
+      "_constraint": "钟点房固定为 null，不支持连住规则",
+      "_value": null
+    },
+
+    "rpDisplayModel": {
+      "_section": "专客专享规则（必传，全为 0 表示不限制）",
+      "normalRule.hotelMember": {
+        "type": "int",
+        "default": 0,
+        "enum": {"0": "全部可见", "1": "一阶会员可见", "2": "二阶会员可见"}
+      },
+      "normalRule.totalGmv": {
+        "type": "int",
+        "default": 0,
+        "enum": {"0": "全部", "1": "一档GMV", "2": "二档GMV"}
+      },
+      "normalRule.city": {
+        "type": "int",
+        "default": 0,
+        "enum": {"0": "全城市", "1": "下单在POI城市", "2": "下单不在POI城市"}
+      },
+      "normalRule.stuSpecial": {
+        "type": "int",
+        "default": 0,
+        "enum": {"0": "全部", "1": "仅学生"}
+      },
+      "normalRule.distanceRange": {
+        "type": "int",
+        "default": 0,
+        "enum": {"0": "全部", "1": "酒店3公里内"}
+      },
+      "normalRule.riskControl": {
+        "type": "int",
+        "default": 0,
+        "enum": {"0": "全部", "1": "黑名单不可见"}
+      },
+      "normalRule.employeeExclusive": {
+        "type": "int",
+        "default": 0,
+        "enum": {"0": "全部", "1": "仅美团员工"}
+      },
+      "normalRule.flagshipNewUser": {
+        "type": "int",
+        "default": 0,
+        "description": "旗舰新用户专享"
+      },
+      "normalRule.businessTravel": {
+        "type": "int",
+        "default": 0,
+        "description": "商旅专享"
+      }
+    },
+
+    "rpTimeLimitSaleModel": {
+      "_section": "限时售卖规则（不需要时传 null）",
+      "normalRule.enableBookingType": {
+        "type": "int",
+        "enum": {"0": "未设置日期全天售卖", "1": "未设置日期全天不售卖"}
+      },
+      "normalRule.timeLimitSaleModels": {
+        "type": "array",
+        "description": "限时售卖规则列表，每项：{date:{startDate,endDate}, normalRule:[{enableBookingTimeStart,enableBookingTimeEnd}], weekendRule}"
+      }
+    },
+
+    "rpServiceModel": {
+      "_section": "礼包规则（不需要时传 null）",
+      "normalRule.serviceModels": {
+        "type": "array",
+        "description": "礼包模板ID列表，每项：{serviceTmplId: 12345}"
+      }
+    }
+  },
+
+  "goodsDetailList.0.priceInfo": {
+    "_section": "价格信息 GoodsPriceUpdateModel",
+    "priceRecordWay": {
+      "type": "int",
+      "enum": {"1": "卖价（默认）", "2": "底价"},
+      "default": 1
+    },
+    "ratioConfig.newRatio": {
+      "type": "string",
+      "description": "佣金率，千分比字符串（1100 = 11%）",
+      "default": "1100"
+    },
+    "ratioConfig.ratioChange": {
+      "type": "bool",
+      "description": "是否变更佣金率，固定传 true",
+      "default": true
+    },
+    "ratioConfig.ratioType": {
+      "type": "int",
+      "default": 1
+    },
+    "unifiedDatePriceInfos.dates": {
+      "type": "array",
+      "required": true,
+      "description": "价格有效日期范围（不能为 null），默认今天到2年后",
+      "default": [{"startDate": "__TODAY__", "endDate": "__TWO_YEARS_LATER__"}]
+    },
+    "unifiedDatePriceInfos.weekPriceInfos.0.inWeek": {
+      "type": "array",
+      "description": "适用星期（1=周一 … 7=周日），默认全周",
+      "default": [1, 2, 3, 4, 5, 6, 7]
+    },
+    "unifiedDatePriceInfos.weekPriceInfos.0.priceInfo.salePrice": {
+      "type": "string",
+      "required": true,
+      "description": "售价，单位：分（整数字符串）",
+      "example": "8000",
+      "note": "8000 分 = 80 元（钟点房默认，低于全日房的200元）"
+    },
+    "unifiedDatePriceInfos.weekPriceInfos.0.priceInfo.subRatio": {
+      "type": "string",
+      "description": "子佣金率，与 ratioConfig.newRatio 保持一致",
+      "default": "1100"
+    }
+  },
+
+  "_constraints": {
+    "C0":  "goodsName 不能含'测试'字样（后端拦截）",
+    "C0a": "goodsName 最多 99 个字符（MAX_GOODS_NAME_LENGTH=99）",
+    "C0b": "goodsName 不能含 4 字节特殊字符（emoji 等，SPECIAL_CHAR=[^\\u0000-\\uFFFF]）",
+    "C1":  "salePrice 必须为正整数字符串（单位：分）",
+    "C2":  "typeLimitValue 必须在 1~23 之间（后端 MIN=1 / MAX=23，超出范围直接拦截）",
+    "C2a": "⚠️ 钟点房只支持预付（paymentType 必须为 0），传 1 或 2 后端直接拦截",
+    "C3":  "cancelItemType=1（可取消）时必须传 moveUpCancelDays（可为0）",
+    "C6":  "receiveTimeEnd 必须晚于 receiveTimeStart（接待时间不能倒置）",
+    "C6a": "typeLimitValue（可住时长）必须 <= 接待窗口时长（receiveTimeEnd - receiveTimeStart）",
+    "C7":  "rpBreakFastModel 禁止传非 null 值（钟点房不支持早餐，传了可能报错）",
+    "C8":  "rpEarlyBookingModel：latestBookingDays/earliestBookingDays >= -1；同时>0时 latest<=earliest",
+    "C9":  "rpSerialModel 禁止传非 null 值（钟点房不支持连住）",
+    "C10": "paid-cancel（收费取消）在钟点房中不支持"
+  }
+}
+

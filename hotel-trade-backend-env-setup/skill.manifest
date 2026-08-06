@@ -1,0 +1,6 @@
+skill-manifest-version: 1
+skill-id: bc449bb0469b3793f801b68f93c631897e4e3aa2f83c2ef2ddc21f08a4fd8005
+
+files:
+  100e5bdb0046cc94bca908a0f833e58f403dc1901ba457dab3a78ba6be382a89  SKILL.md
+  8b24b26d24182634d3c8e862e9c153e063d74e77880dae1463cdc93ac5203ca6  scripts/apic_local_start.sh

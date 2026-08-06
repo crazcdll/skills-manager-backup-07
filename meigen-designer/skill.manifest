@@ -1,0 +1,16 @@
+skill-manifest-version: 1
+skill-id: 97e17b2f1cc43553d18ac91a388daf58f7935b4b9f421ef64c621cc28ac58139
+
+files:
+  b6fdbf5da97c8ce009cef8f6fde9afc9dbe7156b3a23c91994fcbd0d7e1008be  SKILL.md
+  27e07e2de1687cb55093abf4bd582e62c9c0d52acb4d98b8f6fc3bfcb71dd4c4  evals/evals.json
+  4855b8d22430409f50219c8330ecb6d47866a07c07253b8ad7f81606d3e6b2c9  references/block-types.md
+  5c61067ed0a370e5fa6fc8dec525206b605e5cbecce2a508bcc7b5472cd6cea4  references/config-options.md
+  032468efeef200871438963a3e6f2220e4ffe284dbfd284e812e369019436175  scripts/__pycache__/common.cpython-312.pyc
+  594950daeb0a465136bf2c58595acd6d4eef9ee12b4a0a9d861dfd4dbd30fa27  scripts/__pycache__/generate.cpython-312.pyc
+  e5f92aba102a97e81dc48f9aea71c14cd1b80c489c15cf061c0b64a11ba2a0e0  scripts/__pycache__/poll.cpython-312.pyc
+  5401053eb20c52b6152a656a8a4824229a0055645eaf075e1a2ce9179185fdbf  scripts/__pycache__/upload-to-s3.cpython-312.pyc
+  dbf095ca2fe611def5b5023c64594a9fcd5724c7eccd2b7bc23fc734558ae541  scripts/common.py
+  2f0293efa079c7766fd28badb8599b938b6dd0d3eb311b3f634d730617fc64e4  scripts/generate.py
+  24a454c9ef6a497a76f064076e523c6ee3db40a3cf6b5b92fb1f1d864d22f329  scripts/poll.py
+  87fbcf110fe40ed8473a627a363f260d00a825b751f15864d196531c47a1eabd  scripts/upload-to-s3.py

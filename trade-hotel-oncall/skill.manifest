@@ -1,0 +1,6 @@
+skill-manifest-version: 1
+skill-id: 79ac18bf5d7049f1b03a9ad17db5ec4f6db04f552f5ae19aea4d5471793dc3f0
+
+files:
+  1fd2bd83dd549ab1fca4e978194c62e5b907b258351ff210a77817a4c48203d1  SKILL.md
+  06c331429497e36414c9b1aabf57f92611b4713af1855de343863e4c623697e7  duty-agent-init.sh

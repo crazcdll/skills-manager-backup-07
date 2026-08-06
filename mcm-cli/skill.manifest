@@ -1,0 +1,10 @@
+skill-manifest-version: 1
+skill-id: 2eee050100d6bf4c79a90d27b38501d201b294af91188c9884cd3284052e7a9d
+
+files:
+  3c49c9127ee0c3a6fc50023ab97a75f9d9a612df696131ca2e5bcc4cf8ce7902  SKILL.md
+  0112ba164007976bf09c6988960f84a5f2df21ae3410c91b1fa21a2c1aa9315e  references/command-reference.md
+  831cbfd5bcbd5de9e8d7aa6c5bb963c97c933dabf78a1b0ac2d5ce89533deefd  references/commands.md
+  3997ba43c446b88e3c4f9d96da2443c193894224f20882ad7773ffc0f6cd74fd  references/plan-create-api-schema.md
+  6b8d28b0ad07104b30a748bb77ea6d8b74aeb553f51e2bfed1df522850c6856d  scripts/paas-trace.sh
+  33c0531f57a5ee0e82e5c00fb6d3cdb7b36450d9ffb28c2cdfbb20b4de05ca6a  tests/test_cases.yaml

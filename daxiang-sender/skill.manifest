@@ -1,0 +1,6 @@
+skill-manifest-version: 1
+skill-id: 3a5bc03c7d41fb58626804aa93d0b3feb8f1a391a6164f536c0c0fc80ab23019
+
+files:
+  42d956940167b82d8108b450b06ac3d50002a27d8d4565967f3ea9245654bf4c  SKILL.md
+  459a70dcbd7cc73a5913db891cf47038f63efc72bfe4ccd0f1cea70536071478  scripts/send.py

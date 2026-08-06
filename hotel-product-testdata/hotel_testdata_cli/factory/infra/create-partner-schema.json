@@ -1,0 +1,251 @@
+{
+  "_description": "工具49 createHotelCustomer 供应商参数 schema。基于 DataUnity 工具49表单配置维护（2026-05-27）。",
+  "_usage": "使用 create-partner.py 时，--show-schema 可查看 CLI 参数说明；本文件提供每个字段的完整枚举值与生效条件。",
+  "_source": {
+    "tool_id": 49,
+    "tool_name": "createHotelCustomer",
+    "protocol": "HTTP POST DataUnity /ability-map/agent/tool/execute",
+    "async": true,
+    "async_note": "接口异步，返回 partnerId 后供应商仍需约1分钟才就绪，立即创建房型会报「TDC创建房型异常」"
+  },
+
+  "misId": {
+    "type": "String",
+    "required": false,
+    "description": "操作人MIS工号，用于接收消息通知。由脚本自动从环境变量 MIS_ID 或 git config user.email 读取，无需手动传入",
+    "cli_param": "（自动推断，无需手动传）"
+  },
+
+  "partnerType": {
+    "type": "Integer",
+    "required": true,
+    "description": "客户类型（供应商类型）",
+    "default": 2,
+    "enum": {
+      "2": "可上单-境内非女娲纸质供应商（境内自采预付）",
+      "3": "可上单-境外非女娲纸质供应商",
+      "4": "不可上单-只创建供应商-境内女娲纸质供应商",
+      "5": "不可上单-只创建供应商-境内女娲电子供应商",
+      "6": "不可上单-只创建供应商-境外非女娲纸质供应商",
+      "7": "不可上单-只创建供应商-境内非女娲纸质供应商",
+      "9": "可上单-境内女娲普通供应商（境内代理预付，总店结算）"
+    },
+    "cli_param": "--partner-type",
+    "notes": [
+      "境外场景建议使用 3，同时加 --overseas Flag",
+      "4/5/6/7 仅创建供应商实体，不能用于上单（无法绑定合同创建商品）",
+      "9 = 女娲普通供应商，适合需要女娲流程的境内场景"
+    ]
+  },
+
+  "partnerName": {
+    "type": "String",
+    "required": true,
+    "description": "客户名称（供应商名称）",
+    "default": "<mis>可上单客户",
+    "cli_param": "--partner-name"
+  },
+
+  "type": {
+    "type": "Integer",
+    "required": true,
+    "description": "实体类型（商家主体类型）",
+    "default": 0,
+    "enum": {
+      "0": "酒店集团",
+      "1": "第三方渠道",
+      "2": "单体酒店",
+      "3": "多店老板"
+    },
+    "cli_param": "--entity-type",
+    "notes": [
+      "通兑超团必须使用 2（单体酒店），且绑定门店数 >=2"
+    ]
+  },
+
+  "cooperationType": {
+    "type": "Integer",
+    "required": true,
+    "description": "合作类型",
+    "default": 2,
+    "enum": {
+      "1": "直连",
+      "2": "团购+预订合同",
+      "4": "现付",
+      "6": "预付包销合同"
+    },
+    "cli_param": "--cooperation-type",
+    "notes": [
+      "直连（1）场景下，境外供应商需同时配置 overSeaPartnerOpenProtocol（对接协议）",
+      "默认值 2（团购+预订合同）就是通常语义上的“预付”，用户未明确说“预付包销”时不要臆测成 6（预付包销合同）"
+    ]
+  },
+
+  "prepayPriceChangeMode": {
+    "type": "Integer",
+    "required": true,
+    "description": "价格模式-境内（境外供应商不支持此字段）",
+    "default": 8,
+    "enum": {
+      "8": "卖价"
+    },
+    "cli_param": "--prepay-price-change-mode",
+    "notes": [
+      "当前工具49仅支持卖价模式（8），如需切换底价，使用 switch-price-mode.py 工具906/928",
+      "境外供应商（partnerType=3）不支持此字段"
+    ]
+  },
+
+  "currency": {
+    "type": "String",
+    "required": false,
+    "description": "结算币种，仅境外供应商需要填写",
+    "default": "CNY",
+    "enum": {
+      "CNY": "人民币",
+      "JPY": "日圆",
+      "USD": "美元",
+      "HKD": "港币",
+      "KWD": "科威特第纳尔",
+      "VND": "越南盾"
+    },
+    "cli_param": "--currency",
+    "linkage": "$.partnerType === 3"
+  },
+
+  "mtaVpoiIds": {
+    "type": "String",
+    "required": true,
+    "description": "客户需要绑定的门店ID，多门店用英文逗号分割",
+    "example": "607897317,1055987037198468",
+    "cli_param": "--poi-id",
+    "notes": [
+      "门店需先完成「私海认领」（claim-poi.py，empId=2196240），否则绑定失败"
+    ]
+  },
+
+  "settleDateType": {
+    "type": "Integer",
+    "required": true,
+    "description": "结算周期（结算域-结算周期）",
+    "default": 18,
+    "enum": {
+      "8": "每周按实际新增消费",
+      "12": "每4周按实际新增消费",
+      "18": "每2周按实际新增消费"
+    },
+    "cli_param": "--settle-date-type"
+  },
+
+  "accessType": {
+    "type": "Integer",
+    "required": false,
+    "description": "接入类型",
+    "default": 0,
+    "enum": {
+      "0": "非手工直连",
+      "1": "手工直连"
+    },
+    "cli_param": "--access-type"
+  },
+
+  "invoiceMode": {
+    "type": "String",
+    "required": false,
+    "description": "发票模式（客户需要的发票模式）",
+    "default": "0",
+    "enum": {
+      "0": "北京酷讯",
+      "1": "商家给用户开发票",
+      "2": "美团给用户开发票"
+    },
+    "cli_param": "--invoice-mode",
+    "linkage": "!$.isOverseas && ($.partnerType === 9 || $.partnerType === 7 || $.partnerType === 4)",
+    "notes": [
+      "仅境内 partnerType=9（境内女娲普通）、7（不可上单境内非女娲）、4（不可上单境内女娲纸质）时生效",
+      "境外供应商（is_overseas=True）不传此字段"
+    ]
+  },
+
+  "isOpenMeituanPay": {
+    "type": "Integer",
+    "required": false,
+    "description": "同步创建美开（行业合作-美开能力）",
+    "default": 0,
+    "enum": {
+      "0": "暂不创建",
+      "1": "一键创建"
+    },
+    "cli_param": "--is-open-meituan-pay",
+    "linkage": "$.partnerType === 3",
+    "notes": [
+      "仅 partnerType=3（境外）时生效"
+    ]
+  },
+
+  "isOpenVcc": {
+    "type": "Integer",
+    "required": false,
+    "description": "是否进行VCC开卡（VCC开卡产品创建）",
+    "default": 0,
+    "enum": {
+      "0": "否",
+      "1": "是"
+    },
+    "cli_param": "--is-open-vcc",
+    "linkage": "$.partnerType === 3",
+    "notes": [
+      "仅 partnerType=3（境外）时生效",
+      "isOpenVcc=1 时需同时传 bizcode 参数"
+    ]
+  },
+
+  "bizcode": {
+    "type": "String",
+    "required": false,
+    "description": "VCC开卡参数",
+    "default": "nib.hotel.prepay.zl.ld",
+    "cli_param": "--bizcode",
+    "linkage": "$.partnerType === 3 && $.isOpenVcc === 1",
+    "notes": [
+      "仅 isOpenVcc=1 且 partnerType=3（境外）时传入",
+      "isOpenVcc=0 时不传此字段（即使是境外供应商）"
+    ]
+  },
+
+  "overSeaPartnerOpenProtocol": {
+    "type": "String",
+    "required": false,
+    "description": "对接协议（行业合作-对接协议）",
+    "default": "1",
+    "enum": {
+      "1": "直连-老开放平台",
+      "2": "直连-新开放平台",
+      "3": "直连-VIP"
+    },
+    "cli_param": "--overseas-protocol",
+    "linkage": "$.cooperationType === 1 && $.partnerType === 3",
+    "notes": [
+      "仅 cooperationType=1（直连）且 partnerType=3（境外）时传入",
+      "境外非直连（cooperationType≠1）：不传此字段",
+      "境内供应商：必须显式传 null 清空工具49模板默认值，否则导致接口返回「系统错误」(code:10001)"
+    ]
+  },
+
+  "_output": {
+    "description": "工具49执行成功后的返回字段",
+    "fields": {
+      "partnerId": "供应商ID，后续创建房型/商品时必填",
+      "platformContractId": "平台合同ID（数字），查询 contractNo 字符串时需要（见 query-contract.py）"
+    }
+  },
+
+  "_related_scripts": {
+    "create-partner.py": "CLI 入口，支持所有参数通过命令行传入",
+    "query-contract.py": "根据 platformContractId 查询字符串格式的 contractNo（全日房上单必填）",
+    "create-room.py": "创建房型（需等供应商就绪约1分钟后执行）",
+    "switch-price-mode.py": "切换价格模式（底价↔卖价，工具906境内/工具928境外）",
+    "bind-partner-poi.py": "将已有供应商绑定到新门店（工具777）"
+  }
+}
+

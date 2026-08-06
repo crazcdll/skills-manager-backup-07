@@ -1,0 +1,149 @@
+{
+  "baseUrl": "https://apihotel.meituan.com/hotelorder/trade/precreate",
+  "pageUrl": {
+    "mrn": "rn_hotel_hotelchannel-orderfill-duo&main",
+    "h5": "hotelchannel-orderfill-duo"
+  },
+  "pageQuery": {
+    "goods_id,goodsId": {
+      "required": true,
+      "pnMatch": true
+    },
+    "checkinDate,checkindate,checkin,checkInDate": {
+      "required": false,
+      "pnMatch": true
+    },
+    "checkoutDate,checkoutdate,checkout,checkOutDate": {
+      "required": false,
+      "pnMatch": true
+    },
+    "adult_num,adultNum,adultnum,adultCount,roomDefaultAdult": {
+      "required": false,
+      "pnMatch": true
+    },
+    "child_age,childrenAge": {
+      "required": false,
+      "pnMatch": true
+    },
+    "room_num": {
+      "required": false,
+      "pnMatch": true
+    }
+  },
+  "commonParams": {
+    "usePn": true,
+    "systemInfo": {},
+    "location": {
+      "type": "GCJ02",
+      "sceneToken": "dd-f6b6963e1a98f385",
+      "useSync": true,
+      "useQuery": false,
+      "useAll": true
+    },
+    "userInfo": {
+      "forceLogin": true,
+      "useQuery": false,
+      "useSync": true
+    },
+    "city": {
+      "useSync": false,
+      "useQuery": false,
+      "useAll": true
+    },
+    "fingerprint": {},
+    "fontConfig": {
+      "fontFamily": [
+        "MTNewDigitalDisplay"
+      ]
+    },
+    "regionId": {
+      "enable": true
+    },
+    "h5guard": {
+      "enabled": true,
+      "geo": false
+    },
+    "modulesLoadConfig": {
+      "lazyModules": {
+        "723": {
+          "enabled": true
+        },
+        "756": {
+          "enabled": true
+        },
+        "792": {
+          "enabled": true
+        },
+        "803": {
+          "enabled": true
+        },
+        "807": {
+          "enabled": true
+        },
+        "811": {
+          "enabled": true
+        },
+        "831": {
+          "enabled": true
+        },
+        "840": {
+          "enabled": true
+        },
+        "857": {
+          "enabled": true
+        },
+        "900": {
+          "enabled": true
+        },
+        "918": {
+          "enabled": true
+        },
+        "931": {
+          "enabled": true
+        },
+        "932": {
+          "enabled": true
+        },
+        "968": {
+          "enabled": true
+        },
+        "1021": {
+          "enabled": true
+        },
+        "1027": {
+          "enabled": true
+        }
+      },
+      "useRAMBundle": true
+    },
+    "storage": {
+      "distributionUnpl": {
+        "storageKey": "unpl"
+      },
+      "selectedLinkedTask": {
+        "storageKey": "_continuousOrderTaskCheckStatus_"
+      }
+    },
+    "elinkInfo": {
+      "elinkDocId": ""
+    },
+    "leez": {
+      "remEnabled": true
+    },
+    "customHttpConfig": {
+      "items": [
+        {
+          "key": "bizType",
+          "type": "params",
+          "valueExpression": "COMMON_PARAMS.isSubmit ? '-1' : (PAGE_QUERY.biz_type || (PAGE_QUERY.oh_room_price_total ? '2' : '1'))"
+        },
+        {
+          "key": "stype",
+          "type": "params",
+          "valueExpression": "COMMON_PARAMS.isSubmit ? (PREV_DATA.stype || '') : '-1'"
+        }
+      ],
+      "mrnChannel": "hotel"
+    }
+  }
+}

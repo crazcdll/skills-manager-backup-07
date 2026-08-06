@@ -1,0 +1,5 @@
+.DS_Store
+bin/km-linux-amd64
+bin/km-windows-x64.exe
+rs/target/
+target/

@@ -1,0 +1,94 @@
+{
+  "content": [
+    {
+      "attrs": {
+        "nodeId": "33333333333333333333333333333333"
+      },
+      "content": [
+        {
+          "text": "Mock标题",
+          "type": "text"
+        }
+      ],
+      "type": "title"
+    },
+    {
+      "attrs": {
+        "align": "",
+        "dataDiffId": null,
+        "indent": 0,
+        "nodeId": "44444444444444444444444444444444"
+      },
+      "content": [
+        {
+          "text": "Mock正文",
+          "type": "text"
+        }
+      ],
+      "type": "paragraph"
+    },
+    {
+      "attrs": {
+        "dataDiffId": null,
+        "hiddenTitle": null,
+        "nodeId": "55555555555555555555555555555555",
+        "type": "info"
+      },
+      "content": [
+        {
+          "attrs": {
+            "align": null,
+            "nodeId": null
+          },
+          "content": [
+            {
+              "text": "提示标题",
+              "type": "text"
+            }
+          ],
+          "type": "note_title"
+        },
+        {
+          "attrs": {
+            "nodeId": null
+          },
+          "content": [
+            {
+              "attrs": {
+                "align": "",
+                "dataDiffId": null,
+                "indent": 0,
+                "nodeId": null
+              },
+              "content": [
+                {
+                  "text": "内容A",
+                  "type": "text"
+                }
+              ],
+              "type": "paragraph"
+            },
+            {
+              "attrs": {
+                "align": "",
+                "dataDiffId": null,
+                "indent": 0,
+                "nodeId": null
+              },
+              "content": [
+                {
+                  "text": "内容B",
+                  "type": "text"
+                }
+              ],
+              "type": "paragraph"
+            }
+          ],
+          "type": "note_content"
+        }
+      ],
+      "type": "note"
+    }
+  ],
+  "type": "doc"
+}

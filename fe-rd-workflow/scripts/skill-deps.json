@@ -1,0 +1,155 @@
+[{
+  "name": "memory-skill",
+  "required": true,
+  "min_version": "1.0.0",
+  "purpose": "状态持久化、用户偏好存储、执行进度恢复、中断恢复",
+  "phase": "全流程",
+  "alternatives": []
+}, {
+  "name": "fe-rd-workflow",
+  "required": true,
+  "min_version": "1.0.0",
+  "purpose": "",
+  "phase": "duo 页面开发全流程",
+  "alternatives": []
+}, {
+  "name": "citadel",
+  "required": true,
+  "min_version": "",
+  "purpose": "学城文档阅读、创建、查询、管理",
+  "phase": "全流程",
+  "alternatives": ["km-doc-tools"]
+}, {
+  "name": "design-spec",
+  "required": true,
+  "min_version": "1.0.0",
+  "purpose": "前端需求分析技术方案文档生成，含来源标识",
+  "phase": "阶段三",
+  "alternatives": []
+}, {
+  "name": "trade-fe-knowledge",
+  "required": true,
+  "min_version": "1.0.0",
+  "purpose": "业务知识库",
+  "phase": "",
+  "alternatives": []
+}, {
+  "name": "mt-graphify-lite",
+  "required": true,
+  "min_version": "1.0.0",
+  "purpose": "前端代码知识图谱（轻量版），design-spec 前置依赖：ensure 一键就绪 + 搜索/遍历/路径/详情/统计查询",
+  "phase": "Stage 3（需求分析与技术设计）",
+  "alternatives": []
+}, {
+  "name": "max-material-dev",
+  "required": true,
+  "min_version": "1.0.0",
+  "purpose": "源码物料新增/修改/发布（阶段 2-2 物料开发，由 frontend-engineer-agent 调用）",
+  "phase": "阶段2-2",
+  "alternatives": []
+}, {
+  "name": "duo-protocol",
+  "required": true,
+  "min_version": "1.0.0",
+  "purpose": "前后端交互协议",
+  "phase": "全流程",
+  "alternatives": []
+}, {
+  "name": "draw-io-km",
+  "required": true,
+  "min_version": "1.0.0",
+  "purpose": "绘制架构图/流程图",
+  "phase": "技术方案",
+  "alternatives": ["kmdrawio", "drawio-generator"]
+}, {
+  "name": "duo-fedo",
+  "required": true,
+  "min_version": "1.0.0",
+  "purpose": "duo 迭代管理、开发任务管理",
+  "phase": "全流程",
+  "alternatives": []
+}, {
+  "name": "ee-fedo",
+  "required": true,
+  "min_version": "1.0.0",
+  "purpose": "FEDO CLI：SSO 登录、研发组/项目/模板查询、节点操作、工作流触发、Bundle/MRN 版本查询、bugfix 子流水线",
+  "phase": "全流程",
+  "alternatives": []
+}, {
+  "name": "ee-code",
+  "required": true,
+  "min_version": "2.1.0",
+  "purpose": "Draft PR 创建、CR 自动化报告",
+  "phase": "代码开发",
+  "alternatives": ["code-cli"]
+}, {
+  "name": "max-leez",
+  "required": true,
+  "min_version": "1.0.0",
+  "purpose": "Max 组件库",
+  "phase": "代码开发",
+  "alternatives": []
+}, {
+  "name": "fe-ai-review",
+  "required": true,
+  "min_version": "1.0.0",
+  "purpose": "前端代码审查：基于本地分支差异产出结构化 CR 报告（P0/P1/P2-P3 + 审查结论）",
+  "phase": "代码开发（push 后、创建 PR 前）",
+  "alternatives": []
+}, {
+  "name": "catpaw-daxiang",
+  "required": true,
+  "min_version": "1.0.0",
+  "purpose": "大象消息通知",
+  "phase": "任务终止/阶段完成",
+  "alternatives": []
+}, {
+  "name": "kmedit",
+  "required": true,
+  "min_version": "1.0.0",
+  "purpose": "支持局部编辑(改写、纠错、续写等)，插入drawio、mermaid、plantuml图表。",
+  "phase": "阶段二",
+  "alternatives": []
+}, {
+  "name": "km-doc-tools",
+  "required": true,
+  "min_version": "1.0.0",
+  "purpose": "学城文档阅读、创建、查询、管理",
+  "phase": "全流程",
+  "alternatives": []
+}, {
+  "name": "mermaid-tools",
+  "required": true,
+  "min_version": "1.0.0",
+  "purpose": "Mermaid 图表绘制工具",
+  "phase": "全流程",
+  "alternatives": []
+},{
+  "name": "ingee-flex",
+  "required": true,
+  "min_version": "1.0.0",
+  "purpose": "Ingee Flex 组件库",
+  "phase": "代码开发",
+  "alternatives": []
+},{
+  "name": "material-test",
+  "required": true,
+  "min_version": "1.0.0",
+  "purpose": "物料测试",
+  "phase": "代码开发",
+  "alternatives": []
+},{
+  "name": "gui-agent-cloud",
+  "required": true,
+  "min_version": "1.0.0",
+  "purpose": "GUI Agent Cloud",
+  "phase": "代码开发",
+  "alternatives": []
+},{
+  "name": "ee-conan",
+  "required": true,
+  "min_version": "1.0.0",
+  "purpose": "EE Conan",
+  "phase": "代码开发",
+  "alternatives": []
+}]

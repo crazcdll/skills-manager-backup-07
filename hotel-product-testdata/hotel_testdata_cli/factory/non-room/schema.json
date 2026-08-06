@@ -1,0 +1,216 @@
+{
+  "_comment": "非房商品（xGoods）参数说明 - MeResourceFacade#submitXgoods（同步 RPC）",
+  "_service": "com.sankuai.hotel.biz.platform",
+  "_interface": "com.meituan.hotel.biz.platform.goods.facade.standard.MeResourceFacade",
+  "_method": "submitXgoods",
+  "_sync": true,
+  "_sync_note": "同步接口，直接返回 xGoodsId，无需等待大象推送",
+
+  "cli_params": {
+    "--partner-id": {
+      "required": true,
+      "desc": "供应商ID（partnerId）",
+      "example": "4554162"
+    },
+    "--poi-id": {
+      "required": true,
+      "desc": "门店ID（poiId，单门店）",
+      "example": "1090252288211865"
+    },
+    "--type": {
+      "required": false,
+      "default": "catering",
+      "enum": {
+        "catering": "餐饮（priType=22, secType=158004）",
+        "scenic":   "景点/门票（priType=21, secType=158009）",
+        "tour":     "玩乐/一日游（priType=23, secType=158010）"
+      },
+      "desc": "商品类型模板，决定 priType/secType/bindPoiInfoModel 等字段"
+    },
+    "--product-name": {
+      "required": false,
+      "desc": "商品名称，⚠️ 不能超过 20 字符（接口硬限制，超长自动截断）",
+      "default": "<mis前11位>非房_<时间戳后5位>",
+      "example": "早餐券"
+    },
+    "--swimlane": {
+      "required": false,
+      "default": "",
+      "desc": "泳道名称，空字符串=主干",
+      "example": "feature-xxx"
+    },
+    "--dry-run": {
+      "required": false,
+      "desc": "仅打印参数，不执行 RPC"
+    }
+  },
+
+  "templates": {
+    "catering": {
+      "_desc": "餐饮类非房（美食/早餐/下午茶等）",
+      "basicInfoModel": {
+        "priType": 22,
+        "secType": 158004,
+        "crossVpoi": false,
+        "overseaPartner": false,
+        "showToolTip": true,
+        "extAttrs": {},
+        "images": [
+          {
+            "type": 102,
+            "imageModels": [
+              {
+                "statusCode": null,
+                "verifyDesc": null,
+                "subVerifyDesc": null,
+                "hitKey": null,
+                "machineAudit": null,
+                "type": null,
+                "imageId": 1346380699914282,
+                "rank": 1,
+                "url": "http://p0.inf.test.sankuai.com/testhubble/b44e5f8e32047452045e051bfd08553537344.webp",
+                "imageSize": "1200x800",
+                "onlineStatus": null
+              }
+            ]
+          }
+        ]
+      },
+      "bindPoiInfoModel": {},
+      "priceModel": { "priceProofType": 0, "priceProofUrls": [] },
+      "itemInfoModel": { "itemContents": [], "priceProofUrls": [], "extAttrs": {} },
+      "ruleModel": {
+        "showType": 0,
+        "useRuleModel": {
+          "quantityRule": 3,
+          "businessHours": [{ "startTime": "9:00", "endTime": "17:00", "effectWeek": [1,2,3,4,5,6,7] }],
+          "suitableCount": { "countType": 1, "adultMax": 2, "adultMin": 1, "child": 0, "older": 0 },
+          "contactsInfo": { "contactsInfoTypes": [1, 2] },
+          "touristsInfo": { "featureType": 1, "touristsInfoTypes": [] },
+          "ageLimit": { "ageLimitType": 0 },
+          "useWay": 1,
+          "certificate": { "type": 1, "verificationPlace": 1, "certificateDesc": "" },
+          "extAttrs": { "needVerifyIdCard": "0", "ticketInfoList": "", "useWayDesc": "", "useWayEnDesc": "" }
+        },
+        "bookingRuleModel": { "bookingType": 1 }
+      }
+    },
+
+    "scenic": {
+      "_desc": "景点/门票类非房",
+      "basicInfoModel": {
+        "priType": 21,
+        "secType": 158009,
+        "crossVpoi": false,
+        "overseaPartner": false,
+        "showToolTip": true,
+        "extAttrs": {},
+        "images": [
+          {
+            "type": 102,
+            "imageModels": [
+              {
+                "statusCode": null,
+                "verifyDesc": null,
+                "subVerifyDesc": null,
+                "hitKey": null,
+                "machineAudit": null,
+                "type": null,
+                "imageId": 1346380699914282,
+                "rank": 1,
+                "url": "http://p0.inf.test.sankuai.com/testhubble/b44e5f8e32047452045e051bfd08553537344.webp",
+                "imageSize": "1200x800",
+                "onlineStatus": null
+              }
+            ]
+          }
+        ]
+      },
+      "bindPoiInfoModel": {
+        "bindPoiAddress": "望京北路8号",
+        "bindPoiDistance": 13369,
+        "partnerPhoneNumber": "13311233321",
+        "cityId": 110100,
+        "cityName": "北京市",
+        "bindPoiId": "606952000",
+        "bindPoiName": "个身教导"
+      },
+      "priceModel": { "priceProofType": 0, "priceProofUrls": [] },
+      "itemInfoModel": { "itemContents": [], "priceProofUrls": [], "extAttrs": {} },
+      "ruleModel": {
+        "showType": 0,
+        "useRuleModel": {
+          "quantityRule": 3,
+          "businessHours": [{ "startTime": "9:00", "endTime": "17:00", "effectWeek": [1,2,3,4,5,6,7] }],
+          "suitableCount": { "countType": 1, "adultMax": 2, "adultMin": 1, "child": 0, "older": 0 },
+          "contactsInfo": { "contactsInfoTypes": [1, 2] },
+          "touristsInfo": { "featureType": 1, "touristsInfoTypes": [] },
+          "ageLimit": { "ageLimitType": 0 },
+          "useWay": 1,
+          "certificate": { "type": 1, "verificationPlace": 1, "certificateDesc": "" },
+          "extAttrs": { "needVerifyIdCard": "0", "ticketInfoList": "[{\"ticketNum\":1}]", "useWayDesc": "", "useWayEnDesc": "" }
+        },
+        "bookingRuleModel": { "bookingType": 1 }
+      }
+    },
+
+    "tour": {
+      "_desc": "玩乐/一日游类非房",
+      "basicInfoModel": {
+        "priType": 23,
+        "secType": 158010,
+        "crossVpoi": false,
+        "overseaPartner": false,
+        "showToolTip": true,
+        "extAttrs": {},
+        "images": [
+          {
+            "type": 102,
+            "imageModels": [
+              {
+                "statusCode": null,
+                "verifyDesc": null,
+                "subVerifyDesc": null,
+                "hitKey": null,
+                "machineAudit": null,
+                "type": null,
+                "imageId": 1346380699914282,
+                "rank": 1,
+                "url": "http://p0.inf.test.sankuai.com/testhubble/b44e5f8e32047452045e051bfd08553537344.webp",
+                "imageSize": "1200x800",
+                "onlineStatus": null
+              }
+            ]
+          }
+        ]
+      },
+      "bindPoiInfoModel": {
+        "bindPoiAddress": "金盏嘉园",
+        "bindPoiDistance": 17043,
+        "partnerPhoneNumber": "",
+        "cityId": 110100,
+        "cityName": "北京市",
+        "bindPoiId": "607143336",
+        "bindPoiName": "测门店公海2"
+      },
+      "priceModel": { "priceProofType": 0, "priceProofUrls": [] },
+      "itemInfoModel": { "itemContents": [], "priceProofUrls": [], "extAttrs": {} },
+      "ruleModel": {
+        "showType": 0,
+        "useRuleModel": {
+          "quantityRule": 3,
+          "businessHours": [{ "startTime": "9:00", "endTime": "17:00", "effectWeek": [1,2,3,4,5,6,7] }],
+          "suitableCount": { "countType": 1, "adultMax": 2, "adultMin": 1, "child": 0, "older": 0 },
+          "contactsInfo": { "contactsInfoTypes": [1, 2] },
+          "touristsInfo": { "featureType": 1, "touristsInfoTypes": [] },
+          "ageLimit": { "ageLimitType": 0 },
+          "useWay": 1,
+          "certificate": { "type": 1, "verificationPlace": 1, "certificateDesc": "" },
+          "extAttrs": { "needVerifyIdCard": "0", "ticketInfoList": "", "useWayDesc": "", "useWayEnDesc": "" }
+        },
+        "bookingRuleModel": { "bookingType": 1 }
+      }
+    }
+  }
+}
+

@@ -1,0 +1,508 @@
+{
+  "$schema": "https://catpaw.sankuai.com/schemas/skill-evals.v1.json",
+  "skill": "trade-fe-knowledge-editor",
+  "version": "1.2.0",
+  "description": "触发识别 + 模式路由 + 路由分发 + 范围锁定 + 自动 PR 闭环 + 生成质量 的五层测试集。v1.2 新增 auto-mode 类别（mode-detection / workspace-check / branch-naming / pr-description / error-recovery）。",
+  "categories": [
+    {
+      "name": "trigger-positive",
+      "description": "这些 prompt 必须触发 skill",
+      "target_accuracy": 0.85,
+      "cases": [
+        { "id": "tp-01", "input": "更新 GC 前端知识库", "expect_trigger": true },
+        { "id": "tp-02", "input": "帮我维护一下到餐的 overviews.md", "expect_trigger": true },
+        { "id": "tp-03", "input": "服务零售的 glossary 缺了几个术语，补一下", "expect_trigger": true },
+        { "id": "tp-04", "input": "门票订单状态机需要新增 REFUND_REJECTED，更新 spec/domain-models/ticket/state-machines.md", "expect_trigger": true },
+        { "id": "tp-05", "input": "酒店 business-rules 的取消政策写一下", "expect_trigger": true },
+        { "id": "tp-06", "input": "我要给 platform 组新增一条 ADR", "expect_trigger": true },
+        { "id": "tp-07", "input": "food 编码规范里加一条禁止使用 any", "expect_trigger": true },
+        { "id": "tp-08", "input": "批量改 GC 的 5 个文件 frontmatter", "expect_trigger": true },
+        { "id": "tp-09", "input": "完善 ticket 全量前端知识库", "expect_trigger": true },
+        { "id": "tp-10", "input": "维护服务零售 service-maps", "expect_trigger": true },
+        { "id": "tp-11", "input": "给 GC 新增一个设计模式文档", "expect_trigger": true },
+        { "id": "tp-12", "input": "hotel 的 pitfalls 文件要补一下取消政策踩坑", "expect_trigger": true },
+        { "id": "tp-13", "input": "自动更新 GC 前端知识库并提 PR", "expect_trigger": true, "reason": "v1.2: auto 模式关键词" },
+        { "id": "tp-14", "input": "远程更新 ticket 的状态机并提 PR", "expect_trigger": true, "reason": "v1.2: 远程 + 提 PR，销必走 auto" },
+        { "id": "tp-15", "input": "帮我自动化维护 food 知识库", "expect_trigger": true, "reason": "v1.2: 自动化关键词" }
+      ]
+    },
+    {
+      "name": "trigger-negative",
+      "description": "这些 prompt 必须**不触发** skill",
+      "target_accuracy": 0.9,
+      "cases": [
+        { "id": "tn-01", "input": "帮我写一个 GC 退款按钮组件", "expect_trigger": false, "reason": "业务代码开发" },
+        { "id": "tn-02", "input": "查一下 GC 次卡的定义", "expect_trigger": false, "reason": "只读查询，直接看 glossary 即可" },
+        { "id": "tn-03", "input": "把 meta/doc-template.md 改一下", "expect_trigger": false, "reason": "meta 由知识库 Owner 维护" },
+        { "id": "tn-04", "input": "根目录 AGENTS.md 要加一条规则", "expect_trigger": false, "reason": "根 AGENTS.md 不在本 skill 作用域" },
+        { "id": "tn-05", "input": "在 page-assets/gc/ 下加一个新页面模块速查文档", "expect_trigger": false, "reason": "page-assets 下的模块速查/特殊页面不纳入（仅 page-index.md 纳入）" },
+        { "id": "tn-06", "input": "跑一下项目的 lint", "expect_trigger": false },
+        { "id": "tn-07", "input": "帮我把这份学城文档翻译一下", "expect_trigger": false },
+        { "id": "tn-08", "input": "发一个 PR", "expect_trigger": false, "reason": "光说发 PR、无知识库/组/scope 信息 → 不触发；需和“更新 XX 知识库”一起出现才激活 auto" }
+      ]
+    },
+    {
+      "name": "routing",
+      "description": "触发后，路由到的目标文件/意图范围必须正确",
+      "target_accuracy": 0.9,
+      "cases": [
+        {
+          "id": "r-01",
+          "input": "更新 GC 前端知识库",
+          "expect_group": "gc",
+          "expect_scope": ["overview"],
+          "expect_mode": "scoped",
+          "expect_primary_file": "context-docs/overviews/gc.md",
+          "reason": "v1.1: 无范围关键词默认 scope=[overview]，不再自动激活 P0+P1"
+        },
+        {
+          "id": "r-02",
+          "input": "新增门票的枚举：REFUND_REJECTED",
+          "expect_group": "ticket",
+          "expect_scope": ["domain-enums"],
+          "expect_mode": "scoped",
+          "expect_primary_file": "spec/domain-models/ticket/enums.md"
+        },
+        {
+          "id": "r-03",
+          "input": "到餐编码规范里加一条禁止 any",
+          "expect_group": "food",
+          "expect_scope": ["coding-standards"],
+          "expect_mode": "scoped",
+          "expect_primary_file": "spec/coding-standards/food.md"
+        },
+        {
+          "id": "r-04",
+          "input": "酒旅业务规则补充取消规则",
+          "expect_group": "hotel",
+          "expect_scope": ["business-rules"],
+          "expect_mode": "scoped",
+          "expect_primary_file": "context-docs/business-rules/hotel.md"
+        },
+        {
+          "id": "r-05",
+          "input": "平台组新增一条 ADR：选用 DUO 2.0 替代 MRN",
+          "expect_group": "platform",
+          "expect_scope": ["adr"],
+          "expect_mode": "scoped",
+          "expect_primary_file": "spec/adr/platform.md"
+        },
+        {
+          "id": "r-06",
+          "input": "全量补齐 ticket 前端知识库",
+          "expect_group": "ticket",
+          "expect_scope": "all",
+          "expect_mode": "full",
+          "expect_primary_file": "context-docs/overviews/ticket.md"
+        },
+        {
+          "id": "r-07",
+          "input": "仅更新 food 的 page-index",
+          "expect_group": "food",
+          "expect_scope": ["page-index"],
+          "expect_mode": "scoped",
+          "expect_primary_file": "context-docs/page-assets/food/page-index.md",
+          "reason": "v1.1: “仅” → scoped，严格锁定"
+        },
+        {
+          "id": "r-08",
+          "input": "只维护 gc 的 glossary 和 business-rules，不用检查其他地方",
+          "expect_group": "gc",
+          "expect_scope": ["glossary", "business-rules"],
+          "expect_mode": "scoped",
+          "expect_primary_file": "context-docs/glossary/gc.md",
+          "reason": "v1.1: 多 kind scoped，且用户明确介意检查其他地方"
+        },
+        {
+          "id": "r-09",
+          "input": "门票状态机新增 REFUND_REJECTED，其他文档不动",
+          "expect_group": "ticket",
+          "expect_scope": ["domain-state-machines"],
+          "expect_mode": "scoped",
+          "expect_primary_file": "spec/domain-models/ticket/state-machines.md",
+          "reason": "v1.1: “状态机”定位到单 kind，不扩散到 entities/enums"
+        },
+        {
+          "id": "r-10",
+          "input": "自动更新 gc glossary 和 business-rules 并提 PR",
+          "expect_group": "gc",
+          "expect_scope": ["glossary", "business-rules"],
+          "expect_mode": "scoped",
+          "expect_mode_flow": "auto",
+          "expect_primary_file": "context-docs/glossary/gc.md",
+          "reason": "v1.2: 自动 + 提 PR → auto 模式；仍遵守 scoped"
+        },
+        {
+          "id": "r-11",
+          "input": "远程全量更新 ticket 前端知识库",
+          "expect_group": "ticket",
+          "expect_scope": "all",
+          "expect_mode": "full",
+          "expect_mode_flow": "auto",
+          "expect_primary_file": "context-docs/overviews/ticket.md",
+          "reason": "v1.2: 远程 + 全量 → auto + full"
+        }
+      ]
+    },
+    {
+      "name": "ambiguity",
+      "description": "表述不明确时必须追问，禁止默认选择",
+      "target_accuracy": 1.0,
+      "cases": [
+        { "id": "a-01", "input": "更新前端知识库", "expect_clarify": true, "reason": "未指定 group" },
+        { "id": "a-02", "input": "完善外卖业务的术语表", "expect_clarify": true, "reason": "'外卖' 不在 5 个合法组内" },
+        { "id": "a-03", "input": "维护一下闪购的 overview", "expect_clarify": true, "reason": "'闪购' 不在合法组内" }
+      ]
+    },
+    {
+      "name": "gate-compliance",
+      "description": "Confirmation Gate 合规性（无用户确认绝不写入）",
+      "target_accuracy": 1.0,
+      "cases": [
+        {
+          "id": "g-01",
+          "input": "更新 GC 前端知识库",
+          "expect_before_gate": { "write_tool_calls": 0 },
+          "expect_after_gate": { "presented_plan_table": true, "asked_for_confirmation": true }
+        },
+        {
+          "id": "g-02",
+          "input": "【接阶段 3 场景】用户回复 '确认'",
+          "expect_behavior": "开始执行队列，写入文件，最后运行 validate.js"
+        },
+        {
+          "id": "g-03",
+          "input": "【接阶段 3 场景】用户回复 '跳过 coding-standards'",
+          "expect_behavior": "仅执行剩余文件，跳过 coding-standards/<group>.md"
+        }
+      ]
+    },
+    {
+      "name": "scope-lockdown",
+      "description": "v1.1 新增：用户指定范围时，AI 严禁扩散检测/读取/修改范围外文件，也不得向用户推荐范围外改动。",
+      "target_accuracy": 1.0,
+      "cases": [
+        {
+          "id": "sl-01",
+          "input": "仅更新 food page-index",
+          "expect_mode": "scoped",
+          "expect_scope": ["page-index"],
+          "forbidden_reads": [
+            "context-docs/overviews/food.md",
+            "context-docs/glossary/food.md",
+            "spec/coding-standards/food.md"
+          ],
+          "forbidden_writes": [
+            "context-docs/overviews/food.md",
+            "context-docs/glossary/food.md"
+          ],
+          "forbidden_in_summary": [
+            "overview", "glossary", "coding-standards", "adr"
+          ],
+          "validate_cmd": "node <path-to-skill>/scripts/validate.js food --scope page-index"
+        },
+        {
+          "id": "sl-02",
+          "input": "只维护 gc 的 glossary、business-rules",
+          "expect_mode": "scoped",
+          "expect_scope": ["glossary", "business-rules"],
+          "forbidden_reads": [
+            "context-docs/overviews/gc.md",
+            "spec/coding-standards/gc.md",
+            "spec/adr/gc.md"
+          ],
+          "forbidden_writes": [
+            "context-docs/overviews/gc.md",
+            "spec/coding-standards/gc.md"
+          ],
+          "validate_cmd": "node <path-to-skill>/scripts/validate.js gc --scope glossary,business-rules"
+        },
+        {
+          "id": "sl-03",
+          "input": "门票状态机补 REFUND_REJECTED，其他文档不动",
+          "expect_mode": "scoped",
+          "expect_scope": ["domain-state-machines"],
+          "forbidden_reads": [
+            "spec/domain-models/ticket/entities.md",
+            "spec/domain-models/ticket/enums.md",
+            "context-docs/glossary/ticket.md"
+          ],
+          "validate_cmd": "node <path-to-skill>/scripts/validate.js ticket --scope domain-state-machines"
+        },
+        {
+          "id": "sl-04",
+          "input": "更新 GC 前端知识库",
+          "expect_mode": "scoped",
+          "expect_scope": ["overview"],
+          "expect_has_hint_line": true,
+          "expect_hint_contains": "扩展到",
+          "forbidden_writes": [
+            "context-docs/glossary/gc.md",
+            "spec/coding-standards/gc.md",
+            "context-docs/business-rules/gc.md"
+          ],
+          "reason": "未指定范围 → 默认 [overview]，且 AI 应在确认清单结尾提示可扩展，而不是擅自激活其他文件"
+        },
+        {
+          "id": "sl-05",
+          "input": "仅更新 gc page-index（已知业务术语表 glossary 有几个过时条目，但本次不处理）",
+          "expect_mode": "scoped",
+          "expect_scope": ["page-index"],
+          "forbidden_behaviors": [
+            "在 Handoff Summary 中提醒用户 glossary/gc.md 有过时条目",
+            "在确认清单中列出 glossary/gc.md",
+            "“顺带”读取 glossary/gc.md 内容作交叉参考"
+          ],
+          "reason": "用户明确宣告不处理 glossary，AI 绝不得向用户重提其问题"
+        }
+      ]
+    },
+    {
+      "name": "auto-mode",
+      "description": "v1.2 新增：auto 模式的模式识别 / workspace 校验 / 分支命名 / PR 描述生成 / 异常恢复五类专项测试。",
+      "target_accuracy": 1.0,
+      "cases": [
+        {
+          "id": "am-01",
+          "name": "mode-detection-auto-by-keyword",
+          "input": "自动更新 gc 前端知识库并提 PR",
+          "expect_mode_flow": "auto",
+          "expect_must_run": [
+            "git fetch origin",
+            "git checkout master",
+            "git pull --ff-only"
+          ],
+          "expect_must_call": ["auto-pr.sh ensure_workspace auto", "auto-pr.sh sync_master"],
+          "reason": "自动 + 提 PR 关键词，销必走 auto"
+        },
+        {
+          "id": "am-02",
+          "name": "mode-detection-local-default",
+          "input": "仅更新 food page-index",
+          "workspace": "/root/projects/trade-fe-rule",
+          "expect_mode_flow": "local",
+          "forbidden_calls": [
+            "auto-pr.sh sync_master",
+            "auto-pr.sh safe_checkout_new",
+            "auto-pr.sh commit_scoped",
+            "auto-pr.sh push_current_branch",
+            "auto-pr.sh pr_create_wrapper"
+          ],
+          "reason": "无 auto 关键词 + 在仓库内 → local；不走 git 写操作"
+        },
+        {
+          "id": "am-03",
+          "name": "workspace-check-local-fail-hard-stop",
+          "input": "更新 gc 前端知识库",
+          "workspace": "/tmp/not-a-repo",
+          "expect_mode_flow": "local",
+          "expect_hard_stop": true,
+          "expect_hint_contains": "cd 到仓库",
+          "forbidden_calls": ["git clone", "auto-pr.sh ensure_workspace auto"],
+          "reason": "local + 不合法工作区 → 硬失败，不做 clone 兜底"
+        },
+        {
+          "id": "am-04",
+          "name": "workspace-check-auto-fallback-clone",
+          "input": "自动更新 gc glossary 并提 PR",
+          "workspace": "/tmp/not-a-repo",
+          "expect_mode_flow": "auto",
+          "expect_must_run_regex": "git clone ssh://git@git.sankuai.com/nibfe/trade-fe-rule.git (/[^/]+)+/trade-fe-rule-\\d{14}(-r\\d+)?",
+          "expect_cwd_after_regex": "^(/[^/]+)+/trade-fe-rule-\\d{14}(-r\\d+)?$",
+          "reason": "auto + 不合法 → clone 到 <clone_root>/trade-fe-rule-{ts}；<clone_root> 由 _resolve_clone_root 按 6 级优先级动态决定（env / $PWD 继承 / $HOME/projects / mktemp -d），不再写死 /tmp"
+        },
+        {
+          "id": "am-04b",
+          "name": "clone-root-env-override",
+          "precondition": "TRADE_FE_CLONE_ROOT=/root/workspace 且 /root/workspace 可写",
+          "input": "自动更新 gc glossary 并提 PR",
+          "workspace": "/var/log",
+          "expect_mode_flow": "auto",
+          "expect_must_run_regex": "git clone ssh://git@git.sankuai.com/nibfe/trade-fe-rule.git /root/workspace/trade-fe-rule-\\d{14}(-r\\d+)?",
+          "reason": "显式 $TRADE_FE_CLONE_ROOT 的优先级最高，clone 必须落到用户指定目录"
+        },
+        {
+          "id": "am-04c",
+          "name": "clone-root-pwd-inherit",
+          "precondition": "无任何 env 覆盖，$PWD=/root/projects/some-other-repo",
+          "input": "自动更新 gc glossary 并提 PR",
+          "expect_mode_flow": "auto",
+          "expect_must_run_regex": "git clone ssh://git@git.sankuai.com/nibfe/trade-fe-rule.git /root/projects/trade-fe-rule-\\d{14}(-r\\d+)?",
+          "reason": "$PWD 向上扫描命中 /root/projects，clone 应落到同级而不是 /tmp"
+        },
+        {
+          "id": "am-05",
+          "name": "branch-naming-with-mis",
+          "precondition": "MIS=zhangsan，当前时间≈ 2026-04-22T19:32:32",
+          "expect_branch_regex": "^chore/update-knowledge-zhangsan-\\d{14}$",
+          "reason": "v1.2 分支命名规范优先级 A：$MIS 存在时优先用"
+        },
+        {
+          "id": "am-06",
+          "name": "branch-naming-fallback-no-mis",
+          "precondition": "无 $MIS / $USER_MIS / git config user.email / user.name / 宿主 mis",
+          "expect_branch_regex": "^chore/update-knowledge-\\d{14}$",
+          "reason": "全部取不到 mis 时，分支名退化为无 mis 段"
+        },
+        {
+          "id": "am-07",
+          "name": "branch-collision-retry-suffix",
+          "precondition": "chore/update-knowledge-zhangsan-20260422193232 已存在",
+          "expect_branch_regex": "^chore/update-knowledge-zhangsan-20260422193232-r\\d+$",
+          "reason": "v1.2 Q10.B=β：同名冲突 → 追加 -r2/-r3 … 后缀重试"
+        },
+        {
+          "id": "am-08",
+          "name": "dirty-working-tree-abort",
+          "precondition": "git status --porcelain 非空",
+          "expect_mode_flow": "auto",
+          "expect_hard_stop": true,
+          "expect_hint_contains": "git stash",
+          "forbidden_calls": ["git checkout -b", "git add", "git commit"],
+          "reason": "v1.2 Q10.A：脘工作区 → 终止并提示，不硬走"
+        },
+        {
+          "id": "am-09",
+          "name": "pr-title-format",
+          "precondition": "group=gc, kinds=[glossary,business-rules], mis=zhangsan, today=2026-04-22",
+          "expect_pr_title": "chore(knowledge): 更新 gc glossary,business-rules [zhangsan@20260422]",
+          "reason": "PR title 严格合模板"
+        },
+        {
+          "id": "am-10",
+          "name": "pr-description-four-sections",
+          "expect_pr_description_has_sections": [
+            "## 变更范围",
+            "## 变更文件",
+            "## validate.js 校验结果",
+            "## 原始需求（User Prompt）"
+          ],
+          "expect_pr_description_contains": [
+            "mode\uff1aauto",
+            "by trade-fe-knowledge-editor skill v1.2.0"
+          ],
+          "forbidden_pr_description_contains": [
+            "AI 总结如下",
+            "TODO"
+          ],
+          "reason": "PR description 四段式；user prompt 原封不动引用，无 AI 自造话术"
+        },
+        {
+          "id": "am-11",
+          "name": "validate-fail-blocks-push",
+          "precondition": "validate.js --scope 输出 errors=1",
+          "expect_mode_flow": "auto",
+          "expect_hard_stop_before": ["git push", "pr_create"],
+          "expect_hint_contains": "IRON LAW 8",
+          "reason": "IRON LAW 8：校验不过 → 中止后续 git 写操作"
+        },
+        {
+          "id": "am-12",
+          "name": "error-recovery-push-fail-keep-local",
+          "precondition": "git push origin HEAD 失败（网络）",
+          "expect_keep_local": ["本地分支存在", "commit 存在"],
+          "expect_hint_contains": ["git push origin", "恢复指引"],
+          "forbidden_actions": ["自动回滚 commit", "自动删除分支"],
+          "reason": "v1.2 Q10.C：push 失败 → 保留本地，不自动回滚"
+        },
+        {
+          "id": "am-13",
+          "name": "error-recovery-pr-create-fail-fallback-url",
+          "precondition": "pr_create API 失败（非 2xx）",
+          "expect_printed_url_regex": "https://dev\\.sankuai\\.com/code/repo-detail/nibfe/trade-fe-rule/pr/create\\?sourceBranch=chore/update-knowledge-[^&]+&targetBranch=master",
+          "forbidden_actions": ["自动重试 pr_create", "回滚本地 commit"],
+          "reason": "v1.2 Q10.D：PR API 失败 → 打印 fallback URL，不重试，不回滚"
+        },
+        {
+          "id": "am-14",
+          "name": "auto-scope-lockdown-inherits",
+          "input": "自动更新 food page-index 并提 PR",
+          "expect_mode_flow": "auto",
+          "expect_scope": ["page-index"],
+          "expect_git_add_only": [
+            "context-docs/page-assets/food/page-index.md"
+          ],
+          "forbidden_git_add": [
+            "context-docs/overviews/food.md",
+            "context-docs/glossary/food.md"
+          ],
+          "forbidden_pr_mentions": ["overview", "glossary", "coding-standards"],
+          "reason": "Q12.A：auto 模式下 scope 铁律完全继承，不启 git add 全量，PR 不提范围外"
+        },
+        {
+          "id": "am-15",
+          "name": "no-auto-merge-or-approve",
+          "precondition": "pr_create 成功，返回 PR URL",
+          "forbidden_actions": [
+            "pr_approve",
+            "pr_merge",
+            "pr_decline",
+            "自动 @ reviewer"
+          ],
+          "reason": "skill 只负责 create，merge/approve/decline 交付给人工和 reviewer"
+        }
+      ]
+    },
+    {
+      "name": "delivery-quality",
+      "description": "交付质量（每次交付必须满足）",
+      "target_accuracy": 0.95,
+      "cases": [
+        {
+          "id": "d-01",
+          "precondition": "完成一次 GC overview 更新",
+          "expect": {
+            "ran_validate_js": true,
+            "errors_count": 0,
+            "handoff_summary_includes": ["modified_files", "changed_sections", "remaining_todos", "validate_summary"]
+          }
+        },
+        {
+          "id": "d-02",
+          "precondition": "frontmatter 缺少 tags",
+          "expect": {
+            "validate_warning_rule": "G5",
+            "auto_fill_tags_count_gte": 5
+          }
+        },
+        {
+          "id": "d-03",
+          "precondition": "文件达 450 行或 600 行（任意行数）",
+          "expect": {
+            "validate_warning_rule_absent": "G1",
+            "validate_error_rule_absent": "G1",
+            "handoff_summary_does_not_mention": ["接近 500 行上限", "> 500 行上限"]
+          },
+          "reason": "v1.x：skill 已取消文件行数硬上限与预警阈值，validate.js 不再针对行数产生 G1 告警"
+        },
+        {
+          "id": "d-04",
+          "precondition": "完成一次 gc 的 --scope glossary,business-rules 更新",
+          "expect": {
+            "ran_validate_js": true,
+            "validate_cmd_includes": "--scope glossary,business-rules",
+            "handoff_summary_first_line_matches": "范围: glossary, business-rules（严格锁定）",
+            "summary_does_not_mention": [
+              "overview",
+              "coding-standards",
+              "adr",
+              "pitfalls"
+            ]
+          }
+        },
+        {
+          "id": "d-05",
+          "precondition": "完成一次 auto 模式 + --scope glossary 更新，PR 创建成功",
+          "expect": {
+            "ran_validate_js": true,
+            "validate_cmd_includes": "--scope glossary",
+            "handoff_summary_includes": ["mode: auto", "branch_name", "commit_hash", "PR URL"],
+            "pr_description_includes": ["## 变更范围", "## 变更文件", "## validate.js 校验结果", "## 原始需求（User Prompt）"],
+            "summary_does_not_mention": ["overview", "business-rules", "coding-standards"]
+          },
+          "reason": "v1.2：auto 交付摘要包含 branch/commit/PR；PR description 四段式；scope 锁定继续生效"
+        }
+      ]
+    }
+  ]
+}

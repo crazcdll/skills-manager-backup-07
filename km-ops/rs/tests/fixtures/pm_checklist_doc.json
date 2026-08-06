@@ -1,0 +1,730 @@
+{
+  "type": "doc",
+  "content": [
+    {
+      "type": "title",
+      "attrs": {
+        "nodeId": "m001m001m001m001m001m001m001m001"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "Mock回归Checklist"
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "attrs": {
+        "align": "",
+        "dataDiffId": null,
+        "indent": 0,
+        "nodeId": "m002m002m002m002m002m002m002m002"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "本文档为脱敏后的 Mock fixture，仅用于验证 PM JSON schema 结构。"
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "dataDiffId": null,
+        "id": "H1",
+        "indent": 0,
+        "level": 2,
+        "nodeId": "m003m003m003m003m003m003m003m003"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "一、版本信息"
+        }
+      ]
+    },
+    {
+      "type": "note",
+      "attrs": {
+        "dataDiffId": null,
+        "hiddenTitle": true,
+        "nodeId": "m004m004m004m004m004m004m004m004",
+        "type": "info"
+      },
+      "content": [
+        {
+          "type": "note_title",
+          "attrs": {
+            "align": "left",
+            "nodeId": "m005m005m005m005m005m005m005m005"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "版本说明"
+            }
+          ]
+        },
+        {
+          "type": "note_content",
+          "attrs": {
+            "nodeId": "m006m006m006m006m006m006m006m006"
+          },
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "align": "",
+                "dataDiffId": null,
+                "indent": 0,
+                "nodeId": "m007m007m007m007m007m007m007m007"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "封版时间与回归范围见下表。"
+                }
+              ]
+            },
+            {
+              "type": "paragraph",
+              "attrs": {
+                "align": "",
+                "dataDiffId": null,
+                "indent": 0,
+                "nodeId": "m008m008m008m008m008m008m008m008"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Mock 提示内容 B。"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "bullet_list",
+      "attrs": {
+        "dataDiffId": null,
+        "indent": 0,
+        "nodeId": "m009m009m009m009m009m009m009m009"
+      },
+      "content": [
+        {
+          "type": "list_item",
+          "attrs": {
+            "dataListItemDiffId": null,
+            "fontSize": null,
+            "hidden": false,
+            "level": 0,
+            "nodeId": "m010m010m010m010m010m010m010m010",
+            "value": null
+          },
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "align": "",
+                "dataDiffId": null,
+                "indent": 0,
+                "nodeId": "m001m001m001m001m001m001m001m001"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Mock 待办事项 A"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "list_item",
+          "attrs": {
+            "dataListItemDiffId": null,
+            "fontSize": null,
+            "hidden": false,
+            "level": 0,
+            "nodeId": "m011m011m011m011m011m011m011m011",
+            "value": null
+          },
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "align": "",
+                "dataDiffId": null,
+                "indent": 0,
+                "nodeId": "m001m001m001m001m001m001m001m001"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Mock 待办事项 B"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "ordered_list",
+      "attrs": {
+        "dataDiffId": null,
+        "indent": 0,
+        "nodeId": "m012m012m012m012m012m012m012m012"
+      },
+      "content": [
+        {
+          "type": "list_item",
+          "attrs": {
+            "dataListItemDiffId": null,
+            "fontSize": null,
+            "hidden": false,
+            "level": 0,
+            "nodeId": "m013m013m013m013m013m013m013m013",
+            "value": null
+          },
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "align": "",
+                "dataDiffId": null,
+                "indent": 0,
+                "nodeId": "m001m001m001m001m001m001m001m001"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Mock 步骤一"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "list_item",
+          "attrs": {
+            "dataListItemDiffId": null,
+            "fontSize": null,
+            "hidden": false,
+            "level": 0,
+            "nodeId": "m014m014m014m014m014m014m014m014",
+            "value": null
+          },
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "align": "",
+                "dataDiffId": null,
+                "indent": 0,
+                "nodeId": "m001m001m001m001m001m001m001m001"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Mock 步骤二"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "task_list",
+      "attrs": {
+        "dataDiffId": null,
+        "indent": 0,
+        "nodeId": "m015m015m015m015m015m015m015m015"
+      },
+      "content": [
+        {
+          "type": "task_item",
+          "attrs": {
+            "checked": false,
+            "dataListItemDiffId": null,
+            "fontSize": null,
+            "level": 0,
+            "nodeId": "m016m016m016m016m016m016m016m016"
+          },
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "align": "",
+                "dataDiffId": null,
+                "indent": 0,
+                "nodeId": "m001m001m001m001m001m001m001m001"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Mock 任务 A（未完成）"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "task_item",
+          "attrs": {
+            "checked": true,
+            "dataListItemDiffId": null,
+            "fontSize": null,
+            "level": 0,
+            "nodeId": "m017m017m017m017m017m017m017m017"
+          },
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "align": "",
+                "dataDiffId": null,
+                "indent": 0,
+                "nodeId": "m001m001m001m001m001m001m001m001"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Mock 任务 B（已完成）"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "collapse",
+      "attrs": {
+        "active": false,
+        "dataDiffId": null,
+        "id": "00000000-0000-0000-0000-000000000001",
+        "nodeId": "m018m018m018m018m018m018m018m018"
+      },
+      "content": [
+        {
+          "type": "collapse_title",
+          "attrs": {
+            "align": "left",
+            "nodeId": "m019m019m019m019m019m019m019m019"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "折叠区域标题"
+            }
+          ]
+        },
+        {
+          "type": "collapse_content",
+          "attrs": {
+            "nodeId": "m020m020m020m020m020m020m020m020"
+          },
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "align": "",
+                "dataDiffId": null,
+                "indent": 0,
+                "nodeId": "m001m001m001m001m001m001m001m001"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "折叠区域内的 Mock 内容。"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "blockquote",
+      "attrs": {
+        "dataDiffId": null,
+        "nodeId": "m021m021m021m021m021m021m021m021"
+      },
+      "content": [
+        {
+          "type": "paragraph",
+          "attrs": {
+            "align": "",
+            "dataDiffId": null,
+            "indent": 0,
+            "nodeId": "m001m001m001m001m001m001m001m001"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "Mock 引用内容"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "attrs": {
+        "align": "",
+        "dataDiffId": null,
+        "indent": 0,
+        "nodeId": "m022m022m022m022m022m022m022m022"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "负责人："
+        },
+        {
+          "type": "mention",
+          "attrs": {
+            "anchor": "00000000-0000-0000-0000-000000000002",
+            "empId": "100000001",
+            "name": "张三",
+            "nodeId": "m023m023m023m023m023m023m023m023",
+            "shouldInform": false,
+            "uid": "mockuser01"
+          }
+        },
+        {
+          "type": "text",
+          "text": "、"
+        },
+        {
+          "type": "mention",
+          "attrs": {
+            "anchor": "00000000-0000-0000-0000-000000000003",
+            "empId": "100000002",
+            "name": "李四",
+            "nodeId": "m024m024m024m024m024m024m024m024",
+            "shouldInform": false,
+            "uid": "mockuser02"
+          }
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "attrs": {
+        "dataDiffId": null,
+        "id": "H2",
+        "indent": 0,
+        "level": 2,
+        "nodeId": "m025m025m025m025m025m025m025m025"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "二、需求统计"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "attrs": {
+        "borderColor": "#dddddd",
+        "borderStyle": "solid",
+        "borderWidth": 1,
+        "dataDiffId": null,
+        "indent": 0,
+        "nodeId": "m026m026m026m026m026m026m026m026",
+        "responsive": false
+      },
+      "content": [
+        {
+          "type": "table_row",
+          "attrs": {
+            "dataRowDiffId": null,
+            "nodeId": "m027m027m027m027m027m027m027m027"
+          },
+          "content": [
+            {
+              "type": "table_header",
+              "attrs": {
+                "bgColor": null,
+                "color": null,
+                "colspan": 1,
+                "colwidth": [
+                  80
+                ],
+                "dataCellDiffId": null,
+                "nodeId": "m028m028m028m028m028m028m028m028",
+                "numCell": null,
+                "rowspan": 1,
+                "textAlign": null,
+                "verticalAlign": null
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "align": "",
+                    "dataDiffId": null,
+                    "indent": 0,
+                    "nodeId": "m001m001m001m001m001m001m001m001"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "序号"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "table_header",
+              "attrs": {
+                "bgColor": null,
+                "color": null,
+                "colspan": 1,
+                "colwidth": [
+                  200
+                ],
+                "dataCellDiffId": null,
+                "nodeId": "m029m029m029m029m029m029m029m029",
+                "numCell": null,
+                "rowspan": 1,
+                "textAlign": null,
+                "verticalAlign": null
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "align": "",
+                    "dataDiffId": null,
+                    "indent": 0,
+                    "nodeId": "m001m001m001m001m001m001m001m001"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "需求地址"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "table_row",
+          "attrs": {
+            "dataRowDiffId": null,
+            "nodeId": "m030m030m030m030m030m030m030m030"
+          },
+          "content": [
+            {
+              "type": "table_cell",
+              "attrs": {
+                "bgColor": null,
+                "color": null,
+                "colspan": 1,
+                "colwidth": [
+                  80
+                ],
+                "dataCellDiffId": null,
+                "nodeId": "m031m031m031m031m031m031m031m031",
+                "numCell": null,
+                "rowspan": 1,
+                "textAlign": null,
+                "verticalAlign": null
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "align": "",
+                    "dataDiffId": null,
+                    "indent": 0,
+                    "nodeId": "m001m001m001m001m001m001m001m001"
+                  },
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "1"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "table_cell",
+              "attrs": {
+                "bgColor": null,
+                "color": null,
+                "colspan": 1,
+                "colwidth": [
+                  200
+                ],
+                "dataCellDiffId": null,
+                "nodeId": "m032m032m032m032m032m032m032m032",
+                "numCell": null,
+                "rowspan": 1,
+                "textAlign": null,
+                "verticalAlign": null
+              },
+              "content": [
+                {
+                  "type": "paragraph",
+                  "attrs": {
+                    "align": "",
+                    "dataDiffId": null,
+                    "indent": 0,
+                    "nodeId": "m033m033m033m033m033m033m033m033"
+                  },
+                  "content": [
+                    {
+                      "type": "open_link",
+                      "attrs": {
+                        "href": "https://ones.sankuai.com/ones/product/12345/workItem/requirement/detail/12345678",
+                        "type": "ones"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "note",
+      "attrs": {
+        "dataDiffId": null,
+        "hiddenTitle": true,
+        "nodeId": "m034m034m034m034m034m034m034m034",
+        "type": "warning"
+      },
+      "content": [
+        {
+          "type": "note_title",
+          "attrs": {
+            "align": "left",
+            "nodeId": "m035m035m035m035m035m035m035m035"
+          },
+          "content": [
+            {
+              "type": "text",
+              "text": "风险提示"
+            }
+          ]
+        },
+        {
+          "type": "note_content",
+          "attrs": {
+            "nodeId": "m036m036m036m036m036m036m036m036"
+          },
+          "content": [
+            {
+              "type": "paragraph",
+              "attrs": {
+                "align": "",
+                "dataDiffId": null,
+                "indent": 0,
+                "nodeId": "m001m001m001m001m001m001m001m001"
+              },
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Mock 风险提示内容。"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "attrs": {
+        "align": "",
+        "dataDiffId": null,
+        "indent": 0,
+        "nodeId": "m037m037m037m037m037m037m037m037"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "详见说明"
+        },
+        {
+          "type": "footnote",
+          "attrs": {
+            "annotate": "Mock 脚注内容：脱敏后的示例说明。",
+            "id": "00000000-0000-0000-0000-000000000004",
+            "nodeId": "m038m038m038m038m038m038m038m038"
+          }
+        }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "attrs": {
+        "align": "",
+        "dataDiffId": null,
+        "indent": 0,
+        "nodeId": "m039m039m039m039m039m039m039m039"
+      }
+    },
+    {
+      "type": "image",
+      "attrs": {
+        "border": 0,
+        "height": 126,
+        "isFullWidth": false,
+        "link": null,
+        "mss": "",
+        "name": "mock-image.png",
+        "nodeId": "m040m040m040m040m040m040m040m040",
+        "origin": "https://km.sankuai.com/api/file/cdn/0000000000/000000000001?isNewContent=false&contentType=1",
+        "small": "https://km.sankuai.com/api/file/cdn/0000000000/000000000001?isNewContent=false&contentType=1",
+        "src": "https://km.sankuai.com/api/file/cdn/0000000000/000000000001?isNewContent=false&contentType=1",
+        "width": 224
+      }
+    },
+    {
+      "type": "catalog",
+      "attrs": {
+        "dataDiffId": null,
+        "nodeId": "m041m041m041m041m041m041m041m041",
+        "style": "none"
+      }
+    },
+    {
+      "type": "paragraph",
+      "attrs": {
+        "align": "",
+        "dataDiffId": null,
+        "indent": 0,
+        "nodeId": "m042m042m042m042m042m042m042m042"
+      },
+      "content": [
+        {
+          "type": "text",
+          "text": "行一"
+        },
+        {
+          "type": "hard_break"
+        },
+        {
+          "type": "text",
+          "text": "行二"
+        }
+      ]
+    }
+  ]
+}

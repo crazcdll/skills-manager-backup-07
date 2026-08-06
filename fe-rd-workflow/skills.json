@@ -1,0 +1,608 @@
+{
+  "meta": {
+    "name": "fe-rd-workflow",
+    "version": "1.0.0",
+    "description": "fe-rd-workflow 总线 Skill 的依赖注册与系统要求",
+    "created_at": "2026-04-28",
+    "last_updated": "2026-06-08"
+  },
+  "required_skills": [
+    {
+      "name": "memory-skill",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "状态持久化、用户偏好存储、执行进度恢复、中断恢复",
+      "phase": "全流程",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [],
+      "min_version": "1.0.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i memory-skill",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull memory-skill"
+    },
+    {
+      "name": "fe-rd-workflow",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "",
+      "phase": "duo 页面开发全流程",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [],
+      "min_version": "1.0.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i fe-rd-workflow",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull fe-rd-workflow"
+    },
+    {
+      "name": "citadel",
+      "type": "system-command",
+      "runtime": "oa-skills",
+      "purpose": "学城文档阅读、创建、查询、管理",
+      "phase": "全流程",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [
+        "km-doc-tools"
+      ],
+      "min_version": "",
+      "command": "oa-skills citadel",
+      "npm_package": "@it/oa-skills",
+      "npm_registry": "http://r.npm.sankuai.com",
+      "install_cmd": "npm install -g @it/oa-skills@latest --registry=http://r.npm.sankuai.com",
+      "check_cmd": "oa-skills citadel --help",
+      "update_cmd": "npm install -g @it/oa-skills@latest --registry=http://r.npm.sankuai.com"
+    },
+    {
+      "name": "design-spec",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "前端需求分析技术方案文档生成，含来源标识",
+      "phase": "阶段三",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [],
+      "min_version": "1.0.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i design-spec",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull design-spec"
+    },
+    {
+      "name": "trade-fe-knowledge",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "业务知识库",
+      "phase": "",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [],
+      "min_version": "1.0.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i trade-fe-knowledge",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull trade-fe-knowledge"
+    },
+    {
+      "name": "mt-graphify-lite",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "前端代码知识图谱（轻量版），design-spec 前置依赖：ensure 一键就绪 + 搜索/遍历/路径/详情/统计查询",
+      "phase": "Stage 3（需求分析与技术设计）",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [],
+      "min_version": "1.0.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i mt-graphify-lite",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull mt-graphify-lite"
+    },
+    {
+      "name": "max-material-dev",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "源码物料新增/修改/发布（阶段 2-2 物料开发，由 frontend-engineer-agent 调用）",
+      "phase": "阶段2-2",
+      "used_by": [
+        "frontend-engineer-agent"
+      ],
+      "alternatives": [],
+      "min_version": "1.0.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i max-material-dev",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull max-material-dev"
+    },
+    {
+      "name": "duo-protocol",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "前后端交互协议",
+      "phase": "全流程",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [],
+      "min_version": "1.0.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i duo-protocol",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull duo-protocol"
+    },
+    {
+      "name": "draw-io-km",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "绘制架构图/流程图",
+      "phase": "技术方案",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [
+        "kmdrawio",
+        "drawio-generator"
+      ],
+      "min_version": "1.0.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i draw-io-km",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull draw-io-km"
+    },
+    {
+      "name": "duo-fedo",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "duo 迭代管理、开发任务管理",
+      "phase": "全流程",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [],
+      "min_version": "1.0.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i duo-fedo",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull duo-fedo"
+    },
+    {
+      "name": "ee-fedo",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "FEDO CLI：SSO 登录、研发组/项目/模板查询、节点操作、工作流触发、Bundle/MRN 版本查询、bugfix 子流水线",
+      "phase": "全流程",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [],
+      "min_version": "1.0.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i ee-fedo",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull ee-fedo"
+    },
+    {
+      "name": "ee-code",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "Draft PR 创建、CR 自动化报告",
+      "phase": "代码开发",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [
+        "code-cli"
+      ],
+      "min_version": "2.1.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i ee-code",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull ee-code"
+    },
+    {
+      "name": "max-leez",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "Max 组件库",
+      "phase": "代码开发",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [],
+      "min_version": "1.0.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i max-leez",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull max-leez"
+    },
+    {
+      "name": "fe-ai-review",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "前端代码审查：基于本地分支差异产出结构化 CR 报告（P0/P1/P2-P3 + 审查结论）",
+      "phase": "代码开发（push 后、创建 PR 前）",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [],
+      "min_version": "1.0.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i fe-ai-review",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull fe-ai-review"
+    },
+    {
+      "name": "catpaw-daxiang",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "大象消息通知",
+      "phase": "任务终止/阶段完成",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [],
+      "min_version": "1.0.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i catpaw-daxiang",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull catpaw-daxiang"
+    },
+    {
+      "name": "kmedit",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "支持局部编辑(改写、纠错、续写等)，插入drawio、mermaid、plantuml图表。",
+      "phase": "阶段二",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [],
+      "min_version": "1.0.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i kmedit",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull kmedit"
+    },
+    {
+      "name": "km-doc-tools",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "学城文档阅读、创建、查询、管理",
+      "phase": "全流程",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [],
+      "min_version": "1.0.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i km-doc-tools",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull km-doc-tools"
+    },
+    {
+      "name": "mermaid-tools",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "Mermaid 图表绘制工具",
+      "phase": "全流程",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [],
+      "min_version": "1.0.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i mermaid-tools",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull mermaid-tools"
+    },
+    {
+      "name": "ingee-flex",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "Ingee Flex 组件库",
+      "phase": "代码开发",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [],
+      "min_version": "1.0.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i ingee-flex",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull ingee-flex"
+    },
+    {
+      "name": "material-test",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "物料测试",
+      "phase": "代码开发",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [],
+      "min_version": "1.0.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i material-test",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull material-test"
+    },
+    {
+      "name": "gui-agent-cloud",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "GUI Agent Cloud",
+      "phase": "代码开发",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [],
+      "min_version": "1.0.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i gui-agent-cloud",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull gui-agent-cloud"
+    },
+    {
+      "name": "ee-conan",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "EE Conan",
+      "phase": "代码开发",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [],
+      "min_version": "1.0.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i ee-conan",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull ee-conan"
+    }
+  ],
+  "optional_skills": [],
+  "system_requirements": [
+    {
+      "name": "Node.js",
+      "min_version": "20",
+      "reason": "mtskills、oa-skills 和依赖安装流程要求 Node.js >= 20",
+      "install_method": "nvm install 20 && nvm use 20"
+    }
+  ],
+  "dependency_check": {
+    "type": "node-script",
+    "location": "scripts/check-deps.js",
+    "trigger": "读取主 SKILL.md 后立即执行",
+    "behavior": [
+      "先同步 skills.json 中的疑似依赖清单",
+      "如需安装依赖，先校验并切换到所需 Node 版本",
+      "最后执行 Skill 依赖安装和环境依赖安装",
+      "使用 --check-update 检查版本更新",
+      "使用 --update 检查并执行版本更新"
+    ],
+    "exit_codes": {
+      "0": "全量依赖就绪，流程可继续",
+      "1": "任意依赖缺失、Node 版本切换失败或安装失败，流程终止",
+      "2": "存在版本更新可用（仅 --check-update 模式）"
+    }
+  }
+}

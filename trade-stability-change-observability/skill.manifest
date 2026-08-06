@@ -1,0 +1,12 @@
+skill-manifest-version: 1
+skill-id: d488e72fd22eb85ca4e8ad094778bae85ab947f602e46e4a626475f7221c0ec8
+
+files:
+  6e6ea0ad185fadd8d0537ff55cbc86146d6a7ff7ce84a6cf29dfcaf3e41dd928  .skillignore
+  516a3e5d342ec600d029def68196630865e65a415d24c1c65c045f28dbcbc38c  SKILL.md
+  78fa5b975318117e6a89d9f0c415e441b8b837b5ee45f96f76195ab98132e8af  references/raptor-observation.md
+  33dcd7e0ce34e6a0bf9899f53923d82166ac1c341df1cfe5a95e52c7ce1b4847  references/runtime-sleep-loop.md
+  9b21f02a2497169b677729951db2f463442d0e5d28e2ac516631afaad1cff0cd  references/state-schema.md
+  b58f412b56166d1ea4f2c6cb1a99d09abed960496a4a307c9e371d952aa77524  scripts/cluster_diff.py
+  717ca948431ff694fa6e8d30c1d4fab822d4c7287b0c73aed306ff3113fb662c  scripts/fast_check.py
+  e85e40d0217cfe48c1fffde8d3d28501892934b9234d9c47199acd16a4e9be5f  scripts/observation_state.py

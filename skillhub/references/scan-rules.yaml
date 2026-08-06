@@ -1,0 +1,342 @@
+# =============================================================================
+# SkillHub 静态安全扫描规则（Stage 1）
+# 移植自 friday-skill-scanner，由 publish.py 加载执行
+# =============================================================================
+#
+# 字段说明：
+#   id          规则 ID
+#   name        规则名称
+#   severity    FAIL / WARN / special（special 表示由 publish.py 内置逻辑处理）
+#   scope       扫描范围：
+#                 code              代码文件（.py .sh .js .ts 等）
+#                 code_no_internal  代码文件，跳过含内网域名的文件
+#                 md                所有 Markdown 文件
+#                 md_no_ref         Markdown 文件，排除 references/ 目录
+#                 ref_md            仅 references/ 目录下的 Markdown 文件
+#                 all               全部文件
+#                 special           不用 pattern，由 publish.py 内置逻辑处理
+#   pattern     Python 正则（re.search），scope=special 时留空
+#   exclude_ref true 表示从目标文件列表中额外排除 references/ 目录
+# =============================================================================
+
+version: "1.0.0"
+
+rules:
+
+  # --- Exfiltration (EX) ---
+
+  - id: EX-001
+    name: Network request with env var
+    severity: FAIL
+    scope: code_no_internal
+    pattern: '(curl|wget|fetch|nc |ncat ).+\$[A-Z_\{]|\$[A-Z_\{].+(curl|wget|fetch)'
+
+  - id: EX-002
+    name: Base64 encoded transmission
+    severity: FAIL
+    scope: code
+    pattern: 'base64.*\|.*(curl|wget|nc)|curl.*\$\(.*base64|(echo|cat|printf).*\|.*base64.*\|.*(curl|wget)'
+
+  - id: EX-003
+    name: DNS-based exfiltration
+    severity: FAIL
+    scope: code
+    pattern: '(dig|nslookup|host)\s+.*\$[A-Z_\{]|\.exfil\.|\.dns\.|\.oob\.'
+
+  - id: EX-004
+    name: External network calls
+    severity: WARN
+    scope: code_no_internal
+    pattern: 'curl |curl$|wget |wget$|\bfetch\(|https?://|requests\.|axios|urllib|\bhttp\.get|\bhttp\.post'
+
+  - id: EX-005
+    name: Netcat outbound connection
+    severity: FAIL
+    scope: code
+    pattern: '\bnc\s+-[^l]|\bncat\s|\bsocat\s|\b/dev/tcp/'
+
+  - id: EX-006
+    name: Webhook exfiltration services
+    severity: FAIL
+    scope: code
+    exclude_ref: true
+    pattern: 'webhook\.site|requestbin|hookbin|burpcollaborator|interact\.sh|canarytokens|pipedream|ngrok\.io|paste\.evil|pastebin\.com'
+
+  - id: EX-007
+    name: Cloud storage exfiltration
+    severity: FAIL
+    scope: code
+    pattern: 'aws s3 cp|gsutil cp|az storage blob|s3cmd put'
+
+  # --- Privilege Escalation (PE) ---
+
+  - id: PE-001
+    name: Sudo execution
+    severity: WARN
+    scope: code
+    pattern: '\bsudo\s'
+
+  - id: PE-002
+    name: Destructive file operations
+    severity: WARN
+    scope: code
+    pattern: 'shutil\.rmtree|fs\.unlinkSync|fs\.rmdirSync|dd if=/dev/(zero|urandom)'
+
+  - id: PE-002b
+    name: Catastrophic rm (root filesystem)
+    severity: FAIL
+    scope: code
+    pattern: 'rm\s+-[rf]*\s+/\s|rm\s+-[rf]*\s+/\*|rm\s+-[rf]*\s+/$'
+
+  - id: PE-003
+    name: Insecure permission change
+    severity: FAIL
+    scope: code
+    pattern: 'chmod\s+(777|666|a\+rwx)|chown\s+root'
+
+  - id: PE-004
+    name: System password file access
+    severity: FAIL
+    scope: code
+    pattern: '/etc/passwd|/etc/shadow|/etc/sudoers'
+
+  - id: PE-005
+    name: SSH directory access
+    severity: FAIL
+    scope: code
+    pattern: '\.ssh/(id_rsa|id_ed25519|id_dsa|config|known_hosts)|\.ssh/\*'
+
+  - id: PE-006
+    name: LD_PRELOAD / library injection
+    severity: FAIL
+    scope: code
+    pattern: '\bLD_PRELOAD\b|\bLD_LIBRARY_PATH\b|\bDYLD_INSERT_LIBRARIES\b'
+
+  # --- Persistence (PS) ---
+
+  - id: PS-001
+    name: Crontab manipulation
+    severity: FAIL
+    scope: code
+    pattern: '\bcrontab\b|/etc/cron\.|/var/spool/cron'
+
+  - id: PS-003
+    name: Shell profile modification
+    severity: FAIL
+    scope: code
+    pattern: '\.(bashrc|bash_profile|zshrc|profile|zprofile)\b'
+
+  - id: PS-004
+    name: System service registration
+    severity: FAIL
+    scope: code
+    pattern: 'systemctl\s+(enable|start|daemon-reload)|launchctl\s+(load|submit)|/etc/init\.d/'
+
+  - id: PS-005
+    name: SSH authorized_keys modification
+    severity: FAIL
+    scope: code
+    pattern: 'authorized_keys'
+
+  - id: PS-007
+    name: Background process execution
+    severity: FAIL
+    scope: code
+    pattern: '\bnohup\s|\bsetsid\s|\bscreen\s+-dm|\btmux\s+new-session\s+-d|\bdisown\b'
+
+  # --- Prompt Injection (PI) ---
+
+  - id: PI-001
+    name: Ignore instructions pattern
+    severity: FAIL
+    scope: md_no_ref
+    pattern: 'ignore (previous|all|any|above|prior) (instructions|rules|guidelines|constraints)|disregard (all|your|previous|any)|do not follow|override (your|all|the|any) (instructions|rules|guidelines)'
+
+  - id: PI-002
+    name: Hidden HTML instructions
+    severity: FAIL
+    scope: md
+    pattern: '<!--.*\b(execute|run|curl|wget|ignore|override|system|admin|sudo|bash)\b.*-->'
+
+  - id: PI-003
+    name: Invisible Unicode characters
+    severity: FAIL
+    scope: special
+
+  - id: PI-004
+    name: Role hijacking
+    severity: FAIL
+    scope: md_no_ref
+    pattern: 'you are now|forget your (instructions|rules|training|guidelines|programming)|from now on you|pretend (to be|you are)|act as if you|new (role|persona|identity|mode)|switch to .* mode'
+
+  - id: PI-005
+    name: DAN jailbreak variants
+    severity: FAIL
+    scope: special
+
+  - id: PI-006
+    name: System prompt markers
+    severity: FAIL
+    scope: md
+    exclude_ref: true
+    pattern: '<\|im_start\||<\|im_end\||\[INST\]|\[/INST\]|<<SYS>>|<</SYS>>|<\|system\|>|<\|user\|>|<\|assistant\|>'
+
+  - id: PI-007
+    name: Tool description poisoning
+    severity: FAIL
+    scope: md
+    pattern: 'IMPORTANT:|CRITICAL (INSTRUCTION|NOTE|UPDATE|CHANGE)|URGENT:|MANDATORY:|OVERRIDE:|PRIORITY:'
+
+  - id: PI-008
+    name: Encoded instruction injection
+    severity: WARN
+    scope: md_no_ref
+    pattern: '(decode|follow|execute|run).*[A-Za-z0-9+/]{20,}={0,2}|base64.*instruc|decode\s+and\s+(follow|execute|run)'
+
+  # --- Obfuscation (OB) ---
+
+  - id: OB-001
+    name: Eval with variable
+    severity: WARN
+    scope: code
+    pattern: '\beval\s+\$|\beval\s+"'
+
+  - id: OB-002
+    name: Base64 decode execution
+    severity: FAIL
+    scope: code
+    pattern: 'base64\s+(-d|--decode)\s*\|.*\b(bash|sh|python|perl|ruby)\b|base32\s+(-d|--decode)\s*\|'
+
+  - id: OB-003
+    name: Hex/Octal encoding
+    severity: WARN
+    scope: code
+    pattern: "echo\\s+-e\\s+['\"]\\\\\\\\x[0-9a-fA-F]|echo\\s+-e\\s+['\"]\\\\\\\\[0-7]{3}|printf\\s+['\"]\\\\\\\\x[0-9a-fA-F]|\\$'\\\\\\\\x[0-9a-fA-F]"
+
+  - id: OB-004
+    name: String manipulation evasion
+    severity: WARN
+    scope: code
+    pattern: '\|\s*rev\b|\brev\s.*\|\s*(bash|sh)|IFS=.\s+read|\bcut\b.*\|\s*(bash|sh)|\$\{!|declare\s+-n'
+
+  - id: OB-005
+    name: General eval/exec
+    severity: WARN
+    scope: code
+    pattern: '\beval\(|\bexec\(|\bFunction\(|\bnew Function\b|\b__import__\(|\bgetattr\s*\(\s*__builtins__|\bcompile\s*\(.+["\'](exec|eval)["\']'
+
+  - id: OB-006
+    name: Process substitution to bash
+    severity: WARN
+    scope: code
+    pattern: 'cat\s+<\(.*\)\s*\|\s*(bash|sh)|\$\(cat\s|source\s+<\('
+
+  - id: OB-007
+    name: chr() based obfuscation
+    severity: WARN
+    scope: code
+    pattern: 'chr\s*\(\s*\d+\s*\)\s*\+\s*chr\s*\(|chr\(\d+\)\s*\+\s*chr\(\d+\)'
+
+  # --- Supply Chain (SC) ---
+
+  - id: SC-001
+    name: Curl pipe to shell
+    severity: FAIL
+    scope: code
+    pattern: '(curl|wget)\s+.+\|\s*(bash|sh|python|perl|ruby|node)\b'
+
+  - id: SC-002
+    name: Untrusted package source
+    severity: WARN
+    scope: code
+    pattern: 'pip install.+https?://|npm install.+git\+|gem install.+--source\s+http[^s]'
+
+  - id: SC-003
+    name: Custom package index URL
+    severity: FAIL
+    scope: all
+    exclude_ref: true
+    pattern: '--index-url\s|--extra-index-url\s|--trusted-host\s|git\+https?://.*#egg='
+
+  - id: SC-004
+    name: Setup.py post-install hook
+    severity: WARN
+    scope: code
+    pattern: 'class\s+\w*[Ii]nstall.*\binstall\b|cmdclass\s*=.*install|\bpost_install\b'
+
+  # --- Secret Leak (SL) ---
+
+  - id: SL-001
+    name: Credential file access
+    severity: special
+    scope: special
+
+  - id: SL-002
+    name: Hardcoded secrets
+    severity: FAIL
+    scope: code
+    pattern: 'AKIA[0-9A-Z]{16}|ghp_[0-9a-zA-Z]{36}|gho_[0-9a-zA-Z]{36}|sk-[0-9a-zA-Z]{48}|-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----'
+
+  - id: SL-003
+    name: Sensitive keyword in code
+    severity: WARN
+    scope: code
+    pattern: '\b(token|secret|password|api_key|private_key|credential|access_key|secret_key)\s*=\s*["\']'
+
+  - id: SL-004
+    name: Environment variable reads
+    severity: WARN
+    scope: code
+    pattern: 'os\.environ|process\.env|ENV\[|getenv|\$[A-Z_]*(KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL)'
+
+  - id: SL-005
+    name: Encoded/obfuscated secret
+    severity: WARN
+    scope: code
+    pattern: 'base64\.(b64decode|decodebytes)\s*\(|codecs\.decode\s*\(.+rot_13|bytes\.fromhex\s*\(|binascii\.unhexlify\s*\('
+
+  # --- Overpermission (OP) ---
+
+  - id: OP-001
+    name: Tool permissions
+    severity: special
+    scope: special
+
+  # --- Quality (QA) ---
+
+  - id: QA-001
+    name: Description quality
+    severity: special
+    scope: special
+
+  - id: QA-003
+    name: File count/size
+    severity: special
+    scope: special
+
+  # --- Markdown Body Exfiltration (MX) ---
+
+  - id: MX-001
+    name: Dangerous command in SKILL.md body
+    severity: special
+    scope: special
+
+  # --- External Reference (ER) ---
+
+  - id: ER-001
+    name: External URLs in references
+    severity: WARN
+    scope: ref_md
+    pattern: 'https?://'
+
+# --- Risk Scoring ---
+scoring:
+  FAIL: 40
+  WARN: 10
+  PASS: 0
+  thresholds:
+    safe: 0
+    low: 25
+    medium: 50
+    high: 75
+    critical: 100

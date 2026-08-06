@@ -1,0 +1,208 @@
+{
+  "_comment": "非通兑超团 SpuModel 参数说明，来源为 ME 成功提交请求",
+  "_rpc": {
+    "appkey": "com.sankuai.hotel.biz.platform",
+    "service": "com.meituan.hotel.biz.platform.goods.facade.standard.MeResourceFacade",
+    "method": "submitSpu",
+    "signature": "submitSpu(java.lang.Long userId, com.meituan.hotel.biz.platform.goods.facade.model.spu.SpuModel): MeBaseResult",
+    "note": "两参数版本，与套餐共用同一已注册 OCTO 接口；第一个参数为 userId（操作人），partnerId 在 SpuModel 内；当前登录用户由 invoke() trace_context.meUser 注入"
+  },
+  "_input_mode": "必传 partner-id + poi-id + goods-id；goods-id 为已提前按 W1 流程（factory/fullday/create-fullday.py）创建好的专属全日房，本脚本不再自动创建全日房，仅负责组装 relatedGoodsList 并提交超团",
+  "_calc_fullday_price": "提供 --calc-fullday-price 辅助命令：按 --sale-price/--room-nights/--overseas/--max-adult 计算全日房基础卖价，打印可直接粘贴给 create-fullday.py 的 --set 参数，不创建任何数据",
+  "_snapshot_constraint": "relatedGoodsList 由用户传入的 --goods-id 组装；relateXgoodsInfoModels 默认自动新建+审核并绑定一条非房（可用 --skip-xgoods 跳过，或用 --xgoods-id 复用已有非房）；spuImageInfoModel 使用内置默认图片",
+  "_audit": "非通兑 autoPublish=true，创建即自动发布，无需额外审核；factory/audit/super-deal/audit.py 仅作手动诊断工具",
+  "cli": {
+    "payload-file": {
+      "type": "string",
+      "required": false,
+      "desc": "可选：使用自定义 SpuModel 模板文件覆盖内置默认模板"
+    },
+    "payload-json": {
+      "type": "string",
+      "required": false,
+      "desc": "可选：使用自定义 SpuModel JSON 覆盖内置默认模板"
+    },
+    "partner-id": {
+      "type": "string/long",
+      "required": true,
+      "desc": "RPC 第一个 Long 参数；必须与 SpuModel 及所有快照内 partnerId 一致"
+    },
+    "poi-id": {
+      "type": "string",
+      "required": true,
+      "desc": "非通兑单门店；必须与 SpuModel 及所有快照内 poiId 一致"
+    },
+    "goods-id": {
+      "type": "integer",
+      "required": true,
+      "default": null,
+      "desc": "已创建好的关联商品 goodsId（必填，--calc-fullday-price 模式除外）；非直连场景来自 W1 create-fullday.py 创建的专属全日房，直连场景来自 zl-hotel-testdata skill 创建的直连商品（须额外加 --direct-goods）"
+    },
+    "direct-goods": {
+      "type": "boolean flag",
+      "default": false,
+      "desc": "--goods-id 为直连商品（而非专属全日房）时需加此参数，脚本会移除 spuActivityStockModel（直连商品 paymentType=0，超团活动库存只支持预付）"
+    },
+    "calc-fullday-price": {
+      "type": "boolean flag",
+      "default": false,
+      "desc": "仅打印专属全日房价格换算结果和 create-fullday.py 的 --set 片段，不创建超团；配合 --sale-price/--room-nights/--overseas/--max-adult 使用"
+    },
+    "product-name": {
+      "type": "string",
+      "required": false,
+      "desc": "覆盖 SpuModel.title；不传时自动生成唯一名称"
+    },
+    "sale-price": {
+      "type": "integer",
+      "default": 20000,
+      "unit": "分",
+      "maps_to": "superDealCouponModel.superDealGiftCardModel.mtPrice"
+    },
+    "line-price": {
+      "type": "integer",
+      "default": 30000,
+      "unit": "分",
+      "maps_to": "linePrice",
+      "constraint": "必须大于等于 sale-price"
+    },
+    "inventory": {
+      "type": "integer",
+      "default": 1000,
+      "maps_to": "superDealCouponModel.couponInventoryModel.inventoryAmount"
+    },
+    "person-bind-limit": {
+      "type": "integer",
+      "default": 5,
+      "maps_to": "superDealCouponModel.personBindLimit"
+    },
+    "room-nights": {
+      "type": "integer",
+      "default": 1,
+      "maps_to": "superDealCouponModel.superDealGiftCardModel.roomNights"
+    },
+    "split-room-night": {
+      "type": "integer",
+      "default": null,
+      "maps_to": "superDealCouponModel.superDealGiftCardModel.splitRoomNight",
+      "desc": "拆分间夜数；不传时默认等于 room-nights"
+    },
+    "period-days": {
+      "type": "integer",
+      "default": 30,
+      "maps_to": "superDealCouponModel.superDealGiftCardModel.superDealGiftUseModel.periodDays",
+      "desc": "券有效天数"
+    },
+    "total-count": {
+      "type": "integer",
+      "default": 300,
+      "maps_to": "spuActivityStockModel.totalCount",
+      "desc": "活动库存总量；默认300。后端约束：必须 >0 且 <=300"
+    },
+    "base-add-price": {
+      "type": "json-array-string",
+      "required": false,
+      "default": null,
+      "maps_to": "spuBaseAddPriceModelList",
+      "desc": "超团加价金额 JSON 数组（嵌套结构）；不传时 spuBaseAddPriceModelList 为 null。数组每项结构：{startDate: \"YYYYMMDD\", endDate: \"YYYYMMDD\", weekPrices: [{inWeek: [1~7], addPrice: int(分)}]}。约束：加价日期范围必须在入住日期范围（--checkin-start ~ --checkin-end）内"
+    },
+    "sell-end": {
+      "type": "date",
+      "format": "YYYY-MM-DD",
+      "maps_to": "superDealCouponModel.couponInventoryModel.endDateTime",
+      "timezone": "Asia/Shanghai"
+    },
+    "checkin-start": {
+      "type": "date",
+      "format": "YYYY-MM-DD",
+      "maps_to": "superDealGiftUseModel.availableCheckInDateList[0].startDate",
+      "timezone": "Asia/Shanghai"
+    },
+    "checkin-end": {
+      "type": "date",
+      "format": "YYYY-MM-DD",
+      "maps_to": "availableCheckInDateList[0].endDate + superDealGiftUseModel.endTime",
+      "timezone": "Asia/Shanghai"
+    },
+    "with-xgoods": {
+      "type": "boolean flag",
+      "default": false,
+      "desc": "（已废弃）默认行为已改为自动新建+审核+绑定非房，保留此参数仅为向后兼容"
+    },
+    "skip-xgoods": {
+      "type": "boolean flag",
+      "default": false,
+      "desc": "跳过默认的非房产品新建与绑定"
+    },
+    "xgoods-id": {
+      "type": "integer",
+      "required": false,
+      "default": null,
+      "desc": "指定要绑定的已有非房产品 xgoodsId；指定时跳过新建，直接查询并绑定该非房"
+    },
+    "swimlane": {
+      "type": "string",
+      "required": false,
+      "desc": "用户指定泳道；空字符串表示主干"
+    },
+    "overseas": {
+      "type": "boolean flag",
+      "default": false,
+      "desc": "境外非通兑超团。加上后专属全日房使用多人同价模式（priceSameTag=1），priceInfo=null + priceFactorInfos 按人数分档，priceRecordWay=3，ratioType=2（BASE_RATIO）。房型自动以 is_overseas=True 创建"
+    },
+    "max-adult": {
+      "type": "integer",
+      "default": null,
+      "desc": "境外最大可住成人人数（1~6，默认2）；仅 --overseas 时生效。值为 N 时 priceFactorInfos 需覆盖 1~N 全部档位（脚本自动生成）"
+    }
+  },
+  "validated_top_level_fields": {
+    "spuId": null,
+    "spuSecondType": 0,
+    "spuRelatedGoodsType": 1,
+    "autoPublish": true,
+    "status": 0,
+    "spuType": 1,
+    "preCheckDays": 0,
+    "relatedGoodsNum": 1,
+    "relatedPoiNum": 1,
+    "spuExchangeType": 1,
+    "writeNewSellStrategy": true
+  },
+  "dynamic_snapshots": {
+    "relatedGoodsList": "直接使用用户传入的 --goods-id 组装（goodsId/goodsName占位/goodsSource等），不再由脚本创建全日房",
+    "relateXgoodsInfoModels": "默认自动调用 W3 流程（create-non-room.py + audit/gift/audit.py）新建并审核一条非房，再通过 MeResourceFacade#querySpuXgoodsList 查询快照并注入住宿商品关系；--xgoods-id 指定时跳过新建直接查询绑定；--skip-xgoods 完全跳过",
+    "spuImageInfoModel": "使用内置测试环境默认图片 imageId=1346380699914282"
+  },
+  "_fullday_prerequisite": {
+    "note": "专属全日房需先单独按 W1 流程创建，本脚本不再自动创建",
+    "factory": "factory/fullday/create-fullday.py",
+    "service": "com.meituan.hotel.biz.platform.goods.facade.standard.MeGoodsFacade",
+    "method": "batchCreateGoods",
+    "result": "getProcessRate 轮询得到 goodsId，创建成功并上线后传给本脚本 --goods-id"
+  },
+  "_xgoods_query_rpc": {
+    "appkey": "com.sankuai.hotel.biz.platform",
+    "service": "com.meituan.hotel.biz.platform.goods.facade.standard.MeResourceFacade",
+    "method": "querySpuXgoodsList",
+    "signature": "querySpuXgoodsList(com.meituan.hotel.biz.platform.goods.model.xgoods.XgoodsListQueryParam): MeBaseResult"
+  },
+  "price_formula": {
+    "rule": "专属全日房基础卖价 = 超团价格(mtPrice) ÷ 间夜(roomNights)；加价日历(addPrice) 仅写入 SPU spuBaseAddPriceModelList，不写入全日房 weekPriceInfos",
+    "example": "mtPrice=20000分(200元), roomNights=2, addPrice=1000分(10元) → 全日房基础卖价 = 20000÷2 = 10000分(100元)，兑换时周末卖价 = 10000+1000 = 11000分",
+    "auto_fix": "脚本自动按公式计算专属全日房基础卖价（单组全周）并覆盖模板默认值；加价日历仅注入 SPU spuBaseAddPriceModelList",
+    "rounding": "mtPrice÷roomNights 不整除时基础卖价向下取整，并输出警告",
+    "rationale": "batchCreateGoods 在卖价(priceChangeMode=8)/底价(priceChangeMode=9)模式下均不支持多组不同价格的 weekPriceInfos（报“保存草稿失败”），因此全日房统一用单组全周基础卖价"
+  },
+  "core_constraints": [
+    "RPC partnerId 与 SpuModel.partnerId 必须一致",
+    "relatedGoodsNum 必须等于 relatedGoodsList 长度",
+    "非通兑 relatedPoiNum 固定为 1",
+    "spuSaleStrategyList 必须包含 saleChannel=1 和 saleChannel=2",
+    "专属全日房 goodsName 必须包含'超级团购'；非房 relateXgoodsInfoModels 可为空",
+    "linePrice 和 mtPrice 均为正整数且单位为分",
+    "linePrice 不能小于 mtPrice",
+    "预付类产品基础卖价必须满足公式：基础卖价 = mtPrice ÷ roomNights（脚本自动计算兑底）；加价日历仅写入 SPU spuBaseAddPriceModelList，不写入全日房 weekPriceInfos（多组价格会报保存草稿失败）"
+  ]
+}
+

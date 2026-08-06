@@ -1,0 +1,15 @@
+skill-manifest-version: 1
+skill-id: 6e3a03abb818b926a8f0c0b8dcab669a642bc8d8aad1780fae00aa5424a62ce3
+
+files:
+  88ab7e366fd607b066fbe944a119880f5364ac7893807a6effb0f092eff1b4bd  SKILL.md
+  28a73dd45875d19f6bdb8c79e7a932001a7f5d3ae45d0711ecc1db408d865121  asset/SCHEMA_SNAPSHOT.json
+  e635c10a41cce0478e9961a5fc464f05887ccf6fa1c9a8debc92f74df9829f34  references/CITADELMD_IN_PLACE_EDIT.md
+  ba5116a7af04a7d67164e172a306c8d1fe62588edd2c29f60b463550db0e72f7  references/data2chart.md
+  bc1fccf30d52e8e4e49a291cb9e3e53e7ed9d438e5ea6bdcaafc7d5ac2ce9c1b  references/drawio.md
+  42daa0de4db3d70d7405cf0a9611c8b7c8ca15a2f7bf1bf18a74471a387c6eb9  references/full-edit.md
+  040b92dcf740cab967e33eadd933e77231a37bcd5509fb4eb1072fa9f720a99b  references/insert-html.md
+  a14a60c026f3b727051d85f2c3abe54a4a665d3c9da84aede20509cacbf7cae0  references/minder.md
+  f9b80ac1dfbc5640e927cdd06f6e9c459e0de205861c25c15a55ccc3384729ae  references/ops.md
+  6c8f9e18ef1efeb211208739b53dd8979137a82f21bcac61679ae5ce278f7c13  references/patch.md
+  68a3bd9b7b39a199a72793a39886cfc963b40bfdf4c36cb1ef0e689d5e9c9381  references/yuntu.md

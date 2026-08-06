@@ -1,0 +1,6 @@
+{
+  "_comment": "oaskills createDocument 最小请求体 (POST /api/pages/addCollaborationContent)",
+  "_source": "从 oaskills client.js 源码逆向 + injectTitleIfMissing()",
+  "title": "测试文档-fixture",
+  "content": "{\"type\":\"doc\",\"content\":[{\"type\":\"title\",\"attrs\":{\"nodeId\":\"FIXTURE-TITLE-UUID\"},\"content\":[{\"type\":\"text\",\"text\":\"测试文档-fixture\"}]},{\"type\":\"paragraph\",\"attrs\":{\"indent\":0,\"align\":\"left\",\"dataDiffId\":null,\"nodeId\":\"FIXTURE-PARA-UUID\"}}]}"
+}

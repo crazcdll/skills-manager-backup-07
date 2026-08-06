@@ -1,0 +1,323 @@
+{
+  "name": "rn_hotel_poidetail-feature-m-hub-update",
+  "source": {
+    "repo": "rn_hotel_poidetail",
+    "branch": "feature/m-hub-update",
+    "path_hint": "/Users/beacon/MRN/rn_hotel_poidetail"
+  },
+  "high_value_business_docs": [
+    "main-page.md",
+    "store-state.md",
+    "api-interfaces.md",
+    "routing.md",
+    "utils-tools.md",
+    "performance.md",
+    "modules-desc.md"
+  ],
+  "business_docs": [
+    "api-interfaces.md",
+    "main-page.md",
+    "modules-desc.md",
+    "performance.md",
+    "routing.md",
+    "store-state.md",
+    "utils-tools.md"
+  ],
+  "module_docs": [
+    "coupon.md",
+    "dialogs-overlay.md",
+    "goods-calendar.md",
+    "goods-cell.md",
+    "goods-filter.md",
+    "goods-mixed-list.md",
+    "goods-price-explanation.md",
+    "goods-shelf.md",
+    "goods-vertical-list.md",
+    "page-overlay.md",
+    "poi-header.md",
+    "poi-image.md",
+    "tab.md",
+    "under-goods-comment.md",
+    "under-goods-guide.md",
+    "under-goods-hotel-around.md",
+    "under-goods-nearby-hot-hotel.md",
+    "under-goods-promotions.md",
+    "under-goods-same-brand.md",
+    "under-goods-travel-recommend.md",
+    "under-goods.md"
+  ],
+  "required_module_capabilities": [
+    {
+      "id": "entry-and-initialization",
+      "description": "入口注册、页面初始化、预加载或预渲染链路",
+      "aliases": [
+        "app-entry",
+        "entry",
+        "preload",
+        "initialization",
+        "bootstrap"
+      ],
+      "benchmark_examples": [
+        "Agent.md",
+        "business/main-page.md"
+      ]
+    },
+    {
+      "id": "shell-and-overlay",
+      "description": "页面壳、导航层、骨架屏、错误兜底、覆盖物",
+      "aliases": [
+        "overlay",
+        "page-overlay",
+        "shell",
+        "navigation-bar",
+        "nav-bar",
+        "dialogs"
+      ],
+      "benchmark_examples": [
+        "modules/page-overlay.md",
+        "modules/dialogs-overlay.md"
+      ]
+    },
+    {
+      "id": "header-media",
+      "description": "头图、媒体、相册等顶部内容",
+      "aliases": [
+        "image",
+        "media",
+        "header-image",
+        "poi-image",
+        "head"
+      ],
+      "benchmark_examples": [
+        "modules/poi-image.md"
+      ]
+    },
+    {
+      "id": "header-summary",
+      "description": "头部摘要、标题、亮点、基础信息",
+      "aliases": [
+        "header",
+        "summary",
+        "poi-header",
+        "top-summary",
+        "hero"
+      ],
+      "benchmark_examples": [
+        "modules/poi-header.md"
+      ]
+    },
+    {
+      "id": "navigation-and-switching",
+      "description": "Tab、导航切换、模式切换或筛选条",
+      "aliases": [
+        "tab",
+        "navigation",
+        "switch",
+        "filter-bar",
+        "selector-bar"
+      ],
+      "benchmark_examples": [
+        "modules/tab.md"
+      ]
+    },
+    {
+      "id": "primary-results-container",
+      "description": "主列表、主货架、主结果区",
+      "aliases": [
+        "goods-shelf",
+        "shelf",
+        "list-page",
+        "filter-list",
+        "result-list",
+        "primary-list"
+      ],
+      "benchmark_examples": [
+        "modules/goods-shelf.md"
+      ]
+    },
+    {
+      "id": "date-and-calendar",
+      "description": "日期、日历、时间选择能力",
+      "aliases": [
+        "calendar",
+        "date",
+        "time-selector"
+      ],
+      "benchmark_examples": [
+        "modules/goods-calendar.md"
+      ]
+    },
+    {
+      "id": "filter-and-refinement",
+      "description": "筛选、精排、条件收敛能力",
+      "aliases": [
+        "filter",
+        "complex-filter",
+        "refinement",
+        "selector"
+      ],
+      "benchmark_examples": [
+        "modules/goods-filter.md"
+      ]
+    },
+    {
+      "id": "item-or-cell-rendering",
+      "description": "列表单元、货架 cell、卡片渲染",
+      "aliases": [
+        "cell",
+        "item",
+        "product-cell",
+        "poi-cell",
+        "card"
+      ],
+      "benchmark_examples": [
+        "modules/goods-cell.md"
+      ]
+    },
+    {
+      "id": "pricing-or-price-explanation",
+      "description": "价格解释、价格区域或价格弹层",
+      "aliases": [
+        "price",
+        "pricing",
+        "price-explanation",
+        "price-selector"
+      ],
+      "benchmark_examples": [
+        "modules/goods-price-explanation.md"
+      ]
+    },
+    {
+      "id": "secondary-content-container",
+      "description": "主结果区下方的内容容器或分块编排",
+      "aliases": [
+        "under-goods",
+        "secondary-content",
+        "below-main",
+        "modules",
+        "bottom-module"
+      ],
+      "benchmark_examples": [
+        "modules/under-goods.md"
+      ]
+    },
+    {
+      "id": "reviews-and-feedback",
+      "description": "评论、评价、反馈能力",
+      "aliases": [
+        "comment",
+        "review",
+        "feedback"
+      ],
+      "benchmark_examples": [
+        "modules/under-goods-comment.md"
+      ]
+    },
+    {
+      "id": "guide-policy-or-instructions",
+      "description": "攻略、政策、说明、帮助信息",
+      "aliases": [
+        "guide",
+        "policy",
+        "instruction",
+        "help"
+      ],
+      "benchmark_examples": [
+        "modules/under-goods-guide.md"
+      ]
+    },
+    {
+      "id": "promotions-and-marketing",
+      "description": "营销、券、促销、活动模块",
+      "aliases": [
+        "coupon",
+        "promotion",
+        "marketing",
+        "discount"
+      ],
+      "benchmark_examples": [
+        "modules/coupon.md",
+        "modules/under-goods-promotions.md"
+      ]
+    },
+    {
+      "id": "nearby-related-or-map-linkage",
+      "description": "周边、地图、POI 联动、关联推荐",
+      "aliases": [
+        "around",
+        "nearby",
+        "map",
+        "poi-linkage",
+        "same-brand",
+        "travel-recommend",
+        "direct-poi"
+      ],
+      "benchmark_examples": [
+        "modules/under-goods-hotel-around.md",
+        "modules/under-goods-nearby-hot-hotel.md",
+        "modules/under-goods-same-brand.md",
+        "modules/under-goods-travel-recommend.md"
+      ]
+    }
+  ],
+  "files": [
+    "Agent.md",
+    "business/api-interfaces.md",
+    "business/main-page.md",
+    "business/modules-desc.md",
+    "business/performance.md",
+    "business/routing.md",
+    "business/store-state.md",
+    "business/utils-tools.md",
+    "modules/coupon.md",
+    "modules/dialogs-overlay.md",
+    "modules/goods-calendar.md",
+    "modules/goods-cell.md",
+    "modules/goods-filter.md",
+    "modules/goods-mixed-list.md",
+    "modules/goods-price-explanation.md",
+    "modules/goods-shelf.md",
+    "modules/goods-vertical-list.md",
+    "modules/page-overlay.md",
+    "modules/poi-header.md",
+    "modules/poi-image.md",
+    "modules/tab.md",
+    "modules/under-goods-comment.md",
+    "modules/under-goods-guide.md",
+    "modules/under-goods-hotel-around.md",
+    "modules/under-goods-nearby-hot-hotel.md",
+    "modules/under-goods-promotions.md",
+    "modules/under-goods-same-brand.md",
+    "modules/under-goods-travel-recommend.md",
+    "modules/under-goods.md"
+  ],
+  "targets": {
+    "business_docs_min": 7,
+    "module_capability_ratio_floor_min": 0.7,
+    "module_docs_floor_min": 6,
+    "recommended_module_docs_min": 10
+  },
+  "reference_only_files": [
+    "modules/coupon.md",
+    "modules/dialogs-overlay.md",
+    "modules/goods-calendar.md",
+    "modules/goods-cell.md",
+    "modules/goods-filter.md",
+    "modules/goods-mixed-list.md",
+    "modules/goods-price-explanation.md",
+    "modules/goods-shelf.md",
+    "modules/goods-vertical-list.md",
+    "modules/page-overlay.md",
+    "modules/poi-header.md",
+    "modules/poi-image.md",
+    "modules/tab.md",
+    "modules/under-goods-comment.md",
+    "modules/under-goods-guide.md",
+    "modules/under-goods-hotel-around.md",
+    "modules/under-goods-nearby-hot-hotel.md",
+    "modules/under-goods-promotions.md",
+    "modules/under-goods-same-brand.md",
+    "modules/under-goods-travel-recommend.md",
+    "modules/under-goods.md"
+  ]
+}

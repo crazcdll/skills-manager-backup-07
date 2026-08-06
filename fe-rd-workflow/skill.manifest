@@ -1,0 +1,20 @@
+skill-manifest-version: 1
+skill-id: 79aa84c1048ee870bf44a7814b171bebe9274dad3cf6f45571e3b581dabc7fed
+
+files:
+  ce42439a76c50ecfaa5c2179dd424519d4c7b67f380994af863404d125a8c1ec  SKILL.md
+  edd298fb8e7d05679911eecdc55f3ca2bba9b1c51f20cc0e054f27e55c95d618  references/check.md
+  9cfe72eb15686008797d23887888e1b7da93577c0e4f8af6b5369c91ef995781  references/prepare-skill-deps.md
+  33ba4de3a2e2f584462300f803787f8887aee26dc2b3a83604893b345ece79eb  references/stages/stage1-env-check.md
+  6e5a6e0bcf9b20aabf7f28fd618ac9f662a8902eddc94d4a7a4ffb7eaa2cb53c  references/stages/stage2-repo-init.md
+  74e149f3146942427191eadc886437005315a6d0696a10a1f8161f4a88d3c872  references/stages/stage3-demand-design.md
+  c4b3b2fd8725ed249d7be004e98caeb6e85589c0db7b432c8b5649da989bbe9a  references/stages/stage4-encoding.md
+  9f859ddbb0a2e7e61a391c5005d9139cd7eee0ba53606f9627fca7a48418e167  references/stages/stage5-verify-test.md
+  1b1a192dac71bfa82d70595fa3c95d1179151d4d059d9504e6236d28224ce3cf  references/stages/stage6-cicd.md
+  f7464c293d830054b0bcf23fc77ef57b80ae726fe2d2f6158949c8f256e52542  references/stages/stage7-feedback.md
+  022d5e870bb72a533eb2de126d303ff666f7c7186cade30340b34d73fe48ba3d  references/workflow-context-schema.md
+  f4002a9fa179fa802bfc19a63105d58532743e359d19628aac52c6711f514e70  scripts/check-deps.js
+  11f9b7cfea89054f212a1ebeba588cfd1ed6b3275e6866d6af04040a10b245d8  scripts/generate-session-link.js
+  f31802336adf5afbfcb97232e3afadf1c3c7cb0a3bd4fe54a73fbacebb61adba  scripts/report-stage.js
+  cfb12b35178c954435d572c3a9405b3beb454aa7fc0b826561971edcc057bed1  scripts/skill-deps.json
+  058adecf61a164d402a4637c6830514ead12c8562a0b6878f42a548b2101fc64  skills.json

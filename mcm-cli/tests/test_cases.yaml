@@ -1,0 +1,254 @@
+# mcm-cli skill 单测用例
+# 格式：name / type(trigger|flow|edge) / input / expect
+
+# ==================== trigger 正例 ====================
+
+- name: trigger-create-plan-by-pr
+  type: trigger
+  input: "帮我基于这个 PR 创建变更计划 https://dev.sankuai.com/code/repo-detail/dpop-app/mcm-plan/pr/500/diff"
+  expect: "触发 mcm-cli skill，路由到 mcm ai，将用户原始输入原样传入 mcm ai 命令执行"
+
+- name: trigger-publish-keywords
+  type: trigger
+  input: "帮我发布订单服务，灰度上线"
+  expect: "触发 mcm-cli skill，识别为发布意图，路由到 mcm ai，执行创建并执行变更计划流程"
+
+- name: trigger-execute-plan
+  type: trigger
+  input: "帮我执行变更计划 12345"
+  expect: "触发 mcm-cli skill，路由到 mcm ai，传入 --plan-id 12345 执行变更计划"
+
+- name: trigger-query-my-plans
+  type: trigger
+  input: "帮我查一下我的变更计划列表"
+  expect: "触发 mcm-cli skill，路由到 mcm plan my 子命令，返回变更计划列表"
+
+- name: trigger-query-plan-detail
+  type: trigger
+  input: "帮我看一下变更计划 MCM-12345 的详情"
+  expect: "触发 mcm-cli skill，路由到 mcm plan detail 子命令，返回计划详情"
+
+- name: trigger-copy-plan
+  type: trigger
+  input: "复制这个变更计划，下午 3 点发"
+  expect: "触发 mcm-cli skill，路由到 mcm ai，将原始输入传入执行复制变更计划流程"
+
+- name: trigger-service-check
+  type: trigger
+  input: "帮我检查一下服务 com.sankuai.xxx 的变更后状态"
+  expect: "触发 mcm-cli skill，路由到 mcm ai，执行变更后服务状态检查"
+
+- name: trigger-change-experience
+  type: trigger
+  input: "查看 PLUS 发布的最佳实践"
+  expect: "触发 mcm-cli skill，路由到 mcm ai，执行变更经验查询"
+
+- name: trigger-paas-trace-squirrel
+  type: trigger
+  input: "查一下 com.sankuai.mall.product.consumerquery 这个服务的 Squirrel 配置变更记录"
+  expect: "触发 mcm-cli skill，--account-name 已明确指定为 Squirrel，只需路由到 bash skill/mcm-cli/scripts/paas-trace.sh --appkey com.sankuai.mall.product.consumerquery --account-name Squirrel 脚本，不需要再并行执行 mcm cloudtrail list"
+
+- name: trigger-paas-trace-generic
+  type: trigger
+  input: "com.sankuai.cf.plan.server 依赖的 Squirrel、Mafka、RDS、Eagle 最近有哪些变更"
+  expect: "触发 mcm-cli skill，路由到 bash skill/mcm-cli/scripts/paas-trace.sh --appkey com.sankuai.cf.plan.server 脚本（不加 --account-name，查询这 4 个系统全部）"
+
+- name: trigger-paas-trace-human-only
+  type: trigger
+  input: "查一下 com.sankuai.mall.product.consumerquery 这个服务 Squirrel 相关的人为操作变更，不要机器自动触发的"
+  expect: "触发 mcm-cli skill，路由到 bash skill/mcm-cli/scripts/paas-trace.sh --appkey com.sankuai.mall.product.consumerquery --account-name Squirrel --user-type user 脚本（识别「人为/人工操作」映射为 --user-type user；注意 Crane 不在 paas-trace.sh 支持范围内，应走 mcm cloudtrail list --account-name Crane，此处改用脚本支持的 Squirrel 举例）"
+
+- name: trigger-paas-trace-all-platform-api-only
+  type: trigger
+  input: "帮我看下 com.sankuai.cf.plan.server 依赖的 Squirrel、Mafka、RDS、Eagle 里，接口自动触发的变更有哪些"
+  expect: "触发 mcm-cli skill，路由到 bash skill/mcm-cli/scripts/paas-trace.sh --appkey com.sankuai.cf.plan.server --user-type api 脚本（不加 --account-name 查这 4 个系统全部，识别「接口自动触发」映射为 --user-type api）"
+
+# ==================== trigger 负例 ====================
+
+- name: trigger-neg-code-review
+  type: trigger
+  input: "帮我做一下这个 PR 的代码审查"
+  expect: "不触发 mcm-cli skill，该请求是代码审查而非变更管理操作"
+
+- name: trigger-neg-git-branch
+  type: trigger
+  input: "帮我拉一个功能分支"
+  expect: "不触发 mcm-cli skill，该请求是创建 Git 分支而非变更管理操作"
+
+- name: trigger-neg-architecture
+  type: trigger
+  input: "帮我设计一下这个系统的微服务架构"
+  expect: "不触发 mcm-cli skill，该请求是架构设计而非变更管理操作"
+
+# ==================== flow 用例（路由决策）====================
+
+- name: flow-route-create-to-mcm-ai
+  type: flow
+  input: "帮我基于 ONES 工作项创建变更计划 https://ones.sankuai.com/ones/product/32681/workItem/task/detail/68092009"
+  expect: "路由到 mcm ai，不得手动拼接 JSON 调用 mcm plan create；将原始输入原样传入 mcm ai 执行"
+
+- name: flow-route-query-to-subcommand
+  type: flow
+  input: "查看变更计划 12345 的步骤列表"
+  expect: "路由到 mcm plan steps 子命令，不走 mcm ai；直接调用并返回结构化数据"
+
+- name: flow-route-template-query
+  type: flow
+  input: "查一下有哪些变更模板"
+  expect: "路由到 mcm template list 子命令，不走 mcm ai"
+
+- name: flow-route-submit-plan
+  type: flow
+  input: "提交变更计划 12345"
+  expect: "路由到 mcm plan submit 子命令，直接调用，不走 mcm ai"
+
+- name: flow-route-publish-with-plan-id
+  type: flow
+  input: "帮我发布计划 12345"
+  expect: "路由到 mcm ai，传入 --plan-id 12345，直接执行已有计划，不重新创建"
+
+- name: flow-route-paas-trace-vs-list
+  type: flow
+  input: "查一下 com.sankuai.cf.plan.server 服务近 7 天的变更（未点名具体系统）"
+  expect: "未传 --account-name（系统范围未知，默认查全部），必须两路并行：mcm cloudtrail list --appkey com.sankuai.cf.plan.server --begin <7天前> --end <当前> -s 20 -f md 与 bash skill/mcm-cli/scripts/paas-trace.sh --appkey com.sankuai.cf.plan.server --begin <7天前> --end <当前> -f md；结果分别展示为两张独立表格（不做去重/排序/合并）；第二张表本身是 paas-trace.sh 合并 Squirrel/Mafka/RDS/Eagle 全部结果后按时间倒序排列的单一表格（脚本内部已完成合并排序，不按系统分表），标题正下方脚本已固定自带一行 ⚠️ 说明文案（Squirrel/Mafka/RDS/Eagle 变更无法通过业务Appkey直查，已自动换标识补充查询），位于标题与「当前展示前 20 条」提示之间，AI 必须原样保留、不得删除/改写/挪动位置"
+
+- name: flow-route-mixed-multi-regular-and-special
+  type: flow
+  input: "查 com.sankuai.cf.plan.server 服务近 7 天的 Squirrel、RDS、Lion 和 Plus 变更"
+  expect: "按路由判断表分成两组：常规系统组（Lion、Plus）、特殊系统组（Squirrel、RDS），每组只调用一次、同组内多个系统名逗号拼接进同一次调用，不得对 Lion、Plus 分别单独调用两次 cloudtrail list；具体命令：mcm cloudtrail list --appkey com.sankuai.cf.plan.server --account-name Lion,Plus --begin <7天前> --end <当前> -s 20 -f md 与 bash skill/mcm-cli/scripts/paas-trace.sh --appkey com.sankuai.cf.plan.server --account-name Squirrel,RDS --begin <7天前> --end <当前> -f md；最终只展示两张表（一条路径一张表，不按 accountName 拆成 Lion/Plus/Squirrel/RDS 四张小节表格）：第一张标题改写为「## 追溯事件列表（共 N 条）」，第二张标题即脚本自带的「## 补充查询结果（共 N 条）」无需改写"
+
+- name: flow-route-paas-trace-not-mcm-ai
+  type: flow
+  input: "查一下 com.sankuai.xxx 依赖的 Mafka 集群最近的 Topic 变更"
+  expect: "路由到 bash skill/mcm-cli/scripts/paas-trace.sh --appkey com.sankuai.xxx --account-name Mafka 脚本，直接调用；不得走 mcm ai（参数明确，无需 AI 推理编排）"
+
+- name: flow-route-cloudtrail-list-vs-paas-trace
+  type: flow
+  input: "查一下最近 Lion 平台有哪些变更（不涉及具体业务服务）"
+  expect: "用户未提供业务 appkey（paas-trace.sh 必需参数），应路由到 mcm cloudtrail list --account-name Lion 直接查询，不得走 paas-trace.sh（即使 Lion 已在其支持范围内，paas-trace.sh 也需要 --appkey 才能调用）"
+
+- name: flow-route-user-org-query
+  type: flow
+  input: "帮我查一下我们团队最近有哪些变更"
+  expect: "识别为按变更人归属组织查询（而非资源归属组织），路由到 mcm cloudtrail list --user-org，不得使用 --org-id（--org-id 语义是资源归属部门，与「我们团队发起的变更」语义不一致）"
+
+- name: flow-route-user-org-id-specific-team
+  type: flow
+  input: "帮我查一下 orgId 是 40047078 这个部门的人最近发起了哪些变更"
+  expect: "识别为查询指定部门成员发起的变更（变更人归属组织），路由到 mcm cloudtrail list --user-org-id 40047078，不得使用 --org-id 40047078（--org-id 查的是资源归属该部门的所有变更，含其他部门人操作该部门资源的情况，语义不同）"
+
+- name: edge-user-org-output-format-unified-with-appkey
+  type: edge
+  input: "查看 orgid 为 40047078 团队成员昨天的变更"
+  expect: "输出格式与按 appkey 查询 cloudtrail list 完全一致，使用模板 A/B：标题固定为「## 追溯事件列表（共 N 条）」，不得写成「查询到 N 条相关变更」等自拟措辞；N > 20 时表格上方加一行「> 当前展示前 20 条」；结尾必须有「> 共 N 条，第 P 页，每页 S 条」这一行且不得省略；UUID 列与其余列同等必填，逐字保留 stdout 原始的 [uuid](链接) Markdown 格式"
+
+- name: flow-route-custom-resource-list
+  type: flow
+  input: "查一下 com.sankuai.xxx 里 redis-op-mcm 这个 Squirrel 集群最近有哪些变更"
+  expect: "已知具体资源标识（Squirrel 集群名 redis-op-mcm）时，可直接执行 mcm cloudtrail list --custom-resource-type \"Squirrel::clusterName\" --custom-resource-names redis-op-mcm；若用户只提供业务 appkey、需要先发现资源标识，则路由到 bash skill/mcm-cli/scripts/paas-trace.sh --appkey com.sankuai.xxx --account-name Squirrel，不得走 mcm ai 或臆造参数"
+
+- name: flow-route-custom-resource-trace
+  type: flow
+  input: "帮我查一下 order-created 这个 Mafka Topic 最近的变更事件"
+  expect: "已知具体 Topic 名时，可直接执行 mcm cloudtrail list --custom-resource-type \"Mafka::TopicName\" --custom-resource-names order-created；若用户能提供业务 appkey 且想一键查询该 appkey 全部依赖，应路由到 bash skill/mcm-cli/scripts/paas-trace.sh --appkey <appkey> --account-name Mafka；若无法确定业务 appkey 也无法直接给出精确 Topic 名以外的上下文，应如实告知查询范围有限"
+
+# ==================== flow 用例（Session 管理）====================
+
+- name: flow-session-multi-turn
+  type: flow
+  input: |
+    第一轮：mcm ai "创建变更计划，部署订单服务"
+    第二轮：mcm ai "发布时间改成下午 3 点"
+  expect: "第二轮不传 -s 参数，自动续接第一轮会话；不得生成新 sessionId"
+
+- name: flow-session-reconnect-on-sigterm
+  type: flow
+  input: "mcm ai 执行中途进程被 SIGTERM 中断（exit code 124）"
+  expect: "执行 mcm ai reconnect <sessionId> 重连，不得新开会话；reconnect 持续失败后向用户汇报当前 sessionId，由用户决定下一步"
+
+- name: flow-session-resume-after-ask-question
+  type: flow
+  input: "mcm ai 执行中 AI 触发了 ask_question 事件，展示问题和选项"
+  expect: "执行 mcm ai answer 提交回答，再执行 mcm ai resume 恢复执行；resume 仅用于此场景，不用于断线重连"
+
+- name: flow-session-no-new-session-after-error
+  type: flow
+  input: "mcm ai reconnect 持续失败，用户指示继续执行下一步"
+  expect: "后续 mcm ai 命令仍使用原 sessionId 续接，不得新开会话"
+
+# ==================== edge 用例 ====================
+
+- name: edge-short-exit-no-output
+  type: edge
+  input: "mcm ai 执行后 2~3 秒退出且无实质输出"
+  expect: "先执行 mcm ai reconnect <sessionId> 尝试重连；重连持续失败后向用户汇报，由用户决定是否开新会话；不得自行创建新会话"
+
+- name: edge-session-id-invalid
+  type: edge
+  input: "执行 mcm ai 时提示 sessionId 无效"
+  expect: "先按 Session 管理规则判断是否可 reconnect；确需新开时由用户决定，不得自行创建"
+
+- name: edge-auth-401
+  type: edge
+  input: "执行 mcm ai 时服务端返回 401 认证失败"
+  expect: "执行 mcm refresh 刷新 token；失败则执行 mcm login 重新认证；认证成功后使用原 sessionId 重试原命令，不得新开会话"
+
+- name: edge-force-new-session
+  type: edge
+  input: "用户明确要求：帮我新开一个会话重新创建变更计划"
+  expect: "用户明确要求新开会话，使用 -s $(uuidgen | tr '[:upper:]' '[:lower:]') 生成新 sessionId 传入；这是唯一合法的主动新建会话场景"
+
+- name: edge-paas-trace-mws-auth-failed
+  type: edge
+  input: "执行 bash skill/mcm-cli/scripts/paas-trace.sh --appkey com.sankuai.xxx 时提示「无法获取 MWS 认证票据（yun_portal_ssoid）」"
+  expect: "识别这是脚本独立实现的第二套 MWS 认证体系失败（非 mcm-cli 的 401/403 场景），不得直接执行 mcm refresh 或 mcm login 后原样重试；应引导用户确认已执行过 mcm login --mis <mis>（CIBA 模式，脚本会复用该登录态换票），必要时设置 MCM_MWS_SSOID 环境变量直接注入票据后重试"
+
+- name: edge-paas-trace-no-paas-dependency
+  type: edge
+  input: "bash skill/mcm-cli/scripts/paas-trace.sh --appkey com.sankuai.xxx 返回「未找到任何资源依赖」"
+  expect: "如实告知用户该 appkey 在 Avatar 中未查到 Squirrel/RDS/Eagle 相关依赖数据（Mafka 不依赖 Avatar 判断、总是会直接查，因此“未找到任何资源依赖”不会因为 Mafka 而出现），不得臆造变更记录或改用 cloudtrail list 重新查询同样的 appkey"
+
+- name: edge-account-name-case-insensitive
+  type: edge
+  input: "帮我查一下 com.sankuai.xxx 的 squirrel（小写）变更"
+  expect: "--account-name 参数大小写不敏感，squirrel/Squirrel/SQUIRREL 均可正确路由到 bash skill/mcm-cli/scripts/paas-trace.sh --appkey com.sankuai.xxx --account-name squirrel"
+
+- name: edge-paas-trace-partial-platform-failure
+  type: edge
+  input: "bash skill/mcm-cli/scripts/paas-trace.sh --appkey com.sankuai.xxx -f json 返回 { \"data\": [], \"_failedPaas\": [\"Mafka\"] }，且退出码非 0"
+  expect: "识别到脚本内部某个 mcm cloudtrail list 子查询失败时会跳过继续查询其余系统、不中断整体流程，但会在 stderr 输出「N 个子查询失败」的明确汇总提示，JSON 结果的 _failedPaas 字段列出失败的系统名，且脚本以 exit 1 退出；data 为空不代表该 appkey 在 Squirrel/Mafka/RDS/Eagle 确实无变更，消费方必须检查 _failedPaas 是否非空，不得直接断言「该服务无相关变更」；应建议用户设置 MCM_DEBUG=1 重新执行脚本查看具体失败原因"
+
+- name: trigger-paas-trace-eagle
+  type: trigger
+  input: "帮我查一下 com.sankuai.cf.plan.server 依赖的 Eagle ES 索引最近有哪些变更"
+  expect: "触发 mcm-cli skill，路由到 bash skill/mcm-cli/scripts/paas-trace.sh --appkey com.sankuai.cf.plan.server --account-name Eagle 脚本"
+
+- name: edge-begin-natural-language-time
+  type: edge
+  input: "查一下 orgId 40067366 这个团队最近 7 天的变更"
+  expect: "必须先在本地把「最近 7 天」换算为具体的 yyyy-MM-dd HH:mm:ss（如当前时间减 7 天），再传入 mcm cloudtrail list --user-org-id 40067366 --begin \"<换算后的具体时间>\"；不得直接把 \"7 days ago\" 等相对时间原文透传给 --begin/--end（--begin 仅接受 yyyy-MM-dd HH:mm:ss 或 10/13 位时间戳，传入无法解析的格式会立即报错退出，不会再被静默按 180 天上限处理，故意传自然语言格式验证时应看到明确报错而不是得到一个数据量异常大的成功结果）"
+
+- name: edge-paas-trace-long-range-more-data
+  type: edge
+  input: "分别用 30 天和 180 天两个时间窗口查 com.sankuai.xxx 依赖的 RDS/Lion 变更，180 天的结果条数反而比 30 天少"
+  expect: "识别为异常现象（更长时间窗口理应覆盖更短窗口，条数只增不减），不得归因于「该 appkey 长期变更量本来就少」；应怀疑 paas-trace.sh 内部结果合并环节存在数据丢失（历史上曾因用 `jq --argjson a \"$(cat 累积结果文件)\"` 把不断增长的累积 JSON 当命令行参数传入，超过系统 ARG_MAX 后 jq 报 'Argument list too long' 被静默吞掉、当次整页数据丢失但不计入 _failedPaas），现已修复为改用 `jq -s 'add'` 从文件读取合并，无 ARG_MAX 限制；若复现该现象应建议设置 MCM_DEBUG=1 重新执行排查，而不是直接采信条数更少的长周期结果"
+
+- name: edge-begin-exceeds-180-days
+  type: edge
+  input: "帮我查一下 com.sankuai.xxx 近一年（365 天）的变更事件"
+  expect: "MCM 接口最大只支持查询 180 天时间跨度，换算 --begin 为 365 天前传给 mcm cloudtrail list（或 paas-trace.sh）后，命令会直接报错退出「查询的时间跨度超过限制（最大 180 天），请缩小 --begin/--end 范围后重试」，不会静默截断返回部分数据，行为与 MCM Web 页面「变更检索」超限报错一致；paas-trace.sh 会在发起任何子查询前完成该校验，不会先跑完全部 Squirrel/Mafka/RDS/Eagle 子查询才报错。AI 遇到该报错应如实告知用户「该时间范围超过 180 天上限，无法一次性查询」，并建议缩小范围或按 90 天等更小窗口分批查询后自行合并，不得自行截断范围重试后把结果当作用户要求的完整一年数据呈现"
+
+- name: edge-paas-trace-default-latest-twenty
+  type: edge
+  input: "查 com.sankuai.xxx 的 Squirrel 和 RDS 变更，不指定分页参数"
+  expect: "不按系统分组，Squirrel 和 RDS 的结果合并为单一列表，按开始时间倒序排列后默认展示前 20 条（不区分该 20 条来自几个系统）；表格「系统」列保留每行的来源系统名，便于区分；标题正下方脚本固定自带一行 ⚠️ 说明（Squirrel/Mafka/RDS/Eagle 变更无法通过业务Appkey直查，已自动换标识补充查询），紧接着若合并后总数超过 20 条，再提示「当前展示前 20 条」；表格结尾始终固定输出一行「共 N 条，第 1 页，每页 20 条」（未显式传 -p/-s 时等价于隐式第 1 页，与显式分页时的结尾格式完全一致，不区分默认态/分页态两套文案），stderr 输出可复制执行的 -p 2 翻页命令（对整个合并列表生效，非按系统分别翻页）。"
+
+- name: edge-paas-trace-single-account-pagination
+  type: edge
+  input: "查 com.sankuai.xxx 的 Squirrel 变更，展示条数超过了 20 条，用户说「看下一页」"
+  expect: "重新执行 bash skill/mcm-cli/scripts/paas-trace.sh --appkey com.sankuai.xxx --account-name Squirrel -p 2（未指定 -s 时沿用默认的 20）；展示文案与默认态完全一致（标题下方仍是「当前展示前 20 条」或超出范围提示，结尾仍是「共 N 条，第 P 页，每页 S 条」，只是 P 从 1 变为 2），不存在「第 N/M 页」这种默认态没有的独立分页文案；不得改用 -f json + jq 手工切片，也不得改用 cloudtrail list 重新查询同一 appkey（会查不全）"
+
+- name: edge-paas-trace-multi-account-pagination
+  type: edge
+  input: "查 com.sankuai.xxx 的 Squirrel 和 Mafka 变更，用户说「看下一页」"
+  expect: "Squirrel 和 Mafka 的结果已合并为单一列表整体分页，不存在「按系统分别翻页」的概念；应保持原有的 --account-name Squirrel,Mafka 不变，直接加 -p 2 重新执行 bash skill/mcm-cli/scripts/paas-trace.sh --appkey com.sankuai.xxx --account-name Squirrel,Mafka -p 2，脚本对合并后的整个列表翻到第 2 页展示（该页数据可能来自 Squirrel、Mafka 或两者混合，具体取决于按时间倒序排列后第 21~40 条落在哪个系统）"

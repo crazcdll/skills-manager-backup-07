@@ -1,0 +1,52 @@
+# =============================================================================
+# SkillHub 美团内部专项安全扫描规则（Stage 2）
+# 由 security-check.py 加载执行
+# =============================================================================
+#
+# 字段说明：
+#   id        规则 ID（MT-xxx）
+#   name      规则名称
+#   severity  FAIL / WARN
+#   scope     code（代码文件）/ all（全部文件）
+#   pattern   Python 正则（re.search，re.IGNORECASE）
+#   note      匹配时展示给用户的说明
+# =============================================================================
+
+version: "1.0.0"
+
+rules:
+
+  - id: MT-001
+    name: 内网域名硬编码
+    severity: WARN
+    scope: code
+    pattern: 'https?://[a-zA-Z0-9._-]+\.(sankuai|meituan|neixin)\.com'
+    note: 内网 URL 硬编码，建议改为配置项或使用 mtskills 内置认证
+
+  - id: MT-002
+    name: 美团 AK/SK 泄露
+    severity: FAIL
+    scope: code
+    pattern: '(ak|sk|access_key|secret_key)\s*=\s*["\'][a-zA-Z0-9]{20,}["\']'
+    note: 疑似美团 AK/SK 硬编码，请删除或改为从环境变量读取
+
+  - id: MT-003
+    name: Appkey 硬编码
+    severity: WARN
+    scope: all
+    pattern: 'com\.(sankuai|meituan)\.[a-zA-Z0-9._-]+'
+    note: Appkey 建议通过 mtskills --ciba 或配置项传入，避免硬编码
+
+  - id: MT-004
+    name: 命令注入风险
+    severity: FAIL
+    scope: code
+    pattern: '(eval|exec)\s*\(\s*(input|request|sys\.argv|os\.environ|args)'
+    note: eval/exec 直接使用用户输入，存在命令注入风险
+
+  - id: MT-005
+    name: PII 数据合规
+    severity: WARN
+    scope: code
+    pattern: '\b(phone_number|mobile|身份证|id_card|id_number|real_name|真实姓名|银行卡|bank_card|credit_card)\b'
+    note: 代码中处理用户 PII 数据，建议在 SKILL.md frontmatter 中添加 `data-classification: pii` 声明

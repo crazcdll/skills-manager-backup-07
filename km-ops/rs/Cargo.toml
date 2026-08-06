@@ -1,0 +1,26 @@
+[package]
+name = "km-ops"
+version = "0.1.0"
+edition = "2024"
+description = "学城文档 CLI — 零依赖独立二进制"
+
+[[bin]]
+name = "km"
+path = "src/main.rs"
+
+[dependencies]
+reqwest = { version = "0.12", features = ["json", "rustls-tls", "blocking", "multipart"], default-features = false }
+serde_json = "1"
+hmac = "0.12"
+sha2 = "0.10"
+base64 = "0.22"
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+
+[profile.release]
+opt-level = "z"      # 最小体积
+lto = true           # 链接时优化
+codegen-units = 1    # 单编译单元
+strip = true         # 去掉符号表
+panic = "abort"      # 去掉 unwind 处理

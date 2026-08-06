@@ -1,0 +1,10 @@
+skill-manifest-version: 1
+skill-id: 19664da379c7587ca23ca64c661731eba8e2235fdb495829d263089f6efecdc7
+
+files:
+  b5d4be9f3d9216dfb64f91208fac88166b3a3c0b66049dd9c3d6aa4af3edb1f0  SKILL.md
+  d1ca651aebc6a5efd2300bffbd458dc6dc5cbf27b6c8b705ace97023a7ca105e  references/auth-guide.md
+  ff0a45604dc60ef199ea21ab5134d72758751fb77ab41e2f81689745ceb01e8d  references/case-examples.md
+  12fae8999b2bd377be79c65e6f33a3b07a7fc618d8e60a0ccbcfe4f5dec78316  references/command-reference.md
+  c8949184a174c73ffbbec064b05003a1a5cadb694e97269aae4b0c065f345523  references/filter-query-dsl.md
+  6bde8942767415b0240d2f9a19a0816fbb56471b84901c34b0d23fa91e6150d0  references/interactive-params.md

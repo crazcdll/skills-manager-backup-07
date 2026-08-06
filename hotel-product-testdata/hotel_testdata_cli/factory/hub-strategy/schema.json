@@ -1,0 +1,73 @@
+{
+  "_comment": "货盘规则（HubStrategy）参数说明",
+  "_service": "com.sankuai.hotelcrs.supply.hub",
+  "_interface": "com.sankuai.hotelcrs.supply.hub.api.facade.HubStrategyFacade",
+
+  "create_strategy": {
+    "_method": "createStrategy + updateStrategyStatus",
+    "_desc": "创建货盘规则并自动发布上线（两步合一）。发布后系统自动生成房转套餐。支持两种渠道模式：突破全渠道（默认）和指定渠道。",
+    "_modes": {
+      "突破全渠道": "不传 --channels，channelBreakType=2，向所有渠道开放",
+      "指定渠道":   "传 --channels，channelBreakType=5，删除部分渠道"
+    },
+    "cli_params": {
+      "--strategy-name": {
+        "required": true,
+        "desc": "货盘规则名称",
+        "example": "早餐货盘规则"
+      },
+      "--file-url": {
+        "required": true,
+        "desc": "S3 文件下载链接（upload-to-s3.py 返回的 download_url）",
+        "example": "https://msstest.sankuai.com/biz-platform-goods-copy/palletize_xxx.csv?..."
+      },
+      "--channels": {
+        "required": false,
+        "default": null,
+        "desc": "配合 --delete-channels 使用：要删除的渠道码，逗号分隔。不传时默认删除全部 6 个渠道。",
+        "example": "2783_2_1003_1007_4006,2783_16_1016_1019_4024",
+        "available_channels": {
+          "2783_2_1003_1007_4006":    "酒店搜索主流程/美团App/酒店民宿/POI详情页/酒店套餐",
+          "2783_2_63_163_4605":       "酒店搜索主流程/美团App/门票/POI详情页/门票+酒店",
+          "2783_1010_1011_1015_4606": "酒店搜索主流程/美团团购小程序/酒店民宿/POI详情页/景点游玩门票酒店套餐",
+          "2783_16_1016_1019_4024":   "酒店搜索主流程/点评App/酒店民宿/POI详情页/酒店套餐",
+          "2783_16_64_165_4607":      "酒店搜索主流程/点评App/门票/POI详情页/景点游玩酒店套餐",
+          "2783_1021_1630_1631_4646": "酒店搜索主流程/点评小程序/景点游玩/POI详情页/景酒套餐"
+        }
+      },
+      "--strategy-desc": {
+        "required": false,
+        "default": "",
+        "desc": "规则描述（可为空）"
+      },
+      "--swimlane": {
+        "required": false,
+        "default": "",
+        "desc": "泳道名称，空字符串=主干"
+      },
+      "--dry-run": {
+        "required": false,
+        "type": "flag",
+        "desc": "仅打印参数，不执行 RPC"
+      },
+      "--show-schema": {
+        "required": false,
+        "type": "flag",
+        "desc": "打印字段说明后退出"
+      }
+    },
+    "fixed_params": {
+      "strategyType": 1,
+      "strategyStatus": 0,
+      "relationItemType": 3,
+      "breakStrategyType": 3,
+      "formTransType": 3,
+      "channelBreakType_default": 2,
+      "channelBreakType_with_channels": 5
+    },
+    "output": {
+      "strategyId": "货盘规则 ID"
+    }
+  }
+}
+

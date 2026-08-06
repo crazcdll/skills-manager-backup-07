@@ -1,0 +1,6 @@
+skill-manifest-version: 1
+skill-id: b9865028c986c5a9359d121fc1f626745e39bca5337cfb83f266410f9ec89f7c
+
+files:
+  4ba1395e96b4bc63d5d2eb58bb1adf626ee8e000a9e1f20567e838c819bb04f1  SKILL.md
+  54a348456fa95fc953f234b66f0fc4e0d5110d3dd7641394315ec50c7ef1e64f  scripts/setup_webhook.py

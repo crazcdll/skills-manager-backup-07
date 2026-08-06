@@ -1,0 +1,9 @@
+skill-manifest-version: 1
+skill-id: 798713c29cd5403d2e6053fed6a2e65a09c0be1e330b65b1e3272575394ea5de
+
+files:
+  8b61dcd872fb39b539c30adea8e7d8d1d994eaa8e4343d0efaa008545243b5a9  SKILL.md
+  930caaf617ca0dea08c30e2597506d6f9827b324cd760d50770c26085099a4e5  references/query-workflow.md
+  86f74dc83110f99bbfb98fded6fa2d998347428b7fa8cd993e48106ac3073da2  references/update-workflow.md
+  0c4d99cb9b773274e6abf8b8c0bc94f93b65c411e8a7d68d97a3eb2ae518c9ac  scripts/_code_.sh
+  1153bfb8d0e21ececc9fda5caec13b6eb8b65b249efbc961a24daefbe6da9f9f  scripts/auto-pr.sh

@@ -1,0 +1,10 @@
+{
+  "_comment": "oaskills updateDocument 请求体 (POST /api/pages/updateCollaborationContent/{contentId})",
+  "_source": "从 oaskills client.js updateDocument() 源码逆向",
+  "_key_differences": [
+    "只有 content 字段，无 stepVersion",
+    "content 是完整 PM JSON 的 JSON 字符串",
+    "每个节点都有 nodeId"
+  ],
+  "content": "{\"type\":\"doc\",\"content\":[{\"type\":\"title\",\"attrs\":{\"nodeId\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"},\"content\":[{\"type\":\"text\",\"text\":\"Mock标题\"}]},{\"type\":\"paragraph\",\"attrs\":{\"align\":\"\",\"dataDiffId\":null,\"indent\":0,\"nodeId\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"}},{\"type\":\"paragraph\",\"attrs\":{\"indent\":0,\"align\":\"left\",\"dataDiffId\":null,\"nodeId\":\"cccccccccccccccccccccccccccccccc\"},\"content\":[{\"type\":\"text\",\"text\":\"新增内容\"}]}]}"
+}

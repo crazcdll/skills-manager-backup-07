@@ -1,0 +1,68 @@
+{
+  "_comment": "缓存刷新/改价审核字段说明 - 工具1031（HotelCacheUpdateOrPriceAuditService.cacheUpdateOrPriceAudit）",
+  "_tool": 1031,
+  "_operations": {
+    "1": "缓存刷新（商品/SPU/门店/货盘）",
+    "2": "BD改价审核（通过或驳回）",
+    "3": "商家改价审核（通过或驳回）"
+  },
+
+  "operationType": {
+    "type": "integer",
+    "required": true,
+    "enum": {
+      "1": "缓存刷新",
+      "2": "BD改价进审",
+      "3": "商家改价进审"
+    },
+    "desc": "操作类型（必填）",
+    "example": "1"
+  },
+  "productId": {
+    "type": "integer",
+    "required": false,
+    "desc": "商品ID（productId/goodsId），缓存刷新或改价审核时按需填入",
+    "example": "2205278640"
+  },
+  "spuId": {
+    "type": "integer",
+    "required": false,
+    "desc": "SPU ID（超团ID/套餐ID），SPU级别操作时填入",
+    "example": "8426522"
+  },
+  "poiId": {
+    "type": "integer",
+    "required": false,
+    "desc": "门店ID，门店级别缓存刷新时填入",
+    "example": "1085918666109517"
+  },
+  "rpId": {
+    "type": "integer",
+    "required": false,
+    "desc": "货盘RPID（rpId/突破规则ID/拉黑规则ID），货盘级别操作时填入",
+    "example": "12345"
+  },
+  "auditStatus": {
+    "type": "integer",
+    "required_if": "operationType=2或3",
+    "default": 3,
+    "enum": {
+      "2": "审核驳回",
+      "3": "审核通过"
+    },
+    "desc": "审核状态（operationType=2/3时必填，默认3=通过）",
+    "example": "3"
+  },
+  "isOversea": {
+    "type": "boolean",
+    "required": false,
+    "default": false,
+    "enum": {
+      "false": "境内",
+      "true": "境外"
+    },
+    "desc": "是否境外（缓存刷新时展示，默认境内）",
+    "example": "false"
+  }
+}
+

@@ -1,0 +1,14 @@
+skill-manifest-version: 1
+skill-id: ed99d97487accf50b5038a5f1c454bcc7711f272ee869c2a0f07430db6e12473
+
+files:
+  cc4481b6148741b1b2f1582d07d233b7d1ff9dc64f47143083af10cbeb27f6ad  SKILL.md
+  6d4143140c14bb07b2f2cf03a02142cb0a7e007afc1acb300120a09c5760ba53  references/install-and-manage.md
+  1a7116e4294bcfcb92a10a1b9cc7e4330584fa30508b56fe0b1e0f0e159c4256  references/meituan-rules.yaml
+  9463ed46a1739ec424e987eaac3980fae22a8cfdd5013e471357dac1863ccd57  references/pre-install-vetting.md
+  1ea8145c8ea5c5ec4630fb4ed5dd6cb73929804e6807468b64a06ae4b7abdd50  references/publish-workflow.md
+  80165c1855570caef15879473aa8f0f6097add8a6edcfd632dc903f83e2581fc  references/scan-rules.yaml
+  e688db503c899b746b3776c33f7bcec4448bfc9207f8d66a0b1595f803f26fb6  references/search-and-discover.md
+  d59c81bbe9f2babd32512d6b76f80ad972f85e92efb0636dd855caeeb4eee1ab  references/security-scan-rules.md
+  b97b15c800e7fdf3e885e8249d21612107a6e047366581b9ab405b2ec1b6d2e9  scripts/security-check.py
+  83a46bbd7c5d5c9c3876ca91855d0ac1b4d2ff38208b5f8e35ca69c42aff72a8  scripts/security-scan.py

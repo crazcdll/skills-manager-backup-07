@@ -1,0 +1,28 @@
+skill-manifest-version: 1
+skill-id: cd62f10a05e5ba6a1a951484cc8a23007af2d6823191fdf2b05bd0c016da50ce
+
+files:
+  aa3190b6e49e255cefc1575299788743c33bc8653f54d51de93f6127d393c1ea  .skillignore
+  43e5018ddd92452536c9bbdfb5551f863b98664d5d4d5e02eb43bdc9c1ee9c63  SKILL.md
+  b7f2a4fa23fef259dcb3688228bbd7f626f2774d606619022189647fb58857b8  references/context/max-context.md
+  d9826c448cf5c849f82d07846511d92311ef463243e881d7b476cff3124cf2b0  references/context/mrn-context.md
+  9a7f40a20dd26552eb57dab083fbf6fe039d7ad347f8be59dbe2299409ae82d2  references/modes/local.md
+  49436f1f72bc576b87e17ab51430613aa87adcd8ce84a3446ef0ce2b254ad13e  references/modes/pr-only.md
+  58c0b83a0f09de9c6d5e55d662535dddf13a46f53b6b439730806b69c10059d2  references/output.md
+  b43c4cafa0269c3eecf23916aa63c7c7d9f325217e474fce5fb3ef8fc840967a  references/pr-comment.md
+  19d79e9f66ab48b1b2e020d25de25460cdb473e4b9c29292c664deffb0a55c7d  references/report-submit.md
+  92fd4e61be0684674ae76607cdcfa6503c19df8d0de76149411faf12d25902e2  references/rules-loading.md
+  78f0a437d42024b9f2e6e5b6ec7074208bf23d3522c51c25d5ca7f2d546e8d62  references/rules/base/dep-upgrade-rules.md
+  69c3e729df7d301269fe148ef679a4b993b1cbfe490f36c78445e4bec2fca9d7  references/rules/base/general-rules.md
+  d3b06ed831563f59d7f1ff1dd91b53ae68ed92573595ba2e661905a6e3a1644b  references/rules/base/msi-api-review-rules.md
+  1706d642f62fe6a939636fe64406cefde8f60323d0b9b9c1e6bfb8727b0f1e72  references/rules/base/trade-rules.md
+  9a65049f8c4ff5e4c04c65bc56775ae498a19faa0cc3191d0724ddc5de9dd69f  references/rules/stack/duo-rules.md
+  c309808a0096af4b7bea80441348e04a85f4e02b028862e6e7e0511f187b772e  references/rules/stack/max-rules.md
+  cc99bdc6471747498216a45de84a62459c4a3096ab4158a25c4cdf6cac4100f2  references/rules/stack/miniprogram-rules.md
+  74c75513b6661063c30612f55b5be598ba2754e1cb9abf6ad58b33e33c07dbb3  references/rules/stack/mrn-rules.md
+  a0caaccd95b86bca92e16ff4b21bfbfd0097ee8ad70aeec05bd8bb607dc46b86  references/tpl-report.md
+  50a81d0cdc8c58ecd4f960ff8e204759e0f96f06e665641cc01850acd925ede5  scripts/dep-scan.sh
+  68a9eddf2a99130051909dd7635f9a7b5c484e5e60e9f311085514c7c255774c  scripts/pr-comment/code_cli.py
+  d873260412bb2c830d46942b8c8d587966dc27bf1e67fafd996811651433fd76  scripts/pr-comment/cr-comment.sh
+  8665e60a4c05ae12c7b93d14c8f5ced528c486b373b534b6e83632b83146a448  scripts/report-submit.sh
+  c469ac7714c5961a11f224787e9dab67960e81d3fa78a513d24b3e4bd7506d67  scripts/self-update.sh

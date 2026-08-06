@@ -1,0 +1,8 @@
+{
+  "name": "trade-duo-apply-standard",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "semver": "^7.6.3"
+  }
+}

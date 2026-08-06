@@ -1,0 +1,36 @@
+{
+  "_comment": "学城搜索 API 返回结构样本（脱敏）。POST /api/citadelsearch/saferoom/content。测试关注的是结构而非真实数据：contentId 是数字（非字符串），这是 cmd_search 取 ID 失败的根因；data 是对象 {totalCount, models}（非数组），这是 search_docs 取空结果的根因。",
+  "status": 0,
+  "data": {
+    "totalCount": 3,
+    "models": [
+      {
+        "contentId": 1000000001,
+        "title": "测试文档A",
+        "contentBody": "",
+        "creator": "testuser01",
+        "title_hl": "测试文档A",
+        "contentBody_hl": "这是一段<b>高亮</b>的正文摘要，用于验证 snippet 解析。",
+        "subType": "content"
+      },
+      {
+        "contentId": 1000000002,
+        "title": "测试文档B",
+        "contentBody": "",
+        "creator": "testuser02",
+        "title_hl": "测试文档B",
+        "contentBody_hl": "另一段<b>高亮</b>摘要。",
+        "subType": "content"
+      },
+      {
+        "contentId": 1000000003,
+        "title": "测试文档C",
+        "contentBody": "",
+        "creator": "testuser03",
+        "title_hl": "测试文档C",
+        "contentBody_hl": "第三段<b>高亮</b>摘要。",
+        "subType": "content"
+      }
+    ]
+  }
+}

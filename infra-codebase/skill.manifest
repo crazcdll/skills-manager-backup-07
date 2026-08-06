@@ -1,0 +1,6 @@
+skill-manifest-version: 1
+skill-id: bbea94c2f6b9eb9f73601c11c2258e2d150a9ddf40c54d7f8974ea736158fd8e
+
+files:
+  ee93d130e326d0114c7069b58f85a6602e04f7956abc05e4ed4931b211196e39  SKILL.md
+  da920418d0498c30d887d8f3d45a6c20afde9a4498a79f3e241d445f09a0191a  references/deps-graph.md

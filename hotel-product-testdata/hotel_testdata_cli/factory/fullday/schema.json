@@ -1,0 +1,989 @@
+{
+  "_description": "batchCreateGoods 全日房参数 schema。基于源码真实校验逻辑维护（CheckGoodsCreateParamLogicUnit + ValidateGoodsServiceImpl + MePriceParamTransformAndCheckLogicUnit，2026-05-21）。",
+  "_usage": "路径格式与模板 JSON 对齐。使用 --set 覆盖字段时，使用点分路径（如 goodsDetailList.0.goodsBaseInfo.goodsName）",
+  "_source": {
+    "facade": "com.meituan.hotel.biz.platform.goods.facade.standard.MeGoodsFacade#batchCreateGoods",
+    "param": "CreateOrUpdateGoodsParam.java",
+    "checker_L1": "CheckGoodsCreateParamLogicUnit.java（基础参数非空/枚举校验）",
+    "checker_L2": "CheckGoodsCreateRelatedInfoLogicUnit.java → ValidateGoodsServiceImpl.java（业务规则校验）",
+    "checker_L3": "MePriceParamTransformAndCheckLogicUnit.java（价格参数校验）"
+  },
+
+  "createFlag": {
+    "type": "bool",
+    "required": true,
+    "description": "固定为 true（创建商品）",
+    "default": true
+  },
+  "partnerId": {
+    "type": "Long",
+    "required": true,
+    "description": "供应商ID。JSR-303 @NotNull 校验",
+    "error": "参数错误 | code: 2000 (PARAM_ERROR)",
+    "example": 4550589
+  },
+  "poiId": {
+    "type": "Long",
+    "required": true,
+    "description": "门店ID（mtPoiId）。JSR-303 @NotNull 校验。RPC 传 string，后端自动转 Long",
+    "error": "参数错误 | code: 2000 (PARAM_ERROR)",
+    "example": "1085927256096396"
+  },
+  "goodsDetailList": {
+    "type": "List",
+    "required": true,
+    "description": "商品详情列表，JSR-303 @NotNull；不能为空 list",
+    "error": "参数错误 | code: 2000 (PARAM_ERROR)"
+  },
+
+  "goodsDetailList.0.goodsBaseInfo": {
+    "_section": "商品基本信息 GoodsInfoModel（Thrift 定义）",
+    "_checker": "CheckGoodsCreateParamLogicUnit.checkGoodsBaseInfo()",
+
+    "goodsName": {
+      "type": "String",
+      "required": true,
+      "description": "商品名称",
+      "constraints": [
+        "非空（为空报 GOODS_NAME_VALID_EMPTY_ERROR）",
+        "最多 99 个字符，Lion 可配（MAX_GOODS_NAME_LENGTH=99）",
+        "不能含 4 字节特殊字符，如 emoji（正则 [^\\u0000-\\uFFFF]）",
+        "同批次内不能与已有产品名重复"
+      ],
+      "errors": {
+        "空": "产品名不能为空 | code: 30208 (GOODS_NAME_VALID_EMPTY_ERROR)",
+        "过长": "产品名%s不能超过%s个字符 | code: 200000006 (GOODS_NAME_TOO_LONG_ERROR)",
+        "特殊字符": "不支持特殊字符 | code: 10533 (PREGOODS_MODIFY_CHECK_SPECIAL_CHAR)",
+        "重名": "以下产品名(%s)与已有产品重复，请修改后重新提交 | code: 30304 (PREPAY_GOODS_NAME_REPEAT_ERROR)"
+      }
+    },
+
+    "goodsType": {
+      "type": "Integer",
+      "required": true,
+      "description": "商品类型，必填，通过 GoodsTypeEnum.findByValue() 枚举校验",
+      "enum": {
+        "1": "全日房（默认）",
+        "2": "钟点房"
+      },
+      "default": 1,
+      "error": "参数错误 | code: 2000 (PARAM_ERROR)"
+    },
+
+    "paymentType": {
+      "type": "Integer",
+      "required": true,
+      "description": "付款方式，必填，通过 PaymentTypeEnum.findByValue() 枚举校验",
+      "enum": {
+        "0": "预付（默认）——rpGuaranteeModel 必须为 null",
+        "1": "现付担保——rpGuaranteeModel 必填，normalRule.isGuarantee=1，不能有 specialRules",
+        "2": "现付非担保——rpGuaranteeModel 必填，normalRule.isGuarantee=0，specialRule.arrivalHour 必填"
+      },
+      "default": 0,
+      "error": "参数错误 | code: 2000 (PARAM_ERROR)",
+      "_note": "钟点房（goodsType=2）只允许 paymentType=0（预付），传其他值报 HOUR_ROOM_PAYMENT_TYPE_ERROR"
+    },
+
+    "sellChannel": {
+      "type": "Integer",
+      "required": true,
+      "description": "售卖渠道，位域枚举，必填（null 也报错）。前端提交时传 15（全平台）",
+      "enum": {
+        "1": "仅美团",
+        "2": "仅点评",
+        "4": "差旅",
+        "8": "分销（此值时 channelNos 必填）",
+        "9": "美团+点评",
+        "15": "全平台（1|2|4|8，默认）"
+      },
+      "default": 15,
+      "error": "参数错误 | code: 2000 (PARAM_ERROR)",
+      "_note": "sellChannel & 8 != 0（含分销位）时，channelNos 中 key='8' 必填"
+    },
+
+    "channelNos": {
+      "type": "Map<String, List<String>>",
+      "required": "sellChannel 含分销位（& 8 != 0）时必填",
+      "description": "分销渠道号。key 为渠道类型编号，value 为渠道号列表",
+      "default": { "8": ["001", "002"] },
+      "constraints": [
+        "sellChannel 含分销（8）时必须传，且 key 必须含 '8'",
+        "所有 channelNo 字符串长度之和 <= 256（CHANNELNO_MAXLENGTH）",
+        "每个 channelNo 必须在 Lion 配置的 FENXIAO_CHANNELNO_CONFIG（默认 '001,002'）中"
+      ],
+      "errors": {
+        "未传": "参数错误 | code: 2000 (PARAM_ERROR)",
+        "渠道号超长": "渠道号超长 | code: 130017 (PREPAY_TEAM_GOODS_CHANNELNO_OVERLENGTH)",
+        "渠道号不合法": "渠道号不在有效范围内 | code: 130018 (PREPAY_TEAM_GOODS_CHANNELNO_NONECONFIG)"
+      },
+      "known_keys": {
+        "8": "分销渠道，合法值：001=美团，002=点评"
+      }
+    },
+
+    "contractNo": {
+      "type": "String",
+      "required": true,
+      "description": "合同编号，必填（isNotBlank），合同必须审核通过+在线+类型合法",
+      "constraints": [
+        "不能为空或空白字符串",
+        "合同必须审核通过（auditStatus=通过）",
+        "合同必须在线（onlineStatus=在线）",
+        "合同类型必须是：预付合同(1) / 现付合同(2) / 预付包销(3)",
+        "paymentType=0（预付）时合同必须是预付(1)或预付包销(3)类型",
+        "goodsType=2（钟点房）时不能绑定包房合同（privateRoomCooperation=true）"
+      ],
+      "errors": {
+        "空": "合同不能为空 | code: 200000039 (CONTRACT_IS_EMPTY_ERROR)",
+        "未审核通过": "该供应商下没有审核通过的合同... | code: 200000011 (CONTRACT_NOT_AUDIT_PASS_ERROR)",
+        "未在线或类型不合法": "抱歉，合同类型不正确或合同未在线... | code: 200000012 (INVALID_CONTRACT_TYPE_OR_OFFLINE_ERROR)",
+        "预付类型不匹配": "预付类型的产品必须关联预付合同 | code: 80004 (PREPAY_CONTRACT_ERROR2)",
+        "钟点房绑包房合同": "钟点房无法绑定包房合同 | code: 10707 (PREPAY_PRIMARY_ROOM_CONTRACT)"
+      },
+      "example": "ZSFW-A9-05646193"
+    },
+
+    "priceChangeMode": {
+      "type": "Integer",
+      "required": true,
+      "description": "价格变更模式，隐性必填，固定传 8（卖价/预付）。9=底价模式。编辑时不允许切换两种模式",
+      "enum": { "8": "卖价模式（预付，默认）", "9": "底价模式" },
+      "default": 8,
+      "error": "产品改价模式选择有误，请重新选择 | code: 210000014 (PRICE_RECORD_WAY_CHECK_FAIL)（编辑时切换）"
+    },
+
+    "pricingPower": {
+      "type": "Integer",
+      "required": true,
+      "description": "定价权，隐性必填，固定传 0",
+      "default": 0
+    },
+
+    "priceRecodeWay": {
+      "type": "Integer",
+      "required": true,
+      "description": "价格记录方式，隐性必填，固定传 1（卖价）。与 priceInfo.priceRecordWay 保持一致",
+      "enum": { "1": "卖价（默认）", "2": "底价" },
+      "default": 1
+    },
+
+    "switchStatus": {
+      "type": "Integer",
+      "required": true,
+      "description": "商品开关状态，创建时固定传 0（下线）",
+      "default": 0
+    },
+
+    "expectPriceChangeMode": {
+      "type": "Integer",
+      "required": true,
+      "description": "预期价格变更模式，固定传 8（与 priceChangeMode 保持一致）",
+      "default": 8
+    },
+
+    "singleChannelReason": {
+      "type": "String",
+      "required": true,
+      "description": "单渠道原因说明，固定传空字符串",
+      "default": ""
+    },
+
+    "deductionAudit": {
+      "type": "boolean",
+      "required": true,
+      "description": "是否扣款审核中，固定传 false",
+      "default": false
+    },
+
+    "superDealReSale": {
+      "type": "boolean",
+      "required": true,
+      "description": "是否支持超团转售，固定传 false",
+      "default": false
+    },
+
+    "canAdjustPrice": {
+      "type": "boolean",
+      "required": true,
+      "description": "是否支持生意助手调价，固定传 false",
+      "default": false
+    },
+
+    "typeLimitValue": {
+      "type": "Integer",
+      "required": "goodsType=2（钟点房）时必填",
+      "description": "钟点房可住时长（小时），全日房不传此字段",
+      "range": "[1, 23]（MIN=1, MAX=23，源码常量）",
+      "constraints": [
+        "goodsType=2 时不能为 null",
+        "范围 [1, 23]",
+        "必须 <= (receiveTimeEnd - receiveTimeStart) 的小时差"
+      ],
+      "errors": {
+        "钟点房未传": "钟点房入住时间不能为空 | code: 200000013 (HOUR_ROOM_CHECKIN_TIME_REQUIRED_ERROR)",
+        "超出范围": "钟点房的入住时长的范围是[1,23] | code: 90014 (HOUR_ROOM_HOURS_BYOND_BOUNDARY)",
+        "超出接待时间差": "可住时间小于入住时长 | code: 90018 (HOUR_ROOM_BOOKING_HOUR_UNREASONABLE)"
+      },
+      "only_for": "goodsType=2"
+    }
+  },
+
+  "goodsDetailList.0.roomInfo": {
+    "_section": "房型信息 RoomInfoModel",
+    "_checker": "CheckGoodsCreateParamLogicUnit.checkRoomInfo()",
+
+    "roomId": {
+      "type": "Integer",
+      "required": true,
+      "description": "逻辑房型ID，必填",
+      "error": "参数错误 | code: 2000 (PARAM_ERROR)",
+      "example": 77671480
+    },
+
+    "roomName": {
+      "type": "String",
+      "required": true,
+      "description": "逻辑房型名称，必填",
+      "error": "参数错误 | code: 2000 (PARAM_ERROR)",
+      "example": "标准大床房"
+    },
+
+    "capacity": {
+      "type": "Integer|String",
+      "required": true,
+      "description": "可住人数。固定传 0，后端从逻辑房型继承，此值不影响实际容量",
+      "default": 0,
+      "_note": "真实抓包传 '0'（字符串），模板传整数 0，后端均接受"
+    }
+  },
+
+  "goodsDetailList.0.rpInfo": {
+    "_section": "规则信息 RpInfoModel",
+    "_checker": "CheckGoodsCreateParamLogicUnit.checkRpInfo() + ValidateGoodsServiceImpl 各 validate 方法",
+    "_rp_model_wrapper": "所有规则均通过 RpModel 包装：{normalRule:{...}, weekendRule:null|{...}, updateType:0}。normalRule=平日规则，weekendRule=周末（周六日）规则，不区分时传 null",
+
+    "rpBaseModel": {
+      "_section": "基本规则（必传，不传报 PARAM_ERROR）",
+      "_checker": "CheckGoodsCreateParamLogicUnit.checkRpInfo() 校验非空；ValidateGoodsServiceImpl.validateStrsIsSpecialChar() 校验 rpName/rpCustomName 特殊字符",
+
+      "isAutoRelay": {
+        "type": "Integer",
+        "description": "是否自动延期。0=自动延期（默认），1=不自动延期",
+        "enum": { "0": "自动延期", "1": "不自动延期" },
+        "default": 0
+      },
+
+      "autoRelayDays": {
+        "type": "Integer",
+        "description": "自动延期天数（isAutoRelay=0 时有效）",
+        "default": 30
+      },
+
+      "rpName": {
+        "type": "String",
+        "description": "产品规则名称，显示在产品列表中（如「含单早-不可取消」）。真实请求必传（非 null），不能含 4 字节特殊字符",
+        "constraints": ["不能含 4 字节特殊字符（emoji 等）"],
+        "error": "不支持特殊字符 | code: 10533 (PREGOODS_MODIFY_CHECK_SPECIAL_CHAR)",
+        "example": "含单早-不可取消-标准价",
+        "_note": "模板占位符 __RP_NAME__，默认与 goodsName 相同。前端根据规则自动拼接，AI 应根据用户描述拼接"
+      },
+
+      "rpCustomName": {
+        "type": "String",
+        "description": "产品备注文字，追加在 rpName 后，用于区分同房型下多个产品。不能含 4 字节特殊字符，会做 POI 敏感词检测",
+        "constraints": [
+          "不能含 4 字节特殊字符",
+          "不能含 POI 敏感词"
+        ],
+        "errors": {
+          "特殊字符": "不支持特殊字符 | code: 10533 (PREGOODS_MODIFY_CHECK_SPECIAL_CHAR)",
+          "敏感词": "产品备注含有敏感词:%s | code: 20528 (POI_SENSITIVE_WORDS_ERROR)"
+        },
+        "example": "标准价",
+        "_note": "模板占位符 __RP_CUSTOM_NAME__，默认用时间戳"
+      },
+
+      "customNameType": {
+        "type": "Integer",
+        "description": "备注名类型。真实抓包传 1",
+        "enum": { "0": "后端自动生成 rpName", "1": "使用传入的 rpCustomName（默认）" },
+        "default": 1
+      },
+
+      "saleStrategyInfo.saleStrategy": {
+        "type": "List<Integer>",
+        "description": "售卖策略，必传",
+        "enum": { "0": "全日房可售", "1": "套餐可售" },
+        "default": [0, 1],
+        "_note": "[0,1] 表示全日房+套餐均可售"
+      }
+    },
+
+    "rpCancelModel": {
+      "_section": "取消规则（必传）",
+      "_checker": "ValidateGoodsServiceImpl.validateRpCancelRule()",
+      "_structure": "{ normalRule: {...}, weekendRule: null|{...}, updateType: 0 }",
+      "_key_insight": "normalRule=平日取消规则，weekendRule=周末（周六日）取消规则，不区分时传 null",
+
+      "normalRule.cancelItemType": {
+        "type": "Integer",
+        "required": true,
+        "description": "取消类型",
+        "enum": {
+          "0": "不可取消",
+          "1": "可取消（需同时传 moveUpCancelDays 和 moveUpCancelHour）"
+        },
+        "default": 0,
+        "source": "CancelRuleItemTypeEnum.java:7-8"
+      },
+
+      "normalRule.moveUpCancelDays": {
+        "type": "Integer",
+        "description": "免费取消提前天数。cancelItemType=1 时必传（不传报 PARAM_ERROR）。0=入住当天可取消，1=提前1天",
+        "required_when": "cancelItemType=1",
+        "error": "参数错误 | code: 2000 (PARAM_ERROR) | checker: ValidateGoodsServiceImpl.java:418",
+        "example": 0
+      },
+
+      "normalRule.moveUpCancelHour": {
+        "type": "String",
+        "description": "免费取消截止时间，格式 HH:MM:SS。全日房 cancelItemType=1 时后端强制校验，不传报错",
+        "required_when": "goodsType=1 且 cancelItemType=1",
+        "error": "参数错误 | code: 2000 (PARAM_ERROR) | checker: ValidateGoodsServiceImpl.java:418",
+        "example": "23:59:00"
+      },
+
+      "normalRule.payCancelPeriodModels": {
+        "type": "List",
+        "description": "收费取消阶梯（可选）。cancelItemType=1 且需要免费取消期外收费时使用。每项：{advanceDays, advanceHour, penaltyRate(0~100)}",
+        "constraints": [
+          "钟点房（goodsType=2）不能传此字段",
+          "收费取消时间必须晚于免费取消时间（advanceDays < moveUpCancelDays，或天数相等时 advanceHour > moveUpCancelHour）"
+        ],
+        "errors": {
+          "钟点房传了": "钟点房不能设置付费取消规则 | code: 200000032 (HOUR_ROOM_NO_PAY_CANCEL_RULE_ERROR)",
+          "时间顺序错误": "付费取消日期不能早于免费取消日期 | code: 119 (CANCEL_DATE_INVALID_ERROR)"
+        },
+        "only_for": "goodsType=1",
+        "example": [{ "advanceDays": 0, "advanceHour": "18:00:00", "penaltyRate": 10 }]
+      },
+
+      "weekendRule": {
+        "type": "Object|null",
+        "description": "周末（周六日）取消规则，直接写在 rpCancelModel 顶层（与 normalRule 平级）。不区分平日/周末时传 null",
+        "structure": "字段与 normalRule 完全相同（cancelItemType, moveUpCancelDays, moveUpCancelHour, payCancelPeriodModels）",
+        "example_免费取消": { "cancelItemType": 1, "moveUpCancelDays": 0, "moveUpCancelHour": "18:00:00" },
+        "example_不可取消": { "cancelItemType": 0 },
+        "_note": "weekendRule 是 rpCancelModel 的直接子字段，不是 normalRule 的子字段"
+      }
+    },
+
+    "rpBreakFastModel": {
+      "_section": "早餐规则（全日房必传，不传报「系统内部错误」；钟点房传 null）",
+      "_checker": "ValidateGoodsServiceImpl.validRpBreakFast()",
+      "_structure": "{ normalRule: {num, effectiveTimes}, weekendRule: null|{num, effectiveTimes}, specialRules: null|[...], updateType: 0 }",
+      "_key_insight": "normalRule=平日早餐份数，weekendRule=周末份数，不区分时传 null",
+
+      "normalRule.num": {
+        "type": "Integer",
+        "required": true,
+        "description": "早餐份数，不能为 null 或 < 0",
+        "enum": { "0": "无早餐（默认）", "1": "单份早餐", "2": "双份早餐", "5": "五份早餐（含五早）" },
+        "_enum_note": "常用值：0/1/2/5；其他正整数（如3/4）也被接口接受，名称自动拼接为「含N早」",
+        "default": 0,
+        "constraints": [
+          "不能为 null 或 < 0",
+          "钟点房（goodsType=2）num 不能 > 0"
+        ],
+        "errors": {
+          "null 或 < 0": "早餐份数有误 | code: 90021 (PRODUCT_FOOD_FAIL)",
+          "钟点房 > 0": "钟点房不能有早餐 | code: 10543 (PREGOODS_HOUR_ROOM_NOT_NEED_BREAKFAST)"
+        }
+      },
+
+      "normalRule.effectiveTimes": {
+        "type": "null",
+        "description": "平日规则生效时间，通常传 null",
+        "default": null
+      },
+
+      "weekendRule": {
+        "type": "Object|null",
+        "description": "周末（周六日）早餐规则，直接写在 rpBreakFastModel 顶层（与 normalRule 平级）。不区分时传 null",
+        "example_周末双早": { "effectiveTimes": null, "num": 2 },
+        "example_周末无早": { "effectiveTimes": null, "num": 0 },
+        "_note": "不要用 specialRules 实现周末差异，用 weekendRule"
+      },
+
+      "specialRules": {
+        "type": "List|null",
+        "description": "【慎用】指定日期范围+星期的特殊早餐规则，通常用 weekendRule 即可",
+        "_structure": "[{ effectiveTimes: [{startDate, endDate, usefulWeek, startTime, endTime}], num: 0|1|2 }]",
+        "effectiveTimes_fields": {
+          "startDate": "生效起始日期，格式 YYYY-MM-DD",
+          "endDate": "生效结束日期，格式 YYYY-MM-DD",
+          "usefulWeek": "生效星期列表（1=周一...7=周日），[1,2,3,4,5]=工作日，[6,7]=周末，[1,2,3,4,5,6,7]=全周",
+          "startTime": "日内生效开始时间，通常传 null",
+          "endTime": "日内生效结束时间，通常传 null"
+        },
+        "example": [{
+          "effectiveTimes": [{
+            "startDate": "2026-05-19", "endDate": "2026-11-15",
+            "usefulWeek": [1,2,3,4,5,6,7], "startTime": null, "endTime": null
+          }],
+          "num": 1
+        }],
+        "_note": "weekendRule=永久性每周周末规则；specialRules=仅在指定日期范围生效，优先使用 weekendRule"
+      }
+    },
+
+    "rpHourlyRoomUseModel": {
+      "_section": "钟点房接待时间（仅 goodsType=2 必填，全日房传 null）",
+      "_checker": "ValidateGoodsServiceImpl.validateHourRoomBookingHours()",
+      "_constraint": "goodsType=1（全日房）时必须传 null，传了报错；goodsType=2 时必填",
+      "errors": {
+        "全日房传了": "全日房没有入住规则 | code: 200000031 (DAY_ROOM_GOODS_NO_USE_RULE_ERROR)",
+        "钟点房未传": "参数错误 | code: 2000 (PARAM_ERROR)"
+      },
+
+      "normalRule.receiveTimeStart": {
+        "type": "String",
+        "description": "开始接待时间，格式 HH:mm（24小时），不合法格式报 PARAM_ERROR",
+        "default": "08:00"
+      },
+      "normalRule.receiveTimeEnd": {
+        "type": "String",
+        "description": "结束接待时间，格式 HH:mm。与 receiveTimeStart 差值必须 >= typeLimitValue，且不超过24小时",
+        "default": "22:00",
+        "constraints": [
+          "接待时间差（end - start）>= typeLimitValue",
+          "接待时间差 <= 24 小时"
+        ],
+        "errors": {
+          "时长不够": "可住时间小于入住时长 | code: 90018 (HOUR_ROOM_BOOKING_HOUR_UNREASONABLE)",
+          "超过24小时": "可住时间超过24小时 | code: 90019 (HOUR_ROOM_BOOKING_HOUR_BEYOND_DAY)"
+        }
+      }
+    },
+
+    "rpEarlyBookingModel": {
+      "_section": "预订规则（必传，不传报「参数错误」）",
+      "_checker": "ValidateGoodsServiceImpl.validRpEarlyBooking()",
+
+      "normalRule.latestBookingDays": {
+        "type": "Integer",
+        "description": "至少提前 N 天预订（-1=不限制）",
+        "default": -1,
+        "range": "-1 或 >= 1",
+        "error": "提前订规则的天数不规范 | code: 2017 (BOOKING_DAY_ERROR)（< -1 时报错）"
+      },
+
+      "normalRule.earliestBookingDays": {
+        "type": "Integer",
+        "description": "至多提前 N 天预订（-1=不限制）",
+        "default": -1,
+        "range": "-1 或 >= 1",
+        "constraints": [
+          ">= -1",
+          "若两者均 > 0，则 latestBookingDays <= earliestBookingDays"
+        ],
+        "error": "提前订规则的天数不规范 | code: 2017 (BOOKING_DAY_ERROR)"
+      },
+
+      "normalRule.isDaybreakBooking": {
+        "type": "Integer",
+        "description": "是否支持0点后预订当天，固定传 1",
+        "default": 1
+      }
+    },
+
+    "rpGuaranteeModel": {
+      "_section": "担保规则（paymentType=0 传 null；现付产品必填）",
+      "_checker": "ValidateGoodsServiceImpl.validCashPayRule()",
+      "_constraint": {
+        "paymentType=0（预付）": "必须传 null，传了报 PARAM_ERROR",
+        "paymentType=1（现付担保）": "必填，normalRule.isGuarantee=1，不能有 specialRules",
+        "paymentType=2（现付非担保）": "必填，normalRule.isGuarantee=0，specialRule.arrivalHour 非空，guaranteeType != 0，组合不重复"
+      },
+      "errors": {
+        "预付传了": "参数错误 | code: 2000 (PARAM_ERROR)",
+        "现付未传": "参数错误 | code: 2000 (PARAM_ERROR)",
+        "isGuarantee 不匹配": "担保产品不可设置非担保规则... | code: 80007 (CASH_PAY_GUARANTEE_RULE_ERROR)",
+        "现付担保有 specialRules": "担保产品不可设置非担保规则... | code: 80007 (CASH_PAY_GUARANTEE_RULE_ERROR)",
+        "specialRule.arrivalHour 为空": "特殊担保规则参数错误 | code: 80010 (CASH_PAY_GUARANTEE_RULE_PARAM_ERROR)",
+        "guaranteeType=0": "特殊担保规则无效 | code: 80009 (CASH_PAY_GUARANTEE_RULE_INVALID_ERROR)",
+        "担保规则重复": "特殊担保规则的到店时间和担保类型不能重复 | code: 80008 (CASH_PAY_GUARANTEE_RULE_SAME_ERROR)"
+      },
+
+      "normalRule.isGuarantee": {
+        "type": "Integer",
+        "enum": { "0": "非担保（paymentType=2 必传 0）", "1": "担保（paymentType=1 必传 1）" }
+      },
+      "normalRule.guaranteeType": {
+        "type": "Integer",
+        "enum": { "1": "首晚担保", "2": "整单担保（默认）" }
+      },
+      "normalRule.arrivalHour": {
+        "type": "String",
+        "description": "预计到店时间，格式 HH:MM:SS（paymentType=2 的 specialRule 中必填）",
+        "example": "14:00:00"
+      }
+    },
+
+    "rpSerialModel": {
+      "_section": "连住规则（必传；钟点房不支持连住）",
+      "_checker": "ValidateGoodsServiceImpl.validateSerialRule() + OriginStrategy（范围校验）+ validateDayTripGoodsSerialRule（周边游特殊约束）",
+
+      "normalRule.serialCheckinMin": {
+        "type": "Integer",
+        "description": "最小连住天数（0=不限制；有效值 1~30）",
+        "default": 0,
+        "constraints": [
+          "值必须 >= 0",
+          "不为 0 时有效范围 (0, 30]，即 1~30",
+          "serialCheckinMax != 0 时，serialCheckinMin 不能 > serialCheckinMax"
+        ],
+        "error": "连住规则的天数不规范 | code: 90005 (SERIAL_CHECKIN_DAY_ERROR)"
+      },
+      "normalRule.serialCheckinMax": {
+        "type": "Integer",
+        "description": "最大连住天数（0=不限制；有效值 1~30，且 >= serialCheckinMin）",
+        "default": 0,
+        "constraints": [
+          "值必须 >= 0",
+          "不为 0 时有效范围 (0, 30]，即 1~30",
+          "serialCheckinMax != 0 时必须 >= serialCheckinMin"
+        ],
+        "error": "连住规则的天数不规范 | code: 90005 (SERIAL_CHECKIN_DAY_ERROR)"
+      },
+      "_special_constraints": {
+        "钟点房": "goodsType=2 时不能设置连住规则（min/max 均须为 0），否则报 HOUR_ROOM_NOT_NEED_SERIAL（code: 200000033）",
+        "超团产品": "含超团备注的产品（超团）不能有连住规则，serialCheckinMin/Max 必须均为 0（code: 超团产品信息校验失败 SUPER_DEAL_GOODS_INFO_ERROR）",
+        "周边游境内": "周边游国内产品 serialCheckinMin 必须等于 serialCheckinMax（最大最小值不相等报 PREPAY_GIFT_DAY_TRIP_SERIAL_ILLEGAL）",
+        "周边游境外": "周边游境外产品 serialCheckinMin 必须等于 spuCheckDays（套餐设置的晚数）（code: PREPAY_GIFT_DAY_TRIP_SERIAL_ILLEGAL）"
+      }
+    },
+
+    "rpDisplayModel": {
+      "_section": "专客专享规则（必传，全为 0 表示不限制）",
+      "_checker": "MtaPrepayCheckServiceImpl.validateRpDisplayRule()（各字段通过对应枚举类解析校验）",
+      "_cross_field_constraint": "境外面签供应商（isOverseaPartner=true）时：city 必须等于 0，distanceRange 必须等于 0，否则报 PARAM_ERROR（code: 2000）",
+
+      "normalRule.hotelMember": { "type": "Integer", "default": 0, "enum": { "0": "全部", "1": "一阶会员", "2": "二阶会员" }, "error": "枚举无效 | code: 2000 (PARAM_ERROR)" },
+      "normalRule.totalGmv":    { "type": "Integer", "default": 0, "enum": { "0": "全部", "1": "一档GMV", "2": "二档GMV" }, "error": "枚举无效 | code: 2000 (PARAM_ERROR)" },
+      "normalRule.city":        { "type": "Integer", "default": 0, "enum": { "0": "全城市", "1": "下单在POI城市", "2": "下单不在POI城市" }, "error": "枚举无效 | code: 2000 (PARAM_ERROR)" },
+      "normalRule.stuSpecial":  { "type": "Integer", "default": 0, "enum": { "0": "全部", "1": "仅学生" }, "error": "枚举无效 | code: 2000 (PARAM_ERROR)" },
+      "normalRule.distanceRange": { "type": "Integer", "default": 0, "enum": { "0": "全部", "1": "酒店3公里内（附近专享）" }, "error": "枚举无效 | code: 2000 (PARAM_ERROR)" },
+      "normalRule.riskControl": { "type": "Integer", "default": 0, "enum": { "0": "全部", "1": "黑名单不可见" }, "error": "枚举无效 | code: 2000 (PARAM_ERROR)" },
+      "normalRule.employeeExclusive": { "type": "Integer", "default": 0, "enum": { "0": "全部", "1": "仅美团员工" }, "error": "枚举无效 | code: 2000 (PARAM_ERROR)" },
+      "normalRule.flagshipNewUser":   { "type": "Integer", "default": 0, "description": "旗舰新用户专享，固定传 0" },
+      "normalRule.businessTravel":    { "type": "Integer", "default": 0, "description": "商旅专享，固定传 0" },
+
+      "normalRule.lengthOfStay": {
+        "type": "Object|null",
+        "description": "连住天数限制（附近专享中的连住约束，通常传 null）",
+        "_structure": "{ lengthOfStayType: Integer, minSerialDays: Integer|null, maxSerialDays: Integer|null }",
+        "lengthOfStayType": {
+          "enum": { "0": "UNLIMITED（无限制，minSerialDays/maxSerialDays 必须均为 null）", "1": "LIMITED（有限制）" },
+          "error": "连住天数错误 | code: 1060 (SERIAL_DAYS_ERROR)"
+        },
+        "minSerialDays": {
+          "description": "最小连住天数，lengthOfStayType=1 时必填",
+          "constraints": ["必须 > 0 且 <= 30", "必须 <= maxSerialDays"],
+          "error": "连住天数错误 | code: 1060 (SERIAL_DAYS_ERROR)"
+        },
+        "maxSerialDays": {
+          "description": "最大连住天数，lengthOfStayType=1 时必填",
+          "constraints": ["必须 > 0 且 <= 30", "必须 >= minSerialDays"],
+          "error": "连住天数错误 | code: 1060 (SERIAL_DAYS_ERROR)"
+        },
+        "_note": "UNLIMITED 类型时 minSerialDays 和 maxSerialDays 必须均为 null，传了报 SERIAL_DAYS_ERROR（code: 1060）"
+      }
+    },
+
+    "rpTimeLimitSaleModel": {
+      "_section": "限时售卖规则（不需要时传 null）",
+      "_checker": "ValidateGoodsServiceImpl.validTimeLimitSale() + GoodsConvertUtil.checkRpEffectTime()",
+      "constraints": [
+        "timeLimitSaleModels 中每项的 normalRule 不能为空（代码: 90022 PRODUCT_RULE_NOT_NORMAL_RULE）",
+        "timeLimitSaleModels 中每项的 date 不能为 null（代码: RULE_TIME_ERROR05）",
+        "不能设置 weekendRule（设了报 PARAM_ERROR code: 2000）——限时售卖没有周末/平日区分，时间区间不能重叠"
+      ],
+      "errors": {
+        "normalRule为空": "产品的通用规则不能为空 | code: 90022 (PRODUCT_RULE_NOT_NORMAL_RULE)",
+        "date为null": "规则生效日期非法 | code: 90028 (RULE_TIME_ERROR05)",
+        "设了weekendRule": "参数错误 | code: 2000 (PARAM_ERROR)",
+        "生效时间重叠": "生效时间设置错误 | code: 10012 (EFFECTIVE_TIME_SET_ERROR)"
+      },
+
+      "normalRule.enableBookingType": {
+        "type": "Integer",
+        "enum": { "0": "未设置日期全天售卖（默认）", "1": "未设置日期全天不售卖" }
+      },
+      "normalRule.timeLimitSaleModels": {
+        "type": "List",
+        "description": "限时售卖规则列表，每项：{date:{startDate,endDate}, normalRule:[{enableBookingTimeStart,enableBookingTimeEnd}]}",
+        "_note": "每项的 normalRule 不能为空且每项的 date 不能为 null；不支持 weekendRule"
+      }
+    },
+
+    "rpServiceModel": {
+      "_section": "礼包规则（不需要时传 null）",
+      "normalRule.serviceModels": {
+        "type": "List",
+        "description": "礼包模板ID列表，每项：{serviceTmplId: 12345}"
+      }
+    },
+
+    "rpBookingModel": {
+      "_section": "入住规则（境外 BD 使用；国内传 null）",
+      "_checker": "ValidateGoodsServiceImpl.validateRpBookingRule()",
+      "normalRule.targetUser.targetUserRule": {
+        "type": "Integer",
+        "description": "适用人群规则",
+        "enum": { "0": "不限制（此时 targetUserRestrictionList 必须为空）", "1": "适用", "2": "不适用" },
+        "error": "限制人群规则为不限制时，限制列表需为空 | code: 90004 (TARGET_USER_LIST_ERROR)"
+      }
+    }
+  },
+
+  "goodsDetailList.0.priceInfo": {
+    "_section": "价格信息 GoodsPriceUpdateModel",
+    "_checker": "CheckGoodsCreateParamLogicUnit.checkPriceInfo() + MePriceParamTransformAndCheckLogicUnit",
+
+    "priceRecordWay": {
+      "type": "Integer",
+      "enum": { "1": "卖价（默认）", "2": "底价" },
+      "default": 1,
+      "_note": "商家角色（非BD）使用 BD 录价模式（2）且不在白名单时报 PRICE_RECORD_WAY_CHECK_FAIL"
+    },
+
+    "ratioConfig.newRatio": {
+      "type": "String",
+      "description": "佣金率/加价率，千分比字符串（1100 = 11.00%）。ratioType=1（SUB_RATIO）时范围 [0, 10000]（0%~100%）",
+      "default": "1100",
+      "constraints": [
+        "不能为 null（ratioChange=true 时）",
+        "不能 < 0",
+        "ratioType=1（SUB_RATIO 佣金率）时 newRatio <= 10000（100%）",
+        "ratioType=2（BASE_RATIO 加价率）时 newRatio <= BASE_ADD_RATIO_MAX（Lion 配置，具体值需查配置）"
+      ],
+      "errors": {
+        "为null": "参数错误 | code: 2000 (PARAM_ERROR)",
+        "小于0": "参数错误 | code: 2000 (PARAM_ERROR)",
+        "超过100%": "参数错误 | code: 2000 (PARAM_ERROR)",
+        "ratioType无效": "参数错误 | code: 2000 (PARAM_ERROR)"
+      }
+    },
+    "ratioConfig.ratioChange": {
+      "type": "boolean",
+      "description": "是否变更佣金率，固定传 true（ratioChange=false 时 newRatio 可为 null）",
+      "default": true
+    },
+    "ratioConfig.ratioType": {
+      "type": "Integer",
+      "description": "佣金类型。1=SUB_RATIO（佣金率，默认），2=BASE_RATIO（加价率）",
+      "enum": { "1": "SUB_RATIO 佣金率（默认）", "2": "BASE_RATIO 加价率" },
+      "default": 1
+    },
+
+    "unifiedDatePriceInfos.dates": {
+      "type": "List",
+      "required": true,
+      "description": "价格有效日期范围，不能为 null。模板默认今天到两年后",
+      "constraints": [
+        "不能为 null",
+        "日期区间之间不能重叠（DATE_EXIST_INTERSECTION）",
+        "minDate 不能早于昨天，maxDate 不能超过两年后",
+        "日期+星期组合后不能为空"
+      ],
+      "errors": {
+        "日期重叠": "日期存在重叠，请重新选择 | code: 200000002 (DATE_EXIST_INTERSECTION)",
+        "日期为空": "日期星期组合后的日期为空... | code: 210000007 (DATE_WEEK_DATE_NULL)",
+        "日期超范围": "不支持选择昨天之前的日期... | code: 523 (DATES_NOT_SUPPORT_ME)"
+      },
+      "default": [{ "startDate": "__TODAY__", "endDate": "__TWO_YEARS_LATER__" }]
+    },
+
+    "unifiedDatePriceInfos.weekPriceInfos.0.inWeek": {
+      "type": "List<Integer>",
+      "description": "适用星期（1=周一...7=周日），默认全周",
+      "default": [1, 2, 3, 4, 5, 6, 7]
+    },
+
+    "unifiedDatePriceInfos.weekPriceInfos.0.priceInfo.salePrice": {
+      "type": "String",
+      "required": true,
+      "description": "售价，单位：分（整数字符串，必须 > 0）",
+      "example": "20000",
+      "_note": "20000 分 = 200 元"
+    },
+
+    "unifiedDatePriceInfos.weekPriceInfos.0.priceInfo.subRatio": {
+      "type": "String",
+      "description": "子佣金率，与 ratioConfig.newRatio 保持一致",
+      "default": "1100"
+    },
+
+    "unifiedDatePriceInfos.weekPriceInfos.0.priceInfo.basePrice": {
+      "type": "String",
+      "description": "底价，通常传空字符串",
+      "default": ""
+    },
+
+    "unifiedDatePriceInfos.weekPriceInfos.0.priceInfo.subPrice": {
+      "type": "String",
+      "description": "子价格，通常传空字符串",
+      "default": ""
+    },
+
+    "priceSameTag": {
+      "_location": "goodsDetailList.0.goodsBaseInfo.priceSameTag",
+      "type": "Integer",
+      "required": false,
+      "description": "境外多人多价开关（境外商品专用）",
+      "enum": {
+        "0": "多价——不同入住人数对应不同价格（priceFactorInfos 各档 basePrice 不同）",
+        "1": "同价——所有入住人数价格相同（priceFactorInfos 各档 basePrice 相同）"
+      },
+      "default": null,
+      "_note": "境内商品不传此字段。境外启用多人多价时设为 0，同时 priceFactorInfos 按人数分档传入不同 basePrice；同价时设为 1，各档 basePrice 相同。goodsBaseInfo.maxAdultAdmissibility 控制最大可住人数（如5），priceFactorInfos 需覆盖 1~maxAdultAdmissibility 所有档位"
+    },
+
+    "maxAdultAdmissibility": {
+      "_location": "goodsDetailList.0.goodsBaseInfo.maxAdultAdmissibility",
+      "type": "Integer",
+      "required": false,
+      "description": "最大可住成人人数（境外商品专用）。决定 priceFactorInfos 需要覆盖的档位数量",
+      "range": "1~6（通常设 2~5，最大 6）",
+      "default": null,
+      "_note": "境内商品不传。境外启用多人多价/同价时必填，值为 N 则 priceFactorInfos 必须包含 adultCount=1,2,...,N 全部 N 个档位，缺档会报校验错误。与 priceSameTag 配合使用：priceSameTag=0 时各档 basePrice 不同；priceSameTag=1 时各档 basePrice 相同"
+    },
+
+    "unifiedDatePriceInfos.weekPriceInfos.0.priceFactorInfos": {
+      "type": "Array | null",
+      "description": "价格因子信息。境内单价传 null；境外多人多价传数组，每项对应一个入住人数档位",
+      "default": null,
+      "_structure": {
+        "salePrice": "String，售价（境内用，多人多价时传空字符串 ''）",
+        "basePrice": "String，底价，单位：分（多人多价各档填不同值，同价各档填相同值）",
+        "subPrice": "String，固定传空字符串 ''",
+        "baseAddRatio": "String，加价率，千分比（与 ratioConfig.newRatio 保持一致，如 '11000'=110%）",
+        "priceFactors.guestFactor.adultCount": "Integer，本档位的成人人数（1~maxAdultAdmissibility）",
+        "priceFactors.guestFactor.childCount": "Integer，固定传 0",
+        "priceFactors.guestFactor.childAges": "null"
+      },
+      "_example_multi_price": [
+        {"salePrice": "", "basePrice": "10000", "subPrice": "", "baseAddRatio": "11000", "priceFactors": {"guestFactor": {"adultCount": 1, "childAges": null, "childCount": 0}}},
+        {"salePrice": "", "basePrice": "12000", "subPrice": "", "baseAddRatio": "11000", "priceFactors": {"guestFactor": {"adultCount": 2, "childAges": null, "childCount": 0}}},
+        {"salePrice": "", "basePrice": "15000", "subPrice": "", "baseAddRatio": "11000", "priceFactors": {"guestFactor": {"adultCount": 3, "childAges": null, "childCount": 0}}}
+      ],
+      "_example_same_price": [
+        {"salePrice": "", "basePrice": "20000", "subPrice": "", "baseAddRatio": "10000", "priceFactors": {"guestFactor": {"adultCount": 1, "childAges": null, "childCount": 0}}},
+        {"salePrice": "", "basePrice": "20000", "subPrice": "", "baseAddRatio": "10000", "priceFactors": {"guestFactor": {"adultCount": 2, "childAges": null, "childCount": 0}}}
+      ]
+    },
+
+    "priceInfos": {
+      "type": "null",
+      "description": "旧版价格信息字段，固定传 null（使用 unifiedDatePriceInfos 替代）",
+      "default": null
+    }
+  },
+
+  "_scenario_examples": {
+    "_description": "常见场景的完整 rpCancelModel + rpBreakFastModel 参数示例（经真实 RPC 验证）",
+
+    "scenario_1_不区分平日周末_不可取消_无早餐": {
+      "rpCancelModel": { "normalRule": { "cancelItemType": 0 }, "weekendRule": null, "updateType": 0 },
+      "rpBreakFastModel": { "normalRule": { "effectiveTimes": null, "num": 0 }, "weekendRule": null, "specialRules": null, "updateType": 0 }
+    },
+
+    "scenario_2_不区分平日周末_免费取消_含单早": {
+      "rpCancelModel": {
+        "normalRule": { "cancelItemType": 1, "moveUpCancelDays": 0, "moveUpCancelHour": "23:59:00" },
+        "weekendRule": null, "updateType": 0
+      },
+      "rpBreakFastModel": { "normalRule": { "effectiveTimes": null, "num": 1 }, "weekendRule": null, "specialRules": null, "updateType": 0 }
+    },
+
+    "scenario_3_平日不可取消_周末免费取消_平日单早_周末双早": {
+      "_description": "本场景已经真实 RPC 验证通过（2026-05-21）",
+      "rpCancelModel": {
+        "normalRule": { "cancelItemType": 0 },
+        "weekendRule": { "cancelItemType": 1, "moveUpCancelDays": 0, "moveUpCancelHour": "18:00:00" },
+        "updateType": 0
+      },
+      "rpBreakFastModel": {
+        "normalRule": { "effectiveTimes": null, "num": 1 },
+        "weekendRule": { "effectiveTimes": null, "num": 2 },
+        "specialRules": null, "updateType": 0
+      }
+    },
+
+    "scenario_4_平日免费取消_周末不可取消_无早餐": {
+      "_description": "本场景已经真实 RPC 验证通过（2026-05-21）",
+      "rpCancelModel": {
+        "normalRule": { "cancelItemType": 1, "moveUpCancelDays": 0, "moveUpCancelHour": "23:59:00" },
+        "weekendRule": { "cancelItemType": 0 },
+        "updateType": 0
+      },
+      "rpBreakFastModel": { "normalRule": { "effectiveTimes": null, "num": 0 }, "weekendRule": null, "specialRules": null, "updateType": 0 }
+    },
+
+    "scenario_5_收费取消_无早餐": {
+      "_description": "前1天14:00后取消扣20%",
+      "rpCancelModel": {
+        "normalRule": {
+"cancelItemType": 1, "moveUpCancelDays": 3, "moveUpCancelHour": "18:00:00",
+"payCancelPeriodModels": [{ "advanceDays": 0, "advanceHour": "18:00:00", "penaltyRate": 10 }]
+        },
+        "weekendRule": null, "updateType": 0
+      },
+      "rpBreakFastModel": { "normalRule": { "effectiveTimes": null, "num": 0 }, "weekendRule": null, "specialRules": null, "updateType": 0 }
+    },
+
+    "scenario_6_不区分平日周末_免费取消_含双早": {
+      "rpCancelModel": {
+        "normalRule": { "cancelItemType": 1, "moveUpCancelDays": 0, "moveUpCancelHour": "23:59:00" },
+        "weekendRule": null, "updateType": 0
+      },
+      "rpBreakFastModel": { "normalRule": { "effectiveTimes": null, "num": 2 }, "weekendRule": null, "specialRules": null, "updateType": 0 }
+    },
+
+    "scenario_8_境外多人多价_最大5人_不含早_不可取消": {
+      "_description": "境外多人多价产品。goodsBaseInfo.priceSameTag=0（多价），maxAdultAdmissibility=5，priceFactorInfos 按1~5人分档传不同 basePrice，priceInfo 传 null，ratioType=2（BASE_RATIO 加价率），基于真实抓包（2026-05-22）",
+      "goodsBaseInfo_patch": {
+        "priceSameTag": 0,
+        "maxAdultAdmissibility": 5
+      },
+      "priceInfo": {
+        "priceRecordWay": 3,
+        "ratioConfig": { "ratioChange": true, "newRatio": "11000", "ratioType": 2 },
+        "unifiedDatePriceInfos": {
+          "dates": [{"startDate": "2026-05-22", "endDate": "2028-05-21"}],
+          "weekPriceInfos": [{
+            "inWeek": [1,2,3,4,5,6,7],
+            "priceInfo": null,
+            "priceFactorInfos": [
+              {"salePrice": "", "basePrice": "10000", "subPrice": "", "baseAddRatio": "11000", "priceFactors": {"guestFactor": {"adultCount": 1, "childAges": null, "childCount": 0}}},
+              {"salePrice": "", "basePrice": "12000", "subPrice": "", "baseAddRatio": "11000", "priceFactors": {"guestFactor": {"adultCount": 2, "childAges": null, "childCount": 0}}},
+              {"salePrice": "", "basePrice": "13000", "subPrice": "", "baseAddRatio": "11000", "priceFactors": {"guestFactor": {"adultCount": 3, "childAges": null, "childCount": 0}}},
+              {"salePrice": "", "basePrice": "14000", "subPrice": "", "baseAddRatio": "11000", "priceFactors": {"guestFactor": {"adultCount": 4, "childAges": null, "childCount": 0}}},
+              {"salePrice": "", "basePrice": "15000", "subPrice": "", "baseAddRatio": "11000", "priceFactors": {"guestFactor": {"adultCount": 5, "childAges": null, "childCount": 0}}}
+            ]
+          }]
+        },
+        "priceInfos": null
+      }
+    },
+
+    "scenario_9_境外多人同价_最大5人_不含早_不可取消": {
+      "_description": "境外多人同价产品。goodsBaseInfo.priceSameTag=1（同价），maxAdultAdmissibility=5，priceFactorInfos 各档 basePrice 相同，基于真实抓包（2026-05-22）",
+      "goodsBaseInfo_patch": {
+        "priceSameTag": 1,
+        "maxAdultAdmissibility": 5
+      },
+      "priceInfo": {
+        "priceRecordWay": 3,
+        "ratioConfig": { "ratioChange": true, "newRatio": "10000", "ratioType": 2 },
+        "unifiedDatePriceInfos": {
+          "dates": [{"startDate": "2026-05-22", "endDate": "2028-05-21"}],
+          "weekPriceInfos": [{
+            "inWeek": [1,2,3,4,5,6,7],
+            "priceInfo": null,
+            "priceFactorInfos": [
+              {"salePrice": "", "basePrice": "20000", "subPrice": "", "baseAddRatio": "10000", "priceFactors": {"guestFactor": {"adultCount": 1, "childAges": null, "childCount": 0}}},
+              {"salePrice": "", "basePrice": "20000", "subPrice": "", "baseAddRatio": "10000", "priceFactors": {"guestFactor": {"adultCount": 2, "childAges": null, "childCount": 0}}},
+              {"salePrice": "", "basePrice": "20000", "subPrice": "", "baseAddRatio": "10000", "priceFactors": {"guestFactor": {"adultCount": 3, "childAges": null, "childCount": 0}}},
+              {"salePrice": "", "basePrice": "20000", "subPrice": "", "baseAddRatio": "10000", "priceFactors": {"guestFactor": {"adultCount": 4, "childAges": null, "childCount": 0}}},
+              {"salePrice": "", "basePrice": "20000", "subPrice": "", "baseAddRatio": "10000", "priceFactors": {"guestFactor": {"adultCount": 5, "childAges": null, "childCount": 0}}}
+            ]
+          }]
+        },
+        "priceInfos": null
+      }
+    },
+
+    "scenario_7_specialRules指定日期段含单早_真实抓包示例": {
+      "_description": "使用 specialRules 设置特定日期段（2026-05-19 ~ 2026-11-15 全周）含单早，来自真实抓包",
+      "rpBreakFastModel": {
+        "normalRule": { "effectiveTimes": null, "num": 1 },
+        "specialRules": [{
+          "effectiveTimes": [{
+            "startDate": "2026-05-19", "endDate": "2026-11-15",
+            "usefulWeek": [1,2,3,4,5,6,7], "startTime": null, "endTime": null
+          }],
+          "num": 1
+        }],
+        "updateType": 0
+      }
+    }
+  },
+
+  "_constraints": {
+    "C0":  "goodsName 不能为空（code: 30208）",
+    "C0a": "goodsName 最多 99 个字符，Lion 可配（code: 200000006）",
+    "C0b": "goodsName/rpName/rpCustomName 不能含 4 字节特殊字符如 emoji，正则 [^\\u0000-\\uFFFF]（code: 10533）",
+    "C0c": "goodsName 同批次内不能重名（code: 30304）",
+    "C1":  "salePrice 必须为正整数字符串，单位：分",
+    "C2":  "全日房必须传 rpBreakFastModel（不传报系统内部错误），num >= 0",
+    "C3":  "cancelItemType=1（可取消）时必须同时传 moveUpCancelDays 和 moveUpCancelHour（全日房后端强制校验，code: 2000）",
+    "C4":  "paymentType=1（现付担保）时 rpGuaranteeModel 必填，normalRule.isGuarantee=1，不能有 specialRules（code: 80007）",
+    "C5":  "paymentType=2（现付非担保）时 rpGuaranteeModel 必填，normalRule.isGuarantee=0，arrivalHour 非空，guaranteeType != 0（code: 80007/80009/80010）",
+    "C5a": "paymentType=0（预付）时 rpGuaranteeModel 必须为 null，传了报 PARAM_ERROR（code: 2000）",
+    "C6":  "rpEarlyBookingModel 天数 >= -1；两者均 > 0 时 latestBookingDays <= earliestBookingDays（code: 2017）",
+    "C7":  "weekendRule 是 rpCancelModel/rpBreakFastModel 的直接子字段（与 normalRule 平级），不是 normalRule 的嵌套字段",
+    "C8":  "周末早餐差异用 rpBreakFastModel.weekendRule，不要用 specialRules；specialRules 仅用于指定日期范围的特殊场景",
+    "C9":  "rpBaseModel.rpName 真实请求必传（非 null），模板占位符 __RP_NAME__，默认与 goodsName 相同",
+    "C10": "goodsBaseInfo 中 priceChangeMode/pricingPower/priceRecodeWay/switchStatus/expectPriceChangeMode/singleChannelReason/deductionAudit/superDealReSale/canAdjustPrice 均为隐性必填，必须随模板传入",
+    "C11": "goodsType=2（钟点房）时：paymentType 必须为 0，不能有 rpBreakFastModel（num > 0），不能有 rpHourlyRoomUseModel=null，typeLimitValue 必填且范围 [1,23]（code: 200000013/200000014/10543）",
+    "C12": "goodsType=1（全日房）时：rpHourlyRoomUseModel 必须传 null，传了报 DAY_ROOM_GOODS_NO_USE_RULE_ERROR（code: 200000031）",
+    "C13": "contractNo 必填，合同必须：审核通过+在线+类型合法（预付/现付/预付包销）；预付产品必须关联预付类合同（code: 200000039/200000011/200000012/80004）",
+    "C14": "channelNos：sellChannel 含分销位（& 8 != 0）时必填，channelNo 必须在 Lion 配置范围内（默认 001/002），总长 <= 256（code: 2000/130017/130018）",
+    "C15": "收费取消时间必须晚于免费取消时间（advanceDays < moveUpCancelDays，或天数相等时 advanceHour > moveUpCancelHour）（code: 119）",
+    "C16": "日期区间不能重叠，不能早于昨天，不能超过两年后（code: 200000002/210000007/523）",
+    "C17": "rpSerialModel：serialCheckinMin/Max 必须 >= 0；不为 0 时范围 (0,30]；Max!=0 时 Min 不能 > Max（code: 90005）；钟点房必须均为 0（code: 200000033）",
+    "C18": "rpDisplayModel.lengthOfStay：UNLIMITED(0) 时 minSerialDays/maxSerialDays 必须为 null；LIMITED(1) 时两者必填且均在 (0,30] 且 min <= max（code: 1060）",
+    "C19": "rpTimeLimitSaleModel：不能有 weekendRule（code: 2000）；每项 date 不能为 null（code: 90028）；normalRule 不能为空（code: 90022）；生效时间不能重叠（code: 10012）",
+    "C20": "ratioConfig：ratioChange=true 时 newRatio 不能为 null；newRatio >= 0；SUB_RATIO 时 <= 10000（100%）；BASE_RATIO 时 <= BASE_ADD_RATIO_MAX（code: 2000）",
+    "C21": "担保规则 rpGuaranteeModel：担保产品（isGuarantee=1）不能有 specialRules（code: 80007）；非担保产品 specialRule.arrivalHour 必填（code: 80010）；guaranteeType 不能为 0（code: 80009）；arrivalHour+guaranteeType 组合不能重复（code: 80008）",
+    "C22": "编辑时不允许变更：goodsType（code: 30301）、预付/现付类型（code: 10564）、价格模式（priceChangeMode，code: 210000014）、差旅/非差旅（code: 210000001/210000002）；超团产品不允许编辑 rpEarlyBookingModel（code: RP_LATEST_BOOKING_NOT_ALLOW_EDIT_WITH_SPU）",
+    "C23": "超团产品（含超团备注 superDealMark）：必须勾选美团+点评（sellChannel & 1!=0 且 & 2!=0），不能有连住规则，必须含日历房渠道（code: SUPER_DEAL_GOODS_INFO_ERROR）"
+  },
+
+  "_validation_chain": {
+    "_description": "batchCreateGoods 完整校验链（L1 → L2 → L3）",
+    "L1_CheckGoodsCreateParamLogicUnit": [
+      "1. goodsDetailList/model 非空",
+      "2. checkGoodsBaseInfo: partnerId/poiId/goodsType/paymentType/sellChannel 非空+枚举合法；contractNo 非空；钟点房 typeLimitValue 必填；分销 channelNos 必填；商家角色 priceRecordWay 校验",
+      "3. checkRoomInfo: roomId/roomName 非空",
+      "4. checkPriceInfo: priceInfo 非空",
+      "5. checkRpInfo: rpInfo/rpBaseModel 非空"
+    ],
+    "L2_CheckGoodsCreateRelatedInfoLogicUnit": [
+      "6. validateSpecialGoodsCreate: 特殊产品类型专属校验（如超团、套餐）",
+      "7. validateGoodsName: 名称非空/长度/重名/特殊字符",
+      "8. validateGoodsInfo:",
+      "   8a. validateGoodsBaseInfo:",
+      "       8a-1. validatePaymentTypeAndContractRelation: 预付/现付合同类型匹配",
+      "       8a-2. validateContractInfo: 合同审核通过+在线+类型+包销协议+钟点房不绑包房+供应商匹配",
+      "       8a-3. validateChannelNos: sellChannel/channelNos 格式+白名单校验",
+      "   8b. validateGoodsRpInfo:",
+      "       8b-1. validCashPayRule: 担保规则与 paymentType 匹配校验",
+      "       8b-2. validateRpCancelRule: 取消规则格式/钟点房约束/收费取消时间顺序",
+      "       8b-3. validateRpDisplayRule: rpDisplayModel 枚举值+连住天数+境外约束",
+      "       8b-4. validateRpBookingRule: 入住规则人群约束",
+      "       8b-5. validateSerialRule: 连住规则范围+钟点房约束",
+      "       8b-6. validRpEarlyBooking: 提前订天数范围",
+      "       8b-7. validRpBreakFast: 早餐份数非空+钟点房约束",
+      "       8b-8. validTimeLimitSale: 限时售卖 normalRule 非空",
+      "       8b-9. validateHourRoomBookingHours: 全日房不传/钟点房接待时间格式+范围",
+      "       8b-10. checkRpEffectTime（GoodsConvertUtil）: 各规则 normalRule 非空+weekendRule 合法性+生效时间不重叠"
+    ],
+    "L3_MePriceParamTransformAndCheckLogicUnit": [
+      "9. 价格参数校验：priceRecordWay/dates/salePrice/ratioConfig 范围和格式校验"
+    ]
+  }
+}
+

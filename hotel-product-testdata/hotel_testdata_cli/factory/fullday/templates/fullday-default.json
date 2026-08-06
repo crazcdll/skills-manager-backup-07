@@ -1,0 +1,179 @@
+{
+  "_name": "全日房默认模板",
+  "_description": "全日房（goodsType=1）标准模板：预付、入住当天18:00前免费取消、无早餐、无连住限制、11%佣金。",
+  "_goodsType": 1,
+
+  "_HOWTO": [
+    "本文件是完整的 batchCreateGoods 请求参数，poiId/partnerId/roomId/roomName 需在执行时覆盖。",
+    "模板中 __TODAY__ 和 __TWO_YEARS_LATER__ 为占位符，由脚本在运行时替换为真实日期。",
+    "",
+    "【取消规则】rpCancelModel 结构：",
+    "  normalRule = 平日取消政策，weekendRule = 周末（周六日）取消政策",
+    "  - 不区分平日/周末：weekendRule 传 null",
+    "  - 平日不可取消+周末免费取消：",
+    "      normalRule: {cancelItemType:0}",
+    "      weekendRule: {cancelItemType:1, moveUpCancelDays:0, moveUpCancelHour:'18:00:00'}",
+    "",
+    "【早餐规则】rpBreakFastModel 结构：",
+    "  normalRule = 平日早餐份数，weekendRule = 周末（周六日）早餐份数",
+    "  - 不区分平日/周末：weekendRule 传 null",
+    "  - 平日单早+周末双早：",
+    "      normalRule: {num:1}",
+    "      weekendRule: {num:2}",
+    "",
+    "【--set 常用示例】",
+    "  平日/周末同取消政策（免费取消）：",
+    "    --set goodsDetailList.0.rpInfo.rpCancelModel.normalRule.cancelItemType=1",
+    "    --set goodsDetailList.0.rpInfo.rpCancelModel.normalRule.moveUpCancelDays=0",
+    "    --set goodsDetailList.0.rpInfo.rpCancelModel.normalRule.moveUpCancelHour=23:59:00",
+    "",
+    "  平日不可取消 + 周末入住前18:00免费取消：",
+    "    --set goodsDetailList.0.rpInfo.rpCancelModel.normalRule.cancelItemType=0",
+    "    --set 'goodsDetailList.0.rpInfo.rpCancelModel.weekendRule={\"cancelItemType\":1,\"moveUpCancelDays\":0,\"moveUpCancelHour\":\"18:00:00\"}'",
+    "",
+    "  平日当天23:59前免费取消 + 周末不可取消：",
+    "    --set goodsDetailList.0.rpInfo.rpCancelModel.normalRule.cancelItemType=1",
+    "    --set goodsDetailList.0.rpInfo.rpCancelModel.normalRule.moveUpCancelDays=0",
+    "    --set goodsDetailList.0.rpInfo.rpCancelModel.normalRule.moveUpCancelHour=23:59:00",
+    "    --set 'goodsDetailList.0.rpInfo.rpCancelModel.weekendRule={\"cancelItemType\":0}'",
+    "",
+    "  含单早（平日/周末相同）：",
+    "    --set goodsDetailList.0.rpInfo.rpBreakFastModel.normalRule.num=1",
+    "",
+    "  平日单早 + 周末双早：",
+    "    --set goodsDetailList.0.rpInfo.rpBreakFastModel.normalRule.num=1",
+    "    --set 'goodsDetailList.0.rpInfo.rpBreakFastModel.weekendRule={\"effectiveTimes\":null,\"num\":2}'",
+    "",
+    "  修改售价（单位：分，200元=20000）：",
+    "    --set goodsDetailList.0.priceInfo.unifiedDatePriceInfos.weekPriceInfos.0.priceInfo.salePrice=20000"
+  ],
+
+  "createFlag": true,
+  "partnerId": "__PARTNER_ID__",
+  "poiId": "__POI_ID__",
+  "goodsDetailList": [
+    {
+      "goodsBaseInfo": {
+        "goodsName": "__GOODS_NAME__",
+        "goodsType": 1,
+        "sellChannel": 15,
+        "paymentType": 0,
+        "priceChangeMode": 8,
+        "pricingPower": 0,
+        "priceRecodeWay": 1,
+        "channelNos": {
+          "8": ["001", "002"]
+        },
+        "switchStatus": 0,
+        "expectPriceChangeMode": 8,
+        "poiId": "__POI_ID__",
+        "partnerId": "__PARTNER_ID__",
+        "contractNo": "__CONTRACT_NO__",
+        "singleChannelReason": "",
+        "deductionAudit": false,
+        "superDealReSale": false,
+        "canAdjustPrice": false
+      },
+      "roomInfo": {
+        "roomId": "__ROOM_ID__",
+        "roomName": "__ROOM_NAME__",
+        "capacity": 0
+      },
+      "rpInfo": {
+        "rpBaseModel": {
+          "isAutoRelay": 0,
+          "autoRelayDays": 30,
+          "rpName": "__RP_NAME__",
+          "rpCustomName": "__RP_CUSTOM_NAME__",
+          "customNameType": 1,
+          "saleStrategyInfo": {
+            "blackWhiteStatus": 0,
+            "saleStrategy": [0, 1]
+          }
+        },
+        "rpCancelModel": {
+          "normalRule": {
+            "cancelItemType": 1,
+            "moveUpCancelDays": 0,
+            "moveUpCancelHour": "18:00:00"
+          },
+          "weekendRule": null,
+          "updateType": 0
+        },
+        "rpBreakFastModel": {
+          "normalRule": {
+            "effectiveTimes": null,
+            "num": 0
+          },
+          "weekendRule": null,
+          "specialRules": null,
+          "updateType": 0
+        },
+        "rpHourlyRoomUseModel": null,
+        "rpGuaranteeModel": null,
+        "rpEarlyBookingModel": {
+          "normalRule": {
+            "latestBookingDays": -1,
+            "earliestBookingDays": -1,
+            "isDaybreakBooking": 1
+          },
+          "updateType": 0
+        },
+        "rpSerialModel": {
+          "normalRule": {
+            "serialCheckinMin": 0,
+            "serialCheckinMax": 0
+          },
+          "updateType": 0
+        },
+        "rpBookingModel": null,
+        "rpDisplayModel": {
+          "normalRule": {
+            "hotelMember": 0,
+            "totalGmv": 0,
+            "city": 0,
+            "stuSpecial": 0,
+            "distanceRange": 0,
+            "riskControl": 0,
+            "flagshipNewUser": 0,
+            "businessTravel": 0,
+            "employeeExclusive": 0
+          },
+          "updateType": 0
+        },
+        "rpTimeLimitSaleModel": null,
+        "rpServiceModel": null
+      },
+      "priceInfo": {
+        "priceRecordWay": 1,
+        "ratioConfig": {
+          "ratioChange": true,
+          "newRatio": "1100",
+          "ratioType": 1
+        },
+        "unifiedDatePriceInfos": {
+          "dates": [
+            {
+              "startDate": "__TODAY__",
+              "endDate": "__TWO_YEARS_LATER__"
+            }
+          ],
+          "weekPriceInfos": [
+            {
+              "inWeek": [1, 2, 3, 4, 5, 6, 7],
+              "priceInfo": {
+                "salePrice": "20000",
+                "basePrice": "",
+                "subPrice": "",
+                "subRatio": "1100"
+              },
+              "priceFactorInfos": null
+            }
+          ]
+        },
+        "priceInfos": null
+      }
+    }
+  ]
+}
+

@@ -1,0 +1,202 @@
+{
+  "_title": "学城 PM JSON Schema 约束",
+  "_source": "从真实 API 响应 + oaskills doc-json-validator.js 源码逆向分析",
+
+  "doc": {
+    "required_attrs": [],
+    "notes": "第一个子节点必须是 title，且只能有一个 title"
+  },
+
+  "title": {
+    "required_attrs": ["nodeId"],
+    "optional_attrs": [],
+    "example_attrs": {"nodeId": "07070707070707070707070707070707"},
+    "notes": "只有 nodeId，无其他 attrs"
+  },
+
+  "paragraph": {
+    "required_attrs": ["indent", "align", "dataDiffId", "nodeId"],
+    "example_attrs": {"align": "", "dataDiffId": null, "indent": 0, "nodeId": "01010101010101010101010101010101"},
+    "notes": "align 可为 '' / 'left' / 'center' / 'right'；dataDiffId 通常为 null"
+  },
+
+  "heading": {
+    "required_attrs": ["level", "nodeId"],
+    "optional_attrs": ["align", "indent", "dataDiffId", "id"],
+    "example_attrs": {"dataDiffId": null, "id": "H1", "indent": 0, "level": 2, "nodeId": "HG0001"},
+    "notes": "level 必须是 1-6 整数"
+  },
+
+  "table": {
+    "required_attrs": ["nodeId"],
+    "optional_attrs": ["borderColor", "borderStyle", "borderWidth", "dataDiffId", "indent", "responsive"],
+    "example_attrs": {
+      "borderColor": "#dddddd", "borderStyle": "solid", "borderWidth": 1,
+      "dataDiffId": null, "indent": 0, "nodeId": "TB0001", "responsive": false
+    }
+  },
+
+  "table_row": {
+    "required_attrs": ["nodeId"],
+    "optional_attrs": ["dataRowDiffId"],
+    "example_attrs": {"dataRowDiffId": null, "nodeId": "TR0001"}
+  },
+
+  "table_cell": {
+    "required_attrs": ["nodeId", "colspan", "rowspan"],
+    "optional_attrs": ["bgColor", "color", "colwidth", "dataCellDiffId", "numCell", "textAlign", "verticalAlign"],
+    "example_attrs": {
+      "bgColor": null, "color": null, "colspan": 1,
+      "colwidth": [80], "dataCellDiffId": null, "nodeId": "TC0001",
+      "numCell": null, "rowspan": 1, "textAlign": null, "verticalAlign": null
+    },
+    "notes": "numCell: null 时 oaskills normalizeDocumentJson 会自动补全; colwidth 是数组"
+  },
+
+  "table_header": {
+    "required_attrs": ["nodeId", "colspan", "rowspan"],
+    "optional_attrs": ["bgColor", "color", "colwidth", "dataCellDiffId", "numCell", "textAlign", "verticalAlign"],
+    "example_attrs": {
+      "bgColor": null, "color": null, "colspan": 1,
+      "colwidth": [80], "dataCellDiffId": null, "nodeId": "TH0001",
+      "numCell": null, "rowspan": 1, "textAlign": null, "verticalAlign": null
+    }
+  },
+
+  "horizontal_rule": {
+    "required_attrs": ["nodeId"],
+    "optional_attrs": ["dataDiffId"],
+    "example_attrs": {"dataDiffId": null, "nodeId": "HR001"}
+  },
+
+  "blockquote": {
+    "required_attrs": ["nodeId"],
+    "example_attrs": {"nodeId": "BQ001"}
+  },
+
+  "bullet_list": {
+    "required_attrs": ["nodeId"],
+    "example_attrs": {"nodeId": "UL001"}
+  },
+
+  "ordered_list": {
+    "required_attrs": ["nodeId"],
+    "example_attrs": {"nodeId": "OL001"}
+  },
+
+  "list_item": {
+    "required_attrs": ["nodeId"],
+    "example_attrs": {"nodeId": "LI001"}
+  },
+
+  "code_block": {
+    "required_attrs": ["language"],
+    "optional_attrs": ["theme", "title", "nodeId", "isExpand", "dataDiffId", "id"],
+    "example_attrs": {"language": "Python", "theme": "xq-light", "title": "代码块", "nodeId": "CB001"}
+  },
+
+  "image": {
+    "required_attrs": ["src"],
+    "optional_attrs": ["border", "height", "isFullWidth", "link", "mss", "name", "nodeId", "origin", "small", "width"],
+    "notes": "origin / small / src 都是学城 CDN URL 格式"
+  },
+
+  "drawio": {
+    "required_attrs": ["src"],
+    "optional_attrs": ["border", "hadResize", "height", "mss", "mssXml", "nodeId", "width", "xml"]
+  },
+
+  "bullet_list": {
+    "required_attrs": ["dataDiffId", "indent", "nodeId"],
+    "example_attrs": {"dataDiffId": null, "indent": 0, "nodeId": "05050505050505050505050505050505"},
+    "notes": "dataDiffId/indent 之前遗漏，已修复"
+  },
+
+  "ordered_list": {
+    "required_attrs": ["dataDiffId", "indent", "nodeId"],
+    "example_attrs": {"dataDiffId": null, "indent": 0, "nodeId": "OL001"}
+  },
+
+  "list_item": {
+    "required_attrs": ["nodeId"],
+    "optional_attrs": ["dataListItemDiffId", "fontSize", "hidden", "level", "value"],
+    "example_attrs": {"dataListItemDiffId": null, "fontSize": null, "hidden": false, "level": 0, "nodeId": "04040404040404040404040404040404", "value": null}
+  },
+
+  "task_list": {
+    "required_attrs": ["dataDiffId", "indent", "nodeId"],
+    "example_attrs": {"dataDiffId": null, "indent": 0, "nodeId": "13131313131313131313131313131313"},
+    "notes": "结构与 bullet_list 相同；<input type=checkbox> 的 HTML 需识别为 task_list"
+  },
+
+  "task_item": {
+    "required_attrs": ["checked", "nodeId"],
+    "optional_attrs": ["dataListItemDiffId", "fontSize", "level"],
+    "example_attrs": {"checked": false, "dataListItemDiffId": null, "fontSize": null, "level": 0, "nodeId": "06060606060606060606060606060606"}
+  },
+
+  "note": {
+    "required_attrs": ["dataDiffId", "hiddenTitle", "nodeId", "type"],
+    "example_attrs": {"dataDiffId": null, "hiddenTitle": true, "nodeId": "08080808080808080808080808080808", "type": "info"},
+    "notes": "type: info/warning/error/success"
+  },
+
+  "note_title": {
+    "required_attrs": ["align", "nodeId"],
+    "example_attrs": {"align": "left", "nodeId": "03030303030303030303030303030303"}
+  },
+
+  "note_content": {
+    "required_attrs": ["nodeId"],
+    "example_attrs": {"nodeId": "02020202020202020202020202020202"}
+  },
+
+  "collapse": {
+    "required_attrs": ["active", "dataDiffId", "nodeId"],
+    "optional_attrs": ["id"],
+    "example_attrs": {"active": false, "dataDiffId": null, "id": "00000000-0000-0000-0000-000000000001", "nodeId": "09090909090909090909090909090909"},
+    "notes": "id 是带横线的 UUID，nodeId 是去横线的 UUID"
+  },
+
+  "collapse_title": {
+    "required_attrs": ["align", "nodeId"],
+    "example_attrs": {"align": "left", "nodeId": "11111111111111111111111111111111"}
+  },
+
+  "collapse_content": {
+    "required_attrs": ["nodeId"],
+    "example_attrs": {"nodeId": "12121212121212121212121212121212"}
+  },
+
+  "catalog": {
+    "required_attrs": ["dataDiffId", "nodeId", "style"],
+    "example_attrs": {"dataDiffId": null, "nodeId": "10101010101010101010101010101010", "style": "none"},
+    "notes": "目录节点，由编辑器自动插入，不需要手动生成"
+  },
+
+  "_source_docs": [
+    "pm_empty_doc.json",
+    "pm_rich_doc.json",
+    "pm_checklist_doc.json ← 最全，含 note/collapse/task/mention/footnote"
+  ],
+
+  "_fixed_bugs": [
+    "api.rs::create_doc minimal_pm：title 和 paragraph 补了 nodeId ✓",
+    "patch.rs::build_pm_node paragraph：补全 {indent, align, dataDiffId, nodeId} ✓",
+    "patch.rs::build_pm_node h1-h6(heading)：补全 {align, indent, dataDiffId, nodeId} ✓",
+    "patch.rs::build_pm_node blockquote：补全 dataDiffId ✓",
+    "patch.rs::build_pm_node hr：补全 dataDiffId, nodeId ✓",
+    "patch.rs::build_pm_node ul/ol：补全 dataDiffId, indent, nodeId ✓",
+    "patch.rs::build_pm_node li：补全完整 attrs ✓",
+    "patch.rs::build_pm_node table：补全 nodeId, dataDiffId, indent ✓",
+    "patch.rs::build_pm_node td/th：补全 nodeId, colspan, rowspan, numCell 等 ✓",
+    "patch.rs::build_table_row_from_cells：table_row/cell 补全 nodeId ✓",
+    "patch.rs::build_note_node：note/note_title/note_content 补全 nodeId ✓",
+    "patch.rs::build_collapse_node：collapse/collapse_title/collapse_content 补全 nodeId ✓"
+  ],
+
+  "_remaining_known_gaps": [
+    "task_list/task_item：HTML <ul><li><input checkbox> 目前转成 bullet_list，未区分任务列表",
+    "api.rs::update_doc：仍在 body 发送 stepVersion（oaskills 不发，影响未知）"
+  ]
+}

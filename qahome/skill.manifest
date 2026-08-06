@@ -1,0 +1,12 @@
+skill-manifest-version: 1
+skill-id: 66da7f349dce61f704bc14ed3e6c90c5c140c9eda48a77caf3c5e00bf3905179
+
+files:
+  80fdc483dd526197373d741f51677fac40c14b24b271b54482b150299547e142  SKILL.md
+  f3dee69d23d9db2b1e3716cec0e399b047fea983e082efdf367ea9edc2d8c387  bin/ciba-request.mjs
+  8143f6a10b63e703fe42c32cc59478b76dcf7935da2a51afc54c6f445c5bb41e  bin/qahome.mjs
+  685d70632c2bcbdd756de4bb6c3eb8137734e6948b4eb27c59657dc130f8aaf6  config.local.json.example
+  719a43db53442c91a9f538760941d6dfca36c69fdc9749fad3856d1193953a8e  package.json
+  47023cf8d732f29832e2d449d3c088a1891eaacb03d94b4717c2ca19be4a3e06  references/reg-new-user.md
+  04a8f85a25b6687c2ef89815809eda65d950e7913463ccad68fba8f2cf3c4dbf  references/sms-query.md
+  0816af70a71144293cc278741233c4d3842fdcae98a6dcb96ca9cf2ba617177d  references/user-query.md

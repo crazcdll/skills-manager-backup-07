@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "6c7b99e6-a08b-4b28-8b42-451edbf7119e",
+  "path": "leader",
+  "path_key": "leader",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "skillssh",
+    "ref": "kkkkhazix/khazix-skills/leader",
+    "subpath": "leader",
+    "branch": null
+  }
+}

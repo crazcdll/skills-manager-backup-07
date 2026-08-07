@@ -1,8 +1,0 @@
-skill-manifest-version: 1
-skill-id: a4f9db77fb624d3a49eea30f506fc6a46e647d9e74e8485fa272640e3807420f
-
-files:
-  acde42063433c90c6c5f90adc4e3f11d7c582305776c46dfcc1960fce652397e  SKILL.md
-  2cb1bea8aad9c10287d04ebc21f95028393ef1437d9d1b4df867a209c1c9284b  references/assets.md
-  40fd5c954633c2e00710b466244106328106b6a16f4de73be0e3367884f1382c  references/report-template.html
-  5822b8c1550c3bf3cc6948ce16f7ec832483d663c3ef534fcdd212df25b4730c  references/upload.py

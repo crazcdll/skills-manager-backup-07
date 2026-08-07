@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "158309b9-98ca-4840-9eef-9b96b793b625",
+  "path": "trade-commit-message",
+  "path_key": "trade-commit-message",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

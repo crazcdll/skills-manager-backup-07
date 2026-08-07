@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "37461e5c-3c9a-4623-9c84-15464dc0deb4",
+  "path": "hotel-trade-backend-env-setup",
+  "path_key": "hotel-trade-backend-env-setup",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

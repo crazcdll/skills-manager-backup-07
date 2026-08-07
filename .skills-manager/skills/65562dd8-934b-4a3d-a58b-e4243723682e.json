@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "65562dd8-934b-4a3d-a58b-e4243723682e",
+  "path": "trade-stability-daily-inspection-v2",
+  "path_key": "trade-stability-daily-inspection-v2",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

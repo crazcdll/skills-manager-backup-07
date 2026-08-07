@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "skill_id": "ff21faa3-0bf7-4a12-a556-a663691234f8",
-  "path": "trade-fe-kb",
-  "path_key": "trade-fe-kb",
+  "skill_id": "3846f100-cc06-423d-be63-567a7a317557",
+  "path": "trade-stability-fullflow",
+  "path_key": "trade-stability-fullflow",
   "enabled": true,
   "tags": [],
   "source": {

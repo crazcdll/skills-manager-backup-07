@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "skill_id": "f7310093-828b-4be1-8102-6c352e09bf83",
-  "path": "trade-ai-coding-stats",
-  "path_key": "trade-ai-coding-stats",
+  "skill_id": "eadab6d0-3513-4f53-ad2e-30a1f46f679c",
+  "path": "trade-fe-knowledge",
+  "path_key": "trade-fe-knowledge",
   "enabled": true,
   "tags": [],
   "source": {

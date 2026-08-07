@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "skill_id": "e9fcc794-f0aa-45d3-afa4-380a1b0dd42d",
-  "path": "trade-hotel-oncall",
-  "path_key": "trade-hotel-oncall",
+  "skill_id": "651818cb-acf2-4dc8-9ee1-61d68af4ba60",
+  "path": "trade-fe-kb",
+  "path_key": "trade-fe-kb",
   "enabled": true,
   "tags": [],
   "source": {

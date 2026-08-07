@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "skill_id": "624ec461-6d09-45aa-9e69-edc158d931d1",
-  "path": "hotel-log-query",
-  "path_key": "hotel-log-query",
+  "skill_id": "eca78c0f-6c55-4f06-9e1f-37d64493193e",
+  "path": "trade-stability-issue-diagnosis",
+  "path_key": "trade-stability-issue-diagnosis",
   "enabled": true,
   "tags": [],
   "source": {

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "8e94c7e8-8c64-4d80-9da4-dbf90fe4d045",
+  "path": "duo-knowledge",
+  "path_key": "duo-knowledge",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

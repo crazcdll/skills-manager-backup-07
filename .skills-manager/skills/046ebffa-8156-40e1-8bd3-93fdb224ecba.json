@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "046ebffa-8156-40e1-8bd3-93fdb224ecba",
+  "path": "draw-io-km",
+  "path_key": "draw-io-km",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

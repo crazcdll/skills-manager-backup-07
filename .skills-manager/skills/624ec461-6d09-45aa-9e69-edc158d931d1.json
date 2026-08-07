@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "624ec461-6d09-45aa-9e69-edc158d931d1",
+  "path": "hotel-log-query",
+  "path_key": "hotel-log-query",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

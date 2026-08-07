@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "41e9a5c3-49ef-4ab5-8a80-dec4e2e0a8de",
+  "path": "kmedit",
+  "path_key": "kmedit",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

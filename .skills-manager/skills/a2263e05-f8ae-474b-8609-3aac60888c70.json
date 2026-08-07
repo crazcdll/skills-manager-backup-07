@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "a2263e05-f8ae-474b-8609-3aac60888c70",
+  "path": "ai-quality-evalset-builder",
+  "path_key": "ai-quality-evalset-builder",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

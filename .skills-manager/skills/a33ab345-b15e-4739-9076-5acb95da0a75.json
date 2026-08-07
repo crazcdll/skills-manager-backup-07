@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "a33ab345-b15e-4739-9076-5acb95da0a75",
+  "path": "fe-rd-workflow-multica",
+  "path_key": "fe-rd-workflow-multica",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

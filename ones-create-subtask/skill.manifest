@@ -1,0 +1,6 @@
+skill-manifest-version: 1
+skill-id: 066b309b8d30c173814203e2f9d776f4dd56105c684a555dd04025fc4de37ae4
+
+files:
+  797d0ef5229f60c79a7793dd6265c7ada526f76ff0e9bf741de882c034480683  .catpaw-install-meta.json
+  ab92441a01afb5ca82d4453ea8a56768149508b8d6f4ef94405ca069122d8e28  SKILL.md

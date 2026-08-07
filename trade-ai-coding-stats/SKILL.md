@@ -1,6 +1,14 @@
 ---
 name: trade-ai-coding-stats
 description: "统计交易前端 AICoding 需求开发数据。从学城文档中按业务线（酒店/到餐/服务零售/门票）筛选需求，统计需求总数、有 one-shot 数据条数、采纳率均值、有 AI 提效数据条数、总计 pd 数、成熟度（L0~L3）占比分布。当用户需要统计 AICoding 需求开发数据、分析各业务线 AI 提效情况、计算 one-shot 采纳率均值、查看成熟度占比、按业务线筛选需求统计指标时使用。触发词：AICoding 统计、需求开发统计、AI 提效统计、one-shot 采纳率、成熟度占比、L0 L1 L2 L3、按业务线统计、酒店需求统计、到餐需求统计、统计需求数据、看统计数据、需求数据汇总。"
+
+metadata:
+  skillhub.creator: "zhangce07"
+  skillhub.updater: "zhangce07"
+  skillhub.version: "V3"
+  skillhub.source: "FRIDAY Skillhub"
+  skillhub.skill_id: "122250"
+  skillhub.high_sensitive: "false"
 ---
 
 # 交易前端 AICoding 需求开发统计 Skill

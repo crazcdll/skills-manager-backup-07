@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "938591a6-ece8-41ca-9988-77b2ceb6c2d1",
+  "path": "hotel-raptor-inspection",
+  "path_key": "hotel-raptor-inspection",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

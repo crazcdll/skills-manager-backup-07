@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "56626fa5-46d2-4e79-82af-58775a085ddf",
+  "path": "ingee-flex",
+  "path_key": "ingee-flex",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

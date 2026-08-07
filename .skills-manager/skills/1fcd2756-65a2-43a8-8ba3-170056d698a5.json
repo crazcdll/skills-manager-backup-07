@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "1fcd2756-65a2-43a8-8ba3-170056d698a5",
+  "path": "meigen-designer",
+  "path_key": "meigen-designer",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

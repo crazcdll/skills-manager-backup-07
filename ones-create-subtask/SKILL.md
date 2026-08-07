@@ -5,7 +5,7 @@ description: 在 ONES 平台上为需求创建子任务（开发任务）并设�
 metadata:
   skillhub.creator: "wangshicheng05"
   skillhub.updater: "zhangce07"
-  skillhub.version: "V7"
+  skillhub.version: "V8"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "2010"
   skillhub.high_sensitive: "false"

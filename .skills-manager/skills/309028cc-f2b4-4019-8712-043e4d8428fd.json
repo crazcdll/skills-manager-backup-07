@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "309028cc-f2b4-4019-8712-043e4d8428fd",
+  "path": "nocode-cli",
+  "path_key": "nocode-cli",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

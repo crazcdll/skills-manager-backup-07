@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "8def4dde-3134-456c-921a-c07cb58443a5",
+  "path": "trade-fe-knowledge",
+  "path_key": "trade-fe-knowledge",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

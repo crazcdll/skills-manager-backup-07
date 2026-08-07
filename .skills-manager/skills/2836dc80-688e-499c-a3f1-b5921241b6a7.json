@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "2836dc80-688e-499c-a3f1-b5921241b6a7",
+  "path": "ones-create-subtask",
+  "path_key": "ones-create-subtask",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "80e792bc-f9b5-415c-8f30-f59f517e97ef",
+  "path": "dx-bot-guide",
+  "path_key": "dx-bot-guide",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "51370a42-6cad-422c-990e-5f1d966dacea",
+  "path": "phx-repo-knowledge-builder",
+  "path_key": "phx-repo-knowledge-builder",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "18dc49f3-4e63-4ce2-8e40-b77109f7e5ea",
+  "path": "ai-pr-code-review",
+  "path_key": "ai-pr-code-review",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "cd36d744-6641-40a0-8d6d-d9a2ed4f4221",
+  "path": "room-booking-helper",
+  "path_key": "room-booking-helper",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

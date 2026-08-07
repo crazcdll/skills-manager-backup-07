@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "9badd12a-729b-4ca0-866a-0b1ba931e8c3",
+  "path": "skill-metric-reporter",
+  "path_key": "skill-metric-reporter",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

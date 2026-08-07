@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "c5b8211b-f0bf-4cdd-828d-394cad9e8795",
+  "path": "duo-protocol",
+  "path_key": "duo-protocol",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

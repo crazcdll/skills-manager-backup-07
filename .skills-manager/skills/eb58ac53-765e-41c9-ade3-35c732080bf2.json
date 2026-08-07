@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "eb58ac53-765e-41c9-ade3-35c732080bf2",
+  "path": "daxiang-sender",
+  "path_key": "daxiang-sender",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "7281a1ff-3094-401f-b512-53687b7b7dfc",
+  "path": "fe-ai-review",
+  "path_key": "fe-ai-review",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

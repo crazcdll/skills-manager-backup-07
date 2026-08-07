@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "e1dbd179-399c-4cab-ab90-d36587910d4f",
+  "path": "calendar-mcp",
+  "path_key": "calendar-mcp",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

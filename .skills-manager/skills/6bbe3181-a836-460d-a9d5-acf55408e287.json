@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "6bbe3181-a836-460d-a9d5-acf55408e287",
+  "path": "ee-ones",
+  "path_key": "ee-ones",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

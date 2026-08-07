@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "47b890b5-ffc6-43c3-8636-6a7f038ad193",
+  "path": "fe-rd-workflow",
+  "path_key": "fe-rd-workflow",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

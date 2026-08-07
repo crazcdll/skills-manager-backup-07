@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "4393e873-40ff-4386-84c8-aa5997dfdbcf",
+  "path": "mu-self-appraisal",
+  "path_key": "mu-self-appraisal",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

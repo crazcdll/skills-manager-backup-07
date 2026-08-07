@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "1a9fc3c4-6770-4474-b888-eb7c00d9a7b4",
+  "path": "ee-mep",
+  "path_key": "ee-mep",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

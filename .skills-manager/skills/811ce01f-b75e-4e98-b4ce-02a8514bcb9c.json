@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "811ce01f-b75e-4e98-b4ce-02a8514bcb9c",
+  "path": "ee-code",
+  "path_key": "ee-code",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

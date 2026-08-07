@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "31e10632-b97b-4a6f-9409-1122c9aae101",
+  "path": "mtsso-skills-official",
+  "path_key": "mtsso-skills-official",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

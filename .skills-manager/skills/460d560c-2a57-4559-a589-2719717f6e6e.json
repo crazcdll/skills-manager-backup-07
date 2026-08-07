@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "460d560c-2a57-4559-a589-2719717f6e6e",
+  "path": "infra-codebase",
+  "path_key": "infra-codebase",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

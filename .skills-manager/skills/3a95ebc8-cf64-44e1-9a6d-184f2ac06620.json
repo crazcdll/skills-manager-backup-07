@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "3a95ebc8-cf64-44e1-9a6d-184f2ac06620",
+  "path": "explore-design-tree-ingee",
+  "path_key": "explore-design-tree-ingee",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

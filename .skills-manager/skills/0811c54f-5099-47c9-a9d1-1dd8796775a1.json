@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "0811c54f-5099-47c9-a9d1-1dd8796775a1",
+  "path": "aicr-webhook-setup",
+  "path_key": "aicr-webhook-setup",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

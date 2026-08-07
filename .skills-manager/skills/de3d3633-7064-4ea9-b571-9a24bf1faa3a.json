@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "de3d3633-7064-4ea9-b571-9a24bf1faa3a",
+  "path": "citadel",
+  "path_key": "citadel",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

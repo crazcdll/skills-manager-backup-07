@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "661a80a6-7044-4f89-aad6-88dc5f4c671f",
+  "path": "mcm-cli",
+  "path_key": "mcm-cli",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

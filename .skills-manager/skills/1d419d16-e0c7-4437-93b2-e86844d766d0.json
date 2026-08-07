@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "1d419d16-e0c7-4437-93b2-e86844d766d0",
+  "path": "mu-leadership-principle",
+  "path_key": "mu-leadership-principle",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

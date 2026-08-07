@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "2cc28951-8a92-4121-a265-b1aab63046c9",
+  "path": "skillhub",
+  "path_key": "skillhub",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

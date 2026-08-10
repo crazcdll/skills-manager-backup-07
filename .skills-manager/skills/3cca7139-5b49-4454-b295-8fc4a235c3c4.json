@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "3cca7139-5b49-4454-b295-8fc4a235c3c4",
+  "path": "trade-hotel-external-incident-record",
+  "path_key": "trade-hotel-external-incident-record",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

@@ -8,6 +8,8 @@
 """
 
 import argparse
+import datetime
+import html
 import json
 import os
 import re
@@ -320,16 +322,117 @@ def generate_markdown(requirements_by_section: dict) -> str:
                 prd_cell = req['prd_title']
 
             # 研发同学列
+            # 输出学城原生 mention markdown 语法：[mention]{name="姓名" uid="mis" empId="empId"}
+            # 这样 createDocument 创建的子文档里研发同学会渲染成蓝色 @（而非纯文本），
+            # 同时下游 sync_ai_coding.py 的 parse_requirement_md 也能解析出 mis/empId/name。
+            # 降级链：三件套齐全 -> 仅 mis -> 纯文本姓名
             owner_cell = ""
-            if req.get('owner_mis'):
-                owner_cell = f"@{req['owner_mis']}"
-            elif req.get('owner_name'):
-                owner_cell = f"@{req['owner_name']}"
+            name = req.get('owner_name', '')
+            mis = req.get('owner_mis', '')
+            emp_id = req.get('owner_emp_id', '')
+            if mis and emp_id:
+                # name 缺失时用 mis 兜底，学城会按 empId 解析出正确姓名
+                display_name = name if name else mis
+                owner_cell = f'[mention]{{name="{display_name}" uid="{mis}" empId="{emp_id}"}}'
+            elif mis:
+                owner_cell = f"@{mis}"
+            elif name:
+                # 纯文本姓名回退——无法生成蓝色 @，仅作占位
+                owner_cell = f"@{name}"
 
             if ones_cell:
                 lines.append(f"| {ones_cell} | {prd_cell} | {owner_cell} |")
 
     return '\n'.join(lines)
+
+
+def _xml_escape(text: str) -> str:
+    """转义 XML 文本节点中的特殊字符"""
+    if not text:
+        return ''
+    return html.escape(text, quote=False)
+
+
+def _make_mention_xml(name: str, mis: str, emp_id: str) -> str:
+    """生成单个 km-mention 标签；信息不全时降级为纯文本 @"""
+    if mis and emp_id:
+        display = name if name else mis
+        return f'<km-mention name="{_xml_escape(display)}" uid="{_xml_escape(mis)}" empId="{_xml_escape(emp_id)}" />'
+    if mis:
+        return f'@{_xml_escape(mis)}'
+    if name:
+        return f'@{_xml_escape(name)}'
+    return ''
+
+
+def default_subdoc_title() -> str:
+    """默认子文档标题：酒店 YYYY-MM-DD-AICoding 需求列表（取当天日期）"""
+    today = datetime.date.today().strftime('%Y-%m-%d')
+    return f'酒店 {today}-AICoding 需求列表'
+
+
+def generate_subdoc_xml(requirements_by_section: dict, title: str = '') -> str:
+    """
+    生成带 km-mention 的 CitadelXML，用于创建子文档。
+
+    与 generate_markdown 的区别：研发同学列用 <km-mention> 标签而非 [mention]{} 文本，
+    这样通过 createDocument --file xxx.xml 创建后，子文档里研发同学会渲染成蓝色 @。
+    （markdown 方式创建的文档不会解析 [mention]{} 语法，会是字面文本。）
+    """
+    rows_xml = []
+    for section, reqs in requirements_by_section.items():
+        for req in reqs:
+            # ONES 列
+            ones_title = req.get('ones_title', '') or ''
+            ones_url = req.get('ones_url', '') or ''
+            if ones_url and ones_title:
+                ones_cell = f'<p><a href="{_xml_escape(ones_url)}" title="{_xml_escape(ones_title)}">{_xml_escape(ones_title)}</a></p>'
+            elif ones_title:
+                ones_cell = f'<p>{_xml_escape(ones_title)}</p>'
+            else:
+                continue
+
+            # PRD 列
+            prd_title = req.get('prd_title', '') or ''
+            prd_url = req.get('prd_url', '') or ''
+            if prd_url and prd_title:
+                prd_cell = f'<p><a href="{_xml_escape(prd_url)}" title="{_xml_escape(prd_title)}">{_xml_escape(prd_title)}</a></p>'
+            elif prd_title:
+                prd_cell = f'<p>{_xml_escape(prd_title)}</p>'
+            else:
+                prd_cell = '<p />'
+
+            # 研发同学列：km-mention
+            mention = _make_mention_xml(
+                req.get('owner_name', ''),
+                req.get('owner_mis', ''),
+                req.get('owner_emp_id', ''),
+            )
+            owner_cell = f'<p>{mention}</p>' if mention else '<p />'
+
+            rows_xml.append(
+                f'<tr>\n'
+                f'<td>{ones_cell}</td>\n'
+                f'<td>{prd_cell}</td>\n'
+                f'<td>{owner_cell}</td>\n'
+                f'</tr>'
+            )
+
+    body = '\n'.join([
+        '<km-doc>',
+        f'<km-title>{_xml_escape(title)}</km-title>',
+        f'<h1>{_xml_escape(title)}</h1>',
+        '<table>',
+        '<tr>',
+        '<th><p>ones</p></th>',
+        '<th><p>prd</p></th>',
+        '<th><p>研发同学</p></th>',
+        '</tr>',
+        '\n'.join(rows_xml),
+        '</table>',
+        '</km-doc>',
+    ])
+    return body
 
 
 def main():
@@ -338,6 +441,8 @@ def main():
     parser.add_argument('--mis', default=os.environ.get('SSO_USER_ID', ''), help='MIS 账号')
     parser.add_argument('--output', default=None, help='输出文件路径（默认输出到 stdout）')
     parser.add_argument('--format', choices=['markdown', 'json'], default='markdown', help='输出格式')
+    parser.add_argument('--subdoc-xml', default=None, help='同时输出一份带 km-mention 的 CitadelXML，用于创建可渲染蓝色@的子文档')
+    parser.add_argument('--subdoc-title', default=None, help='子文档标题，默认“酒店 YYYY-MM-DD-AICoding 需求列表”（当天日期）')
 
     args = parser.parse_args()
 
@@ -402,6 +507,14 @@ def main():
         print(f"[INFO] 输出已保存到 {args.output}", file=sys.stderr)
     else:
         print(output)
+
+    # 额外输出子文档 XML（带 km-mention，用于创建蓝色@的子文档）
+    if args.subdoc_xml:
+        subdoc_title = args.subdoc_title or default_subdoc_title()
+        subdoc_xml = generate_subdoc_xml(all_requirements, title=subdoc_title)
+        with open(args.subdoc_xml, 'w') as f:
+            f.write(subdoc_xml)
+        print(f"[INFO] 子文档 XML 已保存到 {args.subdoc_xml}（标题：{subdoc_title}）", file=sys.stderr)
 
     # 统计
     total = sum(len(reqs) for reqs in all_requirements.values())

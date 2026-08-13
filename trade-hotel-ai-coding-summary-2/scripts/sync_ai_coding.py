@@ -137,8 +137,31 @@ def parse_requirement_md(md_text: str) -> list[dict]:
                 prd_url = f'https://km.sankuai.com/collabpage/{prd_km_id}'
         
         # 解析研发同学
-        assignee_matches = re.findall(r'@(\S+)', assignee_cell)
-        assignees = assignee_matches if assignee_matches else []
+        # 支持三种格式（按优先级）：
+        #   [mention]{name="姓名" uid="mis" empId="empId"} —— 学城原生 mention markdown，extract 默认输出此格式
+        #   @mis(empId) —— 旧/手写格式，携带 empId
+        #   @mis / @姓名 —— 兜底
+        assignees = []
+        assignee_meta = {}  # mis -> {'empId': ..., 'name': ...}
+        mention_matches = re.findall(
+            r'\[mention\]\{name="([^"]*)"\s+uid="([^"]+)"\s+empId="([^"]+)"\}',
+            assignee_cell,
+        )
+        if mention_matches:
+            for m_name, m_uid, m_empid in mention_matches:
+                assignees.append(m_uid)
+                assignee_meta[m_uid] = {'empId': m_empid, 'name': m_name}
+        else:
+            for raw in re.findall(r'@(\S+)', assignee_cell):
+                # 剥离可能附带的 (empId)
+                emp_paren_match = re.match(r'^([^(]+)\((\d+)\)$', raw)
+                if emp_paren_match:
+                    mis = emp_paren_match.group(1)
+                    emp_id = emp_paren_match.group(2)
+                    assignees.append(mis)
+                    assignee_meta[mis] = {'empId': emp_id, 'name': ''}
+                else:
+                    assignees.append(raw)
         
         # 提取完整的 ONES URL（保留原始 product ID）
         ones_url_match = re.search(r'(https?://ones\.sankuai\.com[^\s)]+)', ones_cell)
@@ -152,13 +175,22 @@ def parse_requirement_md(md_text: str) -> list[dict]:
             'prd_title': prd_title,
             'prd_url': prd_url,
             'assignees': assignees,
+            'assignee_meta': assignee_meta,
         })
     
     return items
 
 
 def extract_empid_map(xml_text: str) -> dict[str, dict]:
-    """从 XML 中提取 name → {uid, empId} 映射"""
+    """
+    从 XML 中提取人员 → {uid, empId, full_name} 映射。
+
+    支持三种 key 查询：
+    - 姓名（name，如 "王宇"）
+    - 短姓名（去掉括号注释，如 "鲍立磊(Andrew Bao)" -> "鲍立磊"）
+    - mis 账号（uid，如 "wangyu193"）：需求列表的研发同学通常是 @mis 格式，
+      必须支持用 mis 反查，否则会降级为纯文本而非蓝色 @。
+    """
     empid_map = {}
     for match in re.finditer(r'<km-mention name="([^"]+)" uid="([^"]+)" empId="([^"]+)"', xml_text):
         name, uid, emp_id = match.group(1), match.group(2), match.group(3)
@@ -167,6 +199,9 @@ def extract_empid_map(xml_text: str) -> dict[str, dict]:
             empid_map[short_name] = {'uid': uid, 'empId': emp_id, 'full_name': name}
         if name not in empid_map:
             empid_map[name] = {'uid': uid, 'empId': emp_id, 'full_name': name}
+        # 以 mis 账号 uid 作为 key，便于从需求列表的 @mis 直接命中
+        if uid and uid not in empid_map:
+            empid_map[uid] = {'uid': uid, 'empId': emp_id, 'full_name': name}
     return empid_map
 
 
@@ -490,15 +525,17 @@ def match_score(req_item: dict, xml_km_id: Optional[str], xml_ones_id: Optional[
     return max(min(score, 1.0), 0.0)
 
 
-def get_person_info(name: str, empid_map: dict) -> tuple[str, str]:
-    """获取人员的 uid 和 empId"""
+def get_person_info(name: str, empid_map: dict) -> tuple[str, str, str]:
+    """获取人员的 uid、empId、full_name。返回 (uid, empId, full_name)，找不到返回 ('', '', '')"""
     clean_name = name.strip('@').strip()
     if clean_name in empid_map:
-        return empid_map[clean_name]['uid'], empid_map[clean_name]['empId']
+        info = empid_map[clean_name]
+        return info['uid'], info['empId'], info.get('full_name', '')
     short = re.sub(r'[（(].*?[）)]', '', clean_name).strip()
     if short in empid_map:
-        return empid_map[short]['uid'], empid_map[short]['empId']
-    return '', ''
+        info = empid_map[short]
+        return info['uid'], info['empId'], info.get('full_name', '')
+    return '', '', ''
 
 
 def main():
@@ -665,9 +702,18 @@ def main():
     added_details = []
     for ri in reqs_to_add:
         req = req_items[ri]
-        person_name = req['assignees'][0] if req['assignees'] else ''
-        person_uid, person_empid = get_person_info(person_name, empid_map)
-        
+        person_mis = req['assignees'][0] if req['assignees'] else ''
+        # 从 empid_map 反查 uid/empId/full_name（支持 mis、姓名两种 key）
+        map_uid, map_empid, map_fullname = get_person_info(person_mis, empid_map)
+        meta = req.get('assignee_meta', {}).get(person_mis, {})
+        # empId 优先用排期文档携带的，其次 empid_map 反查
+        person_empid = meta.get('empId') or map_empid
+        # uid 就是 mis 账号；若 empid_map 有则保持一致
+        person_uid = map_uid or person_mis
+        # name 优先级：排期文档携带的姓名 -> empid_map 的姓名 -> mis 兜底
+        # （有 empId 时即使 name 是 mis，学城也能按 empId 正确解析出姓名）
+        person_name = meta.get('name') or map_fullname or person_mis
+
         row_text = make_standard_hotel_row(
             ones_url=req['ones_url'],
             title=req['ones_title'],
@@ -680,7 +726,7 @@ def main():
         new_rows_text.append(row_text)
         added_details.append({
             'title': req.get('prd_title') or req['ones_title'],
-            'assignee': person_name,
+            'assignee': person_mis,
             'has_prd': bool(req.get('prd_km_id')),
         })
     

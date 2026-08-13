@@ -5,7 +5,7 @@ description: "同步酒店 AI-Coding 需求开发统计文档与本周需求列�
 metadata:
   skillhub.creator: "zhangce07"
   skillhub.updater: "zhangce07"
-  skillhub.version: "V3"
+  skillhub.version: "V4"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "114687"
   skillhub.high_sensitive: "false"
@@ -26,8 +26,8 @@ metadata:
 ### 1. 前置检查
 
 ```bash
-# 切换到 Node 18+（oa-skills 需要 fetch API）
-source ~/.nvm/nvm.sh && nvm use 18
+# 切换到 Node 20+（oa-skills citadel createDocument 需要 globalThis.crypto，Node 18 会报 crypto is not defined）
+source ~/.nvm/nvm.sh && nvm use 20
 
 # 确保 oa-skills 可用
 command -v oa-skills || npm install -g @it/oa-skills --registry=http://r.npm.sankuai.com
@@ -39,7 +39,8 @@ command -v oa-skills || npm install -g @it/oa-skills --registry=http://r.npm.san
 python3 scripts/extract_requirements.py \
   --contentId <排期文档contentId> \
   --mis zhangce07 \
-  --output /tmp/requirement.md
+  --output /tmp/requirement.md \
+  --subdoc-xml /tmp/requirement_subdoc.xml
 ```
 
 脚本执行步骤：
@@ -49,22 +50,29 @@ python3 scripts/extract_requirements.py \
 4. **按业务线过滤研发状态**（排除已终态需求）：
    - 国内酒店、境外酒店：排除"已上线""已归档"
    - 民宿：排除"已完成"
-5. 提取每行的 ONES 链接、PRD 链接、需求主R MIS
-6. 输出 Markdown 表格（`| ones | prd | 研发同学 |`），格式兼容 `sync_ai_coding.py` 的 `parse_requirement_md`
+5. 提取每行的 ONES 链接、PRD 链接、需求主R 的姓名 + mis 账号 + empId 三元组
+6. 输出两份文件：
+   - `--output`：Markdown 表格（`| ones | prd | 研发同学 |`），研发同学列用学城 mention 语法 `[mention]{name=".." uid=".." empId=".."}`，既可读又兼容 `sync_ai_coding.py` 的 `parse_requirement_md`
+   - `--subdoc-xml`：带 `<km-mention>` 标签的 CitadelXML，用于下一步创建可渲染蓝色 @ 的子文档（markdown 方式创建的文档不会解析 `[mention]` 语法，会是字面文本，必须用 XML）；内部标题默认取当天日期生成「酒店 YYYY-MM-DD-AICoding 需求列表」，可用 `--subdoc-title` 覆盖
 
 向用户展示提取摘要：各业务线需求数量、负责人分布。
 
 ### 3. 创建需求列表子文档（挂到 AI-Coding 文档下）
 
+子文档命名规范：「酒店 YYYY-MM-DD-AICoding 需求列表」，YYYY-MM-DD 取当天日期。提取脚本默认已按此规则生成 subdoc XML 内部标题，创建时 `--title` 用同一名称即可（如需自定义可在上一步加 `--subdoc-title`）。
+
 ```bash
+# 标题取当天日期，例如今天是 2026-08-13
+OA_TITLE="酒店 $(date +%Y-%m-%d)-AICoding 需求列表"
+
 oa-skills citadel createDocument \
-  --title "本周需求列表" \
-  --file /tmp/requirement.md \
+  --title "$OA_TITLE" \
+  --file /tmp/requirement_subdoc.xml \
   --parentId <ai_coding_contentId> \
   --mis zhangce07
 ```
 
-将生成的需求列表作为 AI-Coding 文档的子文档创建。创建成功后向用户展示子文档链接。
+将生成的需求列表作为 AI-Coding 文档的子文档创建。**必须用 `--subdoc-xml` 生成的 CitadelXML 文件**（而非 markdown），否则研发同学的 `[mention]` 语法不会被解析，会显示成字面文本而非蓝色 @。创建成功后向用户展示子文档链接。
 
 > 说明：子文档用于归档本周需求列表，方便回溯。同步步骤直接用本地 `/tmp/requirement.md`，不依赖子文档读取，避免新建文档的缓存延迟。
 
@@ -88,12 +96,12 @@ python3 scripts/sync_ai_coding.py \
 
 脚本执行以下操作：
 1. 解析 XML，定位统计表中的酒店行（通过 `rowspan` 方向标签）
-2. 解析需求列表 markdown，提取所有 `product=20645` 或 `product=20421` 的酒店项
+2. 解析需求列表 markdown，提取所有 `product=20645` 或 `product=20421` 的酒店项，并从 `[mention]{...}` / `@mis(empId)` 中解析出研发同学的 mis、empId、姓名
 3. 按「km ID 精确匹配 → ONES ID 匹配 → 标题模糊匹配 → 研发同学匹配」建立映射
 4. **标题一致性过滤**：匹配时校验需求标题一致（normalize 后），避免同人不同需求被错误配对、仅换链接保留旧数据
 5. **保留行**：更新链接（PRD 优先），保留其他所有列原样
 6. **删除**：AI-Coding 中存在但需求列表中不存在的行
-7. **新增**：需求列表中存在但 AI-Coding 中不存在的行（16 标准列格式）
+7. **新增**：需求列表中存在但 AI-Coding 中不存在的行（16 标准列格式）；研发同学列生成蓝色 `<km-mention>`，empId 优先用排期文档携带的，其次从现有 XML 的 mention 反查（见「@ 人渲染机制」）
 8. 更新 rowspan 数量 = 更新后的酒店行总数
 9. **脚注修复**：自动检测并移除 `<km-footnote-item>` 内的 `<del>` 标签
 
@@ -173,13 +181,25 @@ AI-Coding 文档的统计表结构：
 - 脚注修复仅作用于 `<km-footnote-item>` 节点内部，正文区域的 `<del>` 标签不受影响
 - 排期文档每周更新，contentId 不变但表格内容会变；多维表格列结构可能因业务调整而变化，脚本通过列名关键词动态查找列 ID
 
+## @ 人渲染机制（蓝色 mention）
+
+研发同学列的「蓝色 @」依赖学城的 `<km-mention>` 标签，需同时具备 `name`（姓名）、`uid`（mis 账号）、`empId` 三个属性。缺任一则降级为纯文本 `@xxx`。
+
+**empId 来源优先级**（sync 新增行）：
+1. 排期文档「需求主R」列携带的 empId（extract 解析 `@姓名(empId) [mis=xxx]` 得到，随 `[mention]{...}` 传给 sync）—— 最可靠，即使该人从未在 AI-Coding 文档出现也能生成蓝色 @
+2. 现有 AI-Coding XML 中 `<km-mention>` 反查（`extract_empid_map` 同时以姓名、短姓名、mis 账号为 key）
+
+**子文档 vs 主文档**：
+- 子文档（createDocument）：markdown 不解析 `[mention]` 语法，**必须用 `--subdoc-xml` 生成的 CitadelXML** 才能渲染蓝色 @
+- 主文档（updateDocumentByXml）：直接写 `<km-mention>` 标签到 XML，上传后即为蓝色 @
+
 ## 常见问题
 
 ### 新增 @ 人失败
 
-新增需求行的"研发同学"列需要 @ 对应人员。人员映射从 AI-Coding 文档现有 XML 的 `<km-mention>` 标签中提取（uid + empId）。如果该人员从未在本文档中被 @ 过，则无法生成 mention 标签，会降级为纯文本。
+新增需求行的"研发同学"列默认会用排期文档携带的 empId 生成蓝色 `<km-mention>`，不依赖该人是否在 AI-Coding 文档历史出现过。仅当排期文档「需求主R」列缺 empId 且该人从未在本文档被 @ 过时，才会降级为纯文本。
 
-解决方法：手动提供该人员的 empId，或先在文档中 @ 一次该人员再重新同步。
+解决方法：在排期文档补全该人员的 empId，或先在 AI-Coding 文档手动 @ 一次该人员再重新同步（后者会将其写入 `empid_map`）。
 
 ### 脚注 hover 不显示内容
 

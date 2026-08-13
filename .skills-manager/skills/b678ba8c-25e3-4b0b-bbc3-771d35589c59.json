@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "b678ba8c-25e3-4b0b-bbc3-771d35589c59",
+  "path": "trade-hotel-ai-coding-summary-2",
+  "path_key": "trade-hotel-ai-coding-summary-2",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

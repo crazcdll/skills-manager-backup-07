@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
-  "scenario_id": "8eb42a36-d62a-47ee-b3e4-82177816069d",
+  "scenario_id": "edee917d-72a5-489e-9de2-0cca99c96517",
   "skill_id": "651818cb-acf2-4dc8-9ee1-61d68af4ba60",
-  "sort_order": 6,
+  "sort_order": 9,
   "tools": {
     "catpaw": true,
-    "claude_code": false,
+    "claude_code": true,
     "codex": true,
     "opencode": true
   }

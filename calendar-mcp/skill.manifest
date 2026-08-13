@@ -1,5 +1,7 @@
 skill-manifest-version: 1
-skill-id: 62a991de1db562a5b740d64ff4296e420291476975269eb9755f1ad4e62b92bf
+skill-id: 93cd5fef9e91808817a02fe2e948d033c43c8e874f39064dc3a1c23224a28f43
 
 files:
-  4ef8117b11be92778d789d52b0fe5f828daa2fe6df99160ae79ca89a54c1c2c2  SKILL.md
+  1a36fa733d5d9351e42eec48df07d3cc00d91e5dd0683eb3489e842781b89a69  SKILL.md
+  3b8a992173657b85923d128ea53a4b2eb990d3ea329d08820d159f7921fdad2d  references/recurrence-pattern.md
+  509320a5220549bb9e67b6c896662636862873aa5b3ede92b3d3b74bfc66a252  skill-optimization-plan-schedule-open-service.md

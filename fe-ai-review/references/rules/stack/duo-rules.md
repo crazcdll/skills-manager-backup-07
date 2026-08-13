@@ -63,7 +63,7 @@
 - **必需文件**：`struct.groovy`（页面结构）、`dataSourceMap.groovy`（数据源映射）、`componentsMap.json`（组件映射）、`pageBuildConfig.json`（构建配置）
 - **可选文件**：`constData.groovy`（常量定义）、`logics.groovy`（逻辑处理）、`scripts/`（脚本目录）、`dependencies.json`（依赖配置）
 - **协议 JSON 还可能包含**：`duoVersion`、`ohDependencies`（鸿蒙依赖）等字段，以搭建协议说明为准；**并非**所有页面目录都拆成独立 `.json` 文件名，以实际出码/仓库为准。
-- **真实项目结构示例**（以 `order-submit/booking` 为例）：
+- **老结构真实项目示例**（以 `order-submit/booking` 为例，协议文件平铺在页面目录根）：
 ```
 order-submit/booking/
 ├── scripts/                    # 脚本目录
@@ -75,6 +75,7 @@ order-submit/booking/
 ├── pageBuildConfig.json        # 构建配置
 └── struct.groovy               # 页面组件树结构
 ```
+- **新结构**（页面协议 + 物料合并仓库，2026.4 后推行）：上述协议文件整体下移到 `protocol/` 目录，新增 `material/`（物料源码）；仓库只需关注 `protocol/` 和 `material/` 两块，`src/` 是 `duo-builder` 出码产物，直接忽略。
 - **关注点**：缺少核心文件会导致页面无法正常构建和渲染
 
 ### D02 文件职责单一

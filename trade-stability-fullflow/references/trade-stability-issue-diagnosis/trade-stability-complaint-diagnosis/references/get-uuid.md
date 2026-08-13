@@ -12,11 +12,11 @@ description: 通过 userId 或手机号查询用户 UUID（万能钥匙）。使
 - **已指定**：查「常用 app_name 表」找到对应 `app_name`，用 `--app-filters` 只搜目标 App 获取该用户真实 badge_id，再精确查询（见下方场景 A）。
 - **未指定**：全量执行 `masterkey search` 获取所有 App 列表，取 ts 最大的条目，再精确查询（见下方场景 B）。
 
-优先使用 **CLI 方式**，若报 `NO_COOKIE` 错误则自动切换到 **浏览器 evaluate 方式**。
+使用 **CLI 方式**（raptorfe CLI）。若报 `NO_COOKIE` 错误，确认已登录 `raptor.mws.sankuai.com` 后重试。
 
 ---
 
-## 方式一：CLI（raptorfe）
+## 查询方式：CLI（raptorfe）
 
 raptorfe 需使用默认 node 版本调用，鉴权自动通过大象 App 推送授权（缓存约 2.5 小时）。
 
@@ -59,24 +59,6 @@ raptorfe masterkey user search \
 ```
 
 ---
-
-## 方式二：浏览器 evaluate（CLI 鉴权失败时使用）
-
-**第一步：navigate 获取内网登录态（必须先执行，无需 UI 操作）**
-
-```bash
-catdesk browser-action '{"action":"navigate","url":"aHR0cHM6Ly9wZXJmLnNhbmt1YWkuY29tL3BlcmYvbWFzdGVya2V5P2lzSWZyYW1lPXRydWUmcGFyZW50SG9zdD1yYXB0b3IubXdzLnNhbmt1YWkuY29tJmNpdHlJZD0x"}'
-```
-
-**第二步：evaluate 一次性查询所有 App 的完整 UUID（将 KEY 替换为手机号或 userId）**
-
-```bash
-catdesk browser-action '{"action":"evaluate","script":"(async()=>{const searchResp=await fetch(\"aHR0cHM6Ly9wZXJmLnNhbmt1YWkuY29tL2JhZGdlL3NlYXJjaEJ5SnNvblw=",{method:\"POST\",headers:{\"Content-Type\":\"application/json;charset=UTF-8\",\"x-requested-with\":\"XMLHttpRequest\"},body:JSON.stringify({key:\"KEY\",mp:false,appFilters:[\"com.sankuai.meituan\",\"com.meituan.imeituan\",\"com.sankuai.hmeituan\",\"com.dianping.v1\",\"com.dianping.dpscope\",\"com.sankuai.dianping\",\"com.sankuai.meituan.takeoutnew\",\"com.meituan.itakeaway\"]})});const list=await searchResp.json();const devices=list.map(item=>{const d=item.data?.[0];if(!d)return null;return{app:d.app_name,badgeId:d.badge_id,ts:d.ts,clientTime:d.clientTime};}).filter(Boolean);const results=await Promise.all(devices.map(async dev=>{const r=await fetch(\"aHR0cHM6Ly9wZXJmLnNhbmt1YWkuY29tL2JhZGdlL3ByZWNpc2VWYWx1ZT9hcHA9XA=="+dev.app+\"&badgeId=\"+dev.badgeId+\"&fieldName=base_uuid&key=KEY\",{headers:{\"x-requested-with\":\"XMLHttpRequest\"}});const uuid=await r.text();return{app:dev.app,uuid,ts:dev.ts,clientTime:dev.clientTime};}));results.sort((a,b)=>b.ts-a.ts);return JSON.stringify(results);})()"}'
-```
-
-返回结果已按最近活跃时间排序，第一条即为最近登录 App 的 UUID。
-
-若返回 401 / null，说明浏览器 SSO 登录态已过期，重新执行第一步 navigate 后再试。
 
 ---
 

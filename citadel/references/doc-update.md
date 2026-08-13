@@ -49,7 +49,7 @@ oa-skills citadel updateDocumentByXml --contentId <id> --file doc.xml --step-ver
 5. **空单元格保留为空块**：允许 `<td>`/`<th>` 为空，转换时会自动补空 paragraph
 6. **新增表格时第一行必须是表头行**：优先使用 `<th>`，不要首行全部写成 `<td>`
 7. **新增表格默认使用自适应宽度**：新建表格必须使用 `responsive="true"`（自适应宽度），不要使用 `responsive="false"`（固定宽度）；新建表格的单元格不要指定 `colwidth` 属性，学城会根据内容自动分配列宽；只有在编辑已有固定宽度表格时才保留原有 `colwidth` 值
-8. **脚注节点保留 ID**：`<km-footnote-item>` 的正文可改，但 `footnoteNodeId` / `nodeId` 必须原样保留
+8. **注释节点保留 ID**：`<km-footnote-item>` 的正文可改，但 `footnoteNodeId` / `nodeId` 必须原样保留
 9. **块级图表配置按子标签保留**：`<km-data2chart>` 内部配置可按原文保留，不要擅自重写结构
 10. **空行分隔块**：不同的块元素之间的 XML 格式保持一致，列表项之间不额外加空行
 11. **行内节点不跨块**：所有行内节点（`<a>`、`<km-mention>` 等）必须在同一段落内，不能跨块
@@ -73,7 +73,7 @@ oa-skills citadel updateDocumentByXml --contentId <id> --file doc.xml --step-ver
 | `<km-title>` 内容为纯文本 | `<km-title>` 里只能有普通文字，**禁止**使用加粗、斜体、下划线、删除线或行内宏节点 |
 | `<km-title>` 后必须有内容 | `<km-title>` 之后至少要有一个正文块（`<p>`/`<h1>`–`<h6>` 等） |
 | `<km-appendix>` 最多一个 | 如果存在 `<km-appendix>`，全文只能出现一次；多余的会被自动丢弃 |
-| `<km-footnote-list>` 最多一个且必须在最后 | 脚注列表只能出现一次，且必须是文档最后一个块节点；若在中间，会被自动移到末尾 |
+| `<km-footnote-list>` 最多一个且必须在最后 | 注释列表只能出现一次，且必须是文档最后一个块节点；若在中间，会被自动移到末尾 |
 | doc 直接子节点类型受限 | `<km-doc>` 下只能放块级节点（`<p>`/`<h1>`–`<h6>`/`<table>`/`<ul>`/`<ol>` 等）、`<km-xtable>`、`<km-appendix>`、`<km-footnote-list>`；**禁止**把 `<tr>` 直接放在 `<km-doc>` 下 |
 
 #### 媒体与资源节点（必填属性）
@@ -132,7 +132,7 @@ oa-skills citadel updateDocumentByXml --contentId <id> --file doc.xml --step-ver
 | `<km-note>` | 必须包含且只包含 `<km-title>`（标题）和 `<km-content>`（正文） |
 | `<km-title>` | 只能有**纯文本**子节点，且该节点**不能携带任何文字样式** |
 | `<km-footnote-list>` | 只能包含 `<km-footnote-item>` |
-| `<km-footnote-item>` | 只能包含 `<p>`（至少一个，不能为空） |
+| `<km-footnote-item>` | 只能包含 `<p>`（至少一个，可以有多个，不能为空）；每个 `<p>` 内**禁止插入图片**，其他 inline 节点不限 |
 | `<ul>`/`<ol>`/`<km-task-list>`/`<blockquote>` | `content` **不能为空**，至少有一个子节点 |
 
 #### 文字样式（marks）约束
@@ -226,7 +226,7 @@ oa-skills citadel updateDocumentByXml --contentId <目标文档ID> --file /tmp/t
 - **禁止** 直接编辑底层 JSON 字符串
 - **禁止** 在不了解宏含义时删除或改写 `<km-*>` 节点
 - **禁止** 为了"更整洁"而重排整篇文档
-- **禁止** 把复杂表格、脚注列表或图表配置重新写回 JSON 片段
+- **禁止** 把复杂表格、注释列表或图表配置重新写回 JSON 片段
 - **禁止** 把表格内容（包括单元格文字、行内宏、居中布局）写成 JSON 字符串塞进 `<p>` 的文本节点——这会导致表格结构完全丢失
 - **禁止** 在 CitadelXML 中使用 Markdown 表格语法（`| col | col |` / `|---|---|`），表格必须使用 `<table>`/`<tr>`/`<th>`/`<td>` 标签结构；Markdown 表格语法无法被解析为富文本表格，会导致符号直接以纯文本形式暴露在文档中
 - **禁止** 自造任何非标准标签或属性来拼接不同格式的内容

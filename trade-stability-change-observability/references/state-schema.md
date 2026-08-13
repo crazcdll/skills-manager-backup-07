@@ -1,4 +1,4 @@
-# Observation 状态契约（MVP）
+# Observation 状态契约
 
 本文是 `scripts/observation_state.py` 的运行契约。状态只保存流程控制与轻量摘要，不保存 Raptor 原始分页响应。
 
@@ -69,11 +69,11 @@
 ## 核心约束
 
 - 同群只允许一个非终态 Observation；当前终态为 `COMPLETED`。`init` 也允许覆盖旧版遗留的 `FAILED`，但不再创建该状态。
-- 首期目标必须明确为 `MRN`，且必须包含非空 `bundle_version`。
+- 目标必须明确为 `MRN` 且包含非空 `bundle_version`，或明确为 `H5_DUO` 且包含有效的 `web_version`。H5_DUO 不使用 `bundle_version`。
 - Baseline 成功后由 `PREPARING` 进入 `READY`。
 - `start-observing` 保存真实 `rollout_started_at`，并将 `observation_started_at` 向上对齐至整分钟；若已经整分则不变。循环 `heartbeat_at` 与 `ends_at` 从命令实际执行时间计算，避免历史放量时间导致循环出生即陈旧或立即到期。`runtime.next_window_start` 取对齐后的放量时间与当前可查询整分钟（`floor(now-lag)`）中较晚者；`--at` 回补超过一个 `interval` 时不会逐轮追补历史 Window。
 - `runtime.loop_id` 表示循环所有权。循环内写操作同时校验 `observation_id` 和 `loop_id`。
-- `request-stop` 幂等保留第一次请求。`PREPARING`/`READY` 取消会直接完成；最大时长到期使用 `stop_requested_by="system:max_duration"`。`OBSERVING` 阶段若 `active_round` 心跳已超过 `HEARTBEAT_STALE_MINUTES`（15 分钟，判定为旧循环中断遗留），`request-stop` 会一并清空该 `active_round` 并直接完成，不等待其正常收尾，也不对中断期间到停止时刻这段窗口做补偿查询。MVP 不持久化该 Gap；调用方仅在同一次停止响应仍持有调用前旧状态时尽力披露。心跳未陈旧的 `active_round` 不受影响，仍需 `finish-round` 后才能 `complete`。
+- `request-stop` 幂等保留第一次请求。`PREPARING`/`READY` 取消会直接完成；最大时长到期使用 `stop_requested_by="system:max_duration"`。`OBSERVING` 阶段若 `active_round` 心跳已超过 `HEARTBEAT_STALE_MINUTES`（15 分钟，判定为旧循环中断遗留），`request-stop` 会一并清空该 `active_round` 并直接完成，不等待其正常收尾，也不对中断期间到停止时刻这段窗口做补偿查询。该 Gap 不持久化；调用方仅在同一次停止响应仍持有调用前旧状态时尽力披露。心跳未陈旧的 `active_round` 不受影响，仍需 `finish-round` 后才能 `complete`。
 - `start-round` 不接受调用方传入的 window；它在同一互斥事务内确认尚无 Stop Request 且 `active_round` 为空后，自行用 `runtime.next_window_start` 与 `interval_minutes` 推导 window 并写入 `active_round`；Stop Request 不取消已开始的 Round。`active_round` 除 `window_start`/`window_end`（ISO 格式）外，同时包含 `window_start_ms`/`window_end_ms`（对应的毫秒时间戳，用法见 `references/raptor-observation.md`《Window 映射》）。
 - `finish-round` 可在已有 Stop Request 时完成当前 Round，并只追加轻量摘要。
 - `resume` 只接受心跳已陈旧的 `OBSERVING` 状态。它清除中断遗留的 `active_round`、生成新 `loop_id`，并将 `runtime.next_window_start` 推进到当前可查询整分钟。调用方提示用户此前存在未观测 Gap，但不补查；之后只执行标准长度的正常 Round。
@@ -109,6 +109,8 @@ complete --observation-id ID
 ```text
 --paas PAAS --group-id GROUP_ID
 ```
+
+`init --target-json` 中，MRN 目标使用 `project_type="MRN"` 与 `bundle_version`；H5_DUO 目标使用 `project_type="H5_DUO"` 与 `web_version`。两类目标都要求 `project_id` 或 `project_name`，其余状态与摘要契约相同。
 
 `init` 可选参数默认值：`--interval-minutes 10`、`--data-lag-minutes 2`、`--max-duration-minutes 120`（2 小时）；均要求正数（`data-lag-minutes` 允许为 0）。调用方从用户自然语言中识别观测时长后，换算为分钟传入 `--max-duration-minutes`；用户未指定时省略该参数并使用默认值。`start-observing --at` 表示真实放量时间，仅用于记录和 `observation_started_at` 对齐；循环心跳和最大时长从命令执行时刻开始，首轮 Round 游标（`next_window_start`）取对齐放量时间与当前可查询整分钟中较晚者，避免回补历史时逐轮追补。`request-stop --at`、`resume --at` 缺省时使用调用时的当前时间。
 

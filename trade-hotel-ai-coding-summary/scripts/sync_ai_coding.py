@@ -61,8 +61,8 @@ def parse_requirement_md(md_text: str) -> list[dict]:
         while cells and not cells[-1]:
             cells.pop()
         
-        # 跳过表头行
-        if len(cells) >= 1 and ('---' in cells[0] or ('ones' in cells[0].lower() and '链接卡片' not in cells[0])):
+        # 跳过表头行和分隔行
+        if len(cells) >= 1 and ('---' in cells[0] or cells[0].lower().strip() == 'ones'):
             continue
         
         # 至少需要 ones 列 + 负责人列
@@ -140,10 +140,14 @@ def parse_requirement_md(md_text: str) -> list[dict]:
         assignee_matches = re.findall(r'@(\S+)', assignee_cell)
         assignees = assignee_matches if assignee_matches else []
         
+        # 提取完整的 ONES URL（保留原始 product ID）
+        ones_url_match = re.search(r'(https?://ones\.sankuai\.com[^\s)]+)', ones_cell)
+        ones_url = ones_url_match.group(1) if ones_url_match else f'https://ones.sankuai.com/ones/product/20645/workItem/requirement/detail/{ones_id}'
+        
         items.append({
             'ones_id': ones_id,
             'ones_title': ones_title,
-            'ones_url': f'https://ones.sankuai.com/ones/product/20645/workItem/requirement/detail/{ones_id}',
+            'ones_url': ones_url,
             'prd_km_id': prd_km_id,
             'prd_title': prd_title,
             'prd_url': prd_url,

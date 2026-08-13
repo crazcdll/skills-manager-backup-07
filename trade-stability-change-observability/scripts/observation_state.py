@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""变更观测（Change Observation）MVP 的确定性状态转换脚本。"""
+"""变更观测（Change Observation）的确定性状态转换脚本。"""
 
 from __future__ import annotations
 
@@ -229,8 +229,18 @@ def command_init(args: argparse.Namespace) -> dict[str, Any]:
     if args.max_duration_minutes <= 0:
         raise StateError("max_duration_minutes must be positive")
     target = read_json_arg(args.target_json, "target")
-    if target.get("project_type") != "MRN" or not str(target.get("bundle_version", "")).strip():
-        raise StateError("MVP requires an explicitly confirmed MRN target with bundle_version")
+    project_type = target.get("project_type")
+    version_field = "bundle_version" if project_type == "MRN" else "web_version"
+    version = str(target.get(version_field, "")).strip()
+    if (
+        project_type not in {"MRN", "H5_DUO"}
+        or not version
+        or (project_type == "H5_DUO" and version == "all")
+    ):
+        raise StateError(
+            "An explicitly confirmed MRN target with bundle_version or H5_DUO target "
+            "with non-all web_version is required"
+        )
     if not target.get("project_id") and not target.get("project_name"):
         raise StateError("target requires project_id or project_name")
 

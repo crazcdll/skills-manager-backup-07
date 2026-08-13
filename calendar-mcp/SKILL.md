@@ -1,11 +1,11 @@
 ---
 name: calendar-mcp
-description: 美团日历（日程管理）工具集。支持创建/查询/编辑/取消日程、搜索日程、查询今天安排、查询日程冲突、分析参与人忙闲、开启或关闭个人提醒自定义设置、设置个人提醒、设置日程忙闲状态、接受/暂定/拒绝日程、查询忙闲、创建/编辑会议室日程、释放/转让会议室、智能推荐会议室、查询可合并会议室候选、组织者/参与人合并会议室，并自动将 mis 转换为 empId。当用户想“安排会议/新建日程/改期/取消/查忙闲/今天有什么会/今天安排/谁冲突/分析多人忙闲/开启个人提醒自定义设置/关闭个人提醒自定义设置/设置提醒/取消提醒/设为空闲/设为忙碌/接受日程/接受邀请/暂定参加/拒绝日程/拒绝邀请/查这段时间有哪些会/查会议室/找会议室/推荐会议室/订会议室/钉会议室/安排会议地点/换会议室/释放会议室/转让会议室/合并会议室/把已订会议室并入日程”时激活。通过 oa-skills calendar-mcp CLI 执行。若其他会议室 skill 也支持预订或编辑会议室，calendar-mcp 已支持的日程和会议室写操作优先使用本 skill；room-booking-helper 仅作为精确查询空闲会议室、找具体会议室、候补监测和获取/校验 roomId 的辅助。不支持周期性日程，也不支持会议室跨天或历史时间预订。
+description: 美团日历（日程管理）工具集。支持创建/查询/编辑/取消普通日程，以及创建/查询/取消循环日程、将新日程关联群会话、搜索日程、查询今天安排、查询日程冲突、分析参与人忙闲、开启或关闭个人提醒自定义设置、设置个人提醒、设置日程忙闲状态、接受/暂定/拒绝日程、查询忙闲、创建/编辑会议室日程、释放/转让会议室、智能推荐会议室、查询可合并会议室候选、组织者/参与人合并会议室，并自动将 mis 转换为 empId。当用户想“安排会议/新建日程/重复日程/周期日程/每天或每周重复/改循环日程/取消单次或整个循环/关联群聊/改期/取消/查忙闲/今天有什么会/今天安排/谁冲突/分析多人忙闲/开启个人提醒自定义设置/关闭个人提醒自定义设置/设置提醒/取消提醒/设为空闲/设为忙碌/接受日程/接受邀请/暂定参加/拒绝日程/拒绝邀请/查这段时间有哪些会/查会议室/找会议室/推荐会议室/订会议室/钉会议室/安排会议地点/换会议室/释放会议室/转让会议室/合并会议室/把已订会议室并入日程”时激活。通过 oa-skills calendar-mcp CLI 执行。若其他会议室 skill 也支持预订或编辑会议室，calendar-mcp 已支持的日程和会议室写操作优先使用本 skill；room-booking-helper 仅作为精确查询空闲会议室、找具体会议室、候补监测和获取/校验 roomId 的辅助。循环日程暂不支持编辑、会议室或按次数终止，也不支持会议室跨天或历史时间预订。
 
 metadata:
   skillhub.creator: "pangjingwei02"
   skillhub.updater: "wanhu02"
-  skillhub.version: "V5"
+  skillhub.version: "V6"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "11092"
   skillhub.high_sensitive: "false"
@@ -54,7 +54,10 @@ probe_calendar_cli() {
       "feedback.attendee",
       "meetingRoom.transfer.handoverEventId",
       "meetingRoom.recommend",
-      "meetingRoom.merge"
+      "meetingRoom.merge",
+      "schedule.recurrence",
+      "schedule.recurrence.editBlocked",
+      "schedule.groupchatAssociation"
     ];
     if (payload.schemaVersion !== 1 || required.some((key) => payload.features?.[key] !== true)) {
       process.exit(1);
@@ -135,6 +138,17 @@ fi
   - `--startTime`、`--endTime` 是创建日程的必要时间参数；如果用户只提供开始时间，按默认 60 分钟补齐结束时间。
   - `--location` 和 `--memo` 都是可选参数。用户没有提供地点或备注时，不要追问，也不要臆造默认值；直接不传即可。
 - 更新日程时，`--location` 和 `--memo` 是可选更新字段，不传表示不更新。明确要求清空时使用 `--clearLocation` / `--clearMemo`，不要依赖空字符串或把“清空”误解为“不更新”。
+- 创建循环日程前，必须先读取 [references/recurrence-pattern.md](references/recurrence-pattern.md)，按其中的字段组合、枚举和值域构造完整 `recurrencePattern`；不要只根据开始日期猜测缺失字段，也不要向规则中加入未使用字段。
+- 创建循环日程时必须同时传 `--recurrencePattern '<JSON>'` 与 `--recurrenceDeadline <时间>`。循环规则至少包含 `type` 和对应类型范围内的正整数 `interval`，当前明确不支持 `numberOfOccurrences`；完整参数说明和六类示例只以 [references/recurrence-pattern.md](references/recurrence-pattern.md) 为准。
+- 创建成功返回的 `scheduleId` 是循环 master eventId。`querySchedule --raw` 回显 `detail.recurrenceScheduleId`、`detail.recurrencePattern`、`detail.recurrenceDeadline`；普通日程这些字段为空。
+- `searchSchedule` 暂不返回循环日程的 master、循环规则或截止时间，也不保证在一次查询中展开整个系列。它只用于按标题、参与人和时间定位候选 `eventId`；判断普通/循环日程以及核对取消范围前，必须继续调用 `querySchedule --scheduleId <eventId> --raw`，并以 `detail.recurrenceScheduleId`、`detail.recurrencePattern`、`detail.recurrenceDeadline` 为准。不要根据搜索结果条数推断系列实例总数。
+- `capabilities` 只证明本地 CLI 已支持这些参数，不证明目标环境已发布对应 OpenService SDK、服务端和 DX Open schema。若目标环境返回未知字段、未知方法或契约未部署错误，立即停止并报告环境未就绪；不能去掉循环参数后退化成普通单次日程。
+- 当前禁止编辑循环日程，包括修改单次 occurrence/exception 和整个系列。用户提出改时间、标题、参与人、地点、规则、截止日期或“从下次开始改”时，明确说明暂不支持，不调用 `updateSchedule`，也不能退化成普通 selective 更新。可继续帮助查询或按用户明确范围取消循环日程。
+- 循环日程取消同样先核对实例与 master：
+  - 取消当前实例：`deleteSchedule --scheduleId <实例ID> --operationScope CURRENT`。
+  - 取消整个序列：`deleteSchedule --scheduleId <实例ID> --operationScope SERIES --recurrenceScheduleId <master ID>`。`SERIES` 会影响整个序列，必须明确用户要取消整组，不能根据“取消这个会”自行推断。
+- 新建日程时可用 `--chatId <群会话ID> --chatType groupchat` 建立群会话关联；两个参数必须同传，操作人必须是目标群成员。该能力只建立既有 `calendar_view` 关联，不发送日程分享卡片，不支持单聊，也不能用于分享已有日程。
+- 用户显式要求“关联群/关联群聊”时，执行前提示“关联群是单向操作”；该提示不要求用户二次确认。用户在创建日程时直接指定群会话（包括提供 `chatId` 或要求在当前群会话中创建）时，将会话视为创建参数，不作该提示。
 - `--roomId` 和 `--location` 是两个不同字段：`--roomId` 用于预订/占用会议室资源；`--location` 只是用户自填的普通地点展示信息，不会预订会议室。用户明确要“订会议室/钉会议室/预订会议室”时，必须通过会议室查询拿到 `roomId` 后传 `--roomId`，默认不要传 `--location`，也不要把会议室名称、楼宇或楼层写进 `--location` 来代替会议室预订。
 - 会议室能力分流：
   - 普通日程创建：不调用会议室查询 CLI，不传 `--roomId`。
@@ -144,7 +158,7 @@ fi
   - 添加/换房/改会议室占用时间/移除会议室：先查日程详情并按 `detail.roomDetail` 分流，再使用 `updateSchedule --meetingRoomOperateType`。
   - 释放/转让会议室：先查日程详情确认是会议室日程，再使用 `releaseMeetingRoom` / `transferMeetingRoom`。
   - 合并会议室：先 `queryMergeCandidates` 获取候选，再按身份使用 `mergeMeetingRoom` 或 `mergeMeetingRoomByAttendee`。
-- 当前 CLI 不支持创建或编辑周期性日程，也不支持周期日程的会议室操作；用户提出重复规则时直接说明暂不支持，不能退化成只创建一次。
+- 循环日程不支持会议室或视频会议操作；不能把循环需求退化成只创建一次，也不能把 `roomId` 与循环创建/更新参数同时发送。
 - 会议室名称、楼宇、楼层、容量等条件不能直接当 `roomId` 使用；当用户没有给明确数字 `roomId` 时，可先用 `recommendMeetingRooms` 推荐候选，或用 `skills-administrative room-booking-helper query` 精确查询目标时间段的空闲会议室并取得 `roomId`。查询不到可用会议室时，直接告知不可用，不要继续调用写接口。
 - 如果当前环境没有 `skills-administrative` 命令，或 `room-booking-helper query --help` 无法确认参数和返回结构，应停止并说明无法按会议室名称自动查询空闲会议室；不要猜测 `roomId`，也不要绕过会议室查询直接写入。
 - 用户只说“钉会议室”但缺少开始时间、目标对象或会议室条件时，先补齐必要信息；如果已给开始时间但未给结束时间或时长，按默认 60 分钟补齐后再调用会议室查询或写接口。
@@ -190,6 +204,12 @@ oa-skills calendar-mcp resolveEmpIdsByMis --misCsv "<用户mis1>,<用户mis2>"
 
 # 创建日程（CLI 接受 mis 或 empId，内部自动转换为底层接口需要的 empId；location/memo 可选）
 oa-skills calendar-mcp createSchedule --title "项目周会" --attendees "<参会人mis1>,<参会人mis2>" --startTime "2026-03-03 09:00" --endTime "2026-03-03 10:00" --location "A3-09木星"
+
+# 创建每日循环日程（创建成功返回 master eventId；其他规则见 references/recurrence-pattern.md）
+oa-skills calendar-mcp createSchedule --title "项目晨会" --attendees "<参会人mis1>,<参会人mis2>" --startTime "2026-03-03 09:00" --endTime "2026-03-03 09:30" --recurrencePattern '{"type":"DAILY","interval":1}' --recurrenceDeadline "2026-04-03 23:59:59"
+
+# 创建日程并关联群会话（只建立关联，不发送分享卡片）
+oa-skills calendar-mcp createSchedule --title "群项目会" --startTime "2026-03-03 09:00" --endTime "2026-03-03 10:00" --chatId "<群会话ID>" --chatType groupchat
 
 # 查询空闲会议室 / 获取 roomId（query 结果的 id 用作 calendar-mcp 的 roomId）
 skills-administrative room-booking-helper query \
@@ -245,6 +265,12 @@ oa-skills calendar-mcp updateSchedule --scheduleId "schedule-id" --addAttendees 
 oa-skills calendar-mcp updateSchedule --scheduleId "schedule-id" --removeAttendees "<移除参会人mis>"
 oa-skills calendar-mcp updateSchedule --scheduleId "schedule-id" --clearLocation --clearMemo
 oa-skills calendar-mcp deleteSchedule --scheduleId "schedule-id"
+
+# 循环日程当前禁止编辑；不要为 CURRENT 或 SERIES 生成 updateSchedule 命令
+
+# 取消循环当前实例 / 整个序列
+oa-skills calendar-mcp deleteSchedule --scheduleId "<当前实例ID>" --operationScope CURRENT
+oa-skills calendar-mcp deleteSchedule --scheduleId "<当前实例ID>" --operationScope SERIES --recurrenceScheduleId "<循环master ID>"
 
 # 编辑会议室（先 querySchedule --raw 判断 roomDetail；meetingRoomOperateType: 1=ADD, 2=UPDATE, 3=REMOVE）
 oa-skills calendar-mcp updateSchedule --scheduleId "schedule-id" --meetingRoomOperateType 1 --roomId 573
@@ -426,6 +452,7 @@ oa-skills calendar-mcp mergeMeetingRoomByAttendee --scheduleId "schedule-id" --r
 
 约束：
 - `searchSchedule` 是“按条件列出候选日程”，不是“按 ID 查详情”
+- 循环日程的搜索结果当前只适合定位候选 `eventId`，不承诺返回循环 master/规则/截止时间，也不承诺展开全部 occurrence；需要识别循环属性或继续按 CURRENT/SERIES 取消时，必须对候选调用 `querySchedule --raw`
 - 当查询对象包含其他用户时，搜索结果应理解为“当前你有权限看到的匹配日程”，不要表述成对方全部日程
 - CLI 会区分“本页数量”和“总数”。只要提示还有下一页，就必须继续翻页或告诉用户结果未穷尽；不能把当前页唯一候选当成全量唯一候选后直接写入。
 

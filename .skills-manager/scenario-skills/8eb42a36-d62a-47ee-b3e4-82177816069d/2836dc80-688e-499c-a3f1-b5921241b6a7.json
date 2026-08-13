@@ -6,6 +6,7 @@
   "tools": {
     "catpaw": true,
     "claude_code": false,
-    "codex": true
+    "codex": true,
+    "opencode": true
   }
 }

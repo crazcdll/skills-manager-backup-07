@@ -1,11 +1,11 @@
 ---
 name: trade-stability-change-observability
-description: 交易前端变更上线观测助手。用户提到上线监控、变更观测、开始上线、准备上线、开始放量、结束放量、停止/恢复观测、发版巡检、帮忙盯上线，或提供 MRN Raptor 链接并希望持续观察时使用。面向已明确为 MRN 且有 bundleVersion 的目标，编排 Baseline、Raptor 全版本与 TAG4 双查询、1024 Agent sleep-loop 周期播报、跨响应停止和中断恢复；不是一次性异常查询或 HTML 报告工具。
+description: 交易前端变更上线观测助手。用户希望准备或开始上线观测、查看或恢复当前观测，或明确要求停止观测时使用；已有观测任务时，“变更/灰度/发布完成”等完成态表达也表示结束观测。支持发版巡检、帮忙盯上线，以及提供 MRN/H5_DUO Raptor 链接后持续观察。面向已明确为 MRN bundleVersion 或 H5_DUO webVersion 的目标，编排 Baseline、Raptor 全版本与目标版本双查询、1024 Agent sleep-loop 周期播报、跨响应停止和中断恢复；不是一次性异常查询或 HTML 报告工具。
 
 metadata:
   skillhub.creator: "duyifan10"
   skillhub.updater: "lidingcheng"
-  skillhub.version: "V26"
+  skillhub.version: "V29"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "3394"
   skillhub.high_sensitive: "false"
@@ -13,14 +13,15 @@ metadata:
 
 # 交易前端变更上线观测
 
-为一次上线变更维护完整 Observation 生命周期，在 1024 Agent 中通过短 `sleep` 循环持续执行 Raptor 巡检并向群内独立播报。MVP 版本目前支持 MRN 技术栈。
+为一次上线变更维护完整 Observation 生命周期，在 1024 Agent 中通过短 `sleep` 循环持续执行 Raptor 巡检并向群内独立播报。当前支持 MRN 与 H5_DUO。
 
 ## 边界
 
-- MVP 只支持上下文已明确为 **MRN** 且能取得非空 `bundleVersion` 的目标。
-- 无法确认 MRN 或缺少 `bundleVersion` 时，不创建 Observation；直接说明当前支持边界。不要猜测，也不设计额外的自动识别流程。
+- 仅支持已确认项目类型且具有对应版本标识的目标：MRN 使用非空 `bundleVersion`；H5_DUO 使用非空、非 `all` 的 `webVersion`。
+- 无法确认项目类型，或缺少对应版本标识时，不创建 Observation；直接说明当前支持边界。不要猜测，也不设计额外的自动识别流程。
 - 每群只允许一个非终态 Observation。已有任务时拒绝新建，并展示当前 Observation ID 与 Lifecycle State。
 - 本 Skill 负责 Observation 生命周期、Raptor 双查询编排、判定和消息语义。
+- 面向用户的准备说明、Round 播报、告警与总结中，MRN 版本标识统一称为 `bundleVersion`；`TAG4` 仅作为 Raptor 查询参数名或 URL 键使用，不出现在对外业务表述中。
 - 调用 `infra-raptor` Skill/`raptorfe` 获取事实；不要复制其鉴权、项目检索或通用接口适配实现。
 
 ## 运行依赖
@@ -56,16 +57,16 @@ $STATE read --compact
 
 控制与意图路由只读精简状态，避免每分钟重复载入历史 `rounds_summary`；compact 已包含 `target` 和 `initiator_mis`，足够支持每轮播报文案和 `warning` @ Initiator。仅在查看状态、判断连续查询失败或生成最终总结时执行完整的 `$STATE read`。状态不存在是正常情况。不要依赖会话记忆判断是否已有任务，也不要用 `.mutex` 是否存在表示循环所有权。
 
-将用户意图归入：
+按用户原话识别意图（示例用于理解语义，不是固定口令）：
 
-1. 准备上线；
-2. 开始放量；
-3. 结束/取消观测；
-4. 查看状态/帮助；
-5. 恢复观测；
-6. 其他与当前 Observation 相关的补充信息。
+1. 准备上线：用户表达准备上线、帮忙盯上线；
+2. 开始放量：用户表达开始放量、开始灰度；
+3. 结束/取消观测：用户明确要求停止、取消或收尾观测；当前存在非终态 Observation 时，用户表达变更、灰度或发布已完成，也执行结束观测；
+4. 查看状态/帮助：用户询问现在怎么样、查看状态；
+5. 恢复观测：用户表达恢复观测、继续盯；
+6. 补充信息：其余与当前 Observation 有关的消息。
 
-**活跃循环路由（优先于开始、恢复和补充信息的处理）**：若当前为 `OBSERVING`，且 `runtime.heartbeat_at` 距现在小于 2 分钟，说明已有活跃主循环持有本次观测。新响应不得进入或另起 `sleep-loop`、不得写入 heartbeat，也无需执行 Round、Raptor 查询、`start-round`、`finish-round` 或独立播报。执行一次完整的 `$STATE read`，简要回复当前观测摘要（已完成轮数、最近一轮结论、下轮预计时间）；随后退出。显式的“结束/取消观测”和“查看状态”仍分别按既有流程处理。若心跳超过 15 分钟，按“恢复观测”条件和流程处理；介于 2 至 15 分钟时，不抢占循环，不另起主循环，可回复观测仍在进行且等待既有循环继续。
+**活跃循环路由（优先于开始、恢复和补充信息的处理）**：若当前为 `OBSERVING`，且 `runtime.heartbeat_at` 距现在小于 2 分钟，说明已有活跃主循环持有本次观测。新响应不得进入或另起 `sleep-loop`、不得写入 heartbeat，也无需执行 Round、Raptor 查询、`start-round`、`finish-round` 或独立播报。执行一次完整的 `$STATE read`，简要回复当前观测摘要（已完成轮数、最近一轮结论、下轮预计时间）；随后退出。按上面的路由识别为结束观测的消息，跳过活跃循环限制，直接执行结束流程；识别为查看状态的消息仍按既有流程处理。若心跳超过 15 分钟，按“恢复观测”条件和流程处理；介于 2 至 15 分钟时，不抢占循环，不另起主循环，可回复观测仍在进行且等待既有循环继续。
 
 > 群内任意新消息都会触发一个独立的新 AI 响应，与既有响应并行、互不感知，因此靠心跳新鲜度而非会话记忆判断所有权，详见 `references/runtime-sleep-loop.md`《并发响应行为》。
 
@@ -75,16 +76,17 @@ $STATE read --compact
 
 从当前消息和用户显式提供的上下文提取：
 
-- `projectId` 或可通过 `infra-raptor` 定位的项目名；
-- 明确的 `project_type=MRN` 证据；
-- 非空 `bundleVersion`；
+- 经 `infra-raptor` 实时确认的 `projectId`；用户只提供项目名时，先在 Raptor 项目检索中选择名称完全一致的结果取得 ID，不使用历史上下文、缓存或名称猜测；
+- 明确的 `project_type=MRN` 与非空 `bundleVersion`，或明确的 `project_type=H5_DUO` 与有效的 `webVersion`；
 - 发起 @ Robot 的用户 MIS：从消息触发上下文取得，不要求用户在正文提供；
 - 可选观测时长：建议用户在准备阶段说明，例如“观测 4 小时”或“帮我盯到下午 6 点”。未提供时默认观测 2 小时；
 - 其它需要特殊关注的事项（如有）。
 
-只处理当前消息和显式上下文，不主动扫描完整群聊历史。
+用户表达“准备上线”“准备观测”等准备意图时，可结合当前消息、近期群聊历史和入群 Trigger 已提取的信息，复用项目、类型、`bundleVersion` / `webVersion` 与观测时长。信息唯一且完整时，实时校验 `projectId` 后直接创建 `PREPARING` 并采集 Baseline；准备播报中展示复用的目标和时长。存在多个候选、信息缺失或矛盾时追问，不猜测、不创建 Observation。
 
-任一核心条件缺失时，不创建 Observation。说明 MVP 只支持已明确 MRN 且提供 bundleVersion 的目标，并列出缺失信息。
+消息历史仅用于补充目标参数；“开始放量”“停止/取消”“恢复”等状态操作仍必须由当前消息触发。
+
+任一核心条件缺失时，不创建 Observation。说明仅支持已确认项目类型且具有对应版本标识的目标，并列出缺失信息。
 
 ### 2. 创建 PREPARING 状态
 
@@ -92,7 +94,19 @@ $STATE read --compact
 $STATE init \
   --initiator-mis <发起上线 @ Robot 用户的 MIS> \
   --max-duration-minutes <观测时长对应分钟数，未提供时省略> \
-  --target-json '{"project_id":34765,"project_name":"...","project_type":"MRN","bundle_name":"...","bundle_version":"0.78.0","log_type":"JS_ERROR"}'
+  --target-json '<项目类型对应的 target JSON，示例见下>'
+```
+
+MRN 目标：
+
+```bash
+--target-json '{"project_id":34765,"project_name":"...","project_type":"MRN","bundle_name":"...","bundle_version":"0.78.0","log_type":"JS_ERROR"}'
+```
+
+H5_DUO 目标：
+
+```bash
+--target-json '{"project_id":34867,"project_name":"...","project_type":"H5_DUO","web_version":"0160:0001","log_type":"JS_ERROR"}'
 ```
 
 如果脚本返回已有活跃 Observation，直接拒绝新建，不排队、不覆盖。
@@ -101,7 +115,7 @@ $STATE init \
 
 选择最近一个已经结束、并预留约 2 分钟入库时间的整分钟标准 Window。默认 Window 长度 10 分钟。
 
-Baseline 只查项目全版本，不传 TAG4。按 `references/raptor-observation.md` 遍历分页，过滤 `STATUS in [3, 4, 5]` 与 `CATEGORY=resourceError` 后生成轻量摘要，`all_versions.rows[]` 与正常 Round 同构，作为首个 Round 的环比基准之一（首个 Round 的 `cluster_diff.py --previous-rows-json` 仍取 `rounds_summary` 最后一项而非 Baseline；Baseline 主要用于展示和 Agent 的整体判断参考）。
+Baseline 只查项目全版本（`webVersion=all`，不带目标 `bundleVersion` 过滤或其他 Tag）。按 `references/raptor-observation.md` 遍历分页，过滤 `STATUS in [3, 4, 5]` 与 `CATEGORY=resourceError` 后生成轻量摘要，`all_versions.rows[]` 与正常 Round 同构，作为首个 Round 的环比基准之一（首个 Round 的 `cluster_diff.py --previous-rows-json` 仍取 `rounds_summary` 最后一项而非 Baseline；Baseline 主要用于展示和 Agent 的整体判断参考）。
 
 失败后重试 1 次。仍失败时：
 
@@ -121,7 +135,7 @@ $STATE set-baseline \
   --baseline-json '<baseline-json>'
 ```
 
-向群内展示：项目、MRN bundleVersion 过滤、Baseline Window 和摘要、默认间隔、约 2 分钟入库延迟、观测时长（用户指定或默认 2 小时）和预计结束时间。提示用户放量后告知。Baseline 一旦成功就固定，不因等待时间过长而静默重采。
+向群内展示：项目、目标版本过滤（MRN bundleVersion 或 H5_DUO webVersion）、Baseline Window 和摘要、默认间隔、约 2 分钟入库延迟、观测时长（用户指定或默认 2 小时）和预计结束时间。提示用户放量后告知。Baseline 一旦成功就固定，不因等待时间过长而静默重采。
 
 ## 开始放量
 
@@ -184,7 +198,7 @@ $STATE record-fast-alert --observation-id <observation_id> --loop-id <loop_id> \
 ```
 
 ```text
-【变更观测 · 快速预警】目标 MRN bundleVersion 近一周首现异常，请关注：
+【变更观测 · 快速预警】目标版本范围内出现官方近一周首现异常，请关注：
 
 - [ERROR] TypeError: xxx  12 次 / 8 人
 
@@ -213,8 +227,8 @@ Window 由脚本内部根据 `runtime.next_window_start` 和 `interval_minutes` 
 
 依据 `references/raptor-observation.md`：
 
-- 全版本：固定 `webVersion=all`，不带 TAG4；
-- 目标 bundleVersion：保持 `webVersion=all`，只增加 `queryParam.TAG4=["<bundleVersion>"]`；
+- 全版本：固定 `webVersion=all`，不带目标版本过滤或其他 Tag；
+- 目标版本：MRN 使用 `bundleVersion` 过滤（请求参数为 `queryParam.TAG4=["<bundleVersion>"]`），并保持 `webVersion=all`；H5_DUO 使用 `webVersion=<webVersion>`，不带其他 Tag；
 - 两次查询的其他参数完全一致；
 - 遍历全部分页，读取 `data.total`、`data.table.rows[]` 和跨页 `data.newErrors[]`；
 - 全版本和目标查询的 `rows[]` 都按 `references/raptor-observation.md`《查询结果主条目环比&过滤》排除 `STATUS in [3, 4, 5]` 后生成摘要；目标侧被过滤的异常不触发 `newErrors` 硬规则；
@@ -270,36 +284,43 @@ $STATE finish-round \
 
 使用 `send_dx_message_tool` 每轮发送独立群消息，不用持续更新 AI 会话回复。以下格式只约束正常 Round；准备阶段与最终总结按各自流程播报，不受影响。
 
-建议结构：用轻量 Markdown 增强扫读：固定标签加粗，只有异常扩展区使用无序列表，避免 Markdown 表格、多余分割线和固定历史轮次表。**`send_dx_message_tool.messageContent` 中单个换行不会稳定形成可见分段；每个逻辑块之间必须保留一个空行，即使用实际的 `\n\n`，不要只用 `\n`。** 每轮先输出固定摘要区：
+建议结构：用轻量 Markdown 增强扫读：固定标签加粗，只有异常扩展区使用无序列表，避免 Markdown 表格、多余分割线和固定历史轮次表。标题中的中文状态固定映射：`ok` 为 `✅ 正常`，`notice` 为 `⚠️ 关注`，`warning` 为 `❌ 异常`。**`send_dx_message_tool.messageContent` 中单个换行不会稳定形成可见分段；每个逻辑块之间必须保留一个空行，即使用实际的 `\n\n`，不要只用 `\n`。** 每轮先输出标题和带 Raptor 访问链接的 Window：
 
 ```text
-【变更观测 #Round<N>】<severity>
+【变更观测 #Round<N>】✅ 正常
 
-<window_start> ~ <window_end> · <project>(<version>)
-
-**结论**：<reason>
-
-**数据源**：Raptor 全版本 <clusters> 类异常 / <count> 次 / <user_count> 人；目标版本 <clusters> 类异常 / <count> 次 / <user_count> 人
+[<window_start> ~ <window_end> · <project>(<version>)](<raptor_url>)
 
 **预计下轮**：<next_round_at>
 ```
 
-仅 `notice`、`warning` 时，由 Agent 在摘要区后追加异常事实、分析或证据，并**必须**列出有效变化条目。异常扩展区与固定摘要区之间也保留一个空行；`cluster_diff.py` 的每个 `hits[]` 参考以下格式逐条渲染：
+`notice`、`warning` 时，时间窗口后先追加异常事实、分析或证据，并**必须**列出有效变化条目；再输出判定依据和预计下轮。异常扩展区与其他逻辑块之间也保留一个空行；`cluster_diff.py` 的每个 `hits[]` 参考以下格式逐条渲染：
 
 ```text
+【变更观测 #Round<N>】⚠️ 关注
+
+[<window_start> ~ <window_end> · <project>(<version>)](<raptor_url>)
+
 **显著变化项**：
 
-- [<level>] <cluster>：本轮 <count> 次 / <user_count> 人（上轮 <prev_count> 次 / <prev_user_count> 人，<人数变化或次数变化>，↑<对应涨幅>%）；<new_appeared 时标“较上一轮新增”>
+- [<level>] <cluster>：<count> 次 / <user_count> 人（<人数或次数> +<增量>，↑<涨幅>%）；<new_appeared 时标“较上一轮新增”>
+
+**判定依据**：<reason>
+
+**预计下轮**：<next_round_at>
 ```
 
-- `user_count_surge` 展示“+<人数> 人，↑<人数涨幅>%”；`count_surge` 展示“+<次数> 次，↑<次数涨幅>%”；`new_appeared` 明确标“较上一轮新增”。目标范围官方近一周首现 ERROR、数据不可用等未包含在 `hits[]` 的结论依据，也以列表项追加在“显著变化项”下。`inconclusive` 或 `invalid_subset` 时追加过滤说明，前者不得声称异常为目标版本独有，后者不得使用目标版本证据触发专属结论。
-- 未来启用 CIA、LogCenter 后，仍保持同一个标题、Window、目标和结论；数据源按来源各追加一行精简摘要，总 `severity` 取各数据源结论中的最高级别。
-- 只在 `warning` 级别出现时 @ Initiator
+- `user_count_surge` 展示“人数 +<增量>，↑<人数涨幅>%”；`count_surge` 展示“次数 +<增量>，↑<次数涨幅>%”；`new_appeared` 明确标“较上一轮新增”。不展示上轮完整次数和人数。目标范围官方近一周首现 ERROR、数据不可用等未包含在 `hits[]` 的判定依据，也以列表项追加在“显著变化项”下。`inconclusive` 或 `invalid_subset` 时追加过滤说明，前者不得声称异常为目标版本独有，后者不得使用目标版本证据触发专属结论。
+- 构造 `<raptor_url>` 前，`projectId` 必须来自本次 Observation 初始化时经 Raptor 项目检索确认、并写入 `target.project_id` 的结果；不得从项目名、历史上下文或缓存推断。使用 Raptor 异常列表页：MRN 为 `https://raptor.mws.sankuai.com/frontend/error/list?type=datetimerange&start=<YYYYMMDDHHmmss>&end=<YYYYMMDDHHmmss>&projectId=<projectId>&webVersion=all&TAG4=<bundleVersion>`；H5_DUO 为 `https://raptor.mws.sankuai.com/frontend/error/list?type=datetimerange&start=<YYYYMMDDHHmmss>&end=<YYYYMMDDHHmmss>&projectId=<projectId>&webVersion=<webVersion>`。`start` 取 `active_round.window_start`；`end` 取逻辑上开区间 `active_round.window_end` 减 1 秒；时间按 Raptor 要求格式化为 `YYYYMMDDHHmmss`。只在输入链接中存在非空 `SEC_CATEGORY` 时保留它，其他 URL 参数均不透传。
+- 未来启用 CIA、LogCenter 后，仍保持同一个标题、带访问链接的 Window 和异常扩展区；各数据源的异常事实与判定依据统一收敛在异常扩展区和“判定依据”中，总 `severity` 取各数据源结论中的最高级别。
+- `warning`（`❌ 异常`）播报必须 @ Initiator；`ok` 和 `notice` 不用。
 - 投递失败当次重试 1 次，仍失败则继续主循环。
 
 ## 结束或取消
 
-收到结束、停止、取消等语义后，独立响应立即执行：
+用户表达明确停止、取消或收尾观测时，立即请求停止；当前存在非终态 Observation 时，表达变更、灰度或发布已完成也按此执行。用户不需要使用固定措辞。
+
+命中后独立响应立即执行：
 
 ```bash
 $STATE request-stop \
@@ -322,7 +343,7 @@ $STATE request-stop \
 将状态翻译为用户可理解的摘要，不直接倾倒完整 JSON。至少展示：
 
 - Observation ID 和 Lifecycle State；
-- 目标项目与 bundleVersion；
+- 目标项目与目标版本（MRN bundleVersion 或 H5_DUO webVersion）；
 - Baseline 时间；
 - 已完成轮数与最近一轮结论；
 - 下轮预计时间或 Stop Request；
@@ -361,14 +382,14 @@ $STATE resume --observation-id <observation_id> --at <当前时间ISO>
 $STATE complete --observation-id <observation_id>
 ```
 
-若状态文件损坏或任务上下文无法恢复，停止自动执行并向用户说明；MVP 不为此维护额外的 `FAILED` 状态。
+若状态文件损坏或任务上下文无法恢复，停止自动执行并向用户说明；不维护额外的 `FAILED` 状态。
 
 ## 禁止行为
 
-- 不为非 MRN 或缺少 bundleVersion 的目标创建 Observation；
-- 不把 TAG4 字符串直接传给 `query-param`，必须使用字符串数组；
+- 不为未支持或项目类型不明确、缺少对应版本标识的目标创建 Observation；
+- 不把 `bundleVersion` 对应的 `TAG4` 请求值直接作为字符串传给 `query-param`，必须使用字符串数组；H5_DUO 不传其他 Tag；
 - 不把 `newErrors` 解释为首次出现于当前 bundleVersion；
-- 不使用 `get-trend` / `get-groups` 证明 TAG4 过滤；
+- 不使用 `get-trend` / `get-groups` 证明 bundleVersion 过滤；
 - `baseline-json`、`summary-json` 等 JSON 入参只放过滤后的轻量摘要；`all_versions.rows[]` 只放过滤后的轻量逐条目快照；
 - 不用 Agent 心算比较本轮与上一轮全版本聚类的涨幅或集合差异；必须调用 `scripts/cluster_diff.py`；
 - 不用 fast-check 替代正常 Round 的判定或双查询；fast-check 只触发独立播报，不产出 severity，不写 `rounds_summary`；

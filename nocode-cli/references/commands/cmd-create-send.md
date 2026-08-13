@@ -9,6 +9,20 @@
 
 ---
 
+## ⛔ prompt 引号规则（create/send 通用，强制）
+
+构造 `nocode create` / `nocode send` 的 prompt 时，**正文里严禁出现 ASCII 双引号 `"`（U+0022）**。需要强调、引用模块名/字段名时，一律改用中文全角引号 `“ ”`（或书名号 `「」`、`『』`）。
+
+**为什么：** 命令要穿过多层解析（工具封装 → PowerShell `-Command` / cmd → npm 生成的 `nocode.ps1`/`nocode.cmd` shim → node），正文外层通常用 `"..."` 包裹。正文里再出现 ASCII `"` 会与外层包裹引号冲突，在**第一个内部 `"` 处提前闭合**，导致后面的正文被切成多个 token 丢弃——NoCode 只会收到第一个引号之前的一小段（例如整段需求只收到「请仅调整」四个字）。全角引号 `“ ”` 不是 shell 定界符，不会触发截断。
+
+- ❌ `nocode send <chatId> "请仅调整"商品质量客诉率明细"和"链路客诉率明细"两个模块..."` — 正文里的 ASCII `"` 会把参数在「请仅调整」处截断
+- ✅ `nocode send <chatId> "请仅调整“商品质量客诉率明细”和“链路客诉率明细”两个模块..."` — 用全角引号，整段完整送达
+- 同理，正文里也应避免出现反引号 `` ` ``、未转义的 `$`/`;`/`&`/`|` 等 shell 特殊字符；确需表达时用自然语言描述或全角符号替代。
+
+> CLI 侧已加固：`send`/`create` 开启了 `allowExcessArguments(false)`，若正文被 shell 切碎产生多余参数会**直接报错**而非静默截断。但仍应从源头遵守本规则，避免命令失败重试。
+
+---
+
 ## 文档结构
 
 1. **create** — 创建应用：用法、附件参数、`--template`、NDJSON 事件类型、实时推送规则
@@ -24,6 +38,8 @@
 **内部已包含容器就绪检查：** `waitForRender` 会自动等待 sandbox 渲染就绪，包括容器冷启动（如需要）。
 
 **⚠️ prompt 必须使用自然语言（强制）：** 用自然语言描述要创建的应用，禁止在 prompt 中包含具体命令（如 `npm`、`git`、`yarn` 等）或指定使用某个工具。
+
+**⚠️ prompt 引号规则（强制）：** 正文里严禁出现 ASCII 双引号 `"`，强调/引用一律用全角引号 `“ ”`，详见上方「prompt 引号规则」章节。
 
 **⚠️ 架构保护：** 执行 create 前必须通过上方「执行前必检：架构保护」检查。
 
@@ -137,6 +153,8 @@ nocode send <chatId> "修改用户表结构" --safety --skillId <SKILL_ID>
 - ❌ `nocode send <chatId> "把这个项目改成纯静态 HTML 项目，不使用 React，删除 src 目录，重写 vite.config.js..."` — 禁止整体技术栈替换/清空工程架构（完整识别特征和更多反例见 [project-architecture.md](../project-architecture.md)）
 - ✅ `nocode send <chatId> "帮我执行以下 SQL 建表：CREATE TABLE users (id SERIAL PRIMARY KEY, name TEXT)"` — 可以附带 SQL 语句
 - ✅ `nocode send <chatId> "这段代码有问题，请修复：const data = fetch('/api')，应该加上 await"` — 定位到问题后可以附带**简短的**代码片段（几行）辅助定位，但严禁发送整个函数/组件/文件
+
+**⚠️ prompt 引号规则（强制）：** 正文里严禁出现 ASCII 双引号 `"`，强调/引用模块名一律用全角引号 `“ ”`，否则 message 会在第一个内部 `"` 处被截断。详见上方「prompt 引号规则」章节。
 
 **⚠️ 架构保护：** 执行 send 前必须通过上方「执行前必检：架构保护」检查。如果用户请求隐含架构改动，**必须先向用户说明风险并建议替代方案，禁止直接 send**。
 

@@ -1,18 +1,22 @@
-# Raptor 观测契约（MRN MVP）
+# Raptor 观测契约（MRN / H5_DUO）
 
 本文定义变更观测 Skill 如何消费 `infra-raptor` Skill/`raptorfe` CLI。鉴权、项目检索、接口适配和通用排障仍以 `infra-raptor` 为权威来源，不在此复制实现。
 
 ## 适用边界
 
-MVP 只接受已明确为 MRN 且有非空 `bundleVersion` 的目标。`TAG4` 在本流程中只表示 MRN `bundleVersion`，不能泛化为所有 Web 项目的版本过滤。
+仅接受以下已明确的新版本目标：
+
+- **MRN**：非空 `bundleVersion`；Raptor 请求以 `TAG4=[bundleVersion]` 承载该过滤条件。
+- **H5_DUO**：非空、非 `all` 的 `webVersion`，仅通过 `webVersion=<webVersion>` 过滤。
 
 可接受输入包括：
 
 - 包含 `projectId` 和 `TAG4` 的 Raptor 异常页链接，并有上下文明确这是 MRN；
-- `projectId + bundleVersion + MRN`；
-- `bundle 名称 + bundleVersion + MRN`，通过 `infra-raptor` 查询项目 ID。
+- 包含 `projectId` 和非 `all` `webVersion` 的 Raptor 异常页链接，并有上下文明确这是 H5_DUO；
+- `projectId + bundleVersion + MRN`，或 `projectId + webVersion + H5_DUO`；
+- 项目名称加上述版本与项目类型，通过 `infra-raptor` 查询项目 ID。
 
-无法确认 MRN 或缺少 `bundleVersion` 时不创建 Observation，直接说明 MVP 支持边界。
+`TAG4` 是 Raptor 的请求参数名，在本流程中其值语义仅为 MRN `bundleVersion`；H5_DUO 不叠加容器、`TAG4=null` 或其他 Tag 条件。面向用户的播报、告警、结论统一使用 `bundleVersion`，不使用 `TAG4`。无法确认项目类型或缺少对应版本时不创建 Observation，直接说明当前支持边界。
 
 ## 查询命令
 
@@ -29,13 +33,19 @@ raptorfe -t 120000 web error get-summary-table \
   --time-size MINUTE
 ```
 
-目标 bundleVersion 查询只增加：
+MRN 目标版本查询保持 `--web-version all`，只增加：
 
 ```bash
 --query-param '{"TAG4":["<bundleVersion>"]}'
 ```
 
-`TAG4` 必须是非空字符串数组。字符串或数字形式可能被接口静默忽略。`get-trend`、`get-groups` 不能作为目标 bundleVersion 异常列表证据。
+H5_DUO 目标版本查询改为：
+
+```bash
+--web-version <webVersion>
+```
+
+承载 `bundleVersion` 的 `TAG4` 请求参数必须是非空字符串数组，字符串或数字形式可能被接口静默忽略。H5_DUO 不传该参数，也不叠加其他 Tag 过滤。`get-trend`、`get-groups` 不能作为目标版本异常列表证据。
 
 ## Window 映射
 
@@ -50,12 +60,12 @@ end-long   = window_end_ms - 1
 
 ## 每轮双查询
 
-对相同 Window 执行两次查询，除 `queryParam.TAG4` 外参数保持一致：
+对相同 Window 执行两次查询：
 
-1. **全版本查询**：不传 `TAG4`，用于与 Baseline 和上一 Round 同口径比较；
-2. **目标查询**：传 `TAG4=[bundleVersion]`，用于观察目标 MRN bundleVersion 范围内的异常。
+1. **全版本查询**：固定 `webVersion=all`，不带目标 `bundleVersion` 过滤，用于与 Baseline 和上一 Round 同口径比较；
+2. **目标查询**：MRN 固定 `webVersion=all` 并使用 `bundleVersion` 过滤（请求参数为 `TAG4=[bundleVersion]`）；H5_DUO 传 `webVersion=<webVersion>` 且不传其他 Tag。用于观察目标新版本范围内的异常。
 
-Baseline 只执行全版本查询，不使用 `TAG4`。
+Baseline 只执行全版本查询。
 
 ## 分页与字段
 
@@ -73,7 +83,7 @@ Baseline 只执行全版本查询，不使用 `TAG4`。
 
 全版本 `rows[]` 在写入 `all_versions.rows[]`、参与逐条目环比（见《判定规则》）前，还必须排除 `CATEGORY=resourceError`（静态资源加载失败，非业务逻辑异常）。目标版本不做逐条目环比。
 
-目标 bundleVersion 查询处于放量灰度期间，`COUNT`/`USER_COUNT` 会随灰度比例自然增长，目前暂不做归一化比较，因此不对目标查询结果做逐条目环比；目标版本的异常判定仍使用过滤后的官方 `newErrors` 硬规则与 Agent 综合判断。
+目标版本查询处于放量灰度期间，`COUNT`/`USER_COUNT` 会随灰度比例自然增长，目前暂不做归一化比较，因此不对 MRN bundleVersion 或 H5_DUO webVersion 的目标查询结果做逐条目环比；目标版本的异常判定仍使用过滤后的官方 `newErrors` 硬规则与 Agent 综合判断。
 
 ## 轻量摘要
 
@@ -109,7 +119,7 @@ Baseline 只执行全版本查询，不使用 `TAG4`。
 根据结果设置：
 
 - `verified_by_difference`：满足子集关系且两份结果存在差异；
-- `inconclusive`：两份结果完全相同。格式正确的 TAG4 结果仍可使用，也允许硬规则生效，但播报必须说明“过滤效果未能通过结果差异验证”，且不能宣称异常为目标版本独有；
+- `inconclusive`：两份结果完全相同。格式正确的目标版本结果仍可使用，也允许硬规则生效，但播报必须说明“过滤效果未能通过结果差异验证”，且不能宣称异常为目标版本独有；
 - `invalid_subset`：违反子集关系。目标证据不可信，不触发目标版本专属硬规则。
 
 ## 全版本逐条目环比（cluster_diff.py）
@@ -140,7 +150,7 @@ python3 ${SKILL_ROOT}/scripts/cluster_diff.py \
 
 ## fast-check：60s 小循环快速核检
 
-正常 Round 的双查询和判定链路耗时较长（预算 3 分钟），不适合每 60s 跑一次。`scripts/fast_check.py` 是独立的固定脚本，供 sleep-loop 每次小循环唤醒时做低延迟核检，只检查一件事：目标 MRN bundleVersion 范围内是否存在**新的**官方近一周首现异常，不限 `LEVEL`，1 例即告警。
+正常 Round 的双查询和判定链路耗时较长（预算 3 分钟），不适合每 60s 跑一次。`scripts/fast_check.py` 是独立的固定脚本，供 sleep-loop 每次小循环唤醒时做低延迟核检，只检查一件事：目标 MRN bundleVersion 或 H5_DUO webVersion 范围内是否存在**新的**官方近一周首现异常，不限 `LEVEL`，1 例即告警。
 
 ```bash
 python3 ${SKILL_ROOT}/scripts/fast_check.py --paas <paas> --group-id <dxGroupId>
@@ -148,7 +158,7 @@ python3 ${SKILL_ROOT}/scripts/fast_check.py --paas <paas> --group-id <dxGroupId>
 
 行为边界：
 
-- 脚本内部自行调用 `raptorfe`（固定 `-t 30000`，30 秒超时），查询最近 5 分钟、目标 `TAG4` 的 `get-summary-table` 单页（`offset=0`，不翻页）；`newErrors` 判定不依赖 Window 长度，短窗口足够覆盖持续存在的首现异常，下次小循环还会再次核检；
+- 脚本内部自行调用 `raptorfe`（固定 `-t 30000`，30 秒超时），查询最近 5 分钟目标版本的 `get-summary-table` 单页（MRN 使用 `bundleVersion` 过滤，其请求参数为 `TAG4`；H5_DUO 使用 `webVersion`；`offset=0`，不翻页）；`newErrors` 判定不依赖 Window 长度，短窗口足够覆盖持续存在的首现异常，下次小循环还会再次核检；
 - 只读 `current_observation.json` 取 `target` 和 `fast_alert_seen`，不读写其他状态字段；`lifecycle_state` 非 `OBSERVING` 时直接报错退出；
 - 结果排除 `STATUS in [3, 4, 5]` 和 `CATEGORY=resourceError`，不按 `LEVEL` 过滤；
 - 与 `fast_alert_seen` 做差集，只返回尚未告警过的异常名；命中过的异常不会在同一观测周期内重复触发小循环告警；
@@ -185,7 +195,7 @@ python3 ${SKILL_ROOT}/scripts/observation_state.py --paas <paas> --group-id <dxG
 
 按以下顺序判定，三类信号不可混称：
 
-1. **官方近一周首现（强制 `warning`）**：过滤可信度不是 `invalid_subset`，且目标查询中存在同时属于 `data.newErrors[]`、未被 `STATUS in [3, 4, 5]` 过滤、`LEVEL=ERROR` 的异常时，本轮必须为 `warning`。`newErrors` 语义为过去 7 天滚动窗口内首次出现，准确播报为“目标 MRN bundleVersion 过滤范围内的官方近一周首现 ERROR”；禁止说成“版本首现”“首次出现于该版本”或“较上周同期首现”。
+1. **官方近一周首现（强制 `warning`）**：过滤可信度不是 `invalid_subset`，且目标查询中存在同时属于 `data.newErrors[]`、未被 `STATUS in [3, 4, 5]` 过滤、`LEVEL=ERROR` 的异常时，本轮必须为 `warning`。`newErrors` 语义为过去 7 天滚动窗口内首次出现，准确播报为“目标版本过滤范围内的官方近一周首现 ERROR”；可按目标类型补充“MRN bundleVersion”或“H5_DUO webVersion”，禁止说成“版本首现”“首次出现于该版本”或“较上周同期首现”。
 2. **较上一轮环比上涨（severity 下限 `notice`）**：`cluster_diff.py` 返回 `user_count_surge` 或 `count_surge` 时，本轮不可判为 `ok`。Agent 可结合命中数量、涨幅和级别分布升级为 `warning`，但不是自动升级。
 3. **较上一轮新增（仅提示）**：`cluster_diff.py` 返回 `new_appeared` 时，列为“较上一轮新增”的事实，不单独改变 severity。
 
@@ -201,11 +211,11 @@ fast-check 告警只解决"小循环期间要不要立即喊人"，不产出、�
 
 - 全版本相对 Baseline；
 - 全版本相对上一正常 Round（含上方 `cluster_diff.py` 的逐条目环比结果）；
-- 目标 bundleVersion 的异常分布；
+- 目标版本的异常分布；
 - 数据是否完整。
 
 ## URL 参数白名单
 
-可消费：`projectId`、`start`、`end`、MRN `TAG4`、非空 `SEC_CATEGORY`。MVP 的 Baseline 和每轮双查询都固定 `webVersion=all`，URL 中的 `webVersion` 不进入 Observation 查询口径。
+可消费：`projectId`、`start`、`end`、MRN `bundleVersion`（URL 参数名为 `TAG4`）、H5_DUO 非 `all` `webVersion`、非空 `SEC_CATEGORY`。Baseline 与全版本查询固定 `webVersion=all`；MRN 目标查询固定 `webVersion=all` 并使用 `bundleVersion` 过滤；H5_DUO 目标查询使用输入链接的 `webVersion`，不传其他 Tag。
 
-`metric`、`speedPoint`、`singleSpeedPoint`、`isPerfInMp`、`perfBundleId`、`webVersion`、空 `dyeingId`、`type=datetimerange` 属于性能配置、页面状态或非 MVP 过滤，不进入异常列表查询。`errorListCurrentPage` 仅可换算为 offset，不直接透传。
+`metric`、`speedPoint`、`singleSpeedPoint`、`isPerfInMp`、`perfBundleId`、空 `dyeingId`、`type=datetimerange` 属于性能配置、页面状态或本流程不支持的过滤条件，不进入异常列表查询。`errorListCurrentPage` 仅可换算为 offset，不直接透传。

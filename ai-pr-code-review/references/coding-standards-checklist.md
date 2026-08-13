@@ -86,6 +86,13 @@ public class DealProcessorFactory {
 | CR:STYLE-04 | **嵌套深度** | ≤3 层 | 卫语句提前 return；提取方法 |
 | CR:STYLE-05 | **圈复杂度** | ≤10 | 每个 if/for/case/catch/&& 加 1，超标必拆 |
 
+> 🚫 **禁止输出以下纯风格问题（不构成有效 CR 发现）**：
+> - **Import 风格**：通配符导入 vs 具体导入、import 顺序、未使用 import — **一律不报**
+> - **花括号风格**：行尾 vs 次行、单行 if 是否加花括号 — **一律不报**
+> - **空行/空格**：方法间空行数量、缩进空格数 — **一律不报**
+> - 以上问题如果确实需要统一，应由 Lint 工具（Checkstyle/SpotBugs/ESLint）处理，不属于 AI-CR 职责范围
+> - **禁止自创规则编号**：不允许输出 checklist 中不存在的规则编号（如 `Import-Style`），只能使用已定义的规则编号
+
 ```java
 // ❌ 嵌套 4 层，圈复杂度高
 public Result processDeal(DealRequest request) {

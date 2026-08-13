@@ -1,9 +1,9 @@
 skill-manifest-version: 1
-skill-id: cd62f10a05e5ba6a1a951484cc8a23007af2d6823191fdf2b05bd0c016da50ce
+skill-id: 79650956cfcf5f161315f17167c04b48fee7aeb1cb808b39a13a4b07dbe92d9f
 
 files:
-  aa3190b6e49e255cefc1575299788743c33bc8653f54d51de93f6127d393c1ea  .skillignore
-  43e5018ddd92452536c9bbdfb5551f863b98664d5d4d5e02eb43bdc9c1ee9c63  SKILL.md
+  2535463c9f51cb433dae12c6475d3f1d3e84da3401cad9d3923b9db55787fea2  .skillignore
+  2a9b496ff9bf821532561d013867d07c5c4767788e740f857d14c2190922c48c  SKILL.md
   b7f2a4fa23fef259dcb3688228bbd7f626f2774d606619022189647fb58857b8  references/context/max-context.md
   d9826c448cf5c849f82d07846511d92311ef463243e881d7b476cff3124cf2b0  references/context/mrn-context.md
   9a7f40a20dd26552eb57dab083fbf6fe039d7ad347f8be59dbe2299409ae82d2  references/modes/local.md
@@ -16,10 +16,11 @@ files:
   69c3e729df7d301269fe148ef679a4b993b1cbfe490f36c78445e4bec2fca9d7  references/rules/base/general-rules.md
   d3b06ed831563f59d7f1ff1dd91b53ae68ed92573595ba2e661905a6e3a1644b  references/rules/base/msi-api-review-rules.md
   1706d642f62fe6a939636fe64406cefde8f60323d0b9b9c1e6bfb8727b0f1e72  references/rules/base/trade-rules.md
-  9a65049f8c4ff5e4c04c65bc56775ae498a19faa0cc3191d0724ddc5de9dd69f  references/rules/stack/duo-rules.md
+  214ed0bafb14cd82fb803401d1f734881ac0113867071669a56ba64e3cb5863f  references/rules/stack/duo-rules.md
   c309808a0096af4b7bea80441348e04a85f4e02b028862e6e7e0511f187b772e  references/rules/stack/max-rules.md
   cc99bdc6471747498216a45de84a62459c4a3096ab4158a25c4cdf6cac4100f2  references/rules/stack/miniprogram-rules.md
   74c75513b6661063c30612f55b5be598ba2754e1cb9abf6ad58b33e33c07dbb3  references/rules/stack/mrn-rules.md
+  c5707831ee0b21301057ee9308520315638a4e37a90d15b0974b0e578356b6c0  references/stack-detection.md
   a0caaccd95b86bca92e16ff4b21bfbfd0097ee8ad70aeec05bd8bb607dc46b86  references/tpl-report.md
   50a81d0cdc8c58ecd4f960ff8e204759e0f96f06e665641cc01850acd925ede5  scripts/dep-scan.sh
   68a9eddf2a99130051909dd7635f9a7b5c484e5e60e9f311085514c7c255774c  scripts/pr-comment/code_cli.py

@@ -1,6 +1,6 @@
 # 后端日志查询公共指南
 
-本文档为 APP / H5 / 小程序排查流程的公共参考，包含 `logcenter-query-cli` 的安装、调用方式和查询命令。
+本文档为 APP / H5 / 小程序排查流程的公共参考，包含 `logcenter-query-cli` 的调用方式和查询命令。
 
 ---
 
@@ -8,35 +8,7 @@
 
 `logcenter-query-cli` 是查询后端日志的 CLI 工具，速度比页面快 10x+。
 
-**安装/更新工具**
-
-```bash
-mtskills pull logcenter-query-cli && echo "ok" || echo "missing"
-```
-
-- **输出 ok** → 直接进入查询步骤
-- **输出 missing** → 先安装：
-  ```bash
-  mkdir -p ~/.openclaw/skills && cd ~/.openclaw/skills && mtskills i logcenter-query-cli
-  ```
-  若安装失败，回退到备用方案（browser_action）。
-
-**调用方式**
-
-> `lc-query` 不在 PATH 中，必须使用**绝对路径**调用：
->
-> ```
-> ~/.openclaw/skills/.claude/skills/logcenter-query-cli/scripts/lc-query
-> ```
->
-> 以下文档中所有 `lc-query` 命令均指此绝对路径，执行时请替换。
-
-验证可用：
-
-```bash
-~/.openclaw/skills/.claude/skills/logcenter-query-cli/scripts/lc-query --version
-```
-
+> ℹ️ 本工具已作为 Agent Skill 关联，无需手动安装。以下命令中的 `lc-query` 均指路径 `logcenter-query-cli/scripts/lc-query`。
 ---
 
 ## 多 topic 查询策略
@@ -52,12 +24,43 @@ mtskills pull logcenter-query-cli && echo "ok" || echo "missing"
 
 ---
 
+## 鉴权机制与重试策略
+
+> ⚠️ **首次查询某日志主题时，建议加 `--verbose` 标志**，可观察鉴权过程，便于快速定位失败原因。
+
+`lc-query` 查询前需完成**两步鉴权链**，任何一步失败都会导致查询无法执行：
+
+| 步骤 | 操作 | 说明 |
+|------|------|------|
+| **Step 1** | SSO 本地换票（MOA → mtsso） | 通过 MIS 账号本地换取 SSO 票据，可能因网络抖动或缓存未就绪而瞬态失败 |
+| **Step 2** | 用 SSO 票据换取日志主题 Token | 调 Raptor API 获取该日志主题的专用 access token |
+
+### 鉴权失败处理（必须重试）
+
+当遇到 `TOKEN_FAIL_NO_PERMISSION` 报错时，**并非一定是权限问题**，很可能是 SSO 换票环节瞬态失败。按以下流程处理：
+
+```
+lc-query query 报 TOKEN_FAIL_NO_PERMISSION？
+  ├─ 第一次失败 → 加 --verbose 重试（观察鉴权日志）
+  │    ├─ verbose 日志显示「MOA 换票成功 → Token 获取成功」→ 查询成功，继续排查
+  │    └─ verbose 日志显示「MOA 换票失败」→ 再重试一次（共 2 次重试）
+  │         ├─ 仍失败 → 确认是否首次访问该 topic（可能无权限）
+  │         │    ├─ 是首次 → 联系日志负责人添加权限
+  │         │    └─ 非首次 → 提 TT 工单排查 SSO/MOA 环境
+  │         └─ 重试成功 → 继续排查
+  └─ 重试成功 → 继续排查
+```
+
+> 💡 **经验**：实际排查中，第一次查询报 `TOKEN_FAIL_NO_PERMISSION`，加 `--verbose` 重试后即成功的场景非常常见。SSO 换票瞬态失败是常态而非例外，**遇到此报错务必先重试再判断权限问题**。
+
+---
+
 ## Step 1：确认存储类型
 
 首次查陌生 topic 时执行，影响后续命令选择：
 
 ```bash
-~/.openclaw/skills/.claude/skills/logcenter-query-cli/scripts/lc-query meta -l {logTopic}
+lc-query meta -l {logTopic}
 ```
 
 - 输出 `storageType: eagle` → 使用 `query` 命令（Lucene 语法）
@@ -84,7 +87,7 @@ mtskills pull logcenter-query-cli && echo "ok" || echo "missing"
 ### Eagle 存储（Lucene 语法）
 
 ```bash
-~/.openclaw/skills/.claude/skills/logcenter-query-cli/scripts/lc-query query \
+lc-query query \
   -l {logTopic} -s "{开始时间}" -e "{结束时间}" \
   -q '{构造的查询条件}' --size 50 --json 2
 ```
@@ -93,25 +96,25 @@ mtskills pull logcenter-query-cli && echo "ok" || echo "missing"
 
 ```bash
 # 有 traceId 时（正数）
-~/.openclaw/skills/.claude/skills/logcenter-query-cli/scripts/lc-query query \
+lc-query query \
   -l com.sankuai.grouptrade.precreate.apic \
   -s "2026-04-05 16:11:00" -e "2026-04-05 22:11:00" \
   -q '464458784842137394' --size 50 --json 2
 
 # ⚠️ traceId 为负数时，Eagle 存储：在 -q 中用反斜杠转义负号
-~/.openclaw/skills/.claude/skills/logcenter-query-cli/scripts/lc-query query \
+lc-query query \
   -l com.sankuai.grouptrade.precreate.apic \
   -s "2026-04-05 16:11:00" -e "2026-04-05 22:11:00" \
   -q '\-3437264558516151002' --size 50 --json 2
 
 # userId 查询
-~/.openclaw/skills/.claude/skills/logcenter-query-cli/scripts/lc-query query \
+lc-query query \
   -l com.sankuai.grouptrade.precreate.apic \
   -s "2026-04-05 16:11:00" -e "2026-04-05 22:11:00" \
   -q '123456789' --size 50 --json 2
 
 # 手机号查询
-~/.openclaw/skills/.claude/skills/logcenter-query-cli/scripts/lc-query query \
+lc-query query \
   -l com.sankuai.grouptrade.precreate.apic \
   -s "2026-04-05 16:11:00" -e "2026-04-05 22:11:00" \
   -q '13800138000' --size 50 --json 2
@@ -120,12 +123,12 @@ mtskills pull logcenter-query-cli && echo "ok" || echo "missing"
 ### InfluxDB 存储（SQL 语法）
 
 ```bash
-~/.openclaw/skills/.claude/skills/logcenter-query-cli/scripts/lc-query query-influx \
+lc-query query-influx \
   -l {logTopic} -s "{开始时间}" -e "{结束时间}" \
   --sql "SELECT * FROM log WHERE uuid='{UUID}' LIMIT 50"
 
 # ⚠️ InfluxDB 中负数 traceId 必须用 --sql，-q 会报错
-~/.openclaw/skills/.claude/skills/logcenter-query-cli/scripts/lc-query query-influx \
+lc-query query-influx \
   -l {logTopic} -s "{开始时间}" -e "{结束时间}" \
   --sql "SELECT * FROM log WHERE traceId='-1438874095498651105' LIMIT 20"
 ```
@@ -133,7 +136,7 @@ mtskills pull logcenter-query-cli && echo "ok" || echo "missing"
 **字段名不确定时**，先查字段列表：
 
 ```bash
-~/.openclaw/skills/.claude/skills/logcenter-query-cli/scripts/lc-query fields -l {logTopic}
+lc-query fields -l {logTopic}
 ```
 
 ---
@@ -162,30 +165,8 @@ date -d "2026-04-07 15:30:00" +%s%3N
 
 | 错误 | 处理方式 |
 |------|---------|
-| `TOKEN_FAIL_NO_AUTH` | 在 CatDesk 浏览器中访问 aHR0cHM6Ly9yYXB0b3IubXdzLnNhbmt1YWkuY29t 完成登录后重试 |
-| `TOKEN_FAIL_NO_PERMISSION` | 该日志无访问权限，联系日志负责人添加权限后重试 |
+| `TOKEN_FAIL_NO_AUTH` | 未登录，访问 `raptor.mws.sankuai.com` 完成登录后重试 |
+| `TOKEN_FAIL_NO_PERMISSION` | **先加 `--verbose` 重试**（SSO 换票瞬态失败很常见）；重试 2 次仍失败，确认是否首次访问该 topic，是→联系日志负责人加权限，否→提 TT 工单排查 SSO/MOA 环境。详见上方「鉴权机制与重试策略」 |
 | 查询无结果 | 检查：时间范围是否太小？topic 名称是否拼错？字段名是否存在（用 `fields` 确认）？ |
 
 ---
-
-## 备用方案（logcenter-query-cli 未安装时）
-
-使用 browser_action 打开 Raptor LogCenter，按 -q 参数优先级构造查询条件：
-
-```
-aHR0cHM6Ly9yYXB0b3IubXdzLnNhbmt1YWkuY29tL2xvZy90b3BpYy92aWV3L3tsb2dUb3BpY30/c2VhcmNoVHlwZT1leHBlcnQmc2VhcmNoR3JhbW1hcj1kc2wmY29uZGl0aW9uPSJ75p+l6K+i5p2h5Lu2fSImdGltZVR5cGU9Q3VzdG9tJnN0YXJ0RGF0ZT17WVlZWU1NRERISG1tc3N9JmVuZERhdGU9e1lZWVlNTURESEhtbXNzfSZpU0xpbWl0PTEwMCZwYWdlTnVtPTEmcGFnZVNpemU9NTA=
-```
-
-**参数说明**：
-
-- `logTopic`：从 dev-assets.md 获取
-- `查询条件`（按优先级，**双引号包裹**）：
-  - 有 traceId：`"2152148484505599702"`
-  - 有 UUID：`"000000000000086A17A10FEEA46E98E28F26CBC7034FCA176372508976231228"`（APP 场景）
-  - 有用户ID：`"1858800635"`
-  - 有手机号：`"18614062344"`
-  - 有订单号：`"5026031804325578023"`
-  - 有 dealID：`"1024058160584559"`
-  - 有 openID：`"oJVP50Eb99tT6NsaSI9iFsFEtmCY"`
-  - 有门店id：`"1023637477173558"`
-- `startDate` / `endDate`：提供了具体时间（含分钟）则查前后3小时；仅提供日期则查当天全天；未提供时间则查最近 24 小时

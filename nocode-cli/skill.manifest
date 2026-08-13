@@ -1,11 +1,11 @@
 skill-manifest-version: 1
-skill-id: 72fc361a45e713b179463ebfc2bf836b7b9bdbea35e1532be73e5658b6bd8a94
+skill-id: d18ebfa9ba96958d500723d97a1b134a1a46014d3410dbe300917298f60c9538
 
 files:
-  b362aec67923411ad748293b0adf77c02e8444e8f33978770ff1b71e26435d4f  SKILL.md
+  098b385b767307b091b40a2250d0eaf0423ad6b73e6ae44cdd4ea16a83edc6e1  SKILL.md
   12a815c73eae636a7fb058d8eb965831fa9f665edcdccb41627f18de855cb993  references/best-practices.md
   6bcd42e7d6d65d4745c3af23d2a47fbb420b0282f583511cb837b31f3f52ba8b  references/commands/cmd-code.md
-  5ea9283086349cf2f5ff56cb7d6ee7a190dce5c233ebc2973cf03cb6655649bb  references/commands/cmd-create-send.md
+  acb5ed7c0738da28e286767f71da9de0cc1eeaa6426fa33d7494eae9a9b14de7  references/commands/cmd-create-send.md
   51a55b7e1a15ad95fea77f494d1edf10fbedd9a234cef05237417735b517af8c  references/commands/cmd-d2c.md
   4c2bf185ee4d8c7e471da8a3e5056827900c36a9aa49cfa0dad8658b15af75b7  references/commands/cmd-database.md
   da4f8c9913fb1ce62486ccba661683d6bd32826c4ab4172ea7319068ae9f49f0  references/commands/cmd-deploy.md

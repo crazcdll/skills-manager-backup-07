@@ -1,0 +1,133 @@
+{
+  "issue_id": "20260807-cart-disappear-4011474",
+  "created_at": "2026-08-10 15:53:57",
+  "updated_at": "2026-08-10 16:01:48",
+  "current_state": "S7_DONE",
+  "signal_raw": "门店id4011474，商家出现客户正在点菜中，购物车的菜一下全消失了，桌台7，时间是7号22点；正在点菜中，然后弹出扫码点餐就直接卡死",
+  "steps": {
+    "S1_INFO_FETCH": {
+      "status": "completed",
+      "started_at": "2026-08-10 15:54:03",
+      "completed_at": "2026-08-10 15:54:22",
+      "guard_passed": true,
+      "output": {
+        "signal_type": "用户反馈",
+        "business_line": "餐",
+        "bundle_name": "rn_meishi_intelli-order-home / rn_meishi_smart-order-food-submit",
+        "page_name": "智能点餐货架+点餐购物车 / 智能点餐提单",
+        "problem_time": "2026-08-07 22:00",
+        "user_identifier": "门店ID=4011474 / 桌台号=7（无userId/手机号/订单号）",
+        "tech_stack": "MAX / DUO",
+        "project_id": "34467 / 34867",
+        "ssh_url": "ssh://git@git.sankuai.com/dfe/biz-cross-intelligent-order.git / ssh://git@git.sankuai.com/meis/smart-ordering.git",
+        "raptor_link": "https://raptor.mws.sankuai.com/frontend/error/list?projectId=34467 / https://raptor.mws.sankuai.com/frontend/error/list?projectId=34867",
+        "diva_link": "https://diva.sankuai.com/bundle/rn_meishi_intelli-order-home/versions / https://diva.sankuai.com/bundle/rn_meishi_smart-order-food-submit/versions",
+        "appkey": "food_cart_order / com.sankuai.grouptrade.precreate.apic"
+      }
+    },
+    "S2_CHANGE_QUERY": {
+      "status": "completed",
+      "started_at": "2026-08-10 15:54:28",
+      "completed_at": "2026-08-10 15:54:46",
+      "guard_passed": true,
+      "sub_tracks": {
+        "mcm": {
+          "status": "pending",
+          "result": null
+        },
+        "diva": {
+          "status": "pending",
+          "result": null
+        }
+      },
+      "output": {
+        "changes": [
+          {
+            "system": "MCM",
+            "name": "提单页-膨胀问题优化&秒提搭售参数问题修复",
+            "publish_time": "2026-08-05 11:00 (UTC) / 2026-08-05 19:00 (北京)",
+            "publisher": "chenliang54（陈梁）",
+            "relevance": "低",
+            "note": "距问题时间>24h，且为提单页非点餐货架"
+          },
+          {
+            "system": "Diva",
+            "name": "rn_meishi_intelli-order-home v3.96.7",
+            "publish_time": "分阶段发布: 2026-08-07 14:50 / 全量完成: 2026-08-07 16:20 (北京)",
+            "publisher": "lichuang29",
+            "relevance": "中",
+            "note": "同Bundle，分阶段发布距问题时间约7h10min"
+          },
+          {
+            "system": "Diva",
+            "name": "rn_meishi_smart-order-food-submit v0.97.0",
+            "publish_time": "全量完成: 2026-08-06 12:36 (北京)",
+            "publisher": "weikai16",
+            "relevance": "无",
+            "note": "距问题时间>24h"
+          }
+        ],
+        "stop_loss_advice": "🟢 暂不止损",
+        "most_suspicious_change": "rn_meishi_intelli-order-home v3.96.7（分阶段发布 2026-08-07 14:50，打包人 lichuang29）",
+        "commit_url": "https://dev.sankuai.com/code/repo-detail/dfe/biz-cross-intelligent-order/commit/48367819b57941b4c1287c6a13dbb30f11a1958b"
+      }
+    },
+    "S3_CHANGE_STOP": {
+      "status": "completed",
+      "started_at": null,
+      "completed_at": "2026-08-10 15:55:00",
+      "guard_passed": true,
+      "decision": "",
+      "output": {
+        "stop_loss_type": "跳过",
+        "stop_loss_target": "",
+        "suspect_version": "rn_meishi_intelli-order-home v3.96.7",
+        "rollback_target": "",
+        "operation_status": "未执行止损（🟢 暂不止损）",
+        "notify_record": "无"
+      }
+    },
+    "S4_DIAGNOSIS": {
+      "status": "completed",
+      "started_at": "2026-08-10 15:55:13",
+      "completed_at": "2026-08-10 16:00:00",
+      "guard_passed": true,
+      "diagnosis_path": "",
+      "output": {
+        "conclusion_validity": "⚠️ 待进一步确认",
+        "root_cause_type": "依赖异常（后端购物车数据被清空）+ 变更引入风险（搭售模块重构）",
+        "root_cause_detail": "后端日志（food_cart_order）显示：2026-08-07 22:59:47，门店4011474桌台2044002007635116046（tableName=555）执行了 IntelliCartService.insertOrUpdateCartInfo 操作，将旧购物车（intelliCartItemDOList 含1个菜品 quantity:6, mtProductId:2322879785）更新为新购物车（intelliCartItemDOList 为空数组[]），导致购物车菜品全部消失。traceId=-7893127841320198879。同时 22:17:22 有 deleteUserTableRelation + deleteTable 操作。前端变更 rn_meishi_intelli-order-home v3.96.7 引入了搭售(ComboSale)模块，重构了货架列表生成逻辑（dishListInfo getter 改为 composeDishListInfo 责任链），折叠状态 key 从 listIndex 改为 categoryIndex，可能影响列表渲染稳定性，但购物车数据清空的直接原因来自后端 cart.service 的 insertOrUpdateCartInfo 操作。",
+        "related_change": "rn_meishi_intelli-order-home v3.96.7（分阶段发布 2026-08-07 14:50）",
+        "fix_direction": "后端问题 → traceId=-7893127841320198879，需通知后端 cart.service 团队排查 insertOrUpdateCartInfo 为何将菜品列表清空。前端侧需关注搭售模块引入后对列表渲染稳定性的影响，特别是折叠状态 key 变更可能导致列表错位/卡死。",
+        "code_location": "后端: com.sankuai.web.cart.processor.service.impl.intelliorder.IntelliCartServiceImpl.insertOrUpdateCartInfo | 前端: intelli-order-home/src/modules/shelf/store.ts (dishListInfo getter + comboSaleInjection) + intelli-order-home/src/modules/comboSale/store.ts",
+        "responsible_person": "餐/毕杰涛（前端）+ cart.service 后端 oncall"
+      }
+    },
+    "S5_REMEDIATION": {
+      "status": "completed",
+      "started_at": "2026-08-10 16:00:28",
+      "completed_at": "2026-08-10 16:00:47",
+      "guard_passed": true,
+      "remediation_type": "",
+      "output": {
+        "fix_type": "后端问题通知 + 前端持续观测",
+        "fix_branch": "",
+        "root_cause_code": "后端: IntelliCartServiceImpl.insertOrUpdateCartInfo 将 intelliCartItemDOList 从有数据更新为空数组 | 前端潜在风险: shelf/store.ts dishListInfo getter 重构 + 折叠状态 key 从 listIndex 改为 categoryIndex",
+        "pr_url": "",
+        "trace_id": "-7893127841320198879",
+        "notify_target": "cart.service 后端 oncall（com.sankuai.web.cart.processor.service.impl.intelliorder.IntelliCartServiceImpl）+ 前端 lichuang29（搭售模块引入人）"
+      }
+    },
+    "S6_REPORT": {
+      "status": "completed",
+      "started_at": "2026-08-10 16:01:01",
+      "completed_at": "2026-08-10 16:01:47",
+      "guard_passed": true,
+      "output": {
+        "report_generated": true,
+        "memory_written": false,
+        "feedback": "排查已与状态文件完整结合，6步全部持久化到 states/20260807-cart-disappear-4011474.json"
+      }
+    }
+  }
+}

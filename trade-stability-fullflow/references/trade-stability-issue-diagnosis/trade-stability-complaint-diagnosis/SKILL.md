@@ -9,13 +9,6 @@ description: 交易前端问题诊断专家。作为稳定性全流程第四步�
   输入：第一步信息提取结果 + 第二步变更扫描结果。
   输出：结构化排查结论（结论定性、根因日志、关联变更版本、修复建议、负责人）。
   触发词：交易问题排查、线上问题、TT工单、用户反馈、餐综酒景、提单异常、提单失败、支付失败、支付异常、退款问题、页面白屏、功能不可用、userId排查、traceId排查、订单号排查、查UUID、查日志、前端异常排查、bundle问题。
-skill-dependencies:
-  mtsso-skills-official:
-    app_access_token_placeholder: ${app_access_token}
-    user_access_token_placeholder: ${user_access_token}
-    audience:
-      - "60921859"
-    prompt: 本技能所需的token 占位符，请参考mtsso-skills-official的相关说明进行获取和注入
 ---
 
 # 交易前端问题诊断

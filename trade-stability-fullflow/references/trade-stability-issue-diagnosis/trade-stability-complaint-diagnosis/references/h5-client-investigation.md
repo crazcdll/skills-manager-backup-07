@@ -55,7 +55,7 @@ raptorfe --version 2>/dev/null && echo "ok" || echo "missing"
   ```bash
   npm install -g @mtfe/raptorfe-cli@beta --registry aHR0cDovL3IubnBtLnNhbmt1YWkuY29t
   ```
-  若安装失败，回退到备用方案（browser_action 打开 Raptor 页面）。
+  若安装失败，确认 npm registry 正确后重试，不得跳过 raptorfe 查询。
 
 #### 检查 logcenter-query-cli
 
@@ -133,7 +133,7 @@ raptorfe web error get-log-detail \
 | `baseInfo.上报时间` | 精确上报时间 |
 | `baseInfo.User Agent` | 客户端信息（浏览器/App版本、系统版本） |
 
-**备用方案（raptorfe CLI 不可用时）**：从 dev-assets.md 获取 `raptor 异常链接`，通过浏览器打开：
+**备用方案（raptorfe CLI 不可用时）**：从 dev-assets.md 获取 `raptor 异常链接`，提供链接供用户手动查看：
 
 ```
 aHR0cHM6Ly9yYXB0b3IubXdzLnNhbmt1YWkuY29tL2Zyb250ZW5kL2Vycm9yL2xpc3Q/cHJvamVjdElkPXtwcm9qZWN0SWR9JnN0YXJ0RGF0ZT17WVlZWU1NRERISG1tc3N9JmVuZERhdGU9e1lZWVlNTURESEhtbXNzfQ==

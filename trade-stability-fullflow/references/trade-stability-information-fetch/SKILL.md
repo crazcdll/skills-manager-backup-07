@@ -6,13 +6,6 @@ description: 交易前端稳定性信号识别与信息提取专家。作为稳�
   输入：用户原始信号文本（告警推送/工单内容/客诉描述/截图）。
   输出：结构化信息提取结果（信号类型、业务线、用户标识、问题时间、Bundle/页面名、projectId、raptor链接、diva链接、Appkey、排查路径指向）。
   触发词：信息提取、信号识别、提取告警信息、提取工单信息、识别业务线。
-skill-dependencies:
-  mtsso-skills-official:
-    app_access_token_placeholder: ${app_access_token}
-    user_access_token_placeholder: ${user_access_token}
-    audience:
-      - "60921859"
-    prompt: 本技能所需的token 占位符，请参考mtsso-skills-official的相关说明进行获取和注入
 ---
 
 # 信号识别与路由规则
@@ -90,7 +83,8 @@ startTime=$(date "+%Y-%m-%d %H:%M:%S") && echo $startTime
 **识别特征**（满足任一）：
 - 文本含「Raptor告警」「CIA告警」「成功率告警」「JS异常告警」「48小时首现」「前端异常」「js异常」
 - 来源于监控平台推送（Radar / Raptor）
-- 含「告警记录」「告警恢复」「查看数据」「告警详情」
+- 含[规则配置] [告警详情] [告警看板] [点击查看数据] [智能分析] [告警记录] [查看数据] [查看数据 | 规则配置 | 大盘链接] [查看数据 | 规则配置] [异常指标: xxxx]
+
 
 **信息提取清单**：
 - 告警级别
@@ -99,7 +93,7 @@ startTime=$(date "+%Y-%m-%d %H:%M:%S") && echo $startTime
 - 告警名称
 - 告警时间
 - 告警内容
-- Raptor 数据链接
+- 查看数据(详细数据的链接)
 
 ---
 

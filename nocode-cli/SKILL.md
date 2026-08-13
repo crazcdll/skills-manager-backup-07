@@ -5,7 +5,7 @@ description: 通过 NoCode CLI 操作美团 NoCode 零代码平台。当用户�
 metadata:
   skillhub.creator: "zhaomenghuan02"
   skillhub.updater: "wangenhao"
-  skillhub.version: "V18"
+  skillhub.version: "V19"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "2981"
   skillhub.high_sensitive: "false"

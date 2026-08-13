@@ -5,7 +5,7 @@ description: 通用前端代码审查 skill。面向 working tree、staged、com
 metadata:
   skillhub.creator: "lidingcheng"
   skillhub.updater: "lidingcheng"
-  skillhub.version: "V13"
+  skillhub.version: "V15"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "39902"
   skillhub.high_sensitive: "false"

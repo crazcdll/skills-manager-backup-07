@@ -3,17 +3,10 @@ name: trade-stability-change-stop
 description: 交易前端紧急止损专家。作为稳定性全流程第三步，根据变更扫描结果执行对应止损操作，快速阻断问题扩散。
   覆盖业务线：餐（meishi）、综（gc）、酒（hotel）、景（travel）。
   支持5种止损手段：MRN 热发下线（Diva批量下线）、小程序下线/暂停灰度、H5 回滚、AB 实验终止放量、Horn 关量/回滚。
-  核心能力：识别止损类型 → 打开止损页面 → 给出操作步骤 → 等待用户确认 → 通知责任方。
+  核心能力：识别止损类型 → 提供止损链接和操作步骤 → 等待用户确认 → 通知责任方。
   输入：变更扫描结果（变更类型、Bundle名/HornKey/实验名、止损建议）。
   输出：止损操作结果（操作类型、操作对象、止损页面、操作状态、通知记录）。
   触发词：止损、紧急止损、回滚、下线、关量、暂停发布、MRN下线、bundle下线、小程序回滚、H5回滚、Horn回滚、AB实验关闭、交易止损、线上回滚、紧急回滚、stoploss。
-skill-dependencies:
-  mtsso-skills-official:
-    app_access_token_placeholder: ${app_access_token}
-    user_access_token_placeholder: ${user_access_token}
-    audience:
-      - "60921859"
-    prompt: 本技能所需的token 占位符，请参考mtsso-skills-official的相关说明进行获取和注入
 ---
 
 # 交易前端紧急止损
@@ -22,7 +15,7 @@ skill-dependencies:
 
 **交易紧急止损 SOP** aHR0cHM6Ly9rbS5zYW5rdWFpLmNvbS9jb2xsYWJwYWdlLzI3MTk2NTMwMzA=
 
-> ⚠️ **止损是人工操作**：AI 负责打开页面、给出步骤，**所有下线/回滚动作必须由用户在页面上确认执行**，AI 不得自行宣布"止损完成"。
+> ⚠️ **止损是人工操作**：AI 提供止损页面链接和操作步骤，**所有下线/回滚动作必须由用户在页面上确认执行**，AI 不得自行宣布"止损完成"。
 
 > ⚠️ **止损前必做**：下线前请务必确认（如查阅 MCM 发布单）：**回滚动作是否影响其它需求**，如有请先和相关需求主 R 做好确认。回滚完成后，及时通知发版主 R，避免代码被合并到 master。
 
@@ -33,7 +26,7 @@ skill-dependencies:
 严格按以下三步顺序执行，**不得跳步或提前进入第四步**：
 
 ```
-第一部分：前置输出   →   第二部分：止损决策（打开页面 + 操作步骤）   →   第三部分：止损报告   →   进入第四步
+第一部分：前置输出   →   第二部分：止损决策（提供链接 + 操作步骤）   →   第三部分：止损报告   →   进入第四步
 ```
 
 ---
@@ -63,9 +56,9 @@ startTime=$(date "+%Y-%m-%d %H:%M:%S") && echo $startTime
 
 根据第二步的止损建议，**先判断止损级别，再执行对应操作**：
 
-- 🔴 **立即止损**：直接打开止损页面，输出详细操作步骤，等待用户确认执行
-- 🟡 **评估后止损**：打开止损页面，输出详细操作步骤，提示用户评估后确认是否执行
-- 🟢 **暂不止损**：不打开页面，不输出操作步骤，直接进入第三部分输出报告后进入第四步
+- 🔴 **立即止损**：直接提供止损页面链接，输出详细操作步骤，等待用户确认执行
+- 🟡 **评估后止损**：提供止损页面链接，输出详细操作步骤，提示用户评估后确认是否执行
+- 🟢 **暂不止损**：不提供链接，不输出操作步骤，直接进入第三部分输出报告后进入第四步
 
 根据止损建议，执行以下对应操作（🔴/🟡 走对应止损类型章节，🟢 直接跳到第三部分）：
 
@@ -75,13 +68,11 @@ startTime=$(date "+%Y-%m-%d %H:%M:%S") && echo $startTime
 
 > 🔴 立即执行 / 🟡 打开页面后提示用户评估确认
 
-**执行**（`{bundle名}` 替换为第一步提取的实际值）：
+**止损页面**（`{bundle名}` 替换为第一步提取的实际值）：
 
-```bash
-catdesk browser-action '{"action":"navigate","url":"aHR0cHM6Ly9kaXZhLnNhbmt1YWkuY29tL2J1bmRsZS97YnVuZGxl5ZCNfS92ZXJzaW9ucz9lbnY9cHJvZA=="}'
-```
+`aHR0cHM6Ly9kaXZhLnNhbmt1YWkuY29tL2J1bmRsZS97YnVuZGxl5ZCNfS92ZXJzaW9ucz9lbnY9cHJvZA==`
 
-页面打开后，指导用户：
+> 复制链接到浏览器打开，然后按以下步骤操作：
 1. 在版本列表中找到可疑版本 `{版本号}`，勾选左侧复选框（⚠️ 必须勾选，否则无法批量下线）
 2. 点击页面上方「**批量下线**」按钮
 3. 在弹窗中确认影响平台（iOS / Android / HarmonyOS），点击「**确认**」
@@ -95,13 +86,11 @@ catdesk browser-action '{"action":"navigate","url":"aHR0cHM6Ly9kaXZhLnNhbmt1YWku
 
 > 🔴 立即执行 / 🟡 打开页面后提示用户评估确认
 
-**执行**：
+**止损页面**：
 
-```bash
-catdesk browser-action '{"action":"navigate","url":"aHR0cHM6Ly9ob3JuLnNhbmt1YWkuY29tL3dvcmtzcGFjZQ=="}'
-```
+`aHR0cHM6Ly9ob3JuLnNhbmt1YWkuY29tL3dvcmtzcGFjZQ==`
 
-页面打开后，指导用户搜索 HornKey `{HornKey}`，进入配置详情页，然后：
+> 复制链接到浏览器打开，搜索 HornKey `{HornKey}`，进入配置详情页，然后按以下步骤操作：
 
 - **灰度中**：左侧点击「查看发布历史」→ 点击「**暂停**」停止灰度 → 确认后点击「**回滚**」
 - **已全量**：左侧点击「查看发布历史」→ 找到上一稳定版本 → 点击「**回滚到本次发布**」→ 点击「**回滚到此版本**」
@@ -115,13 +104,11 @@ catdesk browser-action '{"action":"navigate","url":"aHR0cHM6Ly9ob3JuLnNhbmt1YWku
 
 > 🔴 立即执行 / 🟡 打开页面后提示用户评估确认
 
-**执行**：
+**止损页面**：
 
-```bash
-catdesk browser-action '{"action":"navigate","url":"aHR0cHM6Ly9hcmVuYS5zYW5rdWFpLmNvbQ=="}'
-```
+`aHR0cHM6Ly9hcmVuYS5zYW5rdWFpLmNvbQ==`
 
-页面打开后，指导用户搜索实验名 `{实验名}`，进入实验详情页，然后：
+> 复制链接到浏览器打开，搜索实验名 `{实验名}`，进入实验详情页，然后按以下步骤操作：
 1. 点击「**编辑实验 - 实验配置**」
 2. 将所有实验分组的流量比例**全部调整为 0**（⚠️ 不是关闭顶部「实验流量比例」，而是各分组都调为 0）
 3. 填写变更原因（如：线上异常，紧急关量），提交审核
@@ -135,12 +122,13 @@ catdesk browser-action '{"action":"navigate","url":"aHR0cHM6Ly9hcmVuYS5zYW5rdWFp
 
 > 🔴 立即执行 / 🟡 打开页面后提示用户评估确认
 
-根据项目类型打开对应页面：
+根据项目类型提供对应止损页面：
 
 **fedo DUO web**：
-```bash
-catdesk browser-action '{"action":"navigate","url":"aHR0cHM6Ly9mZWRvLnNhbmt1YWkuY29t"}'
-```
+
+`aHR0cHM6Ly9mZWRvLnNhbmt1YWkuY29t`
+
+> 复制链接到浏览器打开，然后按以下步骤操作：
 - 灰度中：找到对应项目，点击「**取消灰度**」
 - 已全量：在目标页面「更多操作」→「Web 发布记录」→ 找到目标版本 → 点击回滚 → 填写原因 → 「**确认回滚**」（⚠️ 需项目管理员 / 最近发布者操作）
 
@@ -154,16 +142,14 @@ catdesk browser-action '{"action":"navigate","url":"aHR0cHM6Ly9mZWRvLnNhbmt1YWku
 
 > 🔴 立即执行 / 🟡 打开页面后提示用户评估确认
 
-**执行**（优先打开 Arena 评估实验开关）：
+**止损页面**（优先在 Arena 关闭实验开关）：
 
-```bash
-catdesk browser-action '{"action":"navigate","url":"aHR0cHM6Ly9hcmVuYS5zYW5rdWFpLmNvbQ=="}'
-```
+`aHR0cHM6Ly9hcmVuYS5zYW5rdWFpLmNvbQ==`
 
 > ⚠️ 小程序下线影响较大，需联系发版主 R，按以下优先级处理：
 
 1. 灰度早期（≤1%）→ 联系发版主 R **暂停灰度**
-2. 有实验开关 → 在已打开的 Arena 页面，搜索实验名，将各分组流量比例全部调为 0，提交审核
+2. 有实验开关 → 复制上方链接到浏览器打开，搜索实验名，将各分组流量比例全部调为 0，提交审核
 3. 确需回滚 → 联系美小/酒小/点小/门小的周发主 R，**准备 COE 材料**
 
 > 参考文档：酒店美团小程序放量告警 SOP（aHR0cHM6Ly9rbS5zYW5rdWFpLmNvbS9jb2xsYWJwYWdlLzI3NTA5MDExNjU=）
@@ -172,7 +158,7 @@ catdesk browser-action '{"action":"navigate","url":"aHR0cHM6Ly9hcmVuYS5zYW5rdWFp
 
 ### 🟢 暂不止损
 
-无变更 / 变更时间差 > 6h / 用户确认跳过，**不打开任何页面，不输出操作步骤，直接进入第三部分输出报告**。
+无变更 / 变更时间差 > 6h / 用户确认跳过，**不提供止损链接，不输出操作步骤，直接进入第三部分输出报告**。
 
 ---
 
@@ -200,7 +186,7 @@ endTime=$(date "+%Y-%m-%d %H:%M:%S") && echo $endTime
 | 止损对象 | `{bundle名 / HornKey / 实验名}` |
 | 可疑版本 | `{版本号}` |
 | 回滚目标 | `{上一稳定版本号}` |
-| 止损页面 | `{已打开的页面链接}` |
+| 止损页面 | `{止损页面链接}` |
 | 操作状态 | ⏳ 等待用户在页面上确认执行 / ✅ 用户已确认完成 |
 | 通知责任方 | @{mis_id}（已发大象消息 / 待发送） |
 | 止损说明 | {止损操作摘要} |

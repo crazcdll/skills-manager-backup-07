@@ -1,11 +1,11 @@
 ---
 name: trade-hotel-external-incident-record
-description: "将飞象(大象IM)群聊中的对外故障排查过程完整梳理成学城(km.sankuai.com)复盘文档。给定一个飞象群号/群聊和一个学城文档链接，抓取群聊记录（含文字、图片、视频）：若用户未指定时间或明确要求搜索全部记录，则一直查到群聊最早消息；若用户指定了开始时间，则从该时间往后查到最新消息，不再往更早翻查。按【问题描述】【问题影响】【原因】【发现方式】【群内沟通过程回顾】【总结&TODO】结构写入学城文档；文档中已有图片/视频节点保留原位，用户尚未上传的媒体位置用醒目标记标注「此处插入截图/视频」并注明发送人、时间、内容，方便用户后续手动补图。当用户提到「把这个群的聊天记录整理到文档」「群里的问题复盘」「故障排查记录」「对外工单群整理成文档」「TT工单群转学城文档」时激活。"
+description: "将飞象(大象IM)群聊中的对外故障排查过程完整梳理成学城(km.sankuai.com)复盘文档。给定一个飞象群号/群聊和一个学城文档链接，抓取群聊记录（含文字、图片、视频）：若用户未指定时间或明确要求搜索全部记录，则一直查到群聊最早消息；若用户指定了开始时间，则从该时间往后查到最新消息，不再往更早翻查。按【问题描述】【问题影响】【原因】【发现方式】【群内沟通过程回顾】【总结&TODO】结构写入学城文档；文档中已有图片/视频节点保留原位，用户尚未上传的媒体位置用红色醒目标记标注「此处插入截图/视频」并注明发送人、时间、内容，方便用户后续手动补图。当用户提到「把这个群的聊天记录整理到文档」「群里的问题复盘」「故障排查记录」「对外工单群整理成文档」「TT工单群转学城文档」时激活。"
 
 metadata:
   skillhub.creator: "zhangce07"
   skillhub.updater: "zhangce07"
-  skillhub.version: "V1"
+  skillhub.version: "V2"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "127722"
   skillhub.high_sensitive: "false"
@@ -25,7 +25,7 @@ metadata:
 
 1. **文字内容必须完整，不能有遗漏**：群聊消息分页/关键词检索可能出现跳跃或遗漏，必须做交叉验证（见 Step 2），不能只做一轮 offset 翻页就认为抓全了。
 2. **图片/视频不能直接用 IM 外链写入学城**：飞象 IM 图片/视频托管在 `file.neixin.cn` 等域名，需要 IM 客户端会话级鉴权；学城 CDN 无法访问该域名，`citadel` CLI/`curl` 直连会返回 401，即使勉强把外链写进 XML，学城服务端也会在 `updateDocumentByXml` 时校验拦截，报错"禁止直接将外部资源写入学城文档"。**这不是权限问题，是两个系统鉴权域不同，必须走"用户手动从飞象客户端另存到本地 → `uploadImageToDocument`/`uploadVideoToDocument` 上传到目标学城文档"这条路径**，此 skill 不应尝试绕过（不得使用他人或当前用户的会话 cookie 冒用鉴权）。
-3. **媒体位置必须醒目标注，不能默默丢弃**：抓取消息时识别出的每一处图片/视频，无论用户是否已上传，都要在文档对应位置插入一行加粗提示，明确"这里应该放哪张图/哪段视频、谁发的、什么时间、什么内容"，避免用户后续贴图时找不到位置或漏贴。
+3. **媒体位置必须醒目标注，不能默默丢弃**：抓取消息时识别出的每一处图片/视频，无论用户是否已上传，都要在文档对应位置插入一行加粗、**红色字体**的提示，明确"这里应该放哪张图/哪段视频、谁发的、什么时间、什么内容"，避免用户后续贴图时找不到位置或漏贴。
 4. **群内沟通过程回顾要保留时间线颗粒度**，不要只写结论。要按时间顺序逐条列出关键发言人、发言内容、@提及关系，让读者能复现整个排查思路，而不仅仅是最终结论。
 
 ## 工具依赖
@@ -79,9 +79,9 @@ metadata:
 
 对 Step 1 识别出的每一处媒体：
 
-1. **先检查文档里是否已经有对应的学城 CDN 图片/视频节点**（`<img src="https://km.sankuai.com/api/file/cdn/...">` 或 `<km-attachment src="https://km.sankuai.com/api/file/cdn/...">`），如果用户已经手动贴过，保留原节点，只在其前面补一行 `👉【已插入图片/视频】<发送人 时间 内容说明>` 的加粗提示。
+1. **先检查文档里是否已经有对应的学城 CDN 图片/视频节点**（`<img src="https://km.sankuai.com/api/file/cdn/...">` 或 `<km-attachment src="https://km.sankuai.com/api/file/cdn/...">`），如果用户已经手动贴过，保留原节点，只在其前面补一行 `👉【已插入图片/视频】<发送人 时间 内容说明>` 的加粗**红色**提示（`<p><strong><span style="color:#FF0000">👉【已插入图片/视频】...</span></strong></p>`）。
 2. **如果媒体尚未上传到学城**，不要尝试用 IM 原始 URL（`file.neixin.cn` 等）直接写入 `<img src="...">` 或 `<km-attachment src="...">`——会被学城服务端拦截报错。正确做法：
-   - 在该媒体应出现的位置插入一行加粗提示：`👉【此处插入截图/视频】<发送人> <日期 时间> 发送的<内容描述>`
+   - 在该媒体应出现的位置插入一行加粗**红色**提示：`<p><strong><span style="color:#FF0000">👉【此处插入截图/视频】<发送人> <日期 时间> 发送的<内容描述></span></strong></p>`
    - 同时告知用户：该图片/视频尚未能自动上传，需要用户从飞象客户端把它另存到本地，把路径发给我后，用 `uploadImageToDocument --contentId <id> --image <本地路径>` 或 `uploadVideoToDocument --contentId <id> --file <本地路径>` 上传并替换掉提示行
 3. **不要尝试**：
    - 用 `curl`/`uploadImageToDocument --imageUrl` 直接拉取 `file.neixin.cn` 等 IM 域名的图片（会 401）
@@ -97,7 +97,7 @@ metadata:
 【问题影响】—— 谁受影响、影响面
 【原因】—— 根因结论 + 关键证据（trace、代码逻辑、接口返回等），逐条列出，附对应截图提示或已有节点
 【发现方式】—— 如何发现该问题（TT工单/客诉/巡检等）+ TT 链接
-【群内沟通过程回顾】—— 按时间顺序列出关键发言，格式：`YYYY-MM-DD HH:mm 发言人：内容摘要`，媒体消息处插入👉标记
+【群内沟通过程回顾】—— 按时间顺序列出关键发言，格式：`YYYY-MM-DD HH:mm 发言人：内容摘要`，媒体消息处插入👉红色标记
 【总结&TODO】—— 结论 + 待办事项（负责人、内容），已关闭的工单注明关闭方式
 ```
 
@@ -110,7 +110,7 @@ oa-skills citadel getDocumentXml --contentId <docId> --output /tmp/doc.xml
 # AI 在本地编辑 /tmp/doc.xml：
 # - 保留 <km-doc>/<km-title> 及已有 nodeId
 # - 在已有段落标题下补充正文 <p> 节点
-# - 媒体位置插入 <p><strong>👉【...】...</strong></p> 提示行
+# - 媒体位置插入红色提示行 <p><strong><span style="color:#FF0000">👉【...】...</span></strong></p>
 # - 已有学城 CDN 图片/视频节点原样保留，不改动 src
 
 oa-skills citadel updateDocumentByXml --contentId <docId> --file /tmp/doc.xml --step-version <stepVersion>
@@ -121,6 +121,7 @@ oa-skills citadel updateDocumentByXml --contentId <docId> --file /tmp/doc.xml --
 - 不使用 `<div>`/`<section>`/`<thead>`/`<tbody>` 等布局标签
 - 已有节点的 `nodeId` 保留，新增节点可省略 `nodeId`
 - 图片/视频节点的 `src` 只能是 `https://km.sankuai.com/api/file/cdn/...` 格式，绝不写入外部域名
+- 媒体插入提示行统一使用红色字体：`<p><strong><span style="color:#FF0000">👉【...】...</span></strong></p>`，不要使用默认黑色
 
 ### Step 5：完成后向用户汇报
 

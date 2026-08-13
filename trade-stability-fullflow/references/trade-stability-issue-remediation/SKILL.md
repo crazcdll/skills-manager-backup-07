@@ -4,13 +4,6 @@ description: 交易前端问题修复专家。作为稳定性全流程第五步�
   输入：第四步排查结论（根因类型、代码路径/traceId、关联变更、负责人信息）。
   输出：修复方案（前端PR链接 或 后端traceId+通知记录 或 止损确认+发布人通知）。
   触发词：代码修复、提PR、修复代码、通知后端、后端问题、前端修复、变更回滚确认、根因修复。
-skill-dependencies:
-  mtsso-skills-official:
-    app_access_token_placeholder: ${app_access_token}
-    user_access_token_placeholder: ${user_access_token}
-    audience:
-      - "60921859"
-    prompt: 本技能所需的token 占位符，请参考mtsso-skills-official的相关说明进行获取和注入
 ---
 
 # 代码修复方案

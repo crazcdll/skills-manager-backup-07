@@ -5,7 +5,7 @@ description: "学城 km/wiki/km.sankuai.com 文档官方工具，凡涉及学城
 metadata:
   skillhub.creator: "rui.zou"
   skillhub.updater: "rui.zou"
-  skillhub.version: "V45"
+  skillhub.version: "V47"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "3367"
   skillhub.high_sensitive: "true"
@@ -473,7 +473,3 @@ oa-skills citadel uploadDrawioToDocument --contentId <文档ID> --file /tmp/diag
 2. 读取类：返回了文档内容/列表
 3. 创建类：返回了新文档 contentId 和链接
 4. 给用户简明结论（标题、ID、数量），而非原始数据
-
-## skill使用问题反馈
-
-如果遇到skill的使用问题，请提[TT|https://tt.sankuai.com/public/create?cid=17&tid=357&iid=46802]进行反馈

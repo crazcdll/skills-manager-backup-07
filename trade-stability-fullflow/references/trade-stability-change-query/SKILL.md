@@ -5,100 +5,54 @@ description: 交易前端变更查询专家。作为稳定性全流程第二步�
   核心能力：并行查询 MCM + Diva → 判断变更相关度（高/中/低）→ 给出止损建议 → 输出最可疑变更。
   输入：业务线、Bundle名、问题时间（来自第一步信息提取结果）。
   输出：变更扫描结果（各系统变更列表、相关度评级、止损建议、最可疑变更）。
-  注意：MCM 查询的是前端团队的代码发布变更，查到变更后在报告中体现变更信息即可，无需执行后端回滚操作。
   触发词：查变更、变更查询、查发布记录、MCM查询、Diva查询。
-skill-dependencies:
-  mtsso-skills-official:
-    app_access_token_placeholder: ${app_access_token}
-    user_access_token_placeholder: ${user_access_token}
-    audience:
-      - "60921859"
-    prompt: 本技能所需的token 占位符，请参考mtsso-skills-official的相关说明进行获取和注入
 ---
 
-# 变更查询规则
+# 变更查询
+
 ## 前置输入
 
-> 🚨 **强制依赖**：本 skill 必须在 [trade-stability-information-fetch](../trade-stability-information-fetch/SKILL.md) **完成并输出结果后**才能执行。
-> - 若当前上下文中**已有**第一步信息提取结果 → 直接读取字段，进入变更查询
-> - 若当前上下文中**没有**第一步信息提取结果 → **必须先执行信息提取**，获得结果后再继续
-
-本 skill 作为全流程第二步执行，输入来自**第一步信息提取结果**，直接读取以下字段：
+来自第一步信息提取结果：
 
 | 字段 | 用途 |
 |------|------|
-| 业务线 | 判断变更相关度时的业务范围 |
-| Bundle / 页面 | Diva 查询的目标 bundle 名；MCM 过滤相关变更的关键词 |
-| 问题时间 | 变更时间窗口的基准点（问题时间前 24 小时） |
-| Appkey | MCM 查询结果中过滤相关服务变更的依据 |
+| 业务线 | 变更相关度判断 |
+| Bundle / 页面 | Diva 查询目标 bundle；MCM 过滤关键词 |
+| 问题时间 | 变更时间窗口基准（前 24 小时） |
+| Appkey | MCM 过滤相关服务变更 |
 
-> ⚠️ **执行原则**：所有变更系统均以对应 **CLI 为首选查询入口**。MCM 使用 `mcm-cli`，Diva 使用 `diva CLI`；MCM 与 Diva 必须**并行**发起，不得串行等待。两路都完成后再做综合判断，结果统一在最后输出。
->
-> 浏览器仅可用于 CLI 无法提供的补充字段（当前为 Diva 分阶段任务的 `WAITING` 开始时间）或 CLI 重试后仍无法查询时的兜底，**不得替代 CLI 获取常规发布版本和变更列表**。
-
-> 🚧 **Horn 配置变更查询和 AB 实验变更查询暂不执行**，如需查询请手动访问 [Horn 配置平台](aHR0cHM6Ly9ob3JuLnNhbmt1YWkuY29tL3dvcmtzcGFjZQ==) 和 [Arena AB实验平台](aHR0cHM6Ly9hcmVuYS5zYW5rdWFpLmNvbQ==)。
+> 🚧 Horn 配置变更和 AB 实验变更暂不执行，如需请手动查询。
 
 ---
 
-## 🚨 强制约束（违反即视为流程错误）
+## 强制约束
 
-1. **MCM 和 Diva 两路查询必须全部完成**，才能输出第二步结果。任何一路失败必须立即走兜底方案，**不得以「CLI 失效」「token 过期」为由跳过**。
-2. **第二步结果必须完整输出**（按文末格式），才能进入第三步。禁止在输出前执行任何第三步/第四步的操作（包括查 UUID、查日志等）。
-3. **Diva 必须先使用 CLI 查询版本列表**。仅当 CLI 重试后仍失败，或需要补充 CLI 未提供的 `WAITING` 分阶段开始时间时，才可使用浏览器 API；不得先用浏览器 API 查询版本列表。
-4. **MCM 认证失败时**，必须执行 `mcm login --mis {mis_id}` 完成认证后重试，不得跳过。
-5. **严禁在本步骤分析代码**：第二步只负责「找到哪个版本上线了 + 确认发布时间」，**不得**打开 commitUrl、访问 PR 页面、查看 diff、分析任何代码改动内容。commitUrl 仅作为字段记录在输出中，供第四步使用。代码分析属于**第四步**排查根因的职责。
+1. **MCM 和 Diva 两路必须全部完成**才能输出结果。任何一路失败必须重试，不得跳过。
+2. **输出前禁止执行任何第三步/第四步操作**（包括查 UUID、查日志等）。
+3. **严禁分析代码**：本步只负责「找到哪个版本上线了 + 确认发布时间」。commitUrl 仅记录，供第四步使用。
 
 ---
 
-开始执行第一步前，先执行以下命令，记录开始时间startTime
-```bash
-startTime "+%Y-%m-%d %H:%M:%S"
-```
+## 执行
 
-## 第一步、【必查】MCM 前端代码发布
-
-
-**查询对象**：前端团队的代码发布变更（查到变更后在报告中体现变更信息即可，无需执行后端回滚操作）
-
-**查询方式**：使用 `mcm-cli` 命令行工具查询变更日历。
-
-### 环境检查（首次使用前执行一次）
+MCM 和 Diva 必须**并行**发起，不得串行等待。两路完成后统一输出。
 
 ```bash
-# 检查是否已安装
-mcm --version 2>/dev/null || echo "missing"
-
-# 若 missing，安装最新版
-npm install -g @dp/mcm-cli@latest --registry=aHR0cDovL3IubnBtLnNhbmt1YWkuY29t
-
-# 检查认证状态
-mcm whoami
+startTime=$(date "+%Y-%m-%d %H:%M:%S") && echo $startTime
 ```
 
-- `mcm whoami` 返回正常用户信息 → 直接查询
-- 返回未认证 / 401 → **必须**执行 `mcm login --mis {mis_id}`（需在大象 App 确认授权），认证成功后重试，**不得跳过**
-
-### 查询命令
+### MCM 前端代码发布
 
 ```bash
 mcm plan calendar \
   --org 88888-153262-114609-114621-40010700 \
-  --start "{问题时间前 24 小时，格式: yyyy-MM-dd HH:mm:ss}" \
-  --end   "{问题时间，格式: yyyy-MM-dd HH:mm:ss}"
+  --start "{问题时间前24小时 yyyy-MM-dd HH:mm:ss}" \
+  --end   "{问题时间 yyyy-MM-dd HH:mm:ss}"
 ```
 
-**示例**（问题时间为 2026-04-24 13:44）：
+> 时间格式必须为 `yyyy-MM-dd HH:mm:ss`。
 
-```bash
-mcm plan calendar \
-  --org 88888-153262-114609-114621-40010700 \
-  --start "2026-04-23 13:44:00" \
-  --end   "2026-04-24 13:44:00"
-```
-
-> ⚠️ 时间格式必须为 `yyyy-MM-dd HH:mm:ss`，不支持 ISO 8601 格式。
-
-**返回结果关键字段**：
+返回关键字段：
 
 | 字段 | 说明 |
 |------|------|
@@ -108,152 +62,122 @@ mcm plan calendar \
 | `planStartTime` / `startTime` | 变更开始时间 |
 | `planEndTime` / `endTime` | 变更结束时间 |
 | `status` | 计划状态（RUNNING / DONE / WAIT_RUNNING 等） |
-| `planId` / `id` | 变更计划 ID，可用于 `mcm plan detail <id>` 查详情 |
-
-**兜底方式**（mcm-cli 不可用时，用浏览器打开）：
-
-```
-aHR0cHM6Ly9tY20ubXdzLnNhbmt1YWkuY29tLyMvcGxhbi1jYWxlbmRhcj9zdGF0dXNMaXN0PSZyaXNrTGV2ZWxMaXN0PSVFOSVBQiU5OCVFOSVBMyU4RSVFOSU5OSVBOSwlRTQlQkQlOEUlRTklQTMlOEUlRTklOTklQTkmY2hhbmdlTW9kZT0mb3JnUGF0aD04ODg4OC0xNTMyNjItMTE0NjA5LTExNDYyMS00MDAxMDcwMCZwbGFuU3RhcnRUaW1lR3RlPXvlvIDlp4vml7bpl7R9JnBsYW5TdGFydFRpbWVMdGU9e+e7k+adn+aXtumXtH0=
-```
-
-时间格式：`YYYY-MM-DD HH:mm:ss`
 
 ---
 
-## 第二步、【必查】Diva MRN Bundle 发布
-
-**查询对象**：前端 MRN Bundle 发布记录
-
-> ✅ **优先方案：Diva CLI。** 必须先使用 `diva bundle get --name {bundleName}` 查询生产 Bundle 发布记录。CLI 能直接返回版本、平台在线状态、发布时间、打包人和 commit 信息，适合作为标准查询入口。
->
-> **备用方案：浏览器 API。** 仅在 CLI 安装、认证、网络或返回格式异常且无法修复时，才使用 `navigate + evaluate` 查询；不得跳过 CLI 直接使用浏览器 API。
-
-### Step 0：检查并执行 Diva CLI（每次查询前必须执行）
+### Diva Bundle 发布
 
 ```bash
-# 检查 CLI；缺失时安装最新版
-if ! command -v diva >/dev/null 2>&1; then
-  npm install -g @mtfe/infra-diva-cli@latest --registry aHR0cDovL3IubnBtLnNhbmt1YWkuY29t
-fi
-
-# 查询目标 Bundle 的生产发布记录（必须使用 --name）
-diva bundle get --name {bundleName}
+diva bundle tasks --name {bundle_name} --days 2 --env prod -o json 2>/dev/null
 ```
 
-**CLI 返回结果校验**：确认返回中包含目标 Bundle 的版本列表、发布时间和平台状态；读取最新版本及所有 `在线` 平台的信息，并记录 `version`、发布时间、`packUser`、`commitUrl`。
+> `--days 2` 覆盖问题时间前 48 小时；`--env prod` 查生产环境。如需查测试环境用 `--env test`。
 
-> ⚠️ CLI 查询成功后，先按下方“筛选逻辑”判断是否存在 `latestUpdateTime ≤ 24 小时` 的目标在线版本：
-> - 若不存在，直接按“强制卡点”判定无近期 Diva 变更，无需浏览器 API。
-> - 若存在，CLI 结果只用于确认版本与在线状态；**必须继续使用下方浏览器 API 查询该版本的 `PHASED_PUBLISH` 任务和 `WAITING` 节点开始时间**，不得以 `latestUpdateTime` 代替实际开始下发时间。
-
-### 补充 Step 0：导航到 Diva 域（仅 CLI 无法完成版本查询，或需补充分阶段发布开始时间时执行）
-
-```bash
-catdesk browser-action '{"action":"navigate","url":"aHR0cHM6Ly9kaXZhLnNhbmt1YWkuY29t"}'
-```
-
-> ⚠️ 必须等 navigate 返回 `success: true` 后，再执行后续 evaluate 命令。否则 Cookie 未就绪，API 会返回 HTML 登录页。
-
-### 兜底 Step 1：获取版本列表（仅 CLI 重试后仍无法完成版本查询时执行）
-
-```bash
-catdesk browser-action '{"action":"evaluate","script":"fetch(atob(\"L2FwaS9idW5kbGUvbGlzdFZlcnNpb24=\")+\"?bundleName={bundleName}&env=prod&keyword=&pageIndex=1&pageSize=20\").then(r=>r.json()).then(d=>JSON.stringify(d))"}'
-```
-
-**返回结果关键字段**（`data.list[]` 数组，按 `latestUpdateTime` 降序排列）：
+返回 JSON 数组，每条记录是一个发布任务。关键字段：
 
 | 字段 | 说明 |
 |------|------|
-| `version` | 版本号（如 `0.51.0`） |
-| `latestUpdateTime` | **全量完成时间**（ISO 8601，UTC），直接用于与问题时间对比 |
-| `packUser` | 打包人 mis_id |
-| `packUserInfo.name` | 打包人姓名 |
-| `ruleList[].platform` | 平台（Android / iOS / HarmonyOS） |
-| `ruleList[].bundleVersionStatus` | 版本状态（5=在线，其他=非在线） |
-| `commitUrl` | **commit 链接**（指向 dev.sankuai.com 代码仓库的具体 commit） |
-| `commentText` | commit 信息（含 branch / sprint / task / fedo 链接等） |
-| `mrnBaseType` | MRN 架构版本（3.x 旧架构 / 5.x+ 新架构） |
+| `bundleName` | Bundle 名称 |
+| `bundleVersion` | 发布版本号 |
+| `taskType` | 任务类型：`PHASED_PUBLISH`（分阶段发布）/ `INSTANT_PUBLISH`（即时发布）/ `UPLOAD_BUNDLE`（上传打包） |
+| `bizType` | 业务类型：`PUBLISH` / `UPLOAD_BUNDLE` |
+| `platform` | 平台：`Android` / `iOS` / `HarmonyOS` |
+| `app` | App：`group`（美团）/ `Nova`（点评）等 |
+| `env` | 环境：`prod` / `test` |
+| `createTime` | 任务创建时间（ISO 8601，UTC） |
+| `updateTime` | 任务最后更新时间（分阶段发布每阶段推进会更新） |
+| `expectPublishTime` | 预期发布时间（分阶段发布的计划开始时间） |
+| `operateTimestamp` | 操作时间戳（毫秒，最后一次状态变更时间） |
+| `operator` / `operatorData.misId` | 发布人 MIS / 姓名 |
+| `taskStatus` | 任务状态：`1` = 成功完成 |
+| `approvalStatus` | 审批状态：`3` = 已审批（prod）/ `5` = 免审批（test） |
+| `publishTaskId` | 关联的发布任务 ID |
 
-**筛选逻辑**：本步骤仅作为 CLI 失败后的兜底，直接取列表第一条（最新版本），检查其 `latestUpdateTime` 是否在问题时间前 24 小时内，且至少一个平台 `bundleVersionStatus=5`（在线）。正常情况下，版本筛选必须基于 Diva CLI 的结构化输出完成。
+**过滤规则**：
 
-> 🛑 **强制卡点（必须严格执行，不得绕过）**：
->
-> - 若最新版本的 `latestUpdateTime` 距问题时间 **> 24 小时** → **立即判定为「无近期 Diva 变更」，直接跳至输出阶段**。**严禁继续执行 Step 2**，无论任何理由（包括「确认一下」「保险起见」等），均不得调用分阶段发布接口。
-> - 若最新版本的 `latestUpdateTime` 距问题时间 **≤ 24 小时** → **必须**继续执行 Step 2，获取分阶段发布开始时间，以该时间作为最终判断基准。
+1. 排除 `taskType = UPLOAD_BUNDLE`（仅打包上传，未发布到线上）。
+2. 按 `updateTime` 降序排列，取最近一条作为判断基准。
+3. 若同一版本多平台多 App 发布，合并为一条记录（版本号相同算一次变更）。
 
-### 补充 Step 2：获取目标版本的分阶段发布开始时间（⚠️ 仅当 CLI 已确认 latestUpdateTime ≤ 24 小时时才可执行，否则严禁调用）
+**分阶段发布时间判断**：
 
-> `latestUpdateTime` 是全量完成时间。当前 Diva CLI 的 `bundle get` 未提供 `PHASED_PUBLISH` 任务节点，因此仅在 CLI 已确认近期在线版本后，调用任务接口补充 `WAITING` 节点的分阶段发布**开始**时间，并以此作为与问题时间对比的实际基准。
+| taskType | 时间基准 | 说明 |
+|----------|---------|------|
+| `INSTANT_PUBLISH` | `createTime` | 即时发布，创建即全量生效 |
+| `PHASED_PUBLISH` | `updateTime` | 分阶段发布，`updateTime` 为最近一个阶段完成时间；`expectPublishTime` 为首阶段开始时间 |
 
-**2a. 获取该版本的 PHASED_PUBLISH 任务列表**
+**关键判断**：
+
+| updateTime 距问题时间 | 动作 |
+|---|---|
+| **> 48 小时** | 判定无近期 Diva 变更，跳至输出 |
+| **≤ 48 小时** | 提取 `bundleVersion`、`operator`、`createTime`、`updateTime`，计算时间差用于相关性判断 |
+
+**获取 commit 信息（止损必备）**：
+
+`diva bundle tasks` 返回的 JSON 不含 commit 信息，需额外执行 `diva bundle versions` 获取：
 
 ```bash
-catdesk browser-action '{"action":"evaluate","script":"fetch(atob(\"L2FwaS9wcGwvdGFzay9saXN0VmVyc2lvbkRldGFpbFRhc2tz\")+\"?bundleName={bundleName}&version={version}&env=prod\").then(r=>r.json()).then(d=>{const arr=d.data||d.list||d;const tasks=Array.isArray(arr)?arr:[];const phased=tasks.filter(t=>t.taskType==\"PHASED_PUBLISH\");return JSON.stringify(phased.map(t=>({id:t.id,platform:t.platform,app:t.app,createTime:t.createTime,taskStatus:t.taskStatus})))})"}'
+diva bundle versions {bundle_name} 2>/dev/null
 ```
 
-**2b. 查发布任务详情，获取分阶段发布节点的 startTime**
+返回格式化文本（非 JSON），每条版本记录包含：
+- 版本号、在线状态（🟢在线 / ⚪未在线）
+- 打包时间、发布时间、上线时间
+- 发布类型（分阶段发布 / 立即发布）
+- 各平台发布状态和发布人
+- **commit 链接**（格式：`https://dev.sankuai.com/code/repo-detail/{repo}/commit/{hash}`）
 
-```bash
-# 对每个平台的 PHASED_PUBLISH 任务分别执行，{taskId} 取 2a 返回的 id 字段
-catdesk browser-action '{"action":"evaluate","script":"fetch(atob(\"L2FwaS9wcGwvdGFzay9kZXRhaWw=\")+\"?id={taskId}\").then(r=>r.json()).then(d=>{const nodes=d.data.nodes;return JSON.stringify({taskStartTime:d.data.startTime,taskEndTime:d.data.endTime,nodes:nodes.map(n=>({name:n.nodeName,type:n.nodeType,start:n.startTime,end:n.endTime,status:n.nodeStatus}))})})"}'
-```
+**操作要点**：
+1. 从 `diva bundle versions` 输出中找到 `diva bundle tasks` 确认的 `bundleVersion`，记录其 **commit 链接**（供第四步代码分析使用）。
+2. 找到该版本的**上一在线版本**（即回滚目标），记录其版本号和 commit 链接（供第三步止损使用）。
+3. 若该版本未在线（⚪），说明还在灰度中，止损方式为「取消灰度」而非「回滚」。
 
-**关键节点说明**（`nodes[]` 数组）：
-
-| nodeType | nodeName | 说明 |
-|----------|----------|---------|
-| `SAVE_RULE` | 存储发布规则 | 任务提交时间 |
-| `APPROVAL` | 审批 | 审批通过时间 |
-| `WAITING` | 分阶段发布 | ⭐ **分阶段发布开始时间**（`startTime`），bundle 真正开始下发用户的时刻，**以此作为判断基准** |
-| `PUBLISHING` | 发布完成 | 全量完成时间，对应 `latestUpdateTime` |
-
-> ⚠️ CLI 返回认证失败、网络错误或无法解析的内容时，先按错误提示完成认证或修复环境后重试一次；重试仍无法获得目标 Bundle 的有效版本记录，才可切换到上述浏览器 API 完成版本查询。不得以「CLI 失效」为由跳过 Diva 查询。
->
-> ⚠️ 浏览器 API 在 Step 2 的用途仅限读取已由 CLI 确认的目标版本的分阶段任务时间；不得用它替代 CLI 进行常规版本列表查询。
+> ⚠️ CLI 认证失败时按错误提示修复后重试，不得跳过 Diva 查询。
+> ⚠️ 若 `--env prod` 无结果但 `--env test` 有结果，说明仍在测试环境发布未上生产，记录但相关度降一级。
 
 ---
 
-## 第三步、变更相关性判断矩阵
+## 变更相关性判断矩阵
 
-> **判断基准选择**：
-> - `latestUpdateTime` 距问题时间 **> 24 小时** → 🛑 **直接判定无近期变更 🟢，禁止查分阶段发布时间，直接进入输出**
-> - `latestUpdateTime` 距问题时间 **≤ 24 小时** → 以**分阶段发布开始时间**（`WAITING` 节点 `startTime`）与问题时间的差值为准进行判断
+**时间差基准**：Diva 用 `updateTime`（分阶段发布取最近阶段完成时间），MCM 用 `planEndTime`。
 
-| 变更时间差 | 变更内容相关度 | 处置建议 |
-|-----------|--------------|---------|
-| < 6 小时 | 高（同 Bundle / 同功能） | 🔴 立即止损，同步排查 |
-| < 6 小时 | 低（不同功能） | 🟡 评估后决定，继续排查 |
-| 6 小时 ~ 24 小时 | 高 | 🟡 评估后决定止损，加快排查 |
-| 6 小时 ~ 24 小时 | 低 | 🟢 继续排查，暂不止损 |
-| > 24 小时 | 任意 | 🟢 无近期变更，暂不止损 |
+| 变更时间差 | 相关度 | 处置建议 |
+|-----------|--------|---------|
+| < 6 小时 | 高（同 Bundle 变更 或 MCM 同功能变更） | 🔴 立即止损 |
+| < 6 小时 | 低（无 Bundle 变更 且 MCM 不同功能） | 🟡 评估后决定 |
+| 6h ~ 24h | 高（同 Bundle 变更 或 MCM 同功能变更） | 🟡 评估后止损 |
+| 6h ~ 24h | 低（无 Bundle 变更 且 MCM 不同功能） | 🟢 暂不止损 |
+| > 24 小时 | — | 🟢 无近期变更 |
+
+> **分阶段发布**：`taskType = PHASED_PUBLISH` 且 `expectPublishTime` 距问题 < 6 小时，按 < 6 小时判定（首阶段已影响部分用户）。
 
 ---
 
-## 第四步、输出变更报告
-> ⚠️ **必须在 MCM 和 Diva 两路均完成后才能输出。输出完成前，禁止执行任何后续步骤。**
-
-输出报告前，先执行以下命令，获取结束endTime：
+## 输出
 
 ```bash
-endTime "+%Y-%m-%d %H:%M:%S"
+endTime=$(date "+%Y-%m-%d %H:%M:%S") && echo $endTime
 ```
-> 💡 **耗时计算**：endTime - startTime，精确到分钟，格式如「约 X 分钟」。
 
-✅ **第二步：变更查询报告**（完成时间：{endTime 命令输出}  耗时：{约 X 分钟}）
+✅ **第二步：变更查询报告**（完成时间：{endTime}  耗时：{约 X 分钟}）
 
 | 系统 | 变更内容 | 发布时间 | 发布人 | 相关度 |
 |------|---------|---------|-------|-------|
-| MCM | {变更名称 / 未发现} | {时间} | {mis_id} | 高/中/低/无 |
-| Diva | {bundle名 版本号 / 未发现} | {分阶段开始时间（若 ≤24h）/ 全量完成时间（若 >24h，标注「无近期变更」）} | {mis_id} | 高/中/低/无 |
+| MCM | {变更名称 / 未发现} | {planEndTime} | {mis_id} | 高/中/低/无 |
+| Diva | {bundle名 版本号 / 未发现} | {updateTime（taskType）} | {mis_id} | 高/中/低/无 |
 
-> 🔴 **高相关度变更必须单独高亮**：若某行相关度为「高」，在该行末尾追加 `← 🔴 高度可疑，距问题时间仅 {X} 分钟`，并在表格下方单独列出。
+> Diva 发布时间格式：`2026-08-10T15:00:07（PHASED_PUBLISH）` 或 `2026-08-11T07:43:48（INSTANT_PUBLISH）`。
+> 若为分阶段发布且 `expectPublishTime` 早于 `updateTime`，附加说明：`首阶段 12:32 / 最近阶段 15:00`。
+
+> 🔴 高相关度变更在行末追加 `← 🔴 高度可疑，距问题时间仅 {X} 分钟`。
 
 **止损建议**：🔴 立即止损 / 🟡 评估后止损 / 🟢 暂不止损
 
-**最可疑变更**：{排第一的变更信息，或「无变更」}
+**最可疑变更**：{变更信息 或「无变更」}
 
-**commitUrl（备查）**：{commitUrl 链接，或「无」}（⚠️ 仅记录，第四步代码分析时使用，本步骤严禁打开或分析）
+**commitUrl（备查）**：{可疑版本 commit 链接 或「无」}（⚠️ 仅记录，第四步使用）
 
+**回滚目标版本**：{上一在线版本号}（commit: {链接}）— 供第三步止损使用
 
 ➡️ 进入第三步：{执行止损 / 跳过止损，直接排查}
----

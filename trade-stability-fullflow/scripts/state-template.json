@@ -1,0 +1,108 @@
+{
+  "issue_id": "",
+  "created_at": "",
+  "updated_at": "",
+  "current_state": "S0_INIT",
+  "signal_raw": "",
+  "steps": {
+    "S1_INFO_FETCH": {
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "guard_passed": false,
+      "output": {
+        "signal_type": "",
+        "business_line": "",
+        "bundle_name": "",
+        "page_name": "",
+        "problem_time": "",
+        "user_identifier": "",
+        "tech_stack": "",
+        "project_id": "",
+        "ssh_url": "",
+        "raptor_link": "",
+        "diva_link": "",
+        "appkey": ""
+      }
+    },
+    "S2_CHANGE_QUERY": {
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "guard_passed": false,
+      "sub_tracks": {
+        "mcm": {
+          "status": "pending",
+          "result": null
+        },
+        "diva": {
+          "status": "pending",
+          "result": null
+        }
+      },
+      "output": {
+        "changes": [],
+        "stop_loss_advice": "",
+        "most_suspicious_change": "",
+        "commit_url": ""
+      }
+    },
+    "S3_CHANGE_STOP": {
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "guard_passed": false,
+      "decision": "",
+      "output": {
+        "stop_loss_type": "",
+        "stop_loss_target": "",
+        "suspect_version": "",
+        "rollback_target": "",
+        "operation_status": "",
+        "notify_record": ""
+      }
+    },
+    "S4_DIAGNOSIS": {
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "guard_passed": false,
+      "diagnosis_path": "",
+      "output": {
+        "conclusion_validity": "",
+        "root_cause_type": "",
+        "root_cause_detail": "",
+        "related_change": "",
+        "fix_direction": "",
+        "code_location": "",
+        "responsible_person": ""
+      }
+    },
+    "S5_REMEDIATION": {
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "guard_passed": false,
+      "remediation_type": "",
+      "output": {
+        "fix_type": "",
+        "fix_branch": "",
+        "root_cause_code": "",
+        "pr_url": "",
+        "trace_id": "",
+        "notify_target": ""
+      }
+    },
+    "S6_REPORT": {
+      "status": "pending",
+      "started_at": null,
+      "completed_at": null,
+      "guard_passed": false,
+      "output": {
+        "report_generated": false,
+        "memory_written": false,
+        "feedback": ""
+      }
+    }
+  }
+}

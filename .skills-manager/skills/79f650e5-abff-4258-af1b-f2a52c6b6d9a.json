@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "79f650e5-abff-4258-af1b-f2a52c6b6d9a",
+  "path": "multica-guide",
+  "path_key": "multica-guide",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

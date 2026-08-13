@@ -21,7 +21,6 @@
 {"skillName":"mtsso-skills-official","sourceType":"mt-name","sourceId":"mtsso-skills-official","env":"prod","installedAt":"2026-07-13T07:00:59.131Z","targetDir":"/Users/crazcdll07/.skills-manager/skills"}
 {"skillName":"mu-leadership-principle","sourceType":"mt-name","sourceId":"mu-leadership-principle","env":"prod","installedAt":"2026-07-13T07:01:01.340Z","targetDir":"/Users/crazcdll07/.skills-manager/skills"}
 {"skillName":"mu-self-appraisal","sourceType":"mt-name","sourceId":"mu-self-appraisal","env":"prod","installedAt":"2026-07-13T07:01:03.752Z","targetDir":"/Users/crazcdll07/.skills-manager/skills"}
-{"skillName":"nocode-cli","sourceType":"mt-name","sourceId":"nocode-cli","env":"prod","installedAt":"2026-07-13T07:01:06.505Z","targetDir":"/Users/crazcdll07/.skills-manager/skills"}
 {"skillName":"room-booking-helper","sourceType":"mt-name","sourceId":"room-booking-helper","env":"prod","installedAt":"2026-07-13T07:01:12.141Z","targetDir":"/Users/crazcdll07/.skills-manager/skills"}
 {"skillName":"skill-metric-reporter","sourceType":"mt-name","sourceId":"skill-metric-reporter","env":"prod","installedAt":"2026-07-13T07:01:14.767Z","targetDir":"/Users/crazcdll07/.skills-manager/skills"}
 {"skillName":"skillhub","sourceType":"mt-name","sourceId":"skillhub","env":"prod","installedAt":"2026-07-13T07:01:17.514Z","targetDir":"/Users/crazcdll07/.skills-manager/skills"}
@@ -35,3 +34,4 @@
 {"skillName":"fe-ai-review","sourceType":"mt-name","sourceId":"fe-ai-review","env":"prod","installedAt":"2026-07-13T07:01:49.815Z","targetDir":"/Users/crazcdll07/.skills-manager/skills"}
 {"skillName":"ones-create-subtask","sourceType":"mt-name","sourceId":"ones-create-subtask","env":"prod","installedAt":"2026-07-13T07:01:51.484Z","targetDir":"/Users/crazcdll07/.skills-manager/skills"}
 {"skillName":"meigen-designer","sourceType":"mt-name","sourceId":"meigen-designer","env":"prod","installedAt":"2026-07-13T07:02:37.102Z","targetDir":"/Users/crazcdll07/.skills-manager/skills"}
+{"skillName":"nocode-cli","sourceType":"mt-id","sourceId":"2981","env":"prod","installedAt":"2026-08-11T12:25:05.992Z","targetDir":"/Users/crazcdll07/.skills-manager/skills"}

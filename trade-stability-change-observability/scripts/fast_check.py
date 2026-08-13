@@ -2,7 +2,7 @@
 """60s sleep-loop 小循环唤醒时使用的快速预警核检脚本。
 
 这是一个固定的单一用途脚本，目的是让高频的 60s 小循环保持低开销：
-一次调用拉取目标 bundleVersion 在最近短窗口内的官方同期首现
+一次调用拉取目标 MRN bundleVersion 或 H5_DUO webVersion 在最近短窗口内的官方近一周首现
 （`newErrors`），与 `fast_alert_seen` 做过滤去重，只返回真正未告警过
 的新异常。它不产出 severity，也不会像正常 Round 那样跑完整的双查询。
 
@@ -103,12 +103,12 @@ def call_raptorfe(
     *,
     raptorfe_bin: str,
     project_id: Any,
-    bundle_version: str,
+    project_type: str,
+    version: str,
     start_ms: int,
     end_ms: int,
     timeout_ms: int,
 ) -> dict[str, Any]:
-    query_param = json.dumps({"TAG4": [bundle_version]}, ensure_ascii=False)
     cmd = [
         raptorfe_bin,
         "-t",
@@ -123,11 +123,9 @@ def call_raptorfe(
         "--end-long",
         str(end_ms),
         "--web-version",
-        "all",
+        "all" if project_type == "MRN" else version,
         "--sort-field",
         "DATE",
-        "--query-param",
-        query_param,
         "--page-size",
         "200",
         "--limit",
@@ -137,6 +135,8 @@ def call_raptorfe(
         "--time-size",
         "MINUTE",
     ]
+    if project_type == "MRN":
+        cmd.extend(["--query-param", json.dumps({"TAG4": [version]}, ensure_ascii=False)])
     try:
         completed = subprocess.run(
             cmd,
@@ -222,9 +222,15 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 
     target = state.get("target") or {}
     project_id = target.get("project_id") or target.get("project_name")
-    bundle_version = target.get("bundle_version")
-    if not project_id or not bundle_version:
-        raise FastCheckError("observation target missing project_id or bundle_version")
+    project_type = target.get("project_type")
+    version = target.get("bundle_version") if project_type == "MRN" else target.get("web_version")
+    if (
+        project_type not in {"MRN", "H5_DUO"}
+        or not project_id
+        or not version
+        or (project_type == "H5_DUO" and str(version) == "all")
+    ):
+        raise FastCheckError("observation target missing supported project type, project_id, or version")
 
     seen = set(state.get("fast_alert_seen") or [])
 
@@ -237,7 +243,8 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     payload = call_raptorfe(
         raptorfe_bin=args.raptorfe_bin,
         project_id=project_id,
-        bundle_version=str(bundle_version),
+        project_type=str(project_type),
+        version=str(version),
         start_ms=to_ms(start),
         end_ms=to_ms(end) - 1,
         timeout_ms=args.timeout_ms,

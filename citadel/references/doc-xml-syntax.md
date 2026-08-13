@@ -604,7 +604,7 @@ A -> B : 消息
 - `blockquote`：引用块不能为空
 - `collapse_content`：折叠块内容不能为空
 - `note_content`：提示框内容不能为空
-- `footnote_list`、`footnote_list_item`：脚注列表不能为空
+- `footnote_list`、`footnote_list_item`：注释列表不能为空
 
 ### 子节点类型约束
 
@@ -617,6 +617,7 @@ A -> B : 消息
 | `collapse` | 必须包含 `collapse_title` 和 `collapse_content` |
 | `note` | 必须包含 `note_title` 和 `note_content` |
 | `footnote_list` | 只能是 `footnote_list_item` |
+| `footnote_list_item` | 只能包含 `<p>`（至少一个，可以有多个）；每个 `<p>` 内**禁止插入图片**，其他 inline 节点不限 |
 
 ### text 节点规则
 

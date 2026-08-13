@@ -1,7 +1,0 @@
-skill-manifest-version: 1
-skill-id: 1fbc8be497a0d23cf948bb46a3c3db68d97d23a3e3074673b14d6875710bab99
-
-files:
-  1e5e2ba6ade12d96ed82816c93b4771b0a1c5cbd09f0e9e4f016304ce05a6ced  SKILL.md
-  b7db084954b8229b4d5f624cc3744d86000b51176c95f6903f397950d94fa28e  scripts/extract_requirements.py
-  d57eeac4be239d7a040e268a94251e0f9c0171b9e99bbe4a88bb3a123664bf13  scripts/sync_ai_coding.py

@@ -10,13 +10,6 @@ description: 交易前端稳定性告警、客诉等问题排查与定位专家�
   - 信号类型不明确 → 默认路径 B 兜底
   覆盖业务线：餐（meishi）、综（gc）、酒（hotel）、景（travel）。
   触发词：排查根因、问题排查、问题定位、告警排查、问题诊断、issue diagnosis、交易问题、线上问题、帮我排查、帮我定位。
-skill-dependencies:
-  mtsso-skills-official:
-    app_access_token_placeholder: ${app_access_token}
-    user_access_token_placeholder: ${user_access_token}
-    audience:
-      - "60921859"
-    prompt: 本技能所需的token 占位符，请参考mtsso-skills-official的相关说明进行获取和注入
 ---
 
 # 交易前端稳定性问题排查与定位

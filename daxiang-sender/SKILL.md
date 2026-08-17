@@ -4,8 +4,8 @@ description: 通过大象开放平台 API 发送消息（个人/群组）。支�
 
 metadata:
   skillhub.creator: "suhao20"
-  skillhub.updater: "wuqiqi05"
-  skillhub.version: "V6"
+  skillhub.updater: "suhao20"
+  skillhub.version: "V7"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "1695"
   skillhub.high_sensitive: "false"
@@ -20,7 +20,7 @@ metadata:
 - ✅ 自动获取和缓存 accessToken（无需手动管理）
 - ✅ 支持 mis 号自动转换为 uid（`--to` 和 `--at` 均支持）
 - ✅ 支持文本、Markdown、链接（link）、多图文（multilink）消息
-- ✅ 支持文件（file）、图片（image）消息快捷参数
+- ✅ 支持文件（file）、图片（image）消息，支持本地路径自动上传或 URL 方式
 - ✅ 支持名片（vcard）、群名片（gvcard）消息
 - ✅ 支持引用回复（quote）消息
 - ✅ 支持模板消息（custom）+ extension.custom 按钮扩展
@@ -127,7 +127,7 @@ python3 $SKILL_DIR/scripts/send.py send \
 
 ### 发送链接消息（图文卡片）
 
-> ⚠️ `--image` 为**必填**字段，API 不接受空值。
+> ⚠️ `--link-image` 为**必填**字段，API 不接受空值。
 
 ```bash
 python3 $SKILL_DIR/scripts/send.py send \
@@ -136,10 +136,22 @@ python3 $SKILL_DIR/scripts/send.py send \
   --title "文章标题" \
   --content "文章描述" \
   --url "https://example.com" \
-  --image "https://example.com/cover.jpg"
+  --link-image "https://example.com/cover.jpg"
 ```
 
 ### 发送文件消息
+
+**方式 1：本地文件自动上传（推荐）**
+
+```bash
+python3 $SKILL_DIR/scripts/send.py send \
+  --to suhao20 \
+  --file /path/to/report.xlsx
+```
+
+脚本会自动将本地文件上传到大象文件服务，获取 fileId 和 downloadUrl 后构造文件消息。文件名、大小、MIME 类型均自动检测，无需手动指定。
+
+**方式 2：已有 URL（不经过上传）**
 
 ```bash
 python3 $SKILL_DIR/scripts/send.py send \
@@ -151,8 +163,22 @@ python3 $SKILL_DIR/scripts/send.py send \
 ```
 
 > ⚠️ `--file-url` 不能包含中文字符和服务端口。`--file-format` 参考 MIME 规范，如 `application/pdf`、`text/plain`。
+>
+> 💡 `--file` 和 `--file-url` 互斥，前者自动上传本地文件，后者直接使用已有 URL。
 
 ### 发送图片消息
+
+**方式 1：本地图片自动上传（推荐）**
+
+```bash
+python3 $SKILL_DIR/scripts/send.py send \
+  --to suhao20 \
+  --image /path/to/photo.jpg
+```
+
+脚本会自动将本地图片上传到大象文件服务，获取图片 URL 后构造图片消息。thumbnail/normal/original 三个字段自动设为同一 URL。
+
+**方式 2：已有 URL（不经过上传）**
 
 ```bash
 # 简单模式（thumbnail/normal 自动与原图相同）
@@ -167,6 +193,8 @@ python3 $SKILL_DIR/scripts/send.py send \
   --image-thumbnail "https://example.com/photo_thumb.jpg" \
   --image-normal "https://example.com/photo_normal.jpg"
 ```
+
+> 💡 `--image` 和 `--image-url` 互斥，前者自动上传本地图片，后者直接使用已有 URL。
 
 ### 发送名片消息
 
@@ -364,9 +392,11 @@ python3 $SKILL_DIR/scripts/send.py list-groups --json
 | 参数 | 消息类型 | 说明 |
 |------|---------|------|
 | `--text` | text | 文本消息内容 |
-| `--link` | link | 链接卡片模式（需配合 `--title` `--url` `--image`） |
-| `--file-url` | file | 文件消息：文件地址（不能含中文和端口） |
-| `--image-url` | image | 图片消息：原图地址 |
+| `--link` | link | 链接卡片模式（需配合 `--title` `--url` `--link-image`） |
+| `--file` | file | 文件消息：本地文件路径（自动上传到文件服务） |
+| `--file-url` | file | 文件消息：文件地址 URL（不能含中文和端口） |
+| `--image` | image | 图片消息：本地图片路径（自动上传到文件服务） |
+| `--image-url` | image | 图片消息：原图地址 URL |
 | `--vcard-uid` | vcard | 名片消息：用户 uid 或公众号 pubId |
 | `--gvcard-gid` | gvcard | 群名片消息：群 ID |
 | `--quote-msg-id` | quote | 引用回复：被引用的消息 ID |
@@ -387,7 +417,7 @@ python3 $SKILL_DIR/scripts/send.py list-groups --json
 |------|------|------|
 | `--title` | ✅ | 链接标题 |
 | `--url` | ✅ | 链接地址 |
-| `--image` | ✅ | 封面图 URL（API 必填） |
+| `--link-image` | ✅ | 封面图 URL（API 必填） |
 | `--content` | ❌ | 链接描述 |
 
 #### file 消息参数

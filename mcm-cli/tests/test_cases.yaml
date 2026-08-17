@@ -68,17 +68,17 @@
 - name: trigger-neg-code-review
   type: trigger
   input: "帮我做一下这个 PR 的代码审查"
-  expect: "不触发 mcm-cli skill，该请求是代码审查而非变更管理操作"
+  expect: "mcm-cli skill 不应被激活；该请求是 PR 代码审查，应由代码审查类 skill 处理，而非 MCM 变更管理操作。"
 
 - name: trigger-neg-git-branch
   type: trigger
   input: "帮我拉一个功能分支"
-  expect: "不触发 mcm-cli skill，该请求是创建 Git 分支而非变更管理操作"
+  expect: "mcm-cli skill 不应被激活；该请求是创建 Git 功能分支，应由代码仓库或 Git 操作类 skill 处理，而非 MCM 变更管理操作。"
 
 - name: trigger-neg-architecture
   type: trigger
   input: "帮我设计一下这个系统的微服务架构"
-  expect: "不触发 mcm-cli skill，该请求是架构设计而非变更管理操作"
+  expect: "mcm-cli skill 不应被激活；该请求是微服务架构设计，应由架构设计或技术方案类 skill 处理，而非 MCM 变更管理操作。"
 
 # ==================== flow 用例（路由决策）====================
 

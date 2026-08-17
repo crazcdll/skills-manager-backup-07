@@ -8,8 +8,10 @@ import argparse
 import base64
 import json
 import logging
+import mimetypes
 import os
 import sys
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
@@ -260,6 +262,68 @@ class RobotClient:
         except Exception as e:
             logger.error(f"查询机器人所在群发生未知错误: {e}")
             return None
+
+
+# ── 文件服务常量 ───────────────────────────────────────────────
+
+FILE_UPLOAD_URL = "https://file.vip.sankuai.com/file"
+IMG_UPLOAD_URL = "https://file.vip.sankuai.com/file/images"
+
+# 公共文件服务凭证（来自大象开放平台公共存储），可通过环境变量覆盖
+FILE_TENANT_ID = os.environ.get("DX_FILE_TENANT_ID", "1501437563754258442")
+FILE_ACCESS_KEY = os.environ.get("DX_FILE_TOKEN", "4427e507ade34bd1b216a02558541051")
+
+NO_PROXY = {"http": None, "https": None}
+
+
+def upload_file(local_path: str, is_image: bool = False) -> dict:
+    """上传本地文件到大象文件服务，返回包含文件元信息的字典。
+
+    Returns:
+        {
+            "file_id": str,       # 文件 ID
+            "download_url": str,  # 下载 URL
+            "image_url": str,     # 图片 URL（仅图片上传有值）
+            "size": int,          # 文件大小（字节）
+            "mime": str,          # MIME 类型
+            "filename": str,      # 文件名
+        }
+    """
+    url = IMG_UPLOAD_URL if is_image else FILE_UPLOAD_URL
+    filename = os.path.basename(local_path)
+    mime = mimetypes.guess_type(local_path)[0] or "application/octet-stream"
+    size = os.path.getsize(local_path)
+    biz_id = f"dx-sender-{int(time.time())}"
+
+    logger.info(f"📤 上传{'图片' if is_image else '文件'}: {local_path} ({size} bytes)")
+    with open(local_path, "rb") as f:
+        resp = requests.post(url, files={"file": (filename, f, mime)}, data={
+            "tenantId": FILE_TENANT_ID,
+            "accessKey": FILE_ACCESS_KEY,
+            "fileName": filename,
+            "creator": "daxiang-sender",
+            "bizFileId": biz_id,
+            "processCommands": "",
+        }, timeout=30, proxies=NO_PROXY)
+
+    data = resp.json()
+    if not data.get("success"):
+        raise RuntimeError(f"文件上传失败: {data.get('message', resp.text)}")
+
+    file_id = str(data.get("fileId", ""))
+    items = data.get("fileItems", [])
+    download_url = items[0].get("downloadUrl", "") if items else ""
+    image_url = items[0].get("url", "") if items else ""
+    logger.info(f"✅ 上传成功 fileId={file_id}")
+
+    return {
+        "file_id": file_id,
+        "download_url": download_url,
+        "image_url": image_url,
+        "size": size,
+        "mime": mime,
+        "filename": filename,
+    }
 
 
 # ── 消息体构建函数 ─────────────────────────────────────────────
@@ -562,14 +626,34 @@ def cmd_send(args):
         if not args.title or not args.url:
             logger.error("❌ 链接消息需要 --title 和 --url")
             sys.exit(1)
-        if not args.image:
-            logger.error("❌ 链接消息 --image 为必填字段（API 要求）")
+        if not args.link_image:
+            logger.error("❌ 链接消息 --link-image 为必填字段（API 要求）")
             sys.exit(1)
         msg_type = "link"
-        body = build_link_body(args.title, args.content, args.url, args.image)
+        body = build_link_body(args.title, args.content, args.url, args.link_image)
+
+    elif getattr(args, 'file', None):
+        # 文件消息（本地文件自动上传）
+        file_path = args.file
+        if not os.path.isfile(file_path):
+            logger.error(f"❌ 文件不存在: {file_path}")
+            sys.exit(1)
+        try:
+            uploaded = upload_file(file_path, is_image=False)
+        except Exception as e:
+            logger.error(f"❌ 文件上传失败: {e}")
+            sys.exit(1)
+        msg_type = "file"
+        body = build_file_body(
+            url=uploaded["download_url"],
+            name=uploaded["filename"],
+            size=uploaded["size"],
+            fmt=uploaded["mime"],
+            file_id=uploaded["file_id"],
+        )
 
     elif args.file_url:
-        # 文件消息
+        # 文件消息（已有 URL，无需上传）
         if not args.file_name:
             logger.error("❌ 文件消息需要 --file-name")
             sys.exit(1)
@@ -582,8 +666,24 @@ def cmd_send(args):
             file_id=args.file_id or "",
         )
 
+    elif getattr(args, 'image', None):
+        # 图片消息（本地图片自动上传）
+        image_path = args.image
+        if not os.path.isfile(image_path):
+            logger.error(f"❌ 图片文件不存在: {image_path}")
+            sys.exit(1)
+        try:
+            uploaded = upload_file(image_path, is_image=True)
+        except Exception as e:
+            logger.error(f"❌ 图片上传失败: {e}")
+            sys.exit(1)
+        msg_type = "image"
+        body = build_image_body(
+            url=uploaded["image_url"],
+        )
+
     elif args.image_url:
-        # 图片消息
+        # 图片消息（已有 URL，无需上传）
         msg_type = "image"
         body = build_image_body(
             url=args.image_url,
@@ -683,7 +783,7 @@ def cmd_send(args):
             logger.info(f"📣 @机器人 id: {bot_at_ids}")
 
     else:
-        logger.error("❌ 请指定消息内容（--text / --link / --file-url / --image-url / --vcard-uid / --gvcard-gid / --quote-msg-id / --general-data / --custom-template / --body-file）")
+        logger.error("❌ 请指定消息内容（--text / --file / --file-url / --image / --image-url / --link / --vcard-uid / --gvcard-gid / --quote-msg-id / --general-data / --custom-template / --body-file）")
         sys.exit(1)
 
     if body is None:
@@ -788,12 +888,18 @@ def main():
   python3 send.py send --to suhao20 --text "**加粗**" --markdown
 
   # 链接卡片（image 必填）
-  python3 send.py send --to suhao20 --link --title "标题" --url "https://example.com" --image "https://example.com/cover.jpg"
+  python3 send.py send --to suhao20 --link --title "标题" --url "https://example.com" --link-image "https://example.com/cover.jpg"
 
-  # 文件消息
+  # 文件消息（本地文件自动上传）
+  python3 send.py send --to suhao20 --file /path/to/report.xlsx
+
+  # 文件消息（已有 URL）
   python3 send.py send --to suhao20 --file-url "https://example.com/file.xlsx" --file-name "报告.xlsx" --file-size 3296 --file-format "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
-  # 图片消息
+  # 图片消息（本地图片自动上传）
+  python3 send.py send --to suhao20 --image /path/to/photo.jpg
+
+  # 图片消息（已有 URL）
   python3 send.py send --to suhao20 --image-url "https://example.com/photo.jpg"
 
   # 名片消息
@@ -830,10 +936,12 @@ def main():
     # ── 消息类型参数（互斥组） ────────────────────────────────────
     msg_group = send_parser.add_mutually_exclusive_group(required=True)
     msg_group.add_argument('--text', '-t', help='文本消息内容')
-    msg_group.add_argument('--link', '-l', action='store_true', help='链接消息模式（需配合 --title --url --image）')
+    msg_group.add_argument('--link', '-l', action='store_true', help='链接消息模式（需配合 --title --url --link-image）')
     msg_group.add_argument('--body-file', '-f', help='自定义消息体 JSON 文件路径（需配合 --msg-type）')
-    msg_group.add_argument('--file-url', help='文件消息：文件地址（不能含中文和端口）')
-    msg_group.add_argument('--image-url', help='图片消息：原图地址')
+    msg_group.add_argument('--file', help='文件消息：本地文件路径（自动上传到文件服务）')
+    msg_group.add_argument('--file-url', help='文件消息：文件地址 URL（不能含中文和端口）')
+    msg_group.add_argument('--image', help='图片消息：本地图片路径（自动上传到文件服务）')
+    msg_group.add_argument('--image-url', help='图片消息：原图地址 URL')
     msg_group.add_argument('--vcard-uid', type=int, help='名片消息：用户 uid 或公众号 pubId')
     msg_group.add_argument('--gvcard-gid', type=int, help='群名片消息：群 ID')
     msg_group.add_argument('--quote-msg-id', type=int, help='引用回复：被引用的消息 ID')
@@ -850,7 +958,7 @@ def main():
     link_group.add_argument('--title', help='链接标题（--link 必填）')
     link_group.add_argument('--content', help='链接描述（--link 可选）')
     link_group.add_argument('--url', help='链接地址（--link 必填）')
-    link_group.add_argument('--image', help='链接封面图 URL（--link 必填，API 要求）')
+    link_group.add_argument('--link-image', help='链接封面图 URL（--link 必填，API 要求）')
 
     # ── file 消息参数 ────────────────────────────────────────────
     file_group = send_parser.add_argument_group('file 消息参数')

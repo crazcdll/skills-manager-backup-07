@@ -389,6 +389,28 @@ ThreadPoolExecutor pool = new ThreadPoolExecutor(
 
 ---
 
+## 15. 代码整洁度
+
+| 编号 | 检查点 | 反模式 | 正确做法 |
+|------|--------|--------|----------|
+| CR:CLEAN-01 | **增量无引用方法** | diff 新增的 public/protected 方法，全仓库搜索无引用（排除框架隐式调用） | 确认为预留接口或补齐调用方 |
+
+**CR:CLEAN-01 检测策略（分层判定）**：
+
+1. **白名单跳过**：方法标注以下注解或属于以下形式 → 不检查
+   - `@Override`、`@RequestMapping`/`@GetMapping`/`@PostMapping` 等 Spring MVC 系列
+   - `@EventListener`、`@Scheduled`、`@PostConstruct`、`@PreDestroy`
+   - `@MafkaListener`/MQ Consumer、`@Test`、`main` 方法、构造函数、setter
+2. **private 方法**：仅在同文件内搜索调用，未被调用 → 报 P2
+3. **public/protected 方法**：全仓库 grep 方法名
+   - 命中数 ≤ 1（仅定义行自身）→ 报 P2
+   - 命中数 > 1 → 不报
+4. **通用名补偿**：方法名 ≤3 字符或属于通用词（get/set/process/handle/is/has/run）→ 不报，标注"方法名通用，建议人工确认"
+
+> **说明**：存在"本 PR 先加方法、下个 PR 调用"的合理场景，结论为软提示而非硬性扣分项。
+
+---
+
 ## 审查输出格式
 
 ```

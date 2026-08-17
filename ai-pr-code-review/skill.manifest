@@ -1,12 +1,12 @@
 skill-manifest-version: 1
-skill-id: a6dd8a5711847176d8bcadcc4ecded482420181c6e68db745132c282725f36dc
+skill-id: f628cd9f36c60bf06ccf691990019ff829451435db87b2d7e82de79f9bcd5816
 
 files:
   2bdf304c8b913391ef02ee608d2d53e4db8f03d5c831f2b87aadbb8a21a02286  .skillignore
-  6c2c425b79b5738451ddff0849b4d904798c62c9d962195ad8e3d1f1d74dfcbd  SKILL.md
+  9325ebb06f86041790d0f6ed5852b445c48b5c2901287ec92bc6d672e951fde2  SKILL.md
   88915a3666de76b7c2dcb7fe2966810d28431bd2d5dd9e0e0224b6f41a527cf8  cr-config.yaml
   f8dbb8d87d35cba06489b0e88fab030c8f842a97fc08697f7daf2f4ba35bb460  references/citadel-write-guide.md
-  286fa524532e5a42518a17549408dfccaed40f7534814c2e87c24abfb67ca409  references/coding-standards-checklist.md
+  25e2d61d6a496cbf88e513f19d7ce97d5575e15f0e5568c7e9022a0f96d0a023  references/coding-standards-checklist.md
   06cf52c59fe17bba6a225473dad6fa03f481e40297d4e2c24ebaf75b193fdff0  references/coe-rules.md
   04c9ec1106725d43b94d8b99427cc31b62571627d3a701b57f7a5cd819879f91  references/comment-templates.md
   b7b0312dd33aa8b26f871756a98c1f855bfbaa2f536db5a013010ef5bbdde993  references/cr-comment.sh

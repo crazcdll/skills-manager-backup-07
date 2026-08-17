@@ -228,8 +228,8 @@ _MCM_CLIENT_SECRET="eaf94f833e914c508dec3ddc015479a8"
 # 四个子域读到的 ssoid 值完全一致），因此直接用 avatar.mws.sankuai.com 域读取即可。
 _AVATAR_MWS_DOMAIN="https://avatar.mws.sankuai.com"
 
-# 追溯事件详情页地址前缀，拼接 eventUuid 即可跳转到该事件的详情页（与
-# `mcm cloudtrail list/detail -f md` 的 UUID 链接渲染规则保持一致）
+# 追溯事件详情页地址前缀。详情页必须带上事件的毫秒级时间范围，避免默认时间窗口
+# 导致历史事件显示为空；与 `mcm cloudtrail list/detail -f md` 的 UUID 链接渲染规则保持一致。
 EVENT_DETAIL_URL_PREFIX="https://mcm.mws.sankuai.com/#/event-review/detail/"
 
 # 定位 mtsso-token-exchange 可执行文件或脚本路径（供 get_mws_ssoid 调用）
@@ -886,9 +886,32 @@ elif [ "$FORMAT" = "md" ]; then
   # 保持两条路径观感一致；不再按系统分组，单一标题 + 单一表格，直接消费上方
   # 已合并排序并按当前页切片好的 _PAGE_ITEMS。
   _MD_JQ='
+    # ISO8601（含时区偏移与毫秒）→ epoch 毫秒；解析失败返回 null（兜底行为与 cloudtrail.ts 的
+    # formatUuidCell 保持一致：mcmUrl 优先，空串视为缺失；缺失时拼事件毫秒级 begin/end）
+    def iso2ms:
+      try (
+        capture("^(?<dt>[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(?:\\.(?<fr>[0-9]+))?(?<tz>Z|[+-][0-9]{2}:?[0-9]{2})?$") as $t
+        | ($t.dt | strptime("%Y-%m-%dT%H:%M:%S") | mktime) as $local
+        | (($t.tz // "Z") | if . == "Z" then 0
+           else capture("^(?<sn>[+-])(?<hh>[0-9]{2}):?(?<mm>[0-9]{2})$")
+                | ((.hh | tonumber) * 3600 + (.mm | tonumber) * 60) * (if .sn == "-" then -1 else 1 end)
+           end) as $off
+        | ($local - $off) * 1000 + (((($t.fr // "0") + "000") | .[0:3]) | tonumber)
+      ) catch null;
     def fmtuuid:
-      if . == null or . == "" then "-"
-      else "[" + . + "](" + $urlPrefix + . + ")"
+      if .eventUuid == null or .eventUuid == "" then "-"
+      else
+        (if (.mcmUrl // "") != ""
+         then .mcmUrl
+         else (.eventStartTime | iso2ms) as $b
+         | (.eventEndTime | iso2ms) as $e
+         | $urlPrefix + .eventUuid
+           + (if $b != null and $e != null
+              then "?begin=" + ($b | tostring) + "&end=" + ($e | tostring)
+              else ""
+              end)
+         end) as $href
+        | "[" + .eventUuid + "](" + $href + ")"
       end;
     def fmtrow:
       [
@@ -897,7 +920,7 @@ elif [ "$FORMAT" = "md" ]; then
         (.accountName // .accountNameCn // "-"),
         (.userIdentity.name // .userIdentity.nameCN // "-"),
         (.env // "-"),
-        (.eventUuid // "-" | fmtuuid)
+        fmtuuid
       ]
       | map(gsub("\\|"; "\\|"))
       | map("| " + . + " ") | add + "|";

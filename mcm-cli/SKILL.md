@@ -15,7 +15,7 @@ logo: “mws-official”
 metadata:
   skillhub.creator: "jie.li.sh"
   skillhub.updater: "liyuang"
-  skillhub.version: "V21"
+  skillhub.version: "V22"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "3708"
 ---
@@ -30,7 +30,7 @@ mcm-cli 是 MCM（变更管理平台）的命令行工具，默认输出 JSON �
 **仅在对话中首次使用 mcm 命令前**，检查并更新到最新版本：
 
 ```bash
-mcm --version                                                          # 检查版本（版本 < 0.1.34 或未安装**：**必须立即安装或更新到最新版本**后再继续，否则核心AI功能不可用）
+mcm --version                                                          # 检查版本（版本 < 0.1.35 或未安装**：**必须立即安装或更新到最新版本**后再继续，否则核心AI功能不可用）
 npm install -g @dp/mcm-cli@latest --registry=http://r.npm.sankuai.com  # 安装/更新到最新版（需美团内网）
 ```
 > 如果 node/npm 未安装或版本过低，提示用户先安装/升级 Node.js（推荐通过 nvm 管理）。

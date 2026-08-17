@@ -1,10 +1,10 @@
 skill-manifest-version: 1
-skill-id: 2eee050100d6bf4c79a90d27b38501d201b294af91188c9884cd3284052e7a9d
+skill-id: f265b7168417625128a00d23670d88289fa9f92337dce6c7e477604398f5b6db
 
 files:
-  3c49c9127ee0c3a6fc50023ab97a75f9d9a612df696131ca2e5bcc4cf8ce7902  SKILL.md
+  cf53b779f13d1cacd3b737e60c3963b07eb1741c9eabe01466726772b51d3d93  SKILL.md
   0112ba164007976bf09c6988960f84a5f2df21ae3410c91b1fa21a2c1aa9315e  references/command-reference.md
-  831cbfd5bcbd5de9e8d7aa6c5bb963c97c933dabf78a1b0ac2d5ce89533deefd  references/commands.md
+  7b027e26695268741bc62365ed7c38d5040c0ade0b0200cb3bf7ce6fb3b92bc1  references/commands.md
   3997ba43c446b88e3c4f9d96da2443c193894224f20882ad7773ffc0f6cd74fd  references/plan-create-api-schema.md
-  6b8d28b0ad07104b30a748bb77ea6d8b74aeb553f51e2bfed1df522850c6856d  scripts/paas-trace.sh
-  33c0531f57a5ee0e82e5c00fb6d3cdb7b36450d9ffb28c2cdfbb20b4de05ca6a  tests/test_cases.yaml
+  41ba14a23700df8e1708f6bd16df52f7e400b5170730f489a58264f43843cd13  scripts/paas-trace.sh
+  e1fe9bc326d62040488a2c383c92311c2a60c1a6b02c99629bda10b75a0e0bbc  tests/test_cases.yaml

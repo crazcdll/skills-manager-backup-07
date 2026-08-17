@@ -7,7 +7,7 @@ PR → 大象推送 → 登记多维表格，I/O 操作均重试4次失败通知
 metadata:
   skillhub.creator: "mengmuzi"
   skillhub.updater: "mengmuzi"
-  skillhub.version: "V146"
+  skillhub.version: "V148"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "5205"
   skillhub.high_sensitive: "false"

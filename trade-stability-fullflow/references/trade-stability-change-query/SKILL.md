@@ -67,6 +67,13 @@ mcm plan calendar \
 
 ### Diva Bundle 发布
 
+> ⚠️ **鉴权预检（CatPaw 沙箱必做）**：Diva CLI 在 CatPaw 沙箱中可能因透明代理（catx-proxy）尚未完成 SSO 认证，导致请求带着无效的占位符 token 到达 diva.sankuai.com，**返回空 `[]` 而非报错**。执行查询前先预热认证：
+> ```bash
+> sso-auth-cli e5be990c83 --force-ciba 2>/dev/null
+> export DIVA_ACCESS_TOKEN=$(cat ~/.config/sso-auth-cli/cache.json 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('access_token',''))" 2>/dev/null)
+> ```
+> 预检后若首次查询仍返回 `[]`，等待 15 秒重试，不得直接判定「无变更」。
+
 ```bash
 diva bundle tasks --name {bundle_name} --days 2 --env prod -o json 2>/dev/null
 ```
@@ -133,8 +140,8 @@ diva bundle versions {bundle_name} 2>/dev/null
 2. 找到该版本的**上一在线版本**（即回滚目标），记录其版本号和 commit 链接（供第三步止损使用）。
 3. 若该版本未在线（⚪），说明还在灰度中，止损方式为「取消灰度」而非「回滚」。
 
-> ⚠️ CLI 认证失败时按错误提示修复后重试，不得跳过 Diva 查询。
 > ⚠️ 若 `--env prod` 无结果但 `--env test` 有结果，说明仍在测试环境发布未上生产，记录但相关度降一级。
+> ⚠️ **空结果防陷阱**：Diva CLI 鉴权失败时返回空 `[]` 而非报错。若查询结果为空且该 Bundle 确有线上版本，必须按上方鉴权预检流程确认 token 有效性后重试，不得跳过 Diva 查询。
 
 ---
 

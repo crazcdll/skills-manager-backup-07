@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "5a1acd49-86d5-40d2-95ff-13a191bad4e2",
+  "path": "org-auth-query",
+  "path_key": "org-auth-query",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

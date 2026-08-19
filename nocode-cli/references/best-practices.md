@@ -38,24 +38,32 @@
 
 **流程：**
 
-1. 本地读取并分析数据文件的结构（字段名、类型、关系）
-2. 引导用户新建/复用 database 资源（详见 [cmd-database.md](commands/cmd-database.md)）
-3. 通过 `nocode send` 让 NoCode Agent 根据数据结构建表
-4. 通过 `nocode database insert` 将数据写入表中
-5. 通过 `nocode send` 让 NoCode Agent 实现从 database 读取数据并渲染看板
+1. 本地读取并分析数据文件的结构（字段名、类型、关系、业务唯一键）
+2. 按 [database 资源接入规则](commands/cmd-database.md) 检查作品绑定状态；未连接时引导用户选择新建或复用 database 资源
+3. 从 `nocode database status <chatId>` 取得 `projectUrl`，读取 `catpaw-supabase` Skill，通过 `list_my_projects` 按 URL 精确匹配 `projectId`
+4. 使用 `catpaw-supabase.apply_migration` 根据数据结构建表，再用 `describe_table` 验证最新 Schema；禁止通过 `nocode send` 建表
+5. 将数据在本地整理为 JSON 对象数组，按 `catpaw-supabase` 的单批上限切分，通过 `insert_rows` 或具备业务唯一键时优先通过 `upsert_rows` **串行**导入；禁止逐行或并发写入
+6. 数据准备完成后，通过 `nocode send` 让 NoCode Agent 基于已存在的表实现看板，并明确要求不得创建、修改表结构或导入数据
 
-```bash
-# 示例
+```text
+# 示例流程（catpaw-supabase 工具参数以其 SKILL.md 最新定义为准）
 nocode database create <chatId>
-nocode send <chatId> "创建 projects 表，包含以下字段：name(text), status(text), progress(integer), deadline(date)"
-nocode database insert <chatId> --table projects --data '[{"name":"项目A","status":"进行中","progress":60,"deadline":"2025-06-30"}]'
-nocode send <chatId> "从 projects 表读取数据，实现一个项目看板，包含进度条、状态筛选、截止日期排序"
+nocode database status <chatId>              → 取得 projectUrl
+catpaw-supabase.list_my_projects              → URL 精确匹配 projectId
+catpaw-supabase.apply_migration               → 创建 projects 表
+catpaw-supabase.describe_table                → 验证 projects 表结构
+catpaw-supabase.insert_rows / upsert_rows     → 按上限分批、串行导入
+nocode send <chatId> "数据库中已经存在 projects 表。请从该表读取数据，实现项目看板，包含进度条、状态筛选和截止日期排序；不要创建或修改数据库表结构，也不要导入数据。"
 ```
 
 **禁止：**
 - ❌ `nocode send <chatId> "根据附件数据做一个看板" --files ./data.json`
 - ❌ `nocode send <chatId> "执行 curl 下载这个 Excel 文件然后做看板"`
 - ❌ 将 JSON/CSV 内容粘贴到 send prompt 中
+- ❌ 通过 `nocode send` 创建或修改数据库表
+- ❌ 使用 `nocode database tables/select/insert/update/delete` 操作数据库内容
+- ❌ 对数据文件逐行调用 `insert_rows`，或并发启动多个数据库请求
+- ❌ `catpaw-supabase` 调用失败后继续尝试其他数据库操作路径；此时必须停止数据库操作并向用户报告具体错误
 
 **不推荐：**
 - ⚠️ `nocode send <chatId> "请求 https://xxx/data.json 的下载链接获取数据并渲染看板"` — 应改为走 database 流程

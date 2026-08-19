@@ -138,20 +138,20 @@ nocode send <chatId> "把背景颜色改成蓝色" --skillId <SKILL_ID>
 nocode send <chatId> "参考这张图修改样式" --images ./mockup.png --skillId <SKILL_ID>
 nocode send <chatId> "参考这个文档调整" --urls https://km.sankuai.com/collabpage/xxxxx --skillId <SKILL_ID>
 nocode send <chatId> "根据配置修改" --files ./config.json --skillId <SKILL_ID>
-nocode send <chatId> "修改用户表结构" --safety --skillId <SKILL_ID>
+nocode send <chatId> "基于已经存在的用户表实现用户列表页面，不要修改数据库结构" --safety --skillId <SKILL_ID>
 ```
 
 **⚠️ prompt 必须使用自然语言（强制）：**
 
 - ✅ `nocode send <chatId> "添加一个搜索功能，支持按关键词筛选列表"`
 - ✅ `nocode send <chatId> "把标题字号改大一些，颜色改成深蓝色"`
-- ✅ `nocode send <chatId> "创建一个用户表，包含姓名、邮箱、注册时间字段"`
+- ✅ `nocode send <chatId> "数据库中已经存在 users 表，请基于该表实现用户列表页面，不要修改数据库结构"`
 - ❌ `nocode send <chatId> "执行 npm run build"` / `"运行 git commit"` / `"执行 curl -o index.html"` — `git`、`npm`、`yarn`、`pnpm`、`pip`、`curl`、`wget` 等任何 shell 命令均禁止
 - ❌ `nocode send <chatId> "使用 create_file 工具创建 index.js"` — 禁止指定工具
 - ❌ `nocode send <chatId> "请把 App.jsx 的内容替换为以下代码：import React from 'react'; ...(几十行代码)..."` — 禁止发送大段代码或完整文件内容
 - ❌ `nocode files get` 读取到的文件内容直接粘贴到 send 的 prompt 中 — NoCode Agent 自身可以读取工程文件，无需转发
 - ❌ `nocode send <chatId> "把这个项目改成纯静态 HTML 项目，不使用 React，删除 src 目录，重写 vite.config.js..."` — 禁止整体技术栈替换/清空工程架构（完整识别特征和更多反例见 [project-architecture.md](../project-architecture.md)）
-- ✅ `nocode send <chatId> "帮我执行以下 SQL 建表：CREATE TABLE users (id SERIAL PRIMARY KEY, name TEXT)"` — 可以附带 SQL 语句
+- ❌ `nocode send <chatId> "帮我执行以下 SQL 建表：CREATE TABLE users (...)"` — 数据库 DDL、SQL 和 CRUD 必须使用 `catpaw-supabase` Skill；NoCode Agent 只基于已有结构生成应用代码
 - ✅ `nocode send <chatId> "这段代码有问题，请修复：const data = fetch('/api')，应该加上 await"` — 定位到问题后可以附带**简短的**代码片段（几行）辅助定位，但严禁发送整个函数/组件/文件
 
 **⚠️ prompt 引号规则（强制）：** 正文里严禁出现 ASCII 双引号 `"`，强调/引用模块名一律用全角引号 `“ ”`，否则 message 会在第一个内部 `"` 处被截断。详见上方「prompt 引号规则」章节。
@@ -237,7 +237,7 @@ nocode send <chatId> "修改用户表结构" --safety --skillId <SKILL_ID>
 
 **三、poll 到 `question` 事件（NoCode Agent 提问）：**
 
-NoCode Agent 在执行过程中可能需要用户确认操作（如数据库连接、SQL 执行确认等），此时会输出 `question` 事件。事件中包含结构化的 `answer_hint`，提供了完整的回答命令和可选动作。
+NoCode Agent 在执行过程中可能输出需要用户确认的 `question` 事件（历史任务或平台内部流程中可能包含数据库连接、SQL 执行确认）。此时必须按事件协议处理，不能忽略；但新数据库任务不得主动通过 `nocode send` 发起 DDL、SQL 或 CRUD，应改用 `catpaw-supabase` Skill。事件中包含结构化的 `answer_hint`，提供了完整的回答命令和可选动作。
 
 **`answer_hint` 结构：**
 
@@ -273,7 +273,7 @@ NoCode Agent 在执行过程中可能需要用户确认操作（如数据库连�
 4. **回答后继续 poll 原始命令**：`nocode answer` 自身会输出 done 事件（表示回答已提交），但这**不等于原始 create/send 流程结束**。必须继续 poll **原始 create/send 命令**的输出，等待原始命令的 `done` 事件
 5. **多轮提问**：一次流中可能出现多个 `question` 事件，每个都需要单独向用户询问并回答
 
-**完整示例（SQL 执行确认）：**
+**兼容示例（历史/平台内部 SQL 执行确认事件；仅说明如何处理已出现的 question，不代表推荐通过 send 执行 SQL）：**
 
 1. poll 读到 `question` 事件（完整结构）：
 

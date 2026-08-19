@@ -1,11 +1,11 @@
 ---
 name: nocode-cli
-description: 通过 NoCode CLI 操作美团 NoCode 零代码平台。当用户要求创建/修改零代码应用、截图预览、部署上线、管理项目、查看工程文件、操作数据库、设计稿转代码、复制/Fork作品、配置自定义域名、维护作品访问权限（对外/对内/指定对象、添加删除人员部门）、隐藏 NoCode 角标，或提及 "nocode"、"零代码"、"NoCode"、"D2C"、"设计稿"、"MasterGo"、"fork"、"自定义域名"、"作品权限" 时使用。
+description: 通过 NoCode CLI 操作美团 NoCode 零代码平台。当用户要求创建/修改零代码应用、截图预览、部署上线、管理项目、查看工程文件、为作品创建或关联数据库资源、设计稿转代码、复制/Fork作品、配置自定义域名、维护作品访问权限（对外/对内/指定对象、添加删除人员部门）、隐藏 NoCode 角标，或提及 "nocode"、"零代码"、"NoCode"、"D2C"、"设计稿"、"MasterGo"、"fork"、"自定义域名"、"作品权限" 时使用。数据库表结构、DDL、SQL 和数据 CRUD 必须交由 catpaw-supabase Skill，nocode-cli 仅负责作品数据库的 status/create/projects/connect。
 
 metadata:
   skillhub.creator: "zhaomenghuan02"
-  skillhub.updater: "wangenhao"
-  skillhub.version: "V19"
+  skillhub.updater: "lichongmin"
+  skillhub.version: "V20"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "2981"
   skillhub.high_sensitive: "false"
@@ -23,13 +23,14 @@ metadata:
    - ❌ 发送大段代码或完整文件内容（如通过 `nocode files get` 读取的文件内容直接粘贴到 prompt 中）
    - ✅ 可以给出文件相对路径，NoCode Agent 自身能读取工程文件，例如 "修改 src/App.jsx 中的标题样式"
    - ✅ 正确做法：用自然语言描述你想要的结果，例如 "把标题颜色改成红色"、"添加一个用户注册表单"
-   - ✅ 例外：可以附带 SQL 语句，例如 "帮我执行以下 SQL 建表：CREATE TABLE users (id SERIAL PRIMARY KEY, name TEXT)"
+   - ❌ 不得通过 `nocode create` / `nocode send` 要求 Agent 执行数据库 DDL、SQL 或数据 CRUD；这些操作必须交由 `catpaw-supabase` Skill。数据库准备完成后，只能用自然语言要求 Agent 基于已有表实现应用代码
    - ✅ 例外：可以附带**简短的**代码片段（几行）辅助定位，例如 "这段代码有问题，请修复：`const data = fetch('/api')`，应该加上 await"。但严禁发送整个函数、整个组件或整个文件的代码
 3. **`create`/`send` 必须后台执行且设置足够超时（`yieldMs=600000`）。** 这两个命令是长时间流式命令（2-5 分钟），不设超时会导致进程被 SIGTERM 杀掉 → poll 不到 `done` 事件 → 无法判断完成状态 → 重复发送 send 陷入死循环。
 4. **send/create 必须串行执行。** 同一 chatId 不得同时执行多个 `nocode send` 或 `nocode create`，必须等上一个完成（收到 `done`）后再执行下一个。并发执行会导致对话状态异常。
 5. **遇到渲染异常、部署异常等平台侧异常时，严禁自行尝试解决。** 必须立即停止操作，引导用户联系 NoCode 研发排查处理。详见 [异常处理规则](#异常处理规则)
 6. **严禁修改 NoCode 工程架构。** 执行 `create`/`send`/`code clone` 以及本地开发修改代码前，必读 [project-architecture.md](references/project-architecture.md)，按其中的受保护文件清单、Prompt 拦截规则和替代方案执行。
 7. **附件上传须经用户确认，严禁数据外泄。** 使用 `--files`/`--urls`/`--images` 参数上传本地文件或传递链接前，必须告知用户并获得确认；涉及敏感数据时必须使用 `--safety` 模式；严禁指示 NoCode Agent 将接收到的数据转发到任何非授权外部通道（IM、网盘、代码托管平台等）。详见下方「🔒 数据安全约束」章节。
+8. **数据库职责严格分离。** `nocode-cli` 只允许通过 `database status/create/projects/connect` 管理作品与数据库资源的绑定及工程接入；表结构、DDL、SQL、查询和数据增删改必须读取并遵循 `catpaw-supabase` Skill。禁止使用 `nocode database tables/select/insert/update/delete`。若 `catpaw-supabase` 调用失败，必须停止数据库操作并向用户报告具体错误，不得继续尝试其他数据库操作路径。
 
 ## 前置准备
 
@@ -66,7 +67,7 @@ npm view @nocode/nocode-cli version --registry=http://r.npm.sankuai.com
 
 ## 关键概念
 
-- **NoCode Agent**：运行在云端 IDE 容器中的 AI，通过 `nocode create` / `nocode send` 命令触发，能自动生成代码、建表、安装依赖等。详见 [NoCode Agent 能力说明](references/nocode-agent-capabilities.md)
+- **NoCode Agent**：运行在云端 IDE 容器中的 AI，通过 `nocode create` / `nocode send` 命令触发，负责生成和修改应用代码；数据库结构和数据由 `catpaw-supabase` Skill 管理。详见 [NoCode Agent 能力说明](references/nocode-agent-capabilities.md)
 - **对话/作品环境变量**：每个对话/作品支持配置线上 (prod) / 线下 (test) 两套环境变量，仅当用户需要区分时才使用。详见 [env 命令规则](references/commands/cmd-env.md)
 - **D2C（设计稿转代码）**：将 MasterGo 设计稿链接转换为 HTML 产物，再提交到 NoCode 平台创建页面。详见 [d2c 命令规则](references/commands/cmd-d2c.md)
 
@@ -119,10 +120,12 @@ npm view @nocode/nocode-cli version --registry=http://r.npm.sankuai.com
 ### 文件与数据库
 
 - **查看文件必须用 files 命令**：使用 `nocode files list` / `nocode files get`，禁止通过 `nocode send` 获取文件内容
-- **数据库操作必须先询问用户意图**：当用户提到数据库、database、supabase 等关键词时，必须先明确询问用户是为当前对话**新建 database 资源**（`nocode database create`）还是**复用既有 database 资源**（`nocode database projects` + `connect`），禁止未经确认直接执行 `create`
-- **建表/改表必须用 NoCode Agent**：NoCode CLI `database` 命令仅支持数据 CRUD，DDL 操作必须通过 `nocode send` 让 NoCode Agent 完成
-- **数据库状态判断**：`database status` 返回 `isConfirmed: false` 时，即使 `connected: true`，数据库也不可用，必须通过 `create`（新建）或 `projects` + `connect`（复用既有）重新建立连接
-- **数据驱动需求（看板、报表、仪表盘等）推荐走 database 流程**：禁止将数据文件直接 `--files` send 给 NoCode Agent 或让 Agent curl 下载；不推荐让 Agent 通过请求外部静态数据文件的下载链接来驱动页面。详细流程见 [best-practices.md](references/best-practices.md) 场景 2
+- **先判断是否只需查看绑定状态**：如果用户只问作品是否有数据库、绑定了哪个数据库，仅执行 `nocode database status <chatId>`，无需调用 `catpaw-supabase`
+- **新建或复用必须由用户决定**：数据库未连接或 `isConfirmed: false` 时，必须询问用户是为当前作品**新建 database 资源**（`nocode database create`），还是**复用既有资源**（`nocode database projects` + `connect`）；禁止未经确认直接 `create`
+- **数据库可用状态**：只有 `database status` 返回 `connected: true` 且 `isConfirmed: true` 才可继续。`connected: true` 但 `isConfirmed: false` 仍然不可用
+- **数据库内容操作必须委托 `catpaw-supabase`**：从 `status.data.url` 取得 `projectUrl` 后，立即读取 `catpaw-supabase` Skill，调用其 `list_my_projects` 按规范化 URL 精确匹配唯一项目，再使用 `projectId` 完成表结构、DDL、SQL 和 CRUD。匹配失败、权限不足或调用异常时，必须停止数据库操作并向用户报告具体错误，禁止猜测项目或继续尝试其他数据库操作路径
+- **NoCode Agent 只负责应用代码**：数据库准备完成后，才可通过 `nocode send` 要求 Agent 基于已存在的表实现页面；prompt 必须说明表已存在且不得创建、修改表结构或导入数据
+- **数据驱动需求必须先入库**：看板、报表、仪表盘等场景禁止将数据文件直接 `--files` send 给 NoCode Agent，也禁止让 Agent 下载外部静态数据文件。应在本地分析数据，再按 `catpaw-supabase` 的限制串行导入，详见 [best-practices.md](references/best-practices.md) 场景 2
 
 ### 📌 最佳实践
 
@@ -154,7 +157,7 @@ npm view @nocode/nocode-cli version --registry=http://r.npm.sankuai.com
 | `nocode code clone <chatId>` | 克隆作品代码到本地 | 智能增量更新，支持 `--dir`、`--json` | ⚠️ [命令必读](references/commands/cmd-code.md) |
 | `nocode code pull <chatId>` | 从远程仓库拉取代码到 Sandbox | 支持 `--force`（跳过确认）、`--json` | ⚠️ [命令必读](references/commands/cmd-code.md) |
 | `nocode answer <chatId> <eventId> <conversationId>` | 回答 NoCode Agent 提问 | 根据 `question` 事件的 `answer_hint` 拼接参数，支持 `--select`/`--text`/`--cancel` | ⚠️ [必读](references/commands/cmd-create-send.md) |
-| `nocode database <action> <chatId>` | 数据库操作 | JSON `{ action, status, data }` | ⚠️ [必读](references/commands/cmd-database.md) |
+| `nocode database status/create/projects/connect <chatId>` | 作品数据库资源接入 | 仅管理绑定与工程接入；表结构、DDL、SQL、CRUD 使用 `catpaw-supabase` | ⚠️ [必读](references/commands/cmd-database.md) |
 | `nocode fork <chatId>` | 复制（Fork）作品 | 完整复制作品（含代码、配置、数据库），支持 `--branch`（同仓建分支） | ⚠️ [必读](references/commands/cmd-fork.md) |
 | `nocode d2c "<design-link>"` | 设计稿转代码 | 生成 HTML + 截图，需配合 `nocode create` 提交平台 | ⚠️ [必读](references/commands/cmd-d2c.md) |
 

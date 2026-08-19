@@ -1,13 +1,13 @@
 skill-manifest-version: 1
-skill-id: d18ebfa9ba96958d500723d97a1b134a1a46014d3410dbe300917298f60c9538
+skill-id: 40250432f5efbb675253ddb0c4fa05f5f02d277f9d63908fe7c2734ab898a81a
 
 files:
-  098b385b767307b091b40a2250d0eaf0423ad6b73e6ae44cdd4ea16a83edc6e1  SKILL.md
-  12a815c73eae636a7fb058d8eb965831fa9f665edcdccb41627f18de855cb993  references/best-practices.md
+  c1d0e1831fe7622965d8acfcfd3c7efcac5d528a8969f7fe600a7a5203c25591  SKILL.md
+  7b359c38b8838f09aecde49ad79304f85a7a0f59db7608e4a8cc00de02b4052a  references/best-practices.md
   6bcd42e7d6d65d4745c3af23d2a47fbb420b0282f583511cb837b31f3f52ba8b  references/commands/cmd-code.md
-  acb5ed7c0738da28e286767f71da9de0cc1eeaa6426fa33d7494eae9a9b14de7  references/commands/cmd-create-send.md
+  b2ef76abc794bad37ef68a39f573a607bf14f45849c5cb661155c1462b18c0a8  references/commands/cmd-create-send.md
   51a55b7e1a15ad95fea77f494d1edf10fbedd9a234cef05237417735b517af8c  references/commands/cmd-d2c.md
-  4c2bf185ee4d8c7e471da8a3e5056827900c36a9aa49cfa0dad8658b15af75b7  references/commands/cmd-database.md
+  01c7f7d4d6ad9d4acece079c79389c6f2590ea54d78c5b0666ad090fcc4f3ada  references/commands/cmd-database.md
   da4f8c9913fb1ce62486ccba661683d6bd32826c4ab4172ea7319068ae9f49f0  references/commands/cmd-deploy.md
   0cceae2dad11ee949cb4028addada23dff363dea7552a0c9ede29ae511348f21  references/commands/cmd-domain.md
   66d1be6aa7a7467799df1fa1ea6756c188dfcced2b1e17a110b3e0d4804a63d1  references/commands/cmd-env.md
@@ -15,7 +15,7 @@ files:
   c2d9911dcc4a1fd79c33442b76dd0916989505758a737fbcdfab09462c74e4e4  references/commands/cmd-fork.md
   c14060649686b4f76f2ac8dc8d65d2a5a99abd10fe991f8e78c2d753b7b6b950  references/commands/cmd-permission.md
   d087e3d871926eaac767e2bacd08cbde3deb6ab243c48fe70b51e8991cdf0dba  references/commands/cmd-screenshot.md
-  e23ac714b5e54beddd3c29c46270671e4b907e46fbd9450f8667c1aaa238331d  references/nocode-agent-capabilities.md
+  94725566e63cfdbb15091625a0aee22e7fc43e25d2e57353dbcf39f7fbb94e5a  references/nocode-agent-capabilities.md
   580f28d4ac3497c8e16d1cb5f1bf9acf1c497324c5bf642fe5b27d446b73370f  references/project-architecture.md
   cd4feed248f5c70f4f720b5879793b028f0138203a0ed8c4d2d7728e9d48b197  references/workflows/poll-workflow.md
   88eecab9ccd0b50f9b68ce46f20db3b9cffa375dce6e377f1855013b23344416  references/workflows/workflow-local-dev.md

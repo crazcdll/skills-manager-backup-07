@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "eee44541-13ed-4f65-82e6-a919c73c278a",
+  "path": "ip-as-logo",
+  "path_key": "ip-as-logo",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "git",
+    "ref": "https://github.com/s1dashu/ip-as-logo-skill/tree/main",
+    "subpath": null,
+    "branch": "main"
+  }
+}

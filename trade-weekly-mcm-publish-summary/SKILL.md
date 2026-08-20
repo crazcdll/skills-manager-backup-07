@@ -61,9 +61,24 @@ mcm plan list --creator <mis> --start "<startTime>" --end "<endTime>" -s 50 -f j
 ```
 
 - `--creator`：按创建人筛选（仅返回该人发起的计划）
-- `--start` / `--end`：计划开始时间范围
+- `--start` / `--end`：时间范围
 - `-s 50`：每页 50 条
 - `-f json`：JSON 格式输出
+
+> **重要**：MCM 接口的 `--start`/`--end` 实际按变更的创建/更新时间筛选，会把跨周仍在 `RUNNING`/`WAIT_RUNNING` 状态的老变更也返回（其 `planStartTime` 可能在本周之前）。因此**必须在客户端二次过滤**：仅保留 `planStartTime` 落在 `[startTime, endTime]` 区间内的计划。
+>
+> 过滤逻辑（Python 示例）：
+> ```python
+> from datetime import datetime
+> week_start = datetime.strptime("2026-08-07 00:00:00", "%Y-%m-%d %H:%M:%S")
+> week_end = datetime.strptime("2026-08-13 23:59:59", "%Y-%m-%d %H:%M:%S")
+> # planStartTime 格式为 "2026-08-12T06:20:00.000+00:00"，取前 19 位并按 UTC+8 解析
+> ps = datetime.strptime(item["planStartTime"][:19], "%Y-%m-%dT%H:%M:%S")
+> if week_start <= ps <= week_end:
+>     keep(item)
+> ```
+>
+> 注意 `planStartTime` 是 UTC（`+00:00`），需按北京时间（UTC+8）对齐后再与本地时间范围比较；或将本地范围换算成 UTC 后比较。两端对齐即可，不必精确到秒。
 
 ### Step 3: 查询每条变更的详情，提取 PRD 和 ONES 链接
 
@@ -137,5 +152,6 @@ mcm plan detail <planId> -f json
 2. **MCM 链接格式**：`https://mcm.mws.sankuai.com/#/mine/plan/detail/<planId>`
 3. **时间格式**：`yyyy-MM-dd HH:mm:ss`，北京时间 (UTC+8)
 4. **每页条数**：默认 50 条，若团队成员发布较多可适当调大
-5. **PRD/ONES 缺失**：若某条变更未找到 PRD 或 ONES 链接，该单元格显示「—」
-6. **无权限文档**：部分学城文档可能因权限或高密级无法访问，标注「（无权限）」即可
+5. **跨周变更过滤**：Step 2 必须按 `planStartTime` 在本周区间内做客户端二次过滤，避免把上周及更早创建、本周仍在执行中的老变更计入本周统计
+6. **PRD/ONES 缺失**：若某条变更未找到 PRD 或 ONES 链接，该单元格显示「—」
+7. **无权限文档**：部分学城文档可能因权限或高密级无法访问，标注「（无权限）」即可

@@ -324,12 +324,19 @@ console.log(hello);</code></pre>
 > ⚠️ **内容必须用 `<![CDATA[...]]>` 包裹**，否则 PlantUML 语法中的特殊字符会导致 XML 解析错误。
 
 ```xml
-<km-plantuml width="400" height="300" nodeId="a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"><![CDATA[
+<km-plantuml nodeId="a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"><![CDATA[
 @startuml
 A -> B : 消息
 @enduml
 ]]></km-plantuml>
 ```
+
+> 💡 **宽高默认自动计算，不要猜测固定尺寸**
+>
+> - 推荐同时省略 `width` 和 `height`。skill 在写入前会渲染 SVG、读取真实固有尺寸，并在 `800 × 600` 的默认显示区域内等比缩放后写入准确宽高。
+> - 只指定 `width` 或只指定 `height` 时，skill 会保留指定的一边，并按 SVG 的真实比例补齐另一边。
+> - 同时指定两个正数表示用户明确要求该尺寸，skill 会原样保留；因此不要使用 `800 × 600` 等猜测值，以免比例失真。
+> - 如果 PlantUML 服务异常、内容为空或 SVG 不含有效尺寸，skill 会将对应图表回退为 `800 × 600` 并继续创建/更新文档，不阻塞其他内容写入。
 
 ### 目录（catalog）
 

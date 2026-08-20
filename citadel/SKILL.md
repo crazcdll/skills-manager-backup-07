@@ -5,7 +5,7 @@ description: "学城 km/wiki/km.sankuai.com 文档官方工具，凡涉及学城
 metadata:
   skillhub.creator: "rui.zou"
   skillhub.updater: "rui.zou"
-  skillhub.version: "V47"
+  skillhub.version: "V49"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "3367"
   skillhub.high_sensitive: "true"

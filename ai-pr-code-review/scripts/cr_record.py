@@ -106,7 +106,18 @@ def retry(fn, retries=MAX_RETRIES, interval=RETRY_INTERVAL):
 
 def write_db(args):
     """调用 DB API 写入 cr_task 表。"""
-    # 构造 cr_result_json
+    # 从 pr_url 解析 pr_id
+    pr_id = 0
+    m = re.search(r'/pr/(\d+)', args.pr_url or "")
+    if m:
+        pr_id = int(m.group(1))
+
+    # 拆分 org/repo
+    parts = (args.repo or "").split("/", 1)
+    org = parts[0] if len(parts) > 0 else ""
+    repo = parts[1] if len(parts) > 1 else (args.repo or "")
+
+    # 构造 cr_result_json（与 ai-quality-cr-agent 对齐）
     cr_result = {
         "conclusion": args.conclusion,
         "counts": {
@@ -118,6 +129,13 @@ def write_db(args):
         "is_sdd": args.is_sdd,
         "text_code_consistency_rate": args.alignment,
         "skill_version": args.skill_version,
+        "pr_id": pr_id,
+        "org": org,
+        "repo": repo,
+        "pr_title": args.pr_title or "",
+        "pr_url": args.pr_url or "",
+        "km_url": args.doc_url or "",
+        "review_time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
 
     # 构造 cr_report（从文件读取或直接用）

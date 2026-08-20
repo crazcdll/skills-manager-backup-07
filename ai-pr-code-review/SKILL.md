@@ -7,7 +7,7 @@ PR → 大象推送 → 登记多维表格，I/O 操作均重试4次失败通知
 metadata:
   skillhub.creator: "mengmuzi"
   skillhub.updater: "mengmuzi"
-  skillhub.version: "V148"
+  skillhub.version: "V150"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "5205"
   skillhub.high_sensitive: "false"
@@ -518,9 +518,13 @@ $REPO_SEARCH -r {org}/{repo-B} -k "{topicName}" --ext .xml --json
 
    **`.mdp/rules/company/`**：仓库级 Java 编码规范，**可选读取**。Skill 已内置通用 P0/P1 规则，这里的内容多为代码风格/写法规范（并发、异常、日志等），不影响业务语义判断。若时间充裕（文件数 ≤ 5）可读取，用于补充 P2/P3 判断依据；文件多时优先跳过，不影响主要检出率。
 
+   **🔗 规则引用解析(Reference Resolution)**:
+   若 `.mdp/rules/team/` 或 `.mdp/rules/project/` 下的某个 `.md` 文件是索引文件(仅包含引用路径),则自动解析路径并读取目标文件内容合并注入 Layer 3。详细判定规则、示例和解析逻辑见 [references/rule-reference-resolution.md](references/rule-reference-resolution.md)。
+
    **注入用途**：校验实现与 design.md 一致性 / 用验收条件验证 P0/P1 合理性 / 用 domain.md 设计决策避免误报
 
    > 💡 **MDP-Context 接入**：根目录有 `.mdp/` 的仓库自动识别，无需在 `.cr-config.yaml` 配置。
+   > 💡 **规则引用**：各团队可在 `.mdp/rules/` 下放索引文件指向各自知识库目录,无需重复维护规则。详见 [references/rule-reference-resolution.md](references/rule-reference-resolution.md)。
 
 4. **ONES 验收条件**（有 ONES ID 时从 Step 1 注入）
 

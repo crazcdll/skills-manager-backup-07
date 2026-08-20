@@ -1,15 +1,27 @@
 # `recurrencePattern` 循环规则
 
-本文件是 `calendar-mcp` 创建循环日程时 `recurrencePattern` 字段组合、枚举和值示例的详细事实源。操作作用域、查询前置和写操作安全边界仍以 `../SKILL.md` 为准。
+本文件是 `calendar-mcp` 循环日程创建、识别、取消作用域，以及 `recurrencePattern` 字段组合、枚举和值示例的唯一事实源。创建日程的通用字段、搜索定位和全局硬约束沿用 [SKILL.md](../SKILL.md)；只有出现 CLI 安装、兼容、认证或写结果未知时，才读取 [runtime-and-safety.md](runtime-and-safety.md)。
 
 ## 调用约束
 
 - `--recurrencePattern` 接受一个用单引号包裹的 JSON 对象，至少包含 `type` 和 `interval`。
 - 创建循环日程时，`--recurrencePattern` 与 `--recurrenceDeadline` 必须同时传入。
-- `recurrenceDeadline` 不能早于日程开始日期，最晚为开始日期两年后。对 Agent 和示例使用日期时间字符串；需要指定时区时同时传 `--timeZone <IANA时区>`。
+- `recurrenceDeadline` 不能早于日程开始时间，最晚为开始时间两年后。对 Agent 和示例使用日期时间字符串；需要指定时区时同时传 `--timeZone <IANA时区>`。
 - 当前只支持按截止时间结束循环，不支持 `numberOfOccurrences`；不要传入该字段，也不要把“重复 N 次”静默改成截止日期。
 - 当前禁止编辑循环日程，包括单个 occurrence/exception 和整个序列。不要生成任何带循环参数的 `updateSchedule` 命令，也不要退化成普通 selective 更新。
 - 只传目标 `type` 所需的字段。不要为兼容或占位传 `null`、空数组及其他类型专用字段。
+- 循环日程不支持会议室、视频会议、会议室合并或 `FOLLOWING`；不能把循环意图退化成单次日程。
+
+## 创建、查询与取消续链
+
+- 创建成功返回的 `scheduleId` 是循环 master eventId。保存它供后续查询或按明确范围取消。
+- `searchSchedule` 只用于按标题、参与人和时间定位候选 `eventId`，不承诺返回 master、循环规则、截止时间，也不保证一次搜索展开整个系列。不能根据搜索结果条数推断实例总数。
+- 判断普通/循环日程或核对取消范围前，必须继续调用 `querySchedule --scheduleId <eventId> --raw`；以 `detail.recurrenceScheduleId`、`detail.recurrencePattern`、`detail.recurrenceDeadline` 为准。普通日程这些字段为空。
+- 取消当前实例：`deleteSchedule --scheduleId <实例ID> --operationScope CURRENT`。
+- 取消整个系列：`deleteSchedule --scheduleId <实例ID> --operationScope SERIES --recurrenceScheduleId <master ID>`。
+- `SERIES` 会影响整个系列。必须明确用户要取消整组，不能根据“取消这个会”自行推断；实例 ID 和 master ID 不能混用。
+- 当前禁止修改单个 occurrence/exception、整个系列，或“从下次开始”的时间、标题、参与人、地点、规则和截止日期。可以继续帮助查询，或在用户明确 CURRENT/SERIES 后取消。
+- `capabilities` 只证明本地 CLI 支持参数。目标环境返回未知字段、未知方法或契约未部署错误时立即停止，不能移除循环参数后创建单次日程。
 
 ## 字段说明
 
@@ -58,6 +70,8 @@
 | `DAY` | 自然日 |
 
 `RELATIVE_MONTHLY` 和 `RELATIVE_YEARLY` 的 `daysOfTheWeek` 按单个相对目标表达，只传一个枚举值，例如 `["FR"]` 或 `["WEEKDAY"]`。
+
+“每个工作日/工作日每天”是周循环快捷语义，映射为 `WEEKLY`、`interval: 1` 和 `["MO","TU","WE","TH","FR"]`；不能使用 `DAILY`。`WEEKDAY` 枚举只表示相对月/年规则中的目标日类别，不能用于 `WEEKLY`。
 
 ## `dayOfTheWeekIndex` 枚举
 
@@ -119,4 +133,4 @@ oa-skills calendar-mcp createSchedule \
   --recurrenceDeadline "2026-12-31 23:59:59"
 ```
 
-创建成功后保存返回的 master `scheduleId`，供后续查询或按明确范围取消使用。循环日程编辑当前不可用。
+循环日程编辑当前不可用；后续操作只允许详情识别和按明确 CURRENT/SERIES 范围取消。

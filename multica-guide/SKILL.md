@@ -3,12 +3,12 @@ name: multica-guide
 description: >
   Multica AI-SDLC 一站式副驾驶：部署引导 + L2 skill 定制 + 运行时进度监控 + 卡点诊断 + 操作引导 + 工作流答疑。
   触发场景：说「部署 multica」「我想接入 multica」「定制 skill」「进度到哪了」「监控下」「卡住了」「下一步干啥」
-  「XX 是什么」「Pipeline 和 Lite 区别」时激活。
+  「XX 是什么」「Pipeline 和 Lite 区别」「Lite 前端和后端区别」「R-Gate 是啥」时激活。
 
 metadata:
   skillhub.creator: "qiuchenjie"
-  skillhub.updater: "qiuchenjie"
-  skillhub.version: "V3"
+  skillhub.updater: "hejun10"
+  skillhub.version: "V4"
   skillhub.source: "ssh://git@git.sankuai.com/mcp/general-ai-marketplace.git"
   skillhub.skill_id: "119642"
 ---
@@ -17,7 +17,7 @@ metadata:
 
 > **定位**：Multica AI-SDLC 平台的用户入口。**部署 → 定制 → 运维 → 答疑一条龙**，用户不用记 CLI 参数、不用翻文档，问我就行。
 >
-> **覆盖三条主线**：Pipeline 完整版（5 Squad + PMO + 15+ agent）+ Lite 后端版（1 Squad + 7 agent）+ Lite 前端版（1 Squad + 7 agent，整合 fe-rd-workflow）。术语与最新 R-Gate 语义对齐 2026-07-26 起的双版本模型，前端版对齐 2026-07-29 设计。
+> **覆盖三条主线**：Pipeline 完整版（5 Squad + PMO + 15+ agent）+ Lite 后端版（1 Squad + 7 agent）+ Lite 前端版（1 Squad + 7 agent，`sdlc-lite-fe-pmo` 兼任调度中心，入口 `setup-lite-fe.sh`）。术语与最新 R-Gate 语义对齐 2026-07-26 起的双版本模型，前端版架构对齐 2026-07-29 设计（已落地）。
 
 ---
 
@@ -112,18 +112,22 @@ fi
 
 **⚠️ Lite 前端版额外前置条件**：前端外部 Skill 必须先导入 workspace
 
-Lite 前端版依赖 6 个外部 Skill（来自 Friday SkillHub），不进 `SKILL_DIRS` 白名单，由 `setup-sdlc-lite-frontend.sh` 动态查找挂载（有则挂、无则 warn）：
+Lite 前端版依赖多个外部 Skill（来自 Friday SkillHub），通过 `sdlc-lite-fe.env` 中的 `FRIDAY_SKILLS_MOUNTS` 声明，由 `setup-sdlc-lite-fe.sh` 自动拉取并挂载：
 
 | 外部 Skill | 挂载到 | 用途 |
 |------------|--------|------|
-| `design-spec` | fe-design-agent | 需求规格 + 技术方案 + 开发任务 |
-| `max-material-dev` | fe-material-agent | Max/Leez 物料组件开发与发布 |
-| `duo-protocol` | fe-protocol-agent | DUO 协议开发 |
-| `fe-ai-review` | fe-review-agent + material/protocol-agent | 前端代码 CR |
-| `duo-fedo` | fe-dispatcher-agent + fe-knowledge-agent | 分支创建 + CI/CD |
-| `ee-code` | fe-knowledge-agent | PR 创建 |
+| `arch-design` | sdlc-lite-fe-design-agent | 架构分析（仓/页面/组件拓扑） |
+| `design-spec` | sdlc-lite-fe-design-agent | 需求规格 + 技术方案 + 开发任务 |
+| `max-material-dev` | sdlc-lite-fe-coding-agent | Max/Leez 物料组件开发与发布 |
+| `duo-protocol` | sdlc-lite-fe-coding-agent | DUO 协议开发 |
+| `ee-ones` | sdlc-lite-fe-coding-agent | ONES 分支关联（配合 dlc-branch） |
+| `ingee-flex` | sdlc-lite-fe-coding-agent | 视觉稿分析 |
+| `citadel` / `citadel-database` | 全部 agent | 学城文档读写 |
+| `mtsso-skills-official` | 全部 agent | SSO 鉴权 |
+| `ai-app-flow` / `hotel-ui-autotest` | sdlc-lite-fe-autotest-agent | 自动化测试用例 + 执行 |
+| `ee-fedo` | sdlc-lite-fe-deploy-agent | CI/CD 部署 |
 
-部署前先确认这些 Skill 已从 Friday SkillHub 导入到目标 workspace，否则 setup 虽然不会报错（只 warn），但 agent 运行时找不到 skill 会 `CLARIFICATION_NEEDED` 卡住。
+部署前先确认 `mtskills` 已安装（`npm i -g @mtfe/mtskills --registry=http://r.npm.sankuai.com`），且运行 deploy 的 MIS 有对应 Skill 的 Friday 下载权。任一 Skill 拉取失败直接 `exit 1`。
 
 **hand-hold 交互模板**（Claude 按顺序问，每个问题给出获取方式）：
 
@@ -154,10 +158,9 @@ Lite 前端版依赖 6 个外部 Skill（来自 Friday SkillHub），不进 `SKI
    请提供：____________________
 
 {{若选了 Lite 前端版，额外确认：}}
-5) 前端外部 Skill 是否已导入 workspace？
-- arch-design / design-spec / max-material-dev / duo-protocol / fe-ai-review / duo-fedo / ee-code
-   - 查询命令：multica --workspace-id "$WORKSPACE_ID" skill list --output json | jq -r '.[].name'
-   - 缺失的请先从 Friday SkillHub 导入
+5) mtskills CLI 是否已安装？（前端版外部 Skill 通过 mtskills 自动拉取）
+   确认命令：which mtskills || echo "未安装"
+   安装命令：npm i -g @mtfe/mtskills --registry=http://r.npm.sankuai.com
 ```
 
 用户回答后 Claude 自动写文件：
@@ -168,8 +171,8 @@ TEAM_ENV_FILE="$REPO_LOCAL/multica/sdlc-lite-<team>.env"
 cp "$REPO_LOCAL/multica/sdlc-lite.env" "$TEAM_ENV_FILE"
 
 # Lite 前端版
-TEAM_ENV_FILE="$REPO_LOCAL/multica/sdlc-lite-frontend-<team>.env"
-cp "$REPO_LOCAL/multica/sdlc-lite-frontend.env" "$TEAM_ENV_FILE"
+TEAM_ENV_FILE="$REPO_LOCAL/multica/sdlc-lite-fe-<team>.env"
+cp "$REPO_LOCAL/multica/sdlc-lite-fe.env" "$TEAM_ENV_FILE"
 
 # Pipeline
 TEAM_ENV_FILE="$REPO_LOCAL/multica/sdlc-pipeline-<team>.env"
@@ -183,7 +186,7 @@ sed -i.bak "s|^KNOWLEDGE_SKILL=.*|KNOWLEDGE_SKILL=\"$USER_KNOWLEDGE_SKILL\"|" "$
 rm "$TEAM_ENV_FILE.bak"
 ```
 
-**HARD-GATE**：**不要覆盖官方的 `sdlc-lite.env` / `sdlc-lite-frontend.env` / `sdlc-pipeline.env`**（那是模板，是版本控制里的）。永远复制成 `sdlc-<lite|lite-frontend|pipeline>-<team>.env`。
+**HARD-GATE**：**不要覆盖官方的 `sdlc-lite.env` / `sdlc-lite-fe.env` / `sdlc-pipeline.env`**（那是模板，是版本控制里的）。永远复制成 `sdlc-<lite|lite-fe|pipeline>-<team>.env`。
 
 ### A.4 跑 setup
 
@@ -192,7 +195,7 @@ rm "$TEAM_ENV_FILE.bak"
 bash "$REPO_LOCAL/multica/setup-lite.sh" --env "$TEAM_ENV_FILE"
 
 # Lite 前端版
-bash "$REPO_LOCAL/multica/setup-lite-frontend.sh" --env "$TEAM_ENV_FILE"
+bash "$REPO_LOCAL/multica/setup-lite-fe.sh" --env "$TEAM_ENV_FILE"
 
 # Pipeline
 bash "$REPO_LOCAL/multica/setup.sh" --env "$TEAM_ENV_FILE"
@@ -201,16 +204,15 @@ bash "$REPO_LOCAL/multica/setup.sh" --env "$TEAM_ENV_FILE"
 **Lite 前端版特有的额外检查**（setup 完成后必须确认）：
 
 ```bash
-# 确认前端外部 Skill 已挂载到对应 agent（有则挂、无则 warn）
-# 期望输出每个外部 Skill 名字 + 挂载的 agent
-for skill in design-spec max-material-dev duo-protocol fe-ai-review duo-fedo ee-code; do
+# 确认外部 Skill 已挂载到 sdlc-lite-fe-* agent
+for skill in arch-design design-spec max-material-dev duo-protocol ee-ones citadel ee-fedo; do
   echo "=== $skill ==="
   multica --workspace-id "$WORKSPACE_ID" skill list --output json | \
     jq -r --arg s "$skill" '.[] | select(.name | test($s; "i")) | "\(.name) (id=\(.id))"'
 done
 ```
 
-若以上输出为空，说明前端外部 Skill 未导入 workspace，需要从 Friday SkillHub 导入后重新跑 `setup-lite-frontend.sh`。
+若关键 Skill 输出为空，说明 `FRIDAY_SKILLS_MOUNTS` 拉取失败，检查 mtskills 安装状态和 Friday 下载权限后重跑 `setup-lite-fe.sh`。
 
 **中途报错主动接管**（常见 4 个错）：
 
@@ -219,7 +221,8 @@ done
 | `agent sdlc-*-agent 不存在` | Agent 尚未创建 | 提示：属正常首次部署，setup 会自动创建；若报错说 create 失败，检查 workspace 权限（`multica auth status`） |
 | `skill xxx 不存在` | SKILL_DIRS 白名单里的 skill 未上传 | 让 setup 继续跑，Phase 2 会自动 create；若 Phase 2 之后仍缺，跑 `bash deploy-lite.sh --only <skill>` 或 `deploy-pipeline.sh` |
 | `SKILL_ROLE_MAP 校验失败：impl 未上线` | 用户在 env 里加了 map 但 impl skill 还没 create | 提示：**先按方式 B 上线 impl**（见路径 B.3），再重跑 setup |
-| `⚠️ design-spec 尚未在 workspace 部署`（Lite 前端版） | 前端外部 Skill 未从 Friday SkillHub 导入 | 提示：这不是部署错误（warn 不阻塞），但 agent 运行时会卡。让用户先导入前端外部 Skill 到 workspace，再重跑 setup |
+| `mtskills: command not found`（Lite 前端版） | mtskills 未安装，无法拉取外部 Skill | `npm i -g @mtfe/mtskills --registry=http://r.npm.sankuai.com` 后重跑 setup |
+| `Friday 下载失败 403`（Lite 前端版） | 运行 deploy 的 MIS 无对应 Skill 的 Friday 下载权 | 联系对应 Skill 作者（如 arch-design / max-material-dev 作者）申请授权后重跑 |
 
 ### A.5 部署后自查清单
 
@@ -229,13 +232,13 @@ setup 成功后 Claude 自动跑一遍自查，确认部署健康：
 # 1. 7 (Lite 后端/前端) / 15+ (Pipeline) 个 agent 都在
 multica agent list --output json | jq -r '.[] | .name' | grep '^sdlc-'
 # Lite 后端期望：sdlc-lite-dispatcher / chain-analysis / design / contract / coding / review / knowledge
-# Lite 前端期望：sdlc-lite-fe-dispatcher / fe-chain-analysis / fe-design / fe-material / fe-protocol / fe-review / fe-knowledge
+# Lite 前端期望：sdlc-lite-fe-pmo / fe-review-agent / fe-requirement-agent / fe-design-agent / fe-coding-agent / fe-autotest-agent / fe-deploy-agent
 # Pipeline 期望：sdlc-tech-design / sdlc-coding / sdlc-test-prep / sdlc-integration-test / sdlc-ai-pmo（等）
 
 # 2. squad 存在
 multica squad list --output json | jq -r '.[] | .name'
 # Lite 后端期望：sdlc-lite-backend
-# Lite 前端期望：sdlc-lite-frontend
+# Lite 前端期望：sdlc-lite-fe
 # Pipeline 期望：sdlc-tech-design / sdlc-coding / sdlc-test-prep / sdlc-integration-test / sdlc-ai-pmo（等）
 
 # 3. runtime pool 已挂
@@ -246,7 +249,7 @@ multica agent list --output json | jq -r '.[] | select(.name | startswith("sdlc-
   xargs -I{} multica agent get {} --output json | jq -r '.custom_env.KM_ROOT_PARENT_ID // "未注入"'
 
 # 5.（仅 Lite 前端版）前端外部 Skill 已挂载
-for skill in design-spec max-material-dev duo-protocol fe-ai-review duo-fedo ee-code; do
+for skill in arch-design design-spec max-material-dev duo-protocol ee-ones citadel ee-fedo; do
   echo "=== $skill ==="
   multica --workspace-id "$WORKSPACE_ID" skill list --output json | \
     jq -r --arg s "$skill" '.[] | select(.name | test($s; "i")) | .name'
@@ -286,7 +289,7 @@ PR 创建/合入后，告知用户"部署完成，可以创建第一个需求 Is
 1. 你想定制的是 **产出流程**（overview 章节 / design 接口格式 / plans 拆 Task 方式 / 单测断言库 / mock 手法等）？→ 走 L2 skill 定制（本节）
 2. 还是想定制 **调度流转 / R-Gate 语义 / metadata schema**？→ **不允许**，见 [`multica/CLAUDE.md`](../../../../multica/CLAUDE.md) 铁律 3（Agent 指令零业务定制，跨 agent 契约官方定死）
 
-只有 3 个 L2 slot 可定制：`design-strategy` / `contract-strategy` / `coding-strategy`。
+只有 4 个 L2 slot 可定制：`chain-analysis-strategy` / `design-strategy` / `contract-strategy` / `coding-strategy`。
 
 ### B.2 方式 A：同名 override（简单，团队 skill 与官方同名）
 
@@ -338,7 +341,7 @@ setup 自动做 4 件事（详见 [`pipeline-guide.md`](../../../../multica/docs
 
 ### B.4 混用与回退
 
-- **混用**：3 个 L2 slot 各选各自方式。比如 `design-strategy` 用方式 A（同名 override）、`coding-strategy` 用方式 B（role-map）——OK。
+- **混用**：4 个 L2 slot 各选各自方式。比如 `design-strategy` 用方式 A（同名 override）、`coding-strategy` 用方式 B（role-map）——OK。
 - **回退到官方**：删掉 `SKILL_PROTECT` / `SKILL_ROLE_MAP` 里的条目 → 重跑 setup → 官方版重新覆盖。
 
 ### B.5 常见坑
@@ -390,31 +393,35 @@ R0 chain-analysis → R1 overview → R2 design → R3 plans →
 
 ```bash
 # 拉 Lite 前端父 Issue + 全部子 Issue
-PARENT_ID="<用户提供或从 issue list 挑 version=lite-frontend 的>"
+PARENT_ID="<用户提供或从 issue list 挑 version=lite-fe 的>"
 multica issue get $PARENT_ID --output json | jq '{title, status, phase: .metadata.phase, workspace_dir: .metadata.workspace_dir, version: .metadata.version}'
 multica issue list --limit 200 --output json | \
   jq -r --arg pid "$PARENT_ID" '.issues[] | select(.parent_issue_id == $pid) | "\(.status)\t\(.updated_at[0:19])\t\(.title[0:70])"' | sort -k2
 ```
 
-**Lite 前端版 R-Gate 顺序**（2026-07-29 设计，与后端版对称但产出不同）：
+**Lite 前端版 R-Gate 顺序**（R1~R8 线性流转，R4/R5 可并行）：
 
 ```
-R0 前端链路分析 → R1 demand-spec → R2 tech-design → R3 dev-tasks →
-├─ R-code（物料→协议→业务串行开发完成后一次 per-repo 评审）
-│  └─ R-code-tail（per-repo fe-ai-review 全量自审，≤2 轮自修）
-→ R6 PR + CI/CD → R7 全量验证 + 复盘 → 关闭
+R1 需求SPEC → R2 架构+技术方案 → R3 开发任务(plan)
+                                       ↓              ↘（并行）
+                                  R4 编码实现        R5 测试准备
+    （组件开发 × N仓并行 → 项目编码串行，dlc-branch 创建分支）
+                                       ↓              ↙
+                                  R6 测试执行 → R7 部署+集成验证 → R8 上线部署
 ```
 
 **Lite 前端版产物路径**（`$WORKSPACE/frontend/`）：
 
 | 文件 | Gate | 说明 |
 |------|------|------|
-| `chain-analysis.md` | R0 | 前端仓/页面/组件/协议拓扑 |
-| `demand-spec.md` | R1 | 需求规格（委托 design-spec） |
-| `tech-design.md` | R2 | 技术方案（委托 design-spec） |
-| `dev-tasks.md` | R3 | 开发任务（委托 design-spec） |
-| `delivery-report.md` | R7 | 交付报告 |
-| `progress.md` | — | 调度员维护的进度看板 |
+| `spec.md` | R1 | 需求规格（requirement-agent 产出） |
+| `arch-design.md` | R2 | 架构分析（design-agent，arch-design Skill） |
+| `tech-design.md` | R2 | 前端技术方案（design-agent） |
+| `dev-tasks.md` | R3 | 开发任务清单（物料/协议/业务三类） |
+| `testplan/testcases.md` | R5 | 测试用例清单 |
+| `testplan/testdata.md` | R5 | 测试数据构造清单 |
+| `frontend/test-report.md` | R6 | 测试执行报告 |
+| `deploy/delivery-report.md` | R7/R8 | 部署与交付报告 |
 
 ### C.3 Pipeline 进度快照
 
@@ -502,7 +509,9 @@ multica issue comment list <issue-key> --output json | \
 | R-code 卡在物料→协议之间 | material-agent DONE 后调度员没派 protocol-agent | 手动在父 Issue 评论 `@dispatcher 物料已完成，请派 protocol-agent` |
 | fe-ai-review 自审报 P0 不建议合并 | 代码有编译/运行时错误 | material/protocol-agent 修复 P0 后重跑 R-code-tail（≤2 轮），超限如实说明交调度员 |
 | R6 duo-fedo CI/CD 构建失败 | 前端构建配置错误或依赖缺失 | 转 Blocked，@reporter 排查构建日志 → 修复后 rerun knowledge-agent |
-| dispatcher 报 `version=lite，非 lite-frontend` | Issue metadata version 写成了 `lite` 而非 `lite-frontend` | `multica issue metadata set <id> --key version --value "lite-frontend"` → rerun dispatcher |
+| pmo 报 `version=lite，非 lite-fe` | Issue metadata version 写成了 `lite` 而非 `lite-fe` | `multica issue metadata set <id> --key version --value "lite-fe"` → rerun pmo |
+| `dlc-branch Skill` 执行失败 | ones-cli 或 duo-cli 未安装，或 ONES 链接解析失败 | 检查 ones-cli（`ones -v`）/ duo-cli（`duo -V`）是否安装；检查 Issue metadata 中 ones_url 是否正确 |
+| coding-agent 创建分支后 push 被 git hook 拦截 | ONES 关联未建立（dlc-branch Skill「ONES 创建分支（P0）」未完成） | 确认 dlc-branch Skill 执行时 ones_url 有效，ONES 分支关联幂等重试即可 |
 
 **诊断完必须给出可执行的修复命令，不只是描述问题。**
 
@@ -530,14 +539,14 @@ multica issue comment list <issue-key> --output json | \
 
 | 当前 Gate | 你需要做 |
 |---|---|
-| R0 前端链路分析 PASS | 去 workspace 仓看 `frontend/chain-analysis.md` → 在父 Issue 回复 `通过` |
-| R1 demand-spec PASS | 去 workspace 仓看 `frontend/demand-spec.md` → 在父 Issue 回复 `通过` |
-| R2 tech-design PASS | 去 workspace 仓看 `frontend/tech-design.md` → 在父 Issue 回复 `通过` |
-| R3 dev-tasks PASS | 去 workspace 仓看 `frontend/dev-tasks.md` → 在父 Issue 回复 `通过`。R3 通过后调度员会自动派 material-agent 开始 R-code |
-| R-code PASS（per-repo） | 去看物料组件源码 + DUO 协议 + 业务代码 diff → 回复 `通过`。物料→协议→业务串行开发完成后一次评审 |
-| R-code-tail 完成 | 不需要人工——material/protocol-agent 自跑 fe-ai-review 全量自审，通过或达 2 轮自修上限自动推进 R6 |
-| R6 PR + CI/CD PASS | 去看 Draft PR 链接 + 测试环境地址 → 回复 `通过` |
-| R7 全量验证 + 复盘 PASS | 去 workspace 仓看 `frontend/delivery-report.md` → 回复 `通过` → 知识官复盘 → 关闭 |
+| R1 需求SPEC PASS | 去学城看 spec 文档 → 在父 Issue 回复 `通过` |
+| R2 架构+技术方案 PASS | 去学城看 arch-design + tech-design → 在父 Issue 回复 `通过` |
+| R3 开发任务 PASS | 去学城看 dev-tasks → 在父 Issue 回复 `通过`。R3 通过后 pmo 并行创建 R4（编码）+ R5（测试准备）子 Issue |
+| R4 编码实现 PASS | 去看物料组件源码 + DUO 协议 + 业务代码 diff → 在编码子 Issue 回复 `通过`。组件按仓库并行，各仓库子 Issue 全部 done 后进项目编码 |
+| R5 测试准备 PASS | 去学城看 testcases + testdata → 在测试准备子 Issue 回复 `通过` |
+| R6 测试执行 PASS | 去看 test-report.md + Flow 用例执行情况 → 在测试执行子 Issue 回复 `通过`（R4+R5 均完成后才创建） |
+| R7 部署验证 PASS | 去看泳道部署结果 + 集成验证报告 → 在部署子 Issue 回复 `通过` |
+| R8 上线部署 | 合并 PR + 生产发布，无需 AI 预审，人工确认即完成 → 回复 `通过` → 收尾 |
 
 ### Pipeline 版
 
@@ -553,7 +562,7 @@ multica issue comment list <issue-key> --output json | \
 
 **格式**：永远在最后用「**你现在需要做**：」明确告诉用户。
 
-**关键词严格性**：回复必须用 `通过`（中文两字，无标点无前缀），dispatcher 消费严格匹配。见 [`multica/references/lite/agents/dispatcher-agent.md`](../../../../multica/references/lite/agents/dispatcher-agent.md) 和 [`multica/references/lite-frontend/agents/dispatcher-agent.md`](../../../../multica/references/lite-frontend/agents/dispatcher-agent.md)「人工 LGTM 确认与打回规则」段。
+**关键词严格性**：回复必须用 `通过`（中文两字，无标点无前缀），pmo/dispatcher 消费严格匹配。见 [`multica/references/lite/agents/dispatcher-agent.md`](../../../../multica/references/lite/agents/dispatcher-agent.md) 和 [`multica/references/lite-fe/squad.md`](../../../../multica/references/lite-fe/squad.md)「机读标记体系」段。
 
 ---
 
@@ -565,13 +574,14 @@ multica issue comment list <issue-key> --output json | \
 |---|---|---|---|
 | **Squad 数量** | 5 + PMO | 1 | 1 |
 | **Agent 数量** | 15+ | 7 | 7 |
-| **R-Gate 数** | 8（R1/R2/R3/R3.5/R4/R5/R6/R7）| 8（R0/R1/R2/R3/R3.5/R4/R-code/R7） | 8（R0/R1/R2/R3/R-code/R-code-tail/R6/R7） |
-| **前端能力** | ✅ fe-design + fe-coding | ❌ | ✅ 整合 fe-rd-workflow |
-| **集成测试** | ✅ | ❌ | ❌ |
-| **泳道部署** | ✅ | ❌ | ❌（走 duo-fedo CI/CD） |
-| **每 Gate 关卡** | 2 层（review-agent 预审 + 人工）| 1 层（评审员 AI + 人工 LGTM）| 1 层（评审员 AI + 人工 LGTM）|
-| **version 字段** | `pipeline` | `lite` | `lite-frontend` |
-| **Squad 名** | sdlc-tech-design 等 5 个 | sdlc-lite-backend | sdlc-lite-frontend |
+| **R-Gate 数** | 8（R1/R2/R3/R3.5/R4/R5/R6/R7）| 8（R0/R1/R2/R3/R3.5/R4/R-code/R7） | 8（R1/R2/R3/R4/R5/R6/R7/R8） |
+| **前端能力** | ✅ fe-design + fe-coding | ❌ | ✅ 物料/协议/业务/测试/部署全流程 |
+| **集成测试** | ✅ | ❌ | ✅ autotest-agent 一体化 |
+| **泳道部署** | ✅ | ❌ | ✅ deploy-agent（ee-fedo CI/CD） |
+| **每 Gate 关卡** | 2 层（review-agent 预审 + 人工）| 1 层（评审员 AI + 人工 LGTM）| 1 层（review-agent AI + 人工 LGTM）|
+| **version 字段** | `pipeline` | `lite` | `lite-fe` |
+| **Squad 名** | sdlc-tech-design 等 5 个 | sdlc-lite-backend | sdlc-lite-fe |
+| **入口脚本** | `setup.sh` | `setup-lite.sh` | `setup-lite-fe.sh` |
 | **产物目录** | `$WORKSPACE/backend/` + `$WORKSPACE/frontend/` | `$WORKSPACE/backend/` | `$WORKSPACE/frontend/` |
 
 选哪个见路径 A.2 决策树。
@@ -597,11 +607,14 @@ multica issue comment list <issue-key> --output json | \
 - 老 R5 = per-Task 单测 AI 自审（DELETED），老 R6 = per-Task 实现评审（DELETED）
 - 新 R5/R6 语义颠倒 + 挪到 per-repo，与 Lite R-code / R-code-tail 完全对齐
 
-**⚠️ 2026-07-29 前端版差异**：
-- 前端版无 R3.5 / R4（前端无独立契约阶段，协议开发即编码）
-- 前端版 R-code 拆为物料→协议→业务串行开发，全部完成后一次评审
-- 前端版 R6 = PR + CI/CD（与后端版 R6 语义不同，后端版无 R6）
-- 前端版 R-code-tail 委托 `fe-ai-review`（后端版委托 `ai-pr-code-review`）
+**⚠️ 2026-07-29/08-17 前端版（sdlc-lite-fe）差异**：
+- 前端版 R-Gate 编号 R1~R8，与后端版 R0~R-code 不同
+- 前端版无独立链路分析 Gate（arch-design 融入 R2 方案设计阶段）
+- 前端版 R4 编码阶段：组件开发按物料仓库分组（一仓一子 Issue 可并行），全部仓库完成后进项目编码（DUO 协议→业务逻辑）
+- 分支创建由 **dlc-branch Skill** 统一处理（识别 DUO 类型仓库 / 集成 ONES 关联），分支名仅进程内使用不写入 metadata
+- 前端版 R5 = 测试准备（用例+数据+参数），可与 R4 并行创建
+- 前端版 R6 = 测试执行（Flow 用例 + 执行 + 报告），依赖 R4+R5 均完成
+- 前端版 R7/R8 = 部署验证 + 上线部署（deploy-agent + ee-fedo）
 
 ### G.3 常见问题
 
@@ -612,21 +625,22 @@ multica issue comment list <issue-key> --output json | \
 `ai-pr-code-review` skill 慢，per-Task N 次会把等待时间放大 N 倍。改为 per-repo 一次评审整仓改动，还剩最后一次 R6/R-code-tail 自审做 zero-error 保底（≤ 2 轮自修）。
 
 **Q：Lite 前端版和 Lite 后端版有什么区别？**
-- **Agent 不同**：后端版 7 个 `sdlc-lite-*-agent`，前端版 7 个 `sdlc-lite-fe-*-agent`
-- **R-Gate 不同**：前端版无 R3.5/R4（无独立契约阶段），但有 R6（PR+CI/CD）；后端版有 R3.5/R4 但无 R6
-- **开发阶段不同**：后端版是 TDD 循环（coding-agent），前端版是物料→协议→业务串行（material-agent + protocol-agent，对齐 fe-rd-workflow Stage 4）
-- **评审委托不同**：后端版代码评审委托 `dlc-review`，前端版代码评审额外委托 `fe-ai-review`
-- **产物目录不同**：后端版 `$WORKSPACE/backend/`，前端版 `$WORKSPACE/frontend/`
-- **version 字段不同**：后端版 `lite`，前端版 `lite-frontend`
+- **Agent 不同**：后端版 7 个 `sdlc-lite-*-agent`（含 dispatcher / chain-analysis / design / contract / coding / review / knowledge），前端版 7 个 `sdlc-lite-fe-*-agent`（pmo / requirement-agent / design-agent / coding-agent / autotest-agent / review-agent / deploy-agent）
+- **R-Gate 编号不同**：前端版 R1~R8，后端版 R0~R-code；前端版无 R3.5/R4（无契约骨架阶段），但有 R5 测试准备、R6 测试执行、R7 部署验证、R8 上线部署
+- **开发阶段不同**：后端版是多实例 TDD 循环（coding-agent，per-repo 并行），前端版是单 coding-agent 总协调（组件开发按仓库分组 → 项目编码，分支由 dlc-branch Skill 统一创建）
+- **测试阶段不同**：后端版无独立测试 agent，前端版有 autotest-agent 一体化完成用例设计+数据准备+测试执行
+- **部署阶段不同**：后端版无独立部署 agent，前端版有 deploy-agent（ee-fedo CI/CD + 泳道部署）
+- **产物目录不同**：后端版 `$WORKSPACE/backend/`，前端版 `$WORKSPACE/frontend/` + `testplan/` + `deploy/`
+- **version 字段不同**：后端版 `lite`，前端版 `lite-fe`
 
 **Q：Lite 前端版和 Pipeline 前端支线有什么区别？**
-- **编排复杂度**：Lite 前端版 1 Squad 7 agent，Pipeline 5 Squad 15+ agent
-- **关卡**：Lite 前端版单关卡（评审员 AI + 人工 LGTM），Pipeline 双层关卡（review-agent 预审 + 人工确认）
-- **能力范围**：Lite 前端版聚焦「设计 → 编码 → PR」，不做集成测试/泳道部署；Pipeline 支持前后端联合编排 + 集成测试
-- **复用关系**：Lite 前端版整合了 `fe-rd-workflow` 的 7 Stage 能力，拆解嵌入 7 个 Agent 指令
+- **编排复杂度**：Lite 前端版 1 Squad 7 agent（`sdlc-lite-fe` 单 Squad，pmo 兼任调度中心），Pipeline 5 Squad 15+ agent
+- **关卡**：Lite 前端版单关卡（review-agent AI + 人工 LGTM），Pipeline 双层关卡（review-agent 预审 + 人工确认）
+- **能力范围**：Lite 前端版覆盖需求→方案→编码→测试→部署全流程（R1~R8），Pipeline 支持前后端联合编排 + 集成测试 + 泳道部署
+- **Squad 架构**：Lite 前端版无独立 Leader，pmo 直接派发子 Issue 给执行 Agent；Pipeline 每个 Squad 有独立 Leader 转发
 
-**Q：Lite 前端版的前端外部 Skill 是什么？为什么要单独导入？**
-前端外部 Skill（arch-design / design-spec / max-material-dev / duo-protocol / fe-ai-review / duo-fedo / ee-code）来自 Friday SkillHub，不是本仓维护的。它们不进 `SKILL_DIRS` 白名单，由 `setup-sdlc-lite-frontend.sh` 动态从 workspace 查找并挂载（有则挂、无则 warn）。部署前必须确认这些 Skill 已导入 workspace，否则 agent 运行时会 `CLARIFICATION_NEEDED` 卡住。
+**Q：Lite 前端版的前端外部 Skill 是什么？为什么要通过 mtskills 安装？**
+前端外部 Skill（arch-design / design-spec / max-material-dev / duo-protocol / ee-ones / ingee-flex / citadel / ee-fedo 等）来自 Friday SkillHub，不是本仓维护的。它们通过 `sdlc-lite-fe.env` 中的 `FRIDAY_SKILLS_MOUNTS` 声明，由 `setup-sdlc-lite-fe.sh` 在 Phase 2 自动通过 `mtskills i` 拉取 → 上传到 workspace → 挂给指定 agent。任一拉取/上传失败直接 `exit 1`，不静默跳过。
 
 **Q：SKILL_ROLE_MAP 和 SKILL_PROTECT 什么关系？**
 - SKILL_PROTECT：deploy 时跳过不覆盖的 skill 名单（"保护"作用）
@@ -654,14 +668,14 @@ multica issue comment list <issue-key> --output json | \
 - **评审员**：AI 预审各 gate 产物（不替代人工 LGTM）
 - **知识官**：产 retrospective.md + KM 复盘、关父 Issue
 
-**Lite 前端版**（7 个 `sdlc-lite-fe-*-agent`）：
-- **fe-dispatcher-agent**（调度员）：环境检查（fe-rd-workflow Stage 1）+ 仓库初始化（Stage 2）+ 状态机中心调度
-- **fe-chain-analysis-agent**（链路分析师）：前端仓/页面/组件/协议拓扑分析（R0）
-- **fe-design-agent**（方案员）：demand-spec → tech-design → dev-tasks 三段（委托 `design-spec` skill，R1/R2/R3）
-- **fe-material-agent**（物料开发员）：Max/Leez 组件开发与发布（委托 `max-material-dev`，R-code 前半段）
-- **fe-protocol-agent**（协议+业务开发员）：DUO 协议 + 业务逻辑实现（委托 `duo-protocol`，R-code 后半段）
-- **fe-review-agent**（评审员）：全 gate AI 评审，文档类委托 `dlc-review`，代码类委托 `fe-ai-review`
-- **fe-knowledge-agent**（知识官）：R6 PR+CI/CD（委托 `duo-fedo` + `ee-code`）+ R7 全量验证+复盘（委托 `dlc-knowledge`）
+**Lite 前端版**（7 个 `sdlc-lite-fe-*-agent`，Squad 名 `sdlc-lite-fe`）：
+- **sdlc-lite-fe-pmo**（调度员）：唯一入口，意图识别、创建子 Issue、阶段流转（R1~R8）、doc_tree 维护、收尾关闭；兼任 Squad 调度中心，无独立 Leader
+- **sdlc-lite-fe-requirement-agent**（需求分析师）：PRD → 结构化需求 SPEC，PM 澄清循环 + AI 预审 + PM 确认（R1）
+- **sdlc-lite-fe-design-agent**（方案设计师）：arch-design（架构分析）+ tech-design（技术方案）+ dev-tasks（任务拆分），委托 `arch-design` + `design-spec` Skill，产物写学城（R2/R3）
+- **sdlc-lite-fe-coding-agent**（编码员）：编码总协调——按物料仓库分组组件任务→每仓创建一个组件开发子 Issue（max-material-dev，仓间并行）→创建项目编码子 Issue（DUO 协议→业务逻辑）；分支由 `dlc-branch` Skill 创建（R4）
+- **sdlc-lite-fe-autotest-agent**（测试员）：测试准备（用例+数据+参数，R5）+ 测试执行（Flow 用例+执行+报告，R6）
+- **sdlc-lite-fe-review-agent**（评审员）：全 gate AI 预审（R1~R7 全覆盖），PASS/FAIL + must-fix 分级
+- **sdlc-lite-fe-deploy-agent**（部署员）：泳道部署 + 集成验证（R7）+ 合并 PR + 生产发布 + KB 沉淀（R8），委托 `ee-fedo`
 
 ---
 
@@ -684,3 +698,4 @@ multica issue comment list <issue-key> --output json | \
 - **Pipeline 使用指南**：[`multica/docs/pipeline-guide.md`](../../../../multica/docs/pipeline-guide.md)
 - **CLAUDE.md 铁律**：[`multica/CLAUDE.md`](../../../../multica/CLAUDE.md)（尤其铁律 3/4 关于定制机制）
 - **回归测试 skill**：`/multica-lite-regression`（端到端跑 Lite 流水线自动化验证）
+

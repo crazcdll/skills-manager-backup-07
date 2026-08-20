@@ -1,7 +1,11 @@
 skill-manifest-version: 1
-skill-id: 93cd5fef9e91808817a02fe2e948d033c43c8e874f39064dc3a1c23224a28f43
+skill-id: 365565af39fbda57177cf082b0508c9ae6abcfda9556990122c0e326b02f035f
 
 files:
-  1a36fa733d5d9351e42eec48df07d3cc00d91e5dd0683eb3489e842781b89a69  SKILL.md
-  3b8a992173657b85923d128ea53a4b2eb990d3ea329d08820d159f7921fdad2d  references/recurrence-pattern.md
-  509320a5220549bb9e67b6c896662636862873aa5b3ede92b3d3b74bfc66a252  skill-optimization-plan-schedule-open-service.md
+  4346788f817dc44792b45d56d48ba1cd04d0eb8fecfffa723ef64fffa3a703ed  SKILL.md
+  a87014e5339775b3a1115f564ee8d17f8e8db6e78364bf8548765821ffdcdb1d  references/cli-cheatsheet.md
+  30714e6f5c75b5deea6f1db9510e30cd5390223fa3132d99436a00b4d28c301b  references/meeting-rooms.md
+  dcdead571ded697a41e3d323efb82ab4f91d54a2be1ff80182f31e156ccf05ae  references/meeting-time-and-timezone.md
+  668325759307164e1bc4369f40a4eb0e70b2762d46b5f8c08a4c8b64a1afea1e  references/recurrence-pattern.md
+  6c48141b0f7b743065c15a3e5f75a60ff2b6ae755a972879d085328a731c3b79  references/runtime-and-safety.md
+  0101d18f3e5ac5a3462ce3e3db01b56e42434c9fd7097e6c66b7bbf7f8d610d6  references/schedule-flow.md

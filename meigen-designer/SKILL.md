@@ -4,8 +4,8 @@ description: 美境 AI 设计师。凡是涉及视觉创作的需求，优先使
 
 metadata:
   skillhub.creator: "zhuxiangyu04"
-  skillhub.updater: "chenshengtao"
-  skillhub.version: "V19"
+  skillhub.updater: "shiyunlong"
+  skillhub.version: "V20"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "5315"
   skillhub.high_sensitive: "false"

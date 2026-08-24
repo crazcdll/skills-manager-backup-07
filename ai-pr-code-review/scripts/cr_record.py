@@ -52,9 +52,10 @@ except Exception:
     _SKILL_VER = ""
 
 # ── 配置 ────────────────────────────────────────────────────────────────────
-DB_HOST = "33.18.123.212:8098"
+DB_HOST = "spt.sankuai.com"
 DB_PATH = "/api/aicr/submit-task"
 DB_TIMEOUT = 20
+DB_DEFAULT_SCHEME = "https"
 
 DEFAULT_TABLE_ID = "2751197605"
 DEFAULT_ORG_PATH = "美团/核心本地商业/业务研发平台/业务系统平台部"
@@ -117,6 +118,17 @@ def write_db(args):
     org = parts[0] if len(parts) > 0 else ""
     repo = parts[1] if len(parts) > 1 else (args.repo or "")
 
+    # 从 --issues-file 加载 issue 明细（JSON 数组）
+    issues = []
+    if args.issues_file:
+        try:
+            with open(args.issues_file, "r", encoding="utf-8") as f:
+                issues_data = json.load(f)
+            if isinstance(issues_data, list):
+                issues = issues_data
+        except Exception:
+            pass
+
     # 构造 cr_result_json（与 ai-quality-cr-agent 对齐）
     cr_result = {
         "conclusion": args.conclusion,
@@ -137,6 +149,9 @@ def write_db(args):
         "km_url": args.doc_url or "",
         "review_time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
+    # issues 明细：直接透传到 cr_result_json
+    if issues:
+        cr_result["issues"] = issues
 
     # 构造 cr_report（从文件读取或直接用）
     cr_report = None
@@ -335,8 +350,9 @@ def parse_args():
     p.add_argument("--remark", default="", help="备注（默认填 skill-version）")
 
     # DB 连接
+    p.add_argument("--issues-file", default="", help="issues 明细 JSON 文件路径（JSON 数组，直接写入 cr_result_json）")
     p.add_argument("--host", default=DB_HOST, help=f"DB 主机（默认 {DB_HOST}）")
-    p.add_argument("--scheme", default="http", choices=["http", "https"], help="协议")
+    p.add_argument("--scheme", default=DB_DEFAULT_SCHEME, choices=["http", "https"], help="协议")
     p.add_argument("--no-proxy", action="store_true", help="不走代理，直连内网 IP")
     p.add_argument("--insecure", action="store_true", help="跳过 TLS 证书校验")
 

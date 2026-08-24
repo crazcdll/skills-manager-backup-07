@@ -8,6 +8,7 @@
 | MT:HA-J002 | CompletableFuture必须指定自定义线程池，禁止默认commonPool，禁止嵌套join，禁止parallelStream | P1 |
 | MT:HA-J003 | ThreadLocal必须在finally中remove，跨线程池必须用TTL，禁止InheritableThreadLocal | P1 |
 | MT:HA-J004 | 并发Map用computeIfAbsent优于putIfAbsent；遍历时禁止修改；线程池需配置告警 | P1 |
+| MT:HA-J005 | Future 获取结果必须设置超时，禁止无参 `Future.get()` | P0 |
 
 ### 强制禁止
 - ✗ 禁止 `Executors.newFixedThreadPool()`（LinkedBlockingQueue 无界，OOM）
@@ -22,6 +23,7 @@
 - ✗ 禁止父子任务共用同一线程池
 - ✗ 禁止 ThreadLocal 不 remove
 - ✗ 禁止使用 InheritableThreadLocal
+- ✗ 禁止无参调用 `Future.get()`
 
 ### 检查点
 - [ ] 线程池是否使用有界队列
@@ -31,5 +33,6 @@
 - [ ] 是否存在嵌套 join 或 parallelStream
 - [ ] ThreadLocal 是否在 finally 中 remove
 - [ ] 是否使用了 InheritableThreadLocal
+- [ ] Future.get() 是否设置了超时参数
 
 → 完整规则含示例见 mt-java-coding-standards/HA-07-JVM与线程池高可用规范.md

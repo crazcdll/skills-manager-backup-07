@@ -5,6 +5,7 @@
 | MT:HA-API001 | 字段变更必须向后兼容：禁止删除/改类型，新增必须optional有默认值，枚举消费必须有default | P0（需满足下方前置条件） |
 | MT:HA-API002 | 序列化安全：Jackson FAIL_ON_UNKNOWN_PROPERTIES=false，Thrift字段标optional，Protobuf用reserved | P1 |
 | MT:HA-API003 | 接口版本管理：新旧共存 ≥2个迭代周期，按调用方灰度切流，禁止一次性全量切换 | P1 |
+| MT:HA-API004 | Thrift IDL 变更必须保持向后兼容：禁止修改/删除已有服务名、方法名、字段，字段ID不可变，新增字段必须 optional | P0 |
 
 ### MT:HA-API001 P0 判定前置条件（必须全部满足）
 

@@ -7,7 +7,7 @@ PR → 大象推送 → 登记多维表格，I/O 操作均重试4次失败通知
 metadata:
   skillhub.creator: "mengmuzi"
   skillhub.updater: "mengmuzi"
-  skillhub.version: "V150"
+  skillhub.version: "V152"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "5205"
   skillhub.high_sensitive: "false"
@@ -639,10 +639,10 @@ note: 纯配置/测试/重构变更，无业务 spec 要求
    - **⚠️ CR: 前缀补全规则**：CR checklist 源文件中的规则 ID 可能没有 `CR:` 前缀（如 `STYLE-02`、`SOLID-01`），输出时必须统一补上 `CR:` 前缀（如 `[CR:STYLE-02]`、`[CR:SOLID-01]`）。所有 P0~P3 问题输出中的规则编号必须带前缀，MT: 或 CR:，不允许出现无前缀的裸规则 ID。
    - **⚠️ 逻辑 Bug 标注规则**：AI 在审查中自主发现的代码逻辑错误（非空指针/异常处理/规范/性能类问题，而是取值错误、条件判断反转、数据类型误用等），标注为 `[CR:LOGIC]`，归入对应 P 层级（通常为 P0 或 P1）。
    - **⚠️ 核心要求：MT: 规则与 CR: 规则同等对待，不是"加载了就行"**。加载后必须逐条审查，对每条 MT: 规则检查代码是否命中，产出与 CR: 规则完全相同的审查结论（命中/未命中/不适用）。MT: 规则报出的问题在输出中使用 `[{规则缩写}]` 拼接，格式与 CR: 规则一致，例如：
-     - P0：`**🔴 [P0-01] [MT:HA-J001] Executors禁用 — ...**`
-     - P1：`**🟠 [P1-01] [MT:HA-F001] RPC失败设计缺失 — ...**`
-     - P2：`**🟡 [P2-01] [MT:N001] 常量定义规范 — ...**`
-     - P3：`**🔵 [P3-01] [MT:DB-04] 索引优化建议 — ...**`
+     - P0：severity="P0", ruleId="MT:HA-J001"
+     - P1：severity="P1", ruleId="MT:HA-F001"
+     - P2：severity="P2", ruleId="MT:N001"
+     - P3：severity="P3", ruleId="MT:DB-04"
    - 审查结果必须包含在最终报告中，不能只记录"加载了哪些规则文件"而不输出逐条检查结论
 
 4. **日志输出与文档摘要**：
@@ -651,7 +651,9 @@ note: 纯配置/测试/重构变更，无业务 spec 要求
      - 命中规则格式：`[MT-RULES-HIT] MT:N002 → P0-01 | MT:HA-F001 → P1-02 | ...`（只列命中的，不列未命中/不适用）
    - **学城文档摘要**（写入「四、Review 发现 → 规则命中摘要」子段落）：用综述文字说明规则命中情况及命中分布。格式：激活信号 + 总命中数（CR: X 条 + MT: Y 条）+ 按 P 层级分布（P0/P1/P2/P3 各命中几条+命中规则编号列表，**同一问题同时命中 CR: 和 MT: 的，两个编号都列出**）+ 逻辑 Bug 检出数（独立于 P0-P3 的额外维度，体现 AI 自主发现的逻辑错误数量）+ CR/MT 分别命中几条。检出细节不在此重复，统一在 P0~P3 各层级列表中体现
 
-5. **⚠️ 防误报与去重**：mt-java 规则报出的 P0/P1 必须同样通过三要素/报出门槛校验（代码证据确凿 + 触达路径可达 + 线上影响明确），不满足的降级为 P2/P3。与现有 `CR:` 规则**完全重叠**时（同一代码行+同一问题本质），**合并为一条 issue，标题同时标注两个规则编号**，格式为 `[CR:xxx] + [MT:yyy]`，不重复报两条。示例：`🔴 [P0-01] [CR:NP-01] + [MT:N002] 主流程中断 — ...`。**部分重叠时**（如同为 NPE 但 MT: 规则覆盖了 CR: 未覆盖的细分场景，如并发集合操作、包装类拆箱），两个规则各自报各自覆盖的部分，不互相吞掉。**仅命中 MT: 规则而无对应 CR: 规则**时，标题只标 `[MT:xxx]`。**仅命中 CR: 规则而无对应 MT: 规则**时，标题只标 `[CR:xxx]`。
+5. **⚠️ 防误报与去重**：mt-java 规则报出的 P0/P1 必须同样通过三要素/报出门槛校验（代码证据确凿 + 触达路径可达 + 线上影响明确），不满足的降级为 P2/P3。与现有 `CR:` 规则**完全重叠**时（同一代码行+同一问题本质），**合并为一条 issue，标题同时标注两个规则编号**，格式为 `ruleId: "CR:xxx + MT:yyy"`（JSON 中 ruleId 字段用加号连接），不重复报两条。示例：`🔴 [P0-01] [CR:NP-01] + [MT:N002] 主流程中断 — ...`。**部分重叠时**（如同为 NPE 但 MT: 规则覆盖了 CR: 未覆盖的细分场景，如并发集合操作、包装类拆箱），两个规则各自报各自覆盖的部分，不互相吞掉。**仅命中 MT: 规则而无对应 CR: 规则**时，标题只标 `[MT:xxx]`。**仅命中 CR: 规则而无对应 MT: 规则**时，标题只标 `[CR:xxx]`。
+
+> 🚨 **issue 输出方式（强制）**：Step 4C~4G 的所有 P0/P1/P2/P3/confirm issue **必须以统一 JSON 格式写入 `/tmp/cr_issues_{repo}_{branch}.json`**（JSON 数组）。**禁止**在对话中输出 findings 详情、禁止手写 Markdown 文案。每条 issue 的字段格式见各步骤说明。文件命名：`{repo}` 取仓库名（多仓库时含 org 前缀），`{branch}` 取目标分支名。无 issue 时写 `[]`。
 
 **4B. 前置确认**：`$REPO_SEARCH` 是否实际调用过（上下文中必须有 exec `$REPO_SEARCH` 的输出记录）？所有触发器是否已反查？消费方是否兼容？任意不兼容 → 升级 P1。**如果 `REPO_SEARCH_AVAILABLE=true` 但未找到任何 `$REPO_SEARCH` 调用记录 → 必须回到 Step 3B 补执行，禁止跳过。**
 
@@ -673,28 +675,29 @@ note: 纯配置/测试/重构变更，无业务 spec 要求
 >
 > ⚠️ **禁止在输出文档中出现"降级"、"从 P0 降为"等字眼。三要素是内部判定逻辑，对用户透明——用户看到的每个级别就是最终结论。**
 
-> 🚨 **P0/P1 输出格式（强制，每条必须包含以下全部字段，不可省略）**：
+> 🚨 **P0/P1 issue JSON 字段填充要求（强制，每条必须包含以下全部字段，不可省略）**：
+> 每条 P0/P1 issue 必须以如下 JSON 格式写入 `/tmp/cr_issues_{repo}_{branch}.json`（JSON 数组）：
+> ```json
+> {
+>   "severity": "P0",
+>   "ruleId": "CR:NP-01",
+>   "anomalyType": "空指针异常",
+>   "summary": "一句话概括，≤30字",
+>   "file": "完整文件路径",
+>   "line": 42,
+>   "lineType": "ADDED",
+>   "description": "合并「检出原因 + 触达分析」——为什么是 P0/P1、命中哪条规则、完整调用链（被谁调用、入参来源、中间转换、外层有无 try-catch）。≥2句话实质内容，禁止'可能''建议确认'。",
+>   "risk": "合并「线上场景 + 影响范围」——什么业务场景触发、触发数据长什么样、发生概率（高/中/低）、影响链（单次/批量失败、是否重试风暴、有无兜底）、影响面（单用户/单商户/全量）。",
+>   "suggestion": "给出具体修复代码片段（展示修复后完整代码，含异常处理/日志/兜底），禁止只说'加try-catch'。多种方案时列推荐+备选。",
+>   "code": "粘贴完整问题代码片段（含足够上下文，≥3-5行），用于文档展示。",
+>   "source": "step4",
+>   "reach_analysis": "完整调用链分析——这个方法被谁调用？入参从哪来？外层有无 try-catch？",
+>   "online_scenario": "具体业务场景描述——什么用户操作/什么定时任务会触发？触发条件？发生概率？",
+>   "impact_scope": "触发后的完整影响链——哪个接口/功能受影响？单次还是批量失败？有无降级兜底？影响面？",
+>   "commentId": null
+> }
 > ```
-> **🔴 [P0-xx] {异常类型} — {一句话概括}**
-> 
-> - **文件**：{完整文件路径} L{起始行号}-L{结束行号}
-> - **问题代码**：
->   ```java
->   {粘贴完整的问题代码片段，不要只贴一行，要包含足够上下文}
->   ```
-> - **检出原因**：{为什么这是一个 P0/P1 问题？命中了哪条规则？与哪条零容忍/稳定性条目对应？为什么不是 P2？用 2-3 句话说清楚判定依据。}
-> - **触达分析**：{完整调用链分析——这个方法被谁调用？入参从哪来（RPC/MQ/HTTP/配置/用户输入）？中间经过哪些转换？到达问题代码点时数据是什么状态？外层有无 try-catch？如果有，catch 了什么、处理了什么？}
-> - **线上场景**：{具体业务场景描述——什么用户操作/什么定时任务/什么消息会触发这条代码路径？触发时数据长什么样？在什么条件下会出异常？发生概率是高（每天都可能）/中（特定数据才触发）/低（极端边界情况）？}
-> - **影响范围**：{触发后的完整影响链——哪个接口/功能受影响？是单次请求失败还是批量失败？是否会导致上游重试风暴？有无降级兜底？对用户体验的具体影响是什么（页面报错/数据不一致/功能不可用）？影响面：单个用户/单个商户/全量？}
-> - **修复建议**：
->   ```java
->   {给出具体的修复代码片段，不要只说"加 try-catch"或"加判空"。
->    展示修复后的完整代码，包含异常处理、日志、兜底逻辑。}
->   ```
->   {如有多种修复方案，列出推荐方案和备选方案，说明各自优劣。}
-> ```
->
-> ⚠️ P0/P1 的每个字段都必须有实质内容（≥2 句话），禁止用"可能""建议确认"等模糊措辞敷衍。如果某个字段写不出实质内容，说明证据不足，应归为 P2/P3。
+> 字段写不出实质内容 = 证据不足，应归为 P2/P3。
 
 **4D. P1 稳定性与安全** 🟠（合并前必须修复）
 > ⚠️ **硬门禁：在执行 P1 审查前，必须先 read_file `references/stability-security-checklist.md`。未读取该文件直接审查 = P1 漏报。**
@@ -713,28 +716,40 @@ note: 纯配置/测试/重构变更，无业务 spec 要求
 > - "没有事务" — 跨 RPC + 乐观锁 + 逐步 catch 有意设计 → 不报
 > - "catch(Exception) 范围过宽" — 已有 log.error + Cat 上报 → 归为 P2
 >
-> P1 输出格式同 P0（所有字段必须有实质内容）。
+> P1 issue JSON 字段填充要求同 P0（description/risk/suggestion/code/reach_analysis/online_scenario/impact_scope 必须有实质内容），severity 填 "P1"。
 
 **4E. P2 规范与架构** 🟡（本 MR 修或跟进）
 > ⚠️ **硬门禁：在执行 P2 审查前，必须先 read_file `references/coding-standards-checklist.md`。未读取该文件直接审查 = P2 漏报。**
 >
 > ⚠️ **同时审查 4A 加载的 MT: 规则中标注为 P2 层级的条目**（具体编号见 `mt-java-signal-router.md` 路由表「注入层级」列的 P2 条目），与上述 CR: 规则逐条并行检查，命中的问题用 `[MT:xxx]` 缩写输出，格式与 CR: 规则一致。
 >
-> **P2/P3 输出格式（精简，每条 2-3 行即可）**：
+> **P2/P3 issue JSON 格式（精简）**：
+> 每条 P2/P3 issue 写入同一个 `/tmp/cr_issues_{repo}_{branch}.json` 数组：
+> ```json
+> {
+>   "severity": "P2",
+>   "ruleId": "MT:N001",
+>   "anomalyType": "常量定义规范",
+>   "summary": "一句话概括",
+>   "file": "文件路径",
+>   "line": 15,
+>   "lineType": "ADDED",
+>   "description": "问题描述 + 命中规则",
+>   "risk": "风险说明",
+>   "suggestion": "修复建议 + 代码示例",
+>   "code": "问题代码片段（可选，无则填空字符串）",
+>   "source": "step4",
+>   "commentId": null
+> }
 > ```
-> **🟡 [P2-xx] {一句话概括}**
-> {文件名} L{行号}：{问题描述 + 建议}，示例：`{修复代码片段}`
-> ```
+> P2 的 description 写问题 + 建议，suggestion 给修复代码片段。P3 同 P2 格式，severity 填 "P3"。
 
 **4F. P3 性能与现代化** 🔵（可选）
 > ⚠️ **硬门禁：在执行 P3 审查前，必须先 read_file `references/performance-checklist.md`。未读取该文件直接审查 = P3 漏报。**
 >
 > ⚠️ **同时审查 4A 加载的 MT: 规则中标注为 P3 层级的条目**（具体编号见 `mt-java-signal-router.md` 路由表「注入层级」列的 P3 条目），与上述 CR: 规则逐条并行检查，命中的问题用 `[MT:xxx]` 缩写输出，格式与 CR: 规则一致。
 >
-> ```
-> **🔵 [P3-xx] {一句话概括}**
-> {文件名} L{行号}：{建议内容}
-> ```
+> P3 issue JSON 格式同 P2，severity 填 "P3"，description 写建议内容。
 
 **4G. 业务逻辑审查** 🔍（基于 SDD + 需求 + 上下文）
 
@@ -767,13 +782,26 @@ note: 纯配置/测试/重构变更，无业务 spec 要求
 - 仅单源推断 → 标 `confirm`（归入人工复审要点）
 - 无依据 → 禁止输出
 
-**输出格式：**
-> 🔍 **[BL:FUNC-MISS] {一句话概括}**
-> - **依据**：{SDD/ONES需求/上下文代码 中的具体引用}
-> - **预期**：{根据依据预期行为}
-> - **实际**：{代码实际实现}
-> - **差异分析**：{业务后果}
-> - **级别**：{P0/P1/P2/confirm}
+**输出格式（JSON，写入同一个 `/tmp/cr_issues_{repo}_{branch}.json`）**：
+> ```json
+> {
+>   "severity": "P1",
+>   "ruleId": "BL:FUNC-MISS",
+>   "anomalyType": "功能遗漏",
+>   "summary": "一句话概括",
+>   "file": "文件路径（无则填空字符串）",
+>   "line": 0,
+>   "lineType": "ADDED",
+>   "description": "依据：{SDD/ONES需求/上下文代码 中的具体引用}；预期：{预期行为}；实际：{实际实现}",
+>   "risk": "差异分析：{业务后果}",
+>   "suggestion": "修复建议",
+>   "code": "",
+>   "source": "step4",
+>   "commentId": null
+> }
+> ```
+> severity 取级别字段值（P0/P1/P2/confirm）。confirm 时 severity 填 "confirm"。
+> ruleId 取 BL:FUNC-MISS / BL:LOGIC-DEVIATE / BL:BOUNDARY-MISS / BL:RULE-CONFLICT。
 
 **去重规则**：与 4C/4D/4E/4F 命中同一 file+line+同类问题时，保留 4C-4F 的 finding，丢弃本步骤的重复项。
 
@@ -793,8 +821,6 @@ note: 纯配置/测试/重构变更，无业务 spec 要求
 > - **严禁**输出以下任何内容：「是否继续？」「回复确认后继续」「请告知是否发布」「如需继续请回复」「等待你的指示」或任何形式的停顿提示
 > - **严禁**在对话中等待用户回复后再继续。用户不需要也不应该触发后续步骤。
 > - 违反本条 = 本次 CR 无效，必须重跑。
-
----
 
 ## Step 5：Cross-Repo 跨仓库检查（多仓库专属，单仓库跳过）
 
@@ -853,6 +879,8 @@ note: 纯配置/测试/重构变更，无业务 spec 要求
 > Step 6 的文档 URL 在 Step 8 大象推送时使用（Step 8 必须等 Step 6 完成）。
 
 > ⚠️ **硬门禁：在写任何输出前，必须先 read_file `references/citadel-write-guide.md`（命令规范、失败处理）和 `references/comment-templates.md`（文档内容格式模板）。未读取这两个文件直接写输出 = 格式一定不对。**
+
+> 🚨 **Issue 数据来源**：Step 6 的「四、Review 发现」章节内容从 `/tmp/cr_issues_{repo}_{branch}.json` 读取拼装。读取 JSON 数组后，按 P0→P1→P2→P3→confirm 顺序排列，组内编号 `[P0-1] [P0-2] [P1-1] ...`。P0/P1 用详细模板（含触达分析等字段），P2/P3 用精简模板。`comment-templates.md` 中的模板即为 JSON 字段拼装规则。
 
 ### 6a. 日期子目录（防止父目录子文档数量超限）
 
@@ -977,7 +1005,7 @@ note: 纯配置/测试/重构变更，无业务 spec 要求
 
 调用 `$SKILL_ROOT/scripts/cr_record.py` 脚本完成记录持久化。**禁止 AI 手动拼 columnIds / data JSON / 时间戳**，必须通过脚本写入。脚本内部按优先级执行：
 
-1. **路径 A（主）**：HTTP POST 到 DB（`33.18.123.212:8098/api/aicr/submit-task`），写入 `cr_task` 表
+1. **路径 A（主）**：HTTP POST 到 DB（`spt.sankuai.com/api/aicr/submit-task`），写入 `cr_task` 表
 2. **路径 B（降级）**：DB 失败 → 自动降级到多维表格 `addData`（脚本内部处理 `getTableMeta`、时间戳计算、列 ID 映射、data 拼装、重试）
 3. **全部失败**：输出错误信息，AI 通知提交人，不阻塞后续步骤
 
@@ -1002,6 +1030,7 @@ python3 "$SKILL_ROOT/scripts/cr_record.py" \
   --skill-version "ai-pr-code-review {{SKILL_VERSION}}" \
   --org-id "{orgId}" \
   --table-id "{tableId}" \
+  --issues-file "{issuesFile}" \
   --no-proxy
 ```
 
@@ -1026,6 +1055,7 @@ python3 "$SKILL_ROOT/scripts/cr_record.py" \
 | `--table-id` | ✅ | Step 0/2 | 多维表格 ID（降级时使用） |
 | `--no-proxy` | 推荐 | 固定 | 内网直连，不走代理 |
 | `--remark` | 可选 | — | 备注（默认填 skill-version） |
+| `--issues-file` | 可选 | Step 4C~4G | issues 明细 JSON 文件路径（`/tmp/cr_issues_{repo}_{branch}.json`，Step 4 各步骤直接产出） |
 | `--cr-report-file` | 可选 | — | CR 报告文件路径（DB 存储用） |
 | `--dry-run` | 可选 | — | 只打印参数，不执行写入 |
 | `--table-only` | 可选 | — | 跳过 DB，直接写多维表格 |

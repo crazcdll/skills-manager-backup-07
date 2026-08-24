@@ -66,12 +66,13 @@ dx-bot-cli group set-config \
   --history-visibility week   # none / day / week / all
 ```
 
-## 拉 Bot 入群
+## Bot 入群/退群
 
 ```bash
 dx-bot-cli group add-bot --gid <群ID> --app-key <应用appkey> --force
+dx-bot-cli group remove-bot --gid <群ID> --force
 ```
 
-## Proxy 模式限制
+## 模式支持
 
-以下命令仅 Direct 模式支持：`dismiss`、`transfer`、`set-admin`、`set-notice`、`update`、`set-config`
+上述所有群管理命令 direct / proxy 模式均支持。

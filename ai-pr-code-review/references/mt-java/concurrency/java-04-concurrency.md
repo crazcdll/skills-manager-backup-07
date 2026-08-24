@@ -16,6 +16,7 @@
 | MT:N013 | 多线程禁止使用HashMap，推荐ConcurrentHashMap；computeIfAbsent优于putIfAbsent | P2 |
 | MT:N014 | 高并发避免用"等于"判断作为中断条件，采用区间判断（≤0 替代 ==0） | P2 |
 | MT:N015 | 避免不必要的装箱拆箱，频繁计数用LongAdder替代AtomicLong | P2 |
+| MT:N016 | 方法调用优化：控制调用层级和深度递归，热点方法优化详见 JAVA-02 N006 | P3 |
 
 ### 强制禁止
 - ✗ 禁止多线程共享 Random 实例

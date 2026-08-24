@@ -5,6 +5,7 @@
 | MT:HA-CF001 | 配置必须有硬编码默认值+volatile+数值范围校验+JSON解析try-catch，三级降级链(Lion>本地缓存>硬编码) | P1 |
 | MT:HA-CF002 | 功能开关必须boolean+默认关闭+Lion监听器，嵌套 ≤2层，2迭代后清理 | P1 |
 | MT:HA-CF003 | P0配置变更必须灰度推送：1台→5min→10%→50%→全量，回调禁止耗时操作 | P1 |
+| MT:HA-CF004 | 禁止使用 `banma_util` 包的 `BanmaMtConfigUtil` 和 `MtConfigClientFactoryV2`，配置读取必须用 Lion Client API | P0 |
 
 ### 强制禁止
 - ✗ 禁止配置项无默认值
@@ -14,6 +15,7 @@
 - ✗ 禁止开关嵌套超过 2 层
 - ✗ 禁止 P0 配置不灰度直接全量推送
 - ✗ 禁止配置回调中包含耗时操作（RPC、DB查询）
+- ✗ 禁止使用 `BanmaMtConfigUtil` / `MtConfigClientFactoryV2`
 
 ### 检查点
 - [ ] 配置字段是否声明为 volatile
@@ -23,5 +25,6 @@
 - [ ] 功能开关是否 boolean 类型默认关闭
 - [ ] 开关嵌套是否超过 2 层
 - [ ] 是否有过期未清理的开关代码
+- [ ] 是否使用了禁用的 banma_util 配置类
 
 → 完整规则含示例见 mt-java-coding-standards/HA-11-配置安全规范.md

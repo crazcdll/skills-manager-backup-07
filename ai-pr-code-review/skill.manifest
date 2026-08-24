@@ -1,9 +1,9 @@
 skill-manifest-version: 1
-skill-id: 5af844e035775f575c9f676c7a58320841ec836092458a4479be15e1fa80aa3d
+skill-id: 1d88332bf608325ff52ba0d6084710fc83f345dc450a4a5a41d30569bf1b797e
 
 files:
   2bdf304c8b913391ef02ee608d2d53e4db8f03d5c831f2b87aadbb8a21a02286  .skillignore
-  c8801b1aaabd80f69fd0a45bd208af41aa34260c269e40bab38625ec84701687  SKILL.md
+  0bd8ab051efc3fe7f774f58a66d2a77f5ca02b9d1eb8181c591a9fd45d42d64e  SKILL.md
   88915a3666de76b7c2dcb7fe2966810d28431bd2d5dd9e0e0224b6f41a527cf8  cr-config.yaml
   f8dbb8d87d35cba06489b0e88fab030c8f842a97fc08697f7daf2f4ba35bb460  references/citadel-write-guide.md
   25e2d61d6a496cbf88e513f19d7ce97d5575e15f0e5568c7e9022a0f96d0a023  references/coding-standards-checklist.md
@@ -13,28 +13,28 @@ files:
   77978a49b1e250e0f1570c963e83400deeb562c0b4bd8d2ef1b3a3c289987e3a  references/daxiang-notify-api.md
   bfef5e1630b703b647b049bf9e234bc988a732c49e8d0b188a4a169d92602747  references/domain-knowledge.md
   91abb47bc983d5b9917cd53920eb61cf2eae1b77d8d5187d9b8a828f0539a635  references/env-setup-guide.md
-  d7d57901a15d29bdbd91571b8e14bd792db9d0b285f70085631359e18eb06bcd  references/mt-java-signal-router.md
+  2a5c51fceec37662ba9b92be5db941346d505dcccf0a29fdce2c241bb451cced  references/mt-java-signal-router.md
   31278891e4b83184b3a04e78e1193be17d59b8eda76ac15853cbf0efd8bad0f3  references/mt-java/_always/java-01-constants.md
   4941f8bb7a32642cd46b45710cd92d50c4361c44568bb5c824fde7fa38097bb6  references/mt-java/_always/java-02-oop-core.md
   c13fbee9fa069a5319ba7b054e56ab81bf18dac0242d4b470ec19aa852adb80d  references/mt-java/_always/java-05-exception-core.md
-  9192298e567b332355a9f54db4b9515b7f0a43a59bc3b061921603f6c31c1352  references/mt-java/api-compat/ha-10-api-compat.md
+  313f122908a34a74ce8cc8e0031a36b267ff17eb6caf8b12f81b403ef15517b5  references/mt-java/api-compat/ha-10-api-compat.md
   b05a499631614366d1dcdf42a96f985efd5c9c8791a20f23f569fbdbddc7a2c5  references/mt-java/api-compat/java-08-api-design.md
   721abe09c2c894e02207cf2ade2fffc6765b5276c63ccf69aa16aea114408097  references/mt-java/cache/ha-05-cache-ha.md
   9e0fab99d27b6d658cf25d77202763b4c4d1dabe7fe2eeaf31022e058bdc2933  references/mt-java/cache/ha-09-consistency.md
-  3809c6755553529de57a348681018a48cc679b57d20e689a2919393fd69f2898  references/mt-java/concurrency/ha-07-threadpool.md
-  7e645984ed92e439874bee7bb2ff511fd1c9698939a5275bc45d9b5db390fbc6  references/mt-java/concurrency/java-04-concurrency.md
-  2a4473e8cfe35c052bc59ad36e7879d25e9aa5bbf9a43b3a93319579e6184cd4  references/mt-java/config/ha-11-config-safety.md
+  069d9a6e9061a40e5f7d0ba8461f86c7b53a62f69410623f5d53a43b992405d6  references/mt-java/concurrency/ha-07-threadpool.md
+  832e5621ea72c1baaa193ce141108d7eaaafebdbe0cd020f1e4aa21cb514c426  references/mt-java/concurrency/java-04-concurrency.md
+  e768ee232433af827abbc9282b93456b2c476da23d085bb5ed0e323a580ef2e3  references/mt-java/config/ha-11-config-safety.md
   f986c2f28ed4bf8afdeedeb2accda96be2ad55005485f055d5c52c016a0aa883  references/mt-java/ddl/db-03-table-design.md
   74c7cfab4c7ed96fee424925d21b2c3a611f08f3e49a66e6f29ee3790c6068c6  references/mt-java/ddl/db-04-index.md
   b5bb19aa4dccec0c2ad55cc2f6c8b8c0e27ac17ea19b09c16f91a5f68275f2ee  references/mt-java/dependency/dep-01-dependency.md
   f9cda61133951c47a36374c1d527abe76f8bd2e6546329b8f1be685931306910  references/mt-java/es/ha-13-es-ha.md
-  fb3b4505bf07b8e47a1efcdf7950e96db010f44f9168f90234c9fbfab9358372  references/mt-java/exception/ha-03-defensive.md
+  3f90d2673744ecea9840099855713f69dda697ed5301686da84fa5288f4eaaf9  references/mt-java/exception/ha-03-defensive.md
   de464bb25ab30daccf354c6005d011f9c43d5156b050b9f1c0371ce6941d474a  references/mt-java/exception/java-05-exception-full.md
   cc3c5bb35e0556a4656975382a577bf25aae5bd05706079fc119bf9ea3abb866  references/mt-java/hbase/ha-14-hbase-ha.md
   fae0bcfdc3756995e24b6971cceb0700bb5cecbfc86cba4d315c6b0857834c73  references/mt-java/log/java-06-logging.md
   760726e0fb9ad00a05829673a0c0819cf9dea9df60d4be09160891aea302131a  references/mt-java/mq/ha-06-mq-ha.md
   faf9daf94cf0f93d81ab4a8778b7eb877b275cca31938a9057109d36ec12adab  references/mt-java/rpc/ha-01-failure-design.md
-  33118e581c6ac04cb8a99cd4680e7114126945cbb5e31a6797686e908a44cc44  references/mt-java/rpc/ha-02-observability.md
+  1e567687a60d7c2ff8c5132ad3467dc9fefbcae3db34aa99984c11944afbe868  references/mt-java/rpc/ha-02-observability.md
   df31421ec8b9850fbd245cfd3f5b0adea9f7a8223c439e3a563eba65b9971496  references/mt-java/security/ha-12-auth.md
   113cf481e4bf908e3c2bb445bb598294d9e312233282525b340247b414533bfe  references/mt-java/security/sec-a-injection.md
   d0dcff26a4ff9f64e91156b5accc25f396f4f559344a79016d6c812f6fd04458  references/mt-java/security/sec-b-data-protection.md
@@ -53,7 +53,7 @@ files:
   17839f717aa6ede64a3e5872bfd0b79e4dd128040b70abfa53d3fc3c05c0a8af  references/zero-tolerance-checklist.md
   a244c5a0ebdd495b0f1b130b7823f99e0b358deecdcf2b0c4bd22d832a0e5307  scripts/code_cli.py
   f1cb6102947ce051f996e11bb239b3384d11f616ea04ca340dca8d16b750739c  scripts/cr_doc_render.py
-  8a8cef6c00b3452bf4ef7ce674ae8c2a9ff134f502474f633867a14551a28aae  scripts/cr_record.py
+  fe93895f547b0b2c63ad43d33755b6f6fb27f389f2c7ff2aff9ccdc4a2380b4e  scripts/cr_record.py
   fd65f486837d6e512de7fdc70fc8b24c1c21c12dda64c264bdd6535edc4be7be  scripts/env-check.sh
   21ac358b246cc1e6ae2cc5373cecfd45280440f50ff40f3126a168b3387c1f6e  scripts/get_org_info.py
   c240902056d2ec8348fe23b425c27a5df86ea1c9a95a65ab830f6bb6b6c31ea4  scripts/notify.py

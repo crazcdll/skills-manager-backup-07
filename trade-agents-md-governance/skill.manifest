@@ -1,0 +1,7 @@
+skill-manifest-version: 1
+skill-id: 2c4d7d89b23a0b3b17a58d03fadbdd602ac7b4e7488801ad40cb9d80791e9553
+
+files:
+  31e00211a8d9d3f6aabcbda8eeac1f255f9667f968cdd815e86b58d843207940  SKILL.md
+  9b9885d7292ce04705b8d13b03d3d604bf28d63952eca5adf45fa52fa94ccc69  agents/openai.yaml
+  917ff765edac5efdca15d0e332410364b7847b81ff8a82a80cb3fdcff03547a8  references/patterns.md

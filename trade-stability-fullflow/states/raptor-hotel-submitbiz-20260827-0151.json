@@ -1,0 +1,125 @@
+{
+  "issue_id": "raptor-hotel-submitbiz-20260827-0151",
+  "created_at": "2026-08-27 10:49:55",
+  "updated_at": "2026-08-27 14:07:09",
+  "current_state": "S7_DONE",
+  "signal_raw": "Raptor JS异常：submitBiz: 预订失败；projectId=39698；窗口=2026-08-27 01:51:00 至 01:55:00；日志=CHL-5d6fcdb7-8b75-403b-a44a-994efddaad5e",
+  "steps": {
+    "S1_INFO_FETCH": {
+      "status": "completed",
+      "started_at": "2026-08-27 10:49:56",
+      "completed_at": "2026-08-27 10:50:32",
+      "guard_passed": true,
+      "output": {
+        "signal_type": "告警",
+        "business_line": "酒",
+        "bundle_name": "rn_hotel_combine-order-submit",
+        "page_name": "境外组合预定提单页",
+        "problem_time": "2026-08-27 01:51",
+        "user_identifier": "无",
+        "tech_stack": "DUO",
+        "project_id": "39698",
+        "ssh_url": "ssh://git@git.sankuai.com/nibfe/duo-hotel-combine-order-submit.git",
+        "raptor_link": "https://raptor.mws.sankuai.com/frontend/error/detail?type=datetimerange&webVersion=all&metric=AVG&speedPoint=11,16,18,25&singleSpeedPoint=16&isPerfInMp=false&perfBundleId=3763&dyeingId=&start=20260827015100&end=20260827015500&projectId=39698&errorListCurrentPage=1&errorName=submitBiz%3A%20%E9%A2%84%E8%AE%A2%E5%A4%B1%E8%B4%A5&errorDetailCurrentPage=1&errorDetailCurrentPageSize=50&openingErrorLogId=CHL-5d6fcdb7-8b75-403b-a44a-994efddaad5e&errorDetailLogDate=1787766940000&openErrorType=jsError",
+        "diva_link": "https://diva.sankuai.com/bundle/rn_hotel_combine-order-submit/versions?env=prod",
+        "appkey": "com.sankuai.mptrade.hotel.apic"
+      }
+    },
+    "S2_CHANGE_QUERY": {
+      "status": "completed",
+      "started_at": "2026-08-27 10:50:33",
+      "completed_at": "2026-08-27 10:54:25",
+      "guard_passed": true,
+      "sub_tracks": {
+        "mcm": {
+          "status": "pending",
+          "result": null
+        },
+        "diva": {
+          "status": "pending",
+          "result": null
+        }
+      },
+      "output": {
+        "changes": [
+          {
+            "system": "Diva",
+            "变更内容": "rn_hotel_combine-order-submit 0.10.0（当前线上稳定版，近30天命中 69M~146M 次）",
+            "发布时间": "2026-06-25 18:40:10（打包 2026-06-24 11:39:21，打包人张策，branch release/12486/fedo-99346）",
+            "发布人": "张策",
+            "相关度": "无（距问题时间约 63 天，>48h）"
+          },
+          {
+            "system": "MCM",
+            "变更内容": "CLI 未认证（mcm whoami 未认证），无法查询；Diva 已证明告警版本为长期稳定在线版本 0.10.0，前端代码变更基本排除",
+            "发布时间": "-",
+            "发布人": "-",
+            "相关度": "未查询（受认证阻塞）"
+          }
+        ],
+        "stop_loss_advice": "🟢 暂不止损（最近一次 Bundle 发布距问题时间约 63 天，告警版本即长期稳定在线版本，无近期前端变更）",
+        "most_suspicious_change": "无（无近期前端变更）",
+        "commit_url": "无",
+        "rollback_target": "无"
+      }
+    },
+    "S3_CHANGE_STOP": {
+      "status": "completed",
+      "started_at": "2026-08-27 10:54:25",
+      "completed_at": "2026-08-27 10:54:34",
+      "guard_passed": true,
+      "decision": "",
+      "output": {
+        "stop_loss_type": "跳过",
+        "stop_loss_target": "无",
+        "suspect_version": "无（线上稳定版 0.10.0，2026-06-25 发布，距今约 63 天）",
+        "rollback_target": "无",
+        "operation_status": "🟢 跳过",
+        "notify_record": "无",
+        "decision": "skipped"
+      }
+    },
+    "S4_DIAGNOSIS": {
+      "status": "completed",
+      "started_at": "2026-08-27 10:54:34",
+      "completed_at": "2026-08-27 11:15:29",
+      "guard_passed": true,
+      "diagnosis_path": "",
+      "output": {
+        "conclusion_validity": "⚠️待确认",
+        "root_cause_type": "无法定位",
+        "root_cause_detail": "前端 submitBiz 仅透传后端 error.message；apic 返回 code=500、message=预订失败，generaltrade 的 CombineCreateOrderFacadeService.combineCreateOrder 返回 code=103100000（BOOK_FAIL）。buy.process.v2 显示两个子订单均以 resultCode=1200000 成功创建并完成订单中心/状态通知，未发现取消、回滚或失败日志。aggregate 日志主题无访问权限，无法直接确认子单成功后的组合订单编排、状态汇聚或补偿环节的具体失败点。promotion property conflict 与 BPF 模板缺失均仅为旁路告警，缺少失败结果关联，不能定为根因。",
+        "related_change": "无关联变更（线上 Bundle 0.10.0 距问题约63天；MCM 查询受认证阻塞）",
+        "fix_direction": "交由酒店交易后端 aggregate/generaltrade 排查：以 traceId=-1615203911778506873 补查 aggregate 组合订单编排、结果组装与补偿日志，并核对两个子单与组合主单的状态一致性；前端无需修复或回滚。",
+        "code_location": "前端证据：duo-hotel-combine-order-submit/dataSourceMap.groovy:388-406（submitBizRespStatus 直接读取 error.message）；后端精确失败代码位置未定位（aggregate 日志无权限）。",
+        "responsible_person": "待明确（酒店交易后端 aggregate/generaltrade oncall）"
+      }
+    },
+    "S5_REMEDIATION": {
+      "status": "completed",
+      "started_at": "2026-08-27 11:15:54",
+      "completed_at": "2026-08-27 11:17:14",
+      "guard_passed": true,
+      "remediation_type": "",
+      "output": {
+        "fix_type": "根因待确认",
+        "fix_branch": "",
+        "root_cause_code": "酒店交易 aggregate 组合订单编排/结果汇聚环节（具体代码位置待 aggregate 日志权限或后端 oncall 确认）",
+        "pr_url": "",
+        "trace_id": "-1615203911778506873",
+        "notify_target": "酒店交易后端 aggregate/generaltrade oncall（待人工转交；未自动发送外部消息）"
+      }
+    },
+    "S6_REPORT": {
+      "status": "completed",
+      "started_at": "2026-08-27 11:17:38",
+      "completed_at": "2026-08-27 14:07:09",
+      "guard_passed": true,
+      "output": {
+        "report_generated": true,
+        "memory_written": true,
+        "feedback": "有效"
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "stop_loss_type": "跳过",
+  "stop_loss_target": "无",
+  "suspect_version": "无（线上稳定版 0.10.0，2026-06-25 发布，距今约 63 天）",
+  "rollback_target": "无",
+  "operation_status": "🟢 跳过",
+  "notify_record": "无",
+  "decision": "skipped"
+}

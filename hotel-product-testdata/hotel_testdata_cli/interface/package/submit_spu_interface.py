@@ -345,7 +345,12 @@ def call_with_raw_params(
         appkey=APPKEY,
         service=SERVICE,
         method=METHOD,
-        params=raw_params,
+        params=None,
+        parameter_values=["2196240", json.dumps(raw_params, ensure_ascii=False)],
+        parameter_types=[
+            "java.lang.Long",
+            "com.meituan.hotel.biz.platform.goods.facade.model.spu.SpuModel",
+        ],
         swimlane=swimlane,
         timeout_ms=30000,
         dry_run=dry_run,
@@ -359,6 +364,10 @@ def call_with_raw_params(
 # ════════════════════════════════════════════════════════════════════════════
 
 QUERY_METHOD = "querySpuListPage"
+# querySpuListPage(QuerySpuListPageParam param) —— 单参数复杂结构体
+QUERY_SPU_LIST_PAGE_PARAM_TYPE = (
+    "com.meituan.hotel.biz.platform.goods.facade.param.spu.QuerySpuListPageParam"
+)
 
 
 def query_spu_list_page(
@@ -421,7 +430,11 @@ def query_spu_list_page(
         appkey=APPKEY,
         service=SERVICE,
         method=QUERY_METHOD,
-        params=params,
+        params=None,
+        parameter_values=[
+            json.dumps(params, ensure_ascii=False, separators=(",", ":"))
+        ],
+        parameter_types=[QUERY_SPU_LIST_PAGE_PARAM_TYPE],
         swimlane=swimlane,
         timeout_ms=timeout_ms,
         raise_on_biz_error=False,

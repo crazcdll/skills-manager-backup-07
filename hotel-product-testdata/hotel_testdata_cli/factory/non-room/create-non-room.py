@@ -25,6 +25,13 @@
   # 指定泳道
   python3 create-non-room.py --partner-id 4549232 --poi-id 123 --swimlane xxx
 
+  # 创建独立售卖（加购）非房，sellStatus=1 时 8 个扩展字段全部必填
+  python3 create-non-room.py --partner-id 4549232 --poi-id 123 \
+      --sell-status 1 --promotion-text "周末特惠立减" --display-order 5 \
+      --contract-no HT202606001 --total-stock 100 \
+      --market-price 9900 --sale-price 8900 \
+      --commission-rate 1250 --max-num-per-order 2
+
   # 查看字段说明
   python3 create-non-room.py --show-schema
 
@@ -80,6 +87,18 @@ def _show_schema():
   ✅ 同步接口，直接返回 xGoodsId，无需等待大象推送
   ⚠️ 创建成功后需通过 factory/audit/non-room/audit.py 完成审核才可上线
 
+【独立售卖（加购）扩展参数 —— CRS-60】
+  --sell-status         INT  0=非加购（默认）| 1=普通加购（独立售卖）
+  --promotion-text      STR  促销文案（sellStatus=1 必填）
+  --display-order       INT  展示顺序 1-20（sellStatus=1 必填）
+  --contract-no         STR  合同编号（sellStatus=1 必填；仅支持预付合同=2/团购合同=0，禁止包销合同=5）
+  --total-stock         INT  总库存（sellStatus=1 必填，⚠️ 落 stockModel 顶层新模型）
+  --market-price        STR  门市价，单位分（sellStatus=1 必填）
+  --sale-price          STR  卖价，单位分（sellStatus=1 必填）
+  --commission-rate     INT  佣金率，万分位整数如 1250=12.50%（sellStatus=1 必填）
+  --max-num-per-order   INT  每单限购份数 1-10（sellStatus=1 必填）
+  ⚠️ sellStatus=1 时以上 8 个扩展参数全部必填，缺失会在本地提前报错（不会等到 RPC 返回 10004 才发现）
+
 【使用示例】
   # 餐饮类（默认）
   python3 factory/non-room/create-non-room.py \\
@@ -96,6 +115,14 @@ def _show_schema():
   # 指定泳道
   python3 factory/non-room/create-non-room.py \\
     --partner-id 4549232 --poi-id 1085918666100285 --swimlane xxx
+
+  # 独立售卖（加购）非房
+  python3 factory/non-room/create-non-room.py \\
+    --partner-id 4549232 --poi-id 1085918666100285 \\
+    --sell-status 1 --promotion-text "周末特惠立减" --display-order 5 \\
+    --contract-no HT202606001 --total-stock 100 \\
+    --market-price 9900 --sale-price 8900 \\
+    --commission-rate 1250 --max-num-per-order 2
 """)
 
 
@@ -116,6 +143,19 @@ def main():
                         help="商品名称（默认：<mis>非房_<时间戳后5位>；不超过 20 字符）")
     parser.add_argument("--swimlane", default="", help="泳道名称（默认主干）")
     parser.add_argument("--dry-run", action="store_true", help="仅打印参数不执行")
+    # ── 独立售卖（加购）扩展参数 —— CRS-60（sellStatus=1 时全部必填）──────────
+    parser.add_argument("--sell-status", type=int, default=0, choices=[0, 1],
+                        help="独立售卖(加购)开关：0=非加购(默认) | 1=普通加购，为1时下列8个扩展参数全部必填")
+    parser.add_argument("--promotion-text", default=None, help="促销文案（sellStatus=1必填）")
+    parser.add_argument("--display-order", type=int, default=None, help="展示顺序1-20（sellStatus=1必填）")
+    parser.add_argument("--contract-no", default=None,
+                        help="合同编号（sellStatus=1必填；仅支持预付合同=2/团购合同=0，禁止包销合同=5）")
+    parser.add_argument("--total-stock", type=int, default=None, help="总库存（sellStatus=1必填）")
+    parser.add_argument("--market-price", default=None, help="门市价，单位分（sellStatus=1必填）")
+    parser.add_argument("--sale-price", default=None, help="卖价，单位分（sellStatus=1必填）")
+    parser.add_argument("--commission-rate", type=int, default=None,
+                        help="佣金率，万分位整数如1250=12.50%（sellStatus=1必填）")
+    parser.add_argument("--max-num-per-order", type=int, default=None, help="每单限购份数1-10（sellStatus=1必填）")
     args = parser.parse_args()
 
     operator = get_operator()
@@ -131,15 +171,38 @@ def main():
     print(f"  类型       : {args.type}（{TYPE_LABEL.get(args.type, args.type)}）")
     print(f"  商品名称   : {product_name}")
     print(f"  泳道       : {args.swimlane or '主干'}")
+    if args.sell_status:
+        print(f"  独立售卖   : sellStatus=1（加购）")
+        print(f"    promotionText    : {args.promotion_text}")
+        print(f"    displayOrder     : {args.display_order}")
+        print(f"    contractNo       : {args.contract_no}")
+        print(f"    totalStock       : {args.total_stock}")
+        print(f"    marketPrice(分)  : {args.market_price}")
+        print(f"    salePrice(分)    : {args.sale_price}")
+        print(f"    commissionRate   : {args.commission_rate}")
+        print(f"    maxNumPerOrder   : {args.max_num_per_order}")
 
-    resp = _iface.call(
-        partner_id=args.partner_id,
-        poi_id=args.poi_id,
-        product_name=product_name,
-        xgoods_type=args.type,
-        swimlane=args.swimlane,
-        dry_run=args.dry_run,
-    )
+    try:
+        resp = _iface.call(
+            partner_id=args.partner_id,
+            poi_id=args.poi_id,
+            product_name=product_name,
+            xgoods_type=args.type,
+            swimlane=args.swimlane,
+            dry_run=args.dry_run,
+            sell_status=args.sell_status,
+            promotion_text=args.promotion_text,
+            display_order=args.display_order,
+            contract_no=args.contract_no,
+            total_stock=args.total_stock,
+            market_price=args.market_price,
+            sale_price=args.sale_price,
+            commission_rate=args.commission_rate,
+            max_num_per_order=args.max_num_per_order,
+        )
+    except ValueError as e:
+        print(f"\n[错误] 参数校验失败: {e}", file=sys.stderr)
+        sys.exit(1)
 
     if args.dry_run:
         return

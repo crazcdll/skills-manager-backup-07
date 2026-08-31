@@ -51,6 +51,11 @@ from scripts.runner import invoke, InvokeError  # noqa
 APPKEY   = "com.sankuai.hotel.biz.platform"
 SERVICE  = "com.meituan.hotel.biz.platform.goods.facade.standard.MeInventoryFacade"
 METHOD   = "batchUpdateInventory"
+# batchUpdateInventory(BatchUpdateInventoryParam param) —— 单参数复杂结构体
+# body 模式下 DataUnity 无法自动推断该结构体参数类型，须走显式 parameterTypes 模式
+BATCH_UPDATE_INVENTORY_PARAM_TYPE = (
+    "com.meituan.hotel.biz.platform.goods.facade.param.goods.BatchUpdateInventoryParam"
+)
 
 
 def call_batch_update_inventory(
@@ -82,11 +87,16 @@ def call_batch_update_inventory(
         "modifyInventoryModelList": modify_inventory_model_list,
     }
 
+    import json as _json
     return invoke(
         appkey=APPKEY,
         service=SERVICE,
         method=METHOD,
-        params=params,
+        params=None,
+        parameter_values=[
+            _json.dumps(params, ensure_ascii=False, separators=(",", ":"))
+        ],
+        parameter_types=[BATCH_UPDATE_INVENTORY_PARAM_TYPE],
         swimlane=swimlane,
         timeout_ms=30000,
         dry_run=dry_run,

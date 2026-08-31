@@ -51,6 +51,16 @@ def _two_years_later() -> str:
 APPKEY  = "com.sankuai.hotel.biz.platform"
 SERVICE = "com.meituan.hotel.biz.platform.goods.facade.standard.MeGoodsFacade"
 METHOD  = "batchCreateGoods"
+# batchCreateGoods(CreateOrUpdateGoodsParam param) —— 单参数复杂结构体
+# body 模式下 DataUnity 无法自动推断该结构体参数类型，须走显式 parameterTypes 模式
+CREATE_GOODS_PARAM_TYPE = (
+    "com.meituan.hotel.biz.platform.goods.facade.param.goods.CreateOrUpdateGoodsParam"
+)
+# queryGoodsInfo(QueryGoodsInfoParam param) —— 单参数复杂结构体
+# body 模式下 DataUnity 无法自动推断该结构体参数类型，须走显式 parameterTypes 模式
+QUERY_GOODS_INFO_PARAM_TYPE = (
+    "com.meituan.hotel.biz.platform.goods.facade.param.goods.QueryGoodsInfoParam"
+)
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -1014,7 +1024,11 @@ def call_raw(
         appkey=APPKEY,
         service=SERVICE,
         method=METHOD,
-        params=params,
+        params=None,
+        parameter_values=[
+            json.dumps(params, ensure_ascii=False, separators=(",", ":"))
+        ],
+        parameter_types=[CREATE_GOODS_PARAM_TYPE],
         swimlane=swimlane,
         timeout_ms=120000,
         dry_run=dry_run,
@@ -1049,7 +1063,11 @@ def query_goods_info(
         appkey=APPKEY,
         service=SERVICE,
         method="queryGoodsInfo",
-        params=params,
+        params=None,
+        parameter_values=[
+            json.dumps(params, ensure_ascii=False, separators=(",", ":"))
+        ],
+        parameter_types=[QUERY_GOODS_INFO_PARAM_TYPE],
         swimlane=swimlane,
         timeout_ms=30000,
         raise_on_biz_error=False,

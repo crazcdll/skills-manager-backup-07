@@ -1,11 +1,11 @@
 ---
 name: daxiang-sender
-description: 通过大象开放平台 API 发送消息（个人/群组）。支持文本、Markdown、链接、文件、图片、名片、群名片、引用回复、模板、富文本等消息类型，支持 @某人（uid 或 mis 自动转换）、@所有人、@机器人，支持动态消息。自动处理 Token 获取和 mis→uid 转换。适用于"发送大象消息""给某人发大象""发群消息""@某人""@所有人""@机器人"等场景。
+description: 通过大象开放平台 API 发送消息（个人/群组）。支持文本、Markdown、链接、文件、图片、名片、群名片、引用回复、模板、富文本等消息类型，支持 @某人（uid 或 mis 自动转换）、@所有人、@机器人，支持动态消息。自动处理 Token 获取和 mis→uid 转换。适用于"发送大象消息""给某人发大象""发群消息""@某人""@所有人""@机器人"等场景，需要明确发送目标，不要乱猜。
 
 metadata:
   skillhub.creator: "suhao20"
   skillhub.updater: "suhao20"
-  skillhub.version: "V7"
+  skillhub.version: "V8"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "1695"
   skillhub.high_sensitive: "false"
@@ -93,7 +93,7 @@ send.py list-groups   查询机器人所在的所有群
 ```bash
 # 私聊
 python3 $SKILL_DIR/scripts/send.py send \
-  --to suhao20 \
+  --to mis \
   --text "Hello World"
 
 # 群聊
@@ -103,7 +103,7 @@ python3 $SKILL_DIR/scripts/send.py send \
 
 # 多个接收人（逗号分隔，支持 mis 号或 uid）
 python3 $SKILL_DIR/scripts/send.py send \
-  --to suhao20,zhangsan \
+  --to mis1,mis2 \
   --text "Hello"
 ```
 
@@ -111,7 +111,7 @@ python3 $SKILL_DIR/scripts/send.py send \
 
 ```bash
 python3 $SKILL_DIR/scripts/send.py send \
-  --to suhao20 \
+  --to mis \
   --text "**加粗** _斜体_ [链接](https://km.sankuai.com)" \
   --markdown
 ```
@@ -131,7 +131,7 @@ python3 $SKILL_DIR/scripts/send.py send \
 
 ```bash
 python3 $SKILL_DIR/scripts/send.py send \
-  --to suhao20 \
+  --to mis \
   --link \
   --title "文章标题" \
   --content "文章描述" \
@@ -145,7 +145,7 @@ python3 $SKILL_DIR/scripts/send.py send \
 
 ```bash
 python3 $SKILL_DIR/scripts/send.py send \
-  --to suhao20 \
+  --to mis \
   --file /path/to/report.xlsx
 ```
 
@@ -155,7 +155,7 @@ python3 $SKILL_DIR/scripts/send.py send \
 
 ```bash
 python3 $SKILL_DIR/scripts/send.py send \
-  --to suhao20 \
+  --to mis \
   --file-url "https://example.com/report.xlsx" \
   --file-name "报告.xlsx" \
   --file-size 3296 \
@@ -172,7 +172,7 @@ python3 $SKILL_DIR/scripts/send.py send \
 
 ```bash
 python3 $SKILL_DIR/scripts/send.py send \
-  --to suhao20 \
+  --to mis \
   --image /path/to/photo.jpg
 ```
 
@@ -183,12 +183,12 @@ python3 $SKILL_DIR/scripts/send.py send \
 ```bash
 # 简单模式（thumbnail/normal 自动与原图相同）
 python3 $SKILL_DIR/scripts/send.py send \
-  --to suhao20 \
+  --to mis \
   --image-url "https://example.com/photo.jpg"
 
 # 完整模式（分别指定三个尺寸）
 python3 $SKILL_DIR/scripts/send.py send \
-  --to suhao20 \
+  --to mis \
   --image-url "https://example.com/photo_original.jpg" \
   --image-thumbnail "https://example.com/photo_thumb.jpg" \
   --image-normal "https://example.com/photo_normal.jpg"
@@ -201,12 +201,12 @@ python3 $SKILL_DIR/scripts/send.py send \
 ```bash
 # 个人名片（type=1，默认）
 python3 $SKILL_DIR/scripts/send.py send \
-  --to suhao20 \
+  --to mis \
   --vcard-uid 2967510770
 
 # Pub 名片（type=2）
 python3 $SKILL_DIR/scripts/send.py send \
-  --to suhao20 \
+  --to mis \
   --vcard-uid 137626262046 \
   --vcard-type 2
 ```
@@ -215,7 +215,7 @@ python3 $SKILL_DIR/scripts/send.py send \
 
 ```bash
 python3 $SKILL_DIR/scripts/send.py send \
-  --to suhao20 \
+  --to mis \
   --gvcard-gid 70473524669
 ```
 
@@ -225,7 +225,7 @@ python3 $SKILL_DIR/scripts/send.py send \
 
 ```bash
 python3 $SKILL_DIR/scripts/send.py send \
-  --to suhao20 \
+  --to mis \
   --quote-msg-id 1733383831204126722 \
   --reply-text "收到，已处理！"
 ```
@@ -235,7 +235,7 @@ python3 $SKILL_DIR/scripts/send.py send \
 ```bash
 # 基础模板消息
 python3 $SKILL_DIR/scripts/send.py send \
-  --to suhao20 \
+  --to mis \
   --custom-template "审批通知" \
   --custom-title "报销申请" \
   --custom-content "请及时处理报销申请" \
@@ -245,7 +245,7 @@ python3 $SKILL_DIR/scripts/send.py send \
 # 带操作按钮（extension.custom.buttons）
 # 按钮格式：按钮文字|action_url[|PRIMARY|DANGER]
 python3 $SKILL_DIR/scripts/send.py send \
-  --to suhao20 \
+  --to mis \
   --custom-template "审批通知" \
   --custom-title "报销申请" \
   --custom-content "请及时处理" \
@@ -262,13 +262,13 @@ python3 $SKILL_DIR/scripts/send.py send \
 ```bash
 # 传入明文 JSON（自动编码）
 python3 $SKILL_DIR/scripts/send.py send \
-  --to suhao20 \
+  --to mis \
   --general-data '{"nodes":[{"t":"text","c":"富文本内容"}]}' \
   --general-summary "消息摘要"
 
 # 传入已编码的 Base64 字符串（直接使用）
 python3 $SKILL_DIR/scripts/send.py send \
-  --to suhao20 \
+  --to mis \
   --general-data "eyJub2RlcyI6W3sidCI6InRleHQiLCJjIjoiSGVsbG8ifV19"
 ```
 
@@ -283,7 +283,7 @@ cat > /tmp/msg.json << 'EOF'
 EOF
 
 python3 $SKILL_DIR/scripts/send.py send \
-  --to suhao20 \
+  --to mis \
   --body-file /tmp/msg.json \
   --msg-type multilink
 ```
@@ -312,20 +312,20 @@ python3 $SKILL_DIR/scripts/send.py send \
 python3 $SKILL_DIR/scripts/send.py send \
   --group 69662141203 \
   --text "请处理一下这个问题" \
-  --at suhao20:苏灏
+  --at mis:某人
 
 # uid
 python3 $SKILL_DIR/scripts/send.py send \
   --group 69662141203 \
   --text "请处理一下这个问题" \
-  --at 2967510770:苏灏
+  --at uid:某人
 
 # @多人
 python3 $SKILL_DIR/scripts/send.py send \
   --group 69662141203 \
   --text "请大家看一下" \
-  --at suhao20:苏灏 \
-  --at zhangsan:张三
+  --at mis1:某人1 \
+  --at mis2:某人2
 ```
 
 ### @所有人
@@ -353,8 +353,8 @@ python3 $SKILL_DIR/scripts/send.py send \
 ```bash
 python3 $SKILL_DIR/scripts/send.py send \
   --group 69662141203 \
-  --text "请处理一下这个问题[@苏灏|mtdaxiang://www.meituan.com/profile?uid=2967510770&isAt=true]" \
-  --at suhao20:苏灏 \
+  --text "请处理一下这个问题[@某人|mtdaxiang://www.meituan.com/profile?uid=2967510770&isAt=true]" \
+  --at mis:某人 \
   --custom-at
 ```
 ---

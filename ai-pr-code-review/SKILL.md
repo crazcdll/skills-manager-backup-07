@@ -7,7 +7,7 @@ PR → 大象推送 → 登记多维表格，I/O 操作均重试4次失败通知
 metadata:
   skillhub.creator: "mengmuzi"
   skillhub.updater: "mengmuzi"
-  skillhub.version: "V152"
+  skillhub.version: "V153"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "5205"
   skillhub.high_sensitive: "false"
@@ -87,8 +87,11 @@ Step 1+2 完成后，进入 Step 3（依赖 Step 2 的文件列表）
   └─── 阶段二：跨仓 CX 检查（基于阶段一的接口契约变更清单）
        Step 5：Cross-Repo 跨仓库检查 Cross-Repo-01~08（专注跨仓边界，不重复单仓问题）
 
-Step 6 + Step 7：创建学城 CR 文档 & 评论到 PR（并行执行，失败降级串行；Step 8 等 Step 6 完成后取文档 URL）
-Step 8 + Step 9：大象群聊推送 & 记录持久化（并行执行，失败降级串行）
+Step 6+7+8+9：发布结果（publish_results.py 一体化执行）
+  ├── Step 6：创建学城 CR 文档（脚本从 issues JSON 拼装 8 章结构）
+  ├── Step 7：评论到 PR（脚本从 issues JSON 拼装行内+全局评论）
+  ├── Step 8：大象群聊推送（脚本从 issues JSON 拼装消息文本）
+  └── Step 9：DB 回写（脚本构造 cr_result_json 含 issues 明细）
 Step 10：采纳率回收（第二轮 CR 自动触发）
 Step 11：验证（全链路状态播报）
 ```
@@ -118,9 +121,7 @@ Step 11：验证（全链路状态播报）
 | Step 3 | ▶️ 三层上下文感知（Layer 1/2/3） | ✅ Layer 1 读取 N 个文件，Layer 2 反查 N 个引用，Layer 3 加载 {知识库内容概要} | ❌/⚠️ Layer 2 降级时必须告知 |
 | Step 4 | ▶️ 四层审查开始 | ✅ 审查完成：P0={n}，P1={n}，P2={n}，P3={n}，结论：{四选一} | — |
 | Step 5 | ▶️ Cross-Repo 跨仓检查 | ✅ CX 检查完成：{通过N项/发现M项问题} | ⚠️ 单仓库跳过 |
-| Step 6 | ▶️ 创建学城 CR 文档 | ✅ 学城文档已创建：{url} | ❌ 降级输出到对话，不阻塞后续 |
-| Step 7 | ▶️ 评论到 PR | ✅ 已发 P0/P1 行内评论 N 条 + 全局摘要 1 条 | ❌ 重试4次仍失败，大象通知提交人 |
-| Step 8+9 | ▶️ 大象推送 & 多维表格（并行） | ✅ 已推送到全局群 + 多维表格已追加 1 行 | 任一失败降级串行；仍失败则通知提交人 |
+| Step 6+7+8+9 | ▶️ 发布结果（脚本一体化） | ✅ 学城文档+PR评论+大象推送+DB回写 全部完成 | ❌ 各步独立降级，不互相阻塞 |
 | Step 10 | ▶️ 采纳率回收 | ✅ 采纳率：{n}%，误报率：{n}% | ⚠️ 无历史 CR，跳过 |
 | Step 11 | ▶️ 全链路验证 | 见 Step 11 完成报告模板 | — |
 
@@ -169,8 +170,8 @@ source /tmp/cr-env.env
 | `$TEAM_CHAT_GROUP_ID` | 团队大象群 ID |
 | `$DOMAIN_KNOWLEDGE_PATH` | 领域知识库绝对路径 |
 | `$GET_ORG_INFO_PATH` | get_org_info.py 路径 |
-| `$CR_COMMENT_SH` | cr-comment.sh 路径 |
-| `$NOTIFY_PY` | notify.py 路径 |
+| `$CR_COMMENT_SH` | cr-comment.sh 路径（已废弃，publish_results.py 内含） |
+| `$NOTIFY_PY` | notify.py 路径（已废弃，publish_results.py 内含） |
 
 ### 缓存机制
 
@@ -870,168 +871,43 @@ note: 纯配置/测试/重构变更，无业务 spec 要求
 
 ---
 
-## Step 6：创建学城 CR 文档（**必须执行，无论 PR 大小，不可跳过**）
+## Step 6+7+8+9：发布结果（脚本一体化执行）
 
-> **纯前端路径**：若 Step 2F 已委托 `fe-ai-review`，本步骤以 `fe-ai-review` 产出的 Markdown 报告为文档正文来源（其它写入流程、失败降级规则完全一致）。
+> ⚡ **本步骤替代原 Step 6/7/8/9 四个步骤**，调用 `publish_results.py` 一条命令完成学城文档创建 + PR 评论 + 大象推送 + DB 回写。
+> **前置条件**：Step 4 的 issues JSON 文件已产出（`/tmp/cr_issues_{repo}_{branch}.json`），Step 5（多仓库 CR）已完成。
 
-> ⚡ **并行执行**：Step 6 与 Step 7 相互独立（Step 7 不依赖学城文档 URL），必须在同一轮 tool call 中同时发出。
-> 若并行失败，降级为串行：先完成 Step 6，再执行 Step 7。
-> Step 6 的文档 URL 在 Step 8 大象推送时使用（Step 8 必须等 Step 6 完成）。
-
-> ⚠️ **硬门禁：在写任何输出前，必须先 read_file `references/citadel-write-guide.md`（命令规范、失败处理）和 `references/comment-templates.md`（文档内容格式模板）。未读取这两个文件直接写输出 = 格式一定不对。**
-
-> 🚨 **Issue 数据来源**：Step 6 的「四、Review 发现」章节内容从 `/tmp/cr_issues_{repo}_{branch}.json` 读取拼装。读取 JSON 数组后，按 P0→P1→P2→P3→confirm 顺序排列，组内编号 `[P0-1] [P0-2] [P1-1] ...`。P0/P1 用详细模板（含触达分析等字段），P2/P3 用精简模板。`comment-templates.md` 中的模板即为 JSON 字段拼装规则。
-
-### 6a. 日期子目录（防止父目录子文档数量超限）
-
-> 学城单个父目录下的二级子文档数量有限制，直接平铺会很快用满。因此在 `$CITADEL_PARENT_ID` 和 CR 文档之间插入一级**日期目录**。
-
-1. 取当天日期字符串：`DATE_DIR=$(date +%Y-%m-%d)`
-2. 调 `citadel getChildContent --contentId $CITADEL_PARENT_ID`，在返回的子文档列表中查找 title **完全等于** `$DATE_DIR` 的子文档
-3. **找到** → 取其 contentId 作为 `$DATE_PARENT_ID`
-4. **未找到** → 创建日期目录文档：
-   ```bash
-   citadel createDocument --title "$DATE_DIR" --content "" --parentId $CITADEL_PARENT_ID
-   ```
-   取返回的 contentId 作为 `$DATE_PARENT_ID`
-5. 后续创建 CR 文档时，`parentId` 使用 `$DATE_PARENT_ID`（而非 `$CITADEL_PARENT_ID`）
-
-> ⚠️ `$CITADEL_PARENT_ID` 的获取逻辑不变（优先 `get_org_info.py` 接口返回，fallback 到 `cr-config.yaml` default）。日期目录仅在其下加一层。
-
-### 6b. 创建 CR 文档
-
-1. 将 CR 内容写入 `/tmp/cr_review_{prId}.md`（**必须用 `--file`，禁止 `--content`**）
-
-2. 调 `citadel createDocument` 创建文档，`parentId = $DATE_PARENT_ID`
-3. 从 PR overview 提取 CatPaw 评论，写入「与 CatPaw 对比」章节（无则跳过）
-4. 失败降级：输出到对话 + 大象通知提交人，**不阻塞 Step 7**
-
----
-
-## Step 7：评论到 PR
-
-> **纯前端路径**：若 Step 2F 已委托 `fe-ai-review`，PR 评论内容取自 `fe-ai-review` 的审查报告，评论格式和流程与后端审查一致。
-
-> ⚡ **并行执行**：Step 7 与 Step 6 相互独立，必须在同一轮 tool call 中同时发出，不要等学城文档创建完再发 PR 评论。
-> 若并行失败，降级为串行：先完成 Step 6，再执行 Step 7。
-
-> ⚠️ **硬门禁：在写任何 PR 评论前，必须先 read_file `references/comment-templates.md` 中的「全局评论模板」和「行内评论模板」章节。未读取模板直接写评论 = 格式一定不对。**
-
-**⚠️ 必须使用 `references/cr-comment.sh` 脚本发评论，禁止直接调用 `code-cli pr comment`（该命令只支持全局评论，无法发行内评论）。**
-
-- **7-PRE**：验证鉴权可用
-  ```bash
-  python3 $CODE_CLI_PATH user-info
-  ```
-
-- **7A**：P0/P1 逐条行内评论，锚定代码行（只挂 ADDED/CONTEXT 行，不挂 REMOVED）。**包括 CR: 规则和 MT: 规则报出的所有 P0/P1，不做区分**
-
-  > ✅ **使用 `--file-keyword` 传文件名，脚本自动从 `pr-changes` 解析完整路径，彻底避免路径拼错。**
-  > 若关键词匹配到多个文件，脚本会报错并列出所有候选，换更精确的关键词重试即可。
-  > 锚定失败（file 字段为 null）时脚本会报错并退出，**必须修正后重发，不可跳过**。
-
-  ```bash
-  bash "$CR_COMMENT_SH" inline \
-    --url "{PR_URL}" \
-    --file-keyword "{文件名，如 DealGroupExtendPriceProcessor.java}" \
-    --line {行号} \
-    --line-type ADDED \
-    --text "{评论内容}"
-  ```
-
-- **7B**：P2/P3/Cross-Repo 发一条全局摘要评论。**包括 CR: 规则和 MT: 规则报出的所有 P2/P3，不做区分**
-  ```bash
-  bash "$CR_COMMENT_SH" global \
-    --url "{PR_URL}" \
-    --text "{全局摘要内容}"
-  ```
-
-- **7C**：验证，脚本已内置 `file` 字段非 null 校验；若提示 file 为 null **必须修正 --file 路径后重发，不可跳过**（file 为 null = 评论发成了全局评论，行内锚定失败）
-  ```bash
-  bash "$CR_COMMENT_SH" verify \
-    --url "{PR_URL}"
-  ```
-
-失败重试 4 次（脚本内置），仍失败则大象通知提交人，不阻塞后续步骤。
-
----
-
-## Step 8：大象群聊推送（双轨模式）
-
-> ⚡ **并行执行**：Step 8 与 Step 9 相互独立，必须在同一轮 tool call 中同时发出，不要等 Step 8 完成再执行 Step 9。
-> 若并行发出失败（任一步骤报错或无响应），立即降级为串行：先完成 Step 8，再执行 Step 9。
-
-> ⚠️ **硬门禁：在写大象推送消息前，必须先 read_file `references/comment-templates.md` 中的「大象群聊推送模板」章节和 `references/daxiang-notify-api.md`（API 实现细节）。未读取模板直接写消息 = 格式一定不对。**
-
-使用 AI-CR Claw bot 直接调用大象开放平台 API，不依赖 OpenClaw bot。
-
-> ⚠️ **强制规则（违反则 CR 结果无效）**：
-> - **禁止**使用 OpenClaw `message` tool 发送大象群消息（它用的是 OpenClaw bot，不在目标群里，必然报 `code=70003 机器人不在该群`）
-> - **必须**使用 `daxiang-notify-api.md` 中的 Python 脚本，通过 AI-CR Claw bot 调用大象开放平台 API 发送；凭证（appId/appSecret/GID）已在 `daxiang-notify-api.md` 中配置，直接使用，**禁止替换**
-> - 任何情况下都不允许降级为 `message` tool，失败只允许重试或输出到对话提示手动发送
-
-**双轨推送：**
-- **全局汇总群**（GID: 70457605151）：所有人 CR 完必推，无需配置
-- **团队专属群**（自动）：由 `$TEAM_CHAT_GROUP_ID` 决定（Step 2 接口返回，或 fallback 到 default），非空则自动推送
-
-### 8A. 获取团队群 ID
-
-**优先级（从高到低）**：
-1. `$TEAM_CHAT_GROUP_ID`（Step 2 接口返回的 `chatGroupId`，非空时已在 Step 2 覆盖）
-2. `TOOLS.md` 中手动配置的群 ID（搜索 `ai-cr`，兼容旧配置）
-3. 均为空 → 仅推全局群，不阻塞 Step 9
-
-### 8B. 执行
-
-1. 取 token（每次重新取，无需缓存）→ 详见 `daxiang-notify-api.md`
-2. 填充消息文本 → 详见 `comment-templates.md` 大象群聊推送模板
-   - `{triggerName}（{triggerMis}）`：格式与提交人一致（姓名+mis）。triggerMis 从当前 session USER.md 或 `code_cli.py user-info` 动态获取，triggerName 通过 `code_cli.py user-info {triggerMis}` 获取真实姓名，**禁止硬编码**
-   - ⚠️ **触发人是必填项，禁止省略**；消息中必须包含"触发人：{triggerName}（{triggerMis}）"，让群里的人知道是谁发起的这次 CR
-3. **🚨 发送前校验（强制，不可跳过）**：消息内容**必须以 `【AI-CR】` 开头**，否则**拒绝发送**并在对话中输出 `❌ 消息未发送：内容未以【AI-CR】开头，疑似非 CR 消息`。此规则适用于所有目标群（全局群 + 团队群），无例外。
-4. 推全局汇总群（必推）
-5. 若有团队群 ID → 再推团队群
-6. 每次发送失败重试最多 4 次，仍失败则输出到对话提示手动发送，**不阻塞 Step 9**
-7. **Step 8 执行后必须在对话中输出推送结果**（✅已推送 / ❌推送失败 / ❌消息被拦截），禁止静默跳过
-8. **重跑保证**：每次完整执行 CR 流程，无论是否重跑，Step 8 **必须无条件执行**，不依赖上下文中是否有"已推送"记录。重跑 = 再推一次，这是预期行为。
-
-
-
----
-
-## Step 9：记录持久化（DB + 多维表格降级）
-
-> ⚡ **并行执行**：Step 9 与 Step 8 相互独立，必须在同一轮 tool call 中同时发出，不要等 Step 8 完成再执行 Step 9。
-> 若并行发出失败（任一步骤报错或无响应），立即降级为串行：先完成 Step 8，再执行 Step 9。
-
-调用 `$SKILL_ROOT/scripts/cr_record.py` 脚本完成记录持久化。**禁止 AI 手动拼 columnIds / data JSON / 时间戳**，必须通过脚本写入。脚本内部按优先级执行：
-
-1. **路径 A（主）**：HTTP POST 到 DB（`spt.sankuai.com/api/aicr/submit-task`），写入 `cr_task` 表
-2. **路径 B（降级）**：DB 失败 → 自动降级到多维表格 `addData`（脚本内部处理 `getTableMeta`、时间戳计算、列 ID 映射、data 拼装、重试）
-3. **全部失败**：输出错误信息，AI 通知提交人，不阻塞后续步骤
-
-**AI 不需要接触 columnIds / data JSON / 时间戳计算**，这些全部由脚本内部处理。
+> ⚠️ **硬门禁**：在执行本步骤前，必须确保以下文件已就绪：
+> 1. issues JSON 文件（Step 4C~4G 产出）：`/tmp/cr_issues_{repo}_{branch}.json`
+> 2. 变更文件清单（Step 3 产出，可选）：`/tmp/cr_changed_files_{prId}.md`
+> 3. 变更综述+总体评价+人工复审要点（Step 3 产出，可选）：`/tmp/cr_summary_{prId}.md`
+> 4. SDD 校验章节（Step 3D 产出，可选）：`/tmp/cr_sdd_{prId}.md`
+> 5. CatPaw 对比章节（Step 2 产出，可选）：`/tmp/cr_catpaw_{prId}.md`
 
 ### 执行命令
 
 ```bash
-python3 "$SKILL_ROOT/scripts/cr_record.py" \
+python3 "$SKILL_ROOT/scripts/publish_results.py" \
   --pr-url "{prUrl}" \
-  --repo "{org}/{repo}" \
+  --pr-id {prId} \
   --pr-title "{prTitle}" \
-  --author-mis "{authorMis}" \
-  --conclusion "{conclusion}" \
-  --p0 {p0} --p1 {p1} --p2 {p2} --p3 {p3} \
-  --doc-url "{docUrl}" \
-  --operator-mis "{operatorMis}" \
-  --source-branch "{sourceBranch}" \
-  --target-branch "{targetBranch}" \
-  {--is-sdd | --no-sdd} \
-  --alignment "{alignment}" \
-  --skill-version "ai-pr-code-review {{SKILL_VERSION}}" \
-  --org-id "{orgId}" \
-  --table-id "{tableId}" \
-  --issues-file "{issuesFile}" \
-  --no-proxy
+  --org "{org}" --repo "{repo}" \
+  --submitter-mis "{authorMis}" --author-name "{authorName}" \
+  --trigger-mis "{triggerMis}" --trigger-name "{triggerName}" \
+  --citadel-parent-id "$CITADEL_PARENT_ID" \
+  --team-chat-group-id "$TEAM_CHAT_GROUP_ID" \
+  --issues-file "/tmp/cr_issues_{repo}_{branch}.json" \
+  --changed-files-file "/tmp/cr_changed_files_{prId}.md" \
+  --summary-file "/tmp/cr_summary_{prId}.md" \
+  [--sdd-file "/tmp/cr_sdd_{prId}.md"] \
+  [--catpaw-file "/tmp/cr_catpaw_{prId}.md"] \
+  [--branch "{sourceBranch}"] \
+  [--file-count {fileCount}] \
+  [--line-changes "+{added} -{deleted}"] \
+  [--conclusion "{conclusion}"] \
+  [--km-url "{已知学城URL，跳过Step6创建}"] \
+  [--source-branch "{sourceBranch}"] \
+  [--target-branch "{targetBranch}"] \
+  [--operator-mis "{operatorMis}"]
 ```
 
 ### 参数说明
@@ -1039,44 +915,82 @@ python3 "$SKILL_ROOT/scripts/cr_record.py" \
 | 参数 | 必填 | 来源 | 说明 |
 |------|------|------|------|
 | `--pr-url` | ✅ | 用户输入 | PR 链接 |
-| `--repo` | ✅ | Step 2 从 pr_url 解析 | `org/repo` 格式 |
+| `--pr-id` | ✅ | Step 2 从 pr_url 解析 | PR 数字 ID |
 | `--pr-title` | ✅ | Step 2 `pr-info` | PR 标题 |
-| `--author-mis` | ✅ | Step 2 `pr-info` | 提交人 MIS |
-| `--conclusion` | ✅ | Step 4 | `✅通过` / `💚通过有建议` / `🟠需修复` / `🔴需重新设计` |
-| `--p0` `--p1` `--p2` `--p3` | ✅ | Step 4 | 问题计数（整数） |
-| `--doc-url` | ✅ | Step 6 | 学城文档 URL |
-| `--operator-mis` | ✅ | 当前用户 | 操作人 MIS（用于多维表格 --mis） |
-| `--source-branch` | ✅ | Step 2 `pr-info` | 源分支 |
-| `--target-branch` | ✅ | Step 2 `pr-info` | 目标分支 |
-| `--is-sdd` / `--no-sdd` | ✅ | Step 3D | 是否 SDD 流程 |
-| `--alignment` | ✅ | Step 3D | 文码一致性率（无 spec 时填 `N/A`） |
-| `--skill-version` | ✅ | 脚本自动读取 | `ai-pr-code-review {版本号}`（cr_record.py 自动从 SKILL.md frontmatter 读取 skillhub.version 并拼接，无需手动传版本号） |
-| `--org-id` | ✅ | Step 2 `get_org_info.py` | 组织架构 orgId（纯数字） |
-| `--table-id` | ✅ | Step 0/2 | 多维表格 ID（降级时使用） |
-| `--no-proxy` | 推荐 | 固定 | 内网直连，不走代理 |
-| `--remark` | 可选 | — | 备注（默认填 skill-version） |
-| `--issues-file` | 可选 | Step 4C~4G | issues 明细 JSON 文件路径（`/tmp/cr_issues_{repo}_{branch}.json`，Step 4 各步骤直接产出） |
-| `--cr-report-file` | 可选 | — | CR 报告文件路径（DB 存储用） |
-| `--dry-run` | 可选 | — | 只打印参数，不执行写入 |
-| `--table-only` | 可选 | — | 跳过 DB，直接写多维表格 |
+| `--org` | ✅ | Step 2 从 pr_url 解析 | 仓库组织 |
+| `--repo` | ✅ | Step 2 从 pr_url 解析 | 仓库名 |
+| `--submitter-mis` | ✅ | Step 2 `pr-info` | 提交人 MIS |
+| `--author-name` | ✅ | Step 2 `pr-info` | 提交人姓名 |
+| `--trigger-mis` | ✅ | 当前用户 | 触发人 MIS |
+| `--trigger-name` | ✅ | `code_cli.py user-info {triggerMis}` | 触发人姓名 |
+| `--citadel-parent-id` | ✅ | Step 2 `get_org_info.py` | 学城父目录 ID |
+| `--team-chat-group-id` | 可选 | Step 2 接口返回 | 团队大象群 ID（无则只推全局群） |
+| `--issues-file` | ✅ | Step 4C~4G | issues JSON 文件路径 |
+| `--changed-files-file` | 可选 | Step 3 | 变更文件清单 markdown |
+| `--summary-file` | 可选 | Step 3 | 变更综述+总体评价+人工复审要点 |
+| `--sdd-file` | 可选 | Step 3D | SDD 校验章节 markdown |
+| `--catpaw-file` | 可选 | Step 2 | CatPaw 对比章节 markdown |
+| `--branch` | 可选 | Step 2 `pr-info` | 分支名 |
+| `--file-count` | 可选 | Step 2 `pr-info` | 变更文件数 |
+| `--line-changes` | 可选 | Step 2 `pr-info` | 行数变化如 `+120 -30` |
+| `--conclusion` | 可选 | Step 4H | CR 结论（不传则按 P0/P1 计数自动推导） |
+| `--km-url` | 可选 | — | 已知学城 URL（跳过 Step 6 创建，直接用于 PR 评论和大象推送） |
+| `--source-branch` | 可选 | Step 2 `pr-info` | 源分支（DB 写入用，不传则用 `--branch`） |
+| `--target-branch` | 可选 | Step 2 `pr-info` | 目标分支（DB 写入用） |
+| `--operator-mis` | 可选 | 当前用户 | 操作人 MIS（多维表格降级用，不传则用 `--trigger-mis`） |
 
-### 脚本输出与判断
+### 脚本内部流程
 
-| 输出 | 含义 | AI 动作 |
-|------|------|--------|
-| `✅ DB 写入成功，记录 ID: xxx` | DB 写入成功 | 记录 ID，继续下一步 |
-| `✅ 多维表格写入成功（降级）` | DB 失败、多维表格成功 | 记录降级状态，继续下一步 |
-| `✅ 多维表格写入成功（直写）` | `--table-only` 模式 | 记录，继续下一步 |
-| `❌ 全部失败！` | DB + 多维表格均失败 | 通知提交人，不阻塞后续 |
+`publish_results.py` 一条命令完成以下 4 步：
 
-### 硬性规则
+1. **Step 6（学城文档）**：从 issues JSON 拼装 8 章结构 Markdown → 创建日期子目录 → 创建学城文档 → 返回 km_url
+2. **Step 7（PR 评论）**：从 issues JSON 拼装 P0/P1 行内评论 + P2/P3 全局摘要评论 → 发送到 PR → 回写 commentId
+3. **Step 8（大象推送）**：从 issues JSON 拼装大象消息文本 → 推全局群 + 团队群
+4. **Step 9（DB 回写）**：从 issues JSON 构造 cr_result_json（含 issues 明细）→ POST 到 `spt.sankuai.com/api/aicr/submit-task`（新建模式，非回写模式）
 
-- **🚨 必须使用脚本写入**：`cr_record.py` 是 Step 9 的唯一写入入口，严禁 AI 手动调 `getTableMeta` / `addData` / `exec` 算时间戳等操作。手动写入 = 字段格式不可控 = 数据污染。
-- **Step 9 无条件执行**：每次完整执行 CR 流程都必须写入记录，不依赖上下文中是否有"已登记"记录。重跑 = 再追加一行，这是预期行为（效果回收必须完整）。
-- **AI 只传业务参数**，不接触 columnIds / data JSON / 时间戳 / 结论映射，这些全部由脚本内部确定性处理。
-- **脚本内重试 4 次**（DB 路径 + 多维表格路径各自独立重试），AI 不需要手动重试。
-- **脚本失败时的处理**：输出 `❌ 全部失败！` → AI 在完成报告中标注失败，并通知提交人手动补录，不阻塞后续步骤。
-- `references/table-write-guide.md` 保留为降级路径的参考文档，AI 不再需要手动读取它。
+### 失败处理
+
+- 每步内部最多重试 4 次，间隔 2.5s
+- Step 6 失败 → 降级输出到对话，不阻塞 Step 7/8/9
+- Step 7 失败 → 重试后仍失败则大象通知提交人，不阻塞 Step 8/9
+- Step 8 失败 → 输出到对话提示手动发送，不阻塞 Step 9
+- Step 9 失败 → 输出错误信息，不阻塞后续
+- 所有步骤结果以 JSON 输出到 stdout，AI 读取后在对话中报告
+
+### 输出格式
+
+脚本 stdout 输出 JSON：
+```json
+{
+  "step6": {"ok": true, "km_url": "https://km.sankuai.com/collabpage/xxx"},
+  "step7": {"ok": true, "inline_count": 3, "global_ok": true},
+  "step8": {"ok": true, "global_group_ok": true, "team_group_ok": true},
+  "step9": {"ok": true, "skipped": false, "status": "ok", "error": ""},
+  "counts": {"p0": 1, "p1": 4, "p2": 6, "p3": 2},
+  "conclusion": "🟠需修复"
+}
+```
+
+### 无 PR 模式（分支 CR）
+
+无 PR 时：
+- `--pr-url` 传分支 URL（如 `https://dev.sankuai.com/code/repo-detail/org/repo/branch/feature/xxx`）
+- `--pr-id` 传 0
+- `--pr-title` 传分支名
+- Step 7（PR 评论）自动跳过
+- 学城文档标注「分支 CR（无 PR）」
+- 其余流程相同
+
+### 纯前端路径
+
+若 Step 2F 已委托 `fe-ai-review`：
+- `--issues-file` 传 `fe-ai-review` 产出的 issues JSON
+- `--summary-file` 传 `fe-ai-review` 产出的报告 markdown
+- 其余参数和流程完全一致
+
+---
+
+> ⚠️ **原 `cr_record.py`、`cr_doc_render.py`、`notify.py`、`cr-comment.sh` 保留但不再在 SKILL.md 中引用**，`publish_results.py` 已内含全部功能。后续可考虑清理。
 
 ---
 

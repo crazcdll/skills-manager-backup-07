@@ -127,6 +127,11 @@ SWITCH_STATUS_DESC = {
 SWITCH_APPKEY  = "com.sankuai.hotel.biz.platform"
 SWITCH_SERVICE = "com.meituan.hotel.biz.platform.goods.facade.standard.MeGoodsFacade"
 SWITCH_METHOD  = "batchOnlineSwitch"
+# batchOnlineSwitch(OnlineSwitchParam param) —— 单参数复杂结构体
+# body 模式下 DataUnity 无法自动推断该结构体参数类型，须走显式 parameterTypes 模式
+ONLINE_SWITCH_PARAM_TYPE = (
+    "com.meituan.hotel.biz.platform.goods.facade.param.goods.OnlineSwitchParam"
+)
 
 
 def call_online_switch(
@@ -180,11 +185,16 @@ def call_online_switch(
         return {}
 
     print(f"正在批量{label}商品（{goods_ids}）...")
+    import json as _json
     return invoke(
         appkey=SWITCH_APPKEY,
         service=SWITCH_SERVICE,
         method=SWITCH_METHOD,
-        params=params,
+        params=None,
+        parameter_values=[
+            _json.dumps(params, ensure_ascii=False, separators=(",", ":"))
+        ],
+        parameter_types=[ONLINE_SWITCH_PARAM_TYPE],
         swimlane=swimlane,
         timeout_ms=30000,
         raise_on_biz_error=True,

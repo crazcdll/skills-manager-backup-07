@@ -1,13 +1,13 @@
 ---
 name: ee-ones
-description: "通过 `ones` 命令行操作美团 ONES 系统（ones.sankuai.com）。覆盖：工作项（需求/任务/缺陷）的查询、创建、更新、删除、详情、评论、父子关联、资产与附件管理；URL 解析；工时填写/查询/汇总/代填；分支生成/创建/关联/搜索；迭代管理；测试用例/计划/轮次/导入；提测；排期管理；发布计划（上线计划）管理；空间/字段/界面方案查询；DSL 筛选；大象群管理；应用搜索与添加。当用户提到 ONES 相关操作时使用本 skill，如：查需求/任务/缺陷/bug、我的待办、建/改/删需求、拉分支、填工时、排期、发布计划、提测、测试用例、迭代、ONES 链接解析等。"
-version: 2.2.55
-tag: [ONES, 工作项, 需求, 任务, 缺陷, bug, 分支, 迭代, 冲刺, 测试, 工时, 工作量, 提测, 转测, 空间, 字段, 筛选, 查询, 搜索, 待办, 我的, 评论, 关联, 用例, 轮次, 计划, 开发进展, 进度, 上线, 时间范围, 预计开发, 预计上线, 链接解析, 工作项链接, ones.sankuai.com, 资产, 文档, PRD, MRD, BRD, 设计稿, 技术文档, 测试方案, 排期, 排期事项, 排期进度, UI交付, 排期时间, 交付时间, 附件, 上传附件, 删除附件, 图片, 上传图片, 图片描述, 新建, 创建, 修改, 更新, 删除, 指派, 详情, 状态, 流转, 子任务, 父需求, 工时填写, 工时记录, 工时汇总, 补填, 代填, 团队工时, 大象群, 建群, 工作项群, 延期, 风险, 版本进度, 项目进展, 做到哪了, 谁负责, 分给谁, 拉分支, 提个bug, 填工时, 看详情, 加评论, 建迭代, 写用例, 导入用例, 导入xmind, 上线时间, 什么时候上线, 解析链接, 应用, 服务列表, 搜索应用, 添加应用, 关联应用, SERVER, MAVEN, WEB, APP, DEV, OTHER, appkey, 仓库, 组件, 发布计划, 上线计划, releaseplan]
+description: "通过 `ones` 命令行操作美团 ONES 系统（ones.sankuai.com）。覆盖：工作项（需求/任务/缺陷）的查询、创建、更新、删除、详情、评论、父子关联、资产与附件管理；状态扭转（自动探测扭转弹窗必填项）；URL 解析；工时填写/查询/汇总/代填；分支生成/创建/关联/搜索；迭代管理；测试用例/计划/轮次/导入；提测；排期管理；发布计划（上线计划）管理；空间/字段/界面方案查询；DSL 筛选；大象群管理；应用搜索与添加。当用户提到 ONES 相关操作时使用本 skill，如：查需求/任务/缺陷/bug、我的待办、建/改/删需求、改状态/扭转状态/推进到下一状态、拉分支、填工时、排期、发布计划、提测、测试用例、迭代、ONES 链接解析等。"
+version: 2.2.59
+tag: [ONES, 工作项, 需求, 任务, 缺陷, bug, 分支, 迭代, 冲刺, 测试, 工时, 工作量, 提测, 转测, 空间, 字段, 筛选, 查询, 搜索, 待办, 我的, 评论, 关联, 用例, 轮次, 计划, 开发进展, 进度, 上线, 时间范围, 预计开发, 预计上线, 链接解析, 工作项链接, ones.sankuai.com, 资产, 文档, PRD, MRD, BRD, 设计稿, 技术文档, 测试方案, 排期, 排期事项, 排期进度, UI交付, 排期时间, 交付时间, 附件, 上传附件, 删除附件, 图片, 上传图片, 图片描述, 新建, 创建, 修改, 更新, 删除, 指派, 详情, 状态, 流转, 扭转状态, 改状态, 状态流转, 推进到, 扭转弹窗, 子任务, 父需求, 工时填写, 工时记录, 工时汇总, 补填, 代填, 团队工时, 大象群, 建群, 工作项群, 延期, 风险, 版本进度, 项目进展, 做到哪了, 谁负责, 分给谁, 拉分支, 提个bug, 填工时, 看详情, 加评论, 建迭代, 写用例, 导入用例, 导入xmind, 上线时间, 什么时候上线, 解析链接, 应用, 服务列表, 搜索应用, 添加应用, 关联应用, SERVER, MAVEN, WEB, APP, DEV, OTHER, appkey, 仓库, 组件, 发布计划, 上线计划, releaseplan]
 
 metadata:
   skillhub.creator: "hequanchuan"
-  skillhub.updater: "hequanchuan"
-  skillhub.version: "V11"
+  skillhub.updater: "songxiangyu03"
+  skillhub.version: "V12"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "21663"
   skillhub.high_sensitive: "false"
@@ -184,6 +184,7 @@ ones <命令> --help          # 如 ones wc --help / ones releaseplan create --h
 | 查需求/任务/缺陷/bug、我的待办、工作台 | `issues`、`my`、`workbench(wb)`、`filter-issues(fi)` | 基础查询，`-p <空间ID>` |
 | DSL 复杂筛选、按人员/时间/迭代/视图查 | `filter-issues(fi)`、`filter-views(fv)` | 详见 [DSL 指南](./references/filter-query-dsl.md) |
 | 创建/改/删/详情/评论/父子关联工作项 | `workitem-create(wc)`、`workitem-update(wu)`、`workitem-delete(wd)`、`workitem-detail`、`workitem-comment(wco)`、`workitem-child(wch)`、`workitem-parent(wcp)` | ⚠️ 写操作见下方三大规则 |
+| 改状态、扭转状态、推进到下一状态 | `workitem-status(wst)` | ⚠️ 状态变更专用，不能用 `wu`；先 `--list` 看是否有弹窗必填项 |
 | 资产/附件/图片/大象群 | `workitem-asset(wa)`、`workitem-attachment(watt)`、`workitem-image(wimg)`、`workitem-xmgroup(wxg)` | watt delete 强制二次确认 |
 | 解析 ONES 链接、获取工作项 URL | `url-parse(up)`、`workitem-url(wurl)` | V2 链接提示用 `ones2` |
 | 空间、应用（搜索/添加） | `spaces(sp)`、`space-apps(apps)`、`app-search-*`、`app-add-*` | 添加应用先搜后加 |
@@ -191,7 +192,7 @@ ones <命令> --help          # 如 ones wc --help / ones releaseplan create --h
 | 迭代/冲刺 | `iteration` 深模块 | 子命令：list/create/update/delete/set |
 | 工时（填/查/汇总/代填/团队） | `worktime(wt)` 深模块 | `ones worktime --help` 看子命令 |
 | 排期（时间/事项/上线时间） | `schedule(sch)` 深模块 | 子命令：query/item-create/item-update/item-delete/time-update |
-| 提测/转测 | `submittest` 深模块 | 子命令：detail/create/update/list |
+| 提测/转测、提测单关联缺陷 | `submittest` 深模块 | 子命令：detail/create/update/list/relate-defect |
 | 测试用例/目录/导入 | `case` 深模块 | `ones case --help` 看子命令 |
 | 测试计划 | `plan` 深模块 | 子命令：create/update/search/delete/rounds |
 | 测试轮次/执行用例/关联缺陷 | `round` 深模块 | `ones round --help` 看子命令 |
@@ -272,6 +273,7 @@ ones <命令> --help          # 如 ones wc --help / ones releaseplan create --h
 | 更新执行用例状态 | `ones round-cu`（交互选用例/状态） | `ones round-cu -p <空间ID> -r <轮次ID> -s SUCCESS --items "执行ID:用例ID" -y` |
 | 更新执行用例执行人 | `ones round-ce`（交互选用例/执行人） | `ones round-ce -r <轮次ID> --items "用例ID:MIS号" -y` |
 | 更新提测状态 | `ones stu`（交互选状态） | `ones stu -p <空间ID> -i <提测单ID> -s "已准入" -y` |
+| 提测单关联缺陷 | `ones submittest relate-defect`（先校验同空间/子空间） | `ones strd -p <空间ID> -i <提测单ID> -d <缺陷ID1> <缺陷ID2>` |
 | 导入用例 | `ones case-import`（缺参数报错） | `ones case-import -p <空间ID> --test-set-id <目录ID> -f <文件路径> [--mode 1]` |
 
 **关键原则**：
@@ -298,6 +300,10 @@ ones <命令> --help          # 如 ones wc --help / ones releaseplan create --h
 ```
 用户说"把状态改成已完成"（或任意字段更新意图）
   │
+  ├── Step 0: ⚠️ 判断是否为「状态」变更
+  │           是 → 走 ones wst（状态专用命令，见下方「状态扭转」小节），不要用 ones wu
+  │           否 → 继续 Step 1
+  │
   ├── Step 1: 查工作项详情 → ones workitem-detail -i <工作项ID> --json
   │           → 获取空间 ID（projectId）和工作项类型（type）
   │
@@ -316,15 +322,46 @@ ones <命令> --help          # 如 ones wc --help / ones releaseplan create --h
   ├── Step 4: 匹配用户描述 → "已完成" 对应 value="xxx"（取 value，不取 displayValue）
   │
   └── Step 5: 使用接口返回的 value 执行更新
-              → ones wu -i <ID> -F '{"variable":"state","name":"状态","type":"component_state","multiple":false,"fieldValue":"xxx"}' -y
+              → ones wu -i <ID> -F '{"variable":"customFieldXXX","name":"xxx","type":"xxx","multiple":false,"fieldValue":"xxx"}' -y
               → 或内置字段：ones wu -i <ID> --priority 3 -y
 ```
+
+### 状态扭转（必须用 `ones wst`，不能用 `ones wu`）
+
+状态变更需经工作流引擎处理，可能存在「扭转弹窗」要求填写必填项。
+用 `ones wu` 改 `state` 会被**直接拦截报错**。
+
+```
+用户说"把状态改成 XXX"
+  │
+  ├── Step 1: 查可流转状态及弹窗情况
+  │           ones wst -i <工作项ID> --list
+  │           → 输出每个状态的【有/无弹窗】及必填项（含 variable / type）
+  │
+  ├── Step 2A: 目标状态【无弹窗】
+  │            ones wst -i <ID> -s "<目标状态>" -y
+  │
+  └── Step 2B: 目标状态【有弹窗】
+               从 --list 结果拿到必填项的 variable / type，通过 -F 提供：
+               ones wst -i <ID> -s "<目标状态>" -y \
+                 -F '{"variable":"customField22933","name":"需求评审日期","type":"component_time","multiple":false,"fieldValue":1785340800000}'
+               ⚠️ 时间类字段 fieldValue 传毫秒时间戳
+               ⚠️ 必填项的具体取值如需用户提供（如“评审日期”），向用户询问**业务含义**，
+                  而不是询问 variable / 字段 ID 等技术参数
+```
+
+说明：
+- `ones wst` 会在改状态前**强制探测弹窗配置**，自动选择执行路径：
+  无弹窗 → 直接扭转接口；有弹窗 → 弹窗提交接口
+- 非交互模式（`-y`）下必填项缺失会报错，并打印可直接复制的示例命令
+- 若弹窗要求**评论必填**，用 `-c "评论内容"`；要求**附件必填**，用 `--attachment <文件路径>`
+  （`--list` 会标注哪些状态需要附件/评论；附件在扭转前上传，评论在扭转成功后发表）
 
 **常见字段定位参考**（Agent 遇到以下用户描述时应查询对应字段）：
 
 | 用户可能的描述 | 字段关键词（用于 `ones fs -n`） | 备注 |
 |--------------|-------------------------------|------|
-| 改状态、流转状态、改成已完成 | `状态` | type=`component_state`，需加 `-i <工作项ID>` 查可流转状态 |
+| 改状态、流转状态、改成已完成 | —— | ⚠️ **不走 wu**，用 `ones wst`（见上方「状态扭转」小节） |
 | 改优先级 | `优先级` | 内置字段 `--priority`，但仍需查可选值确认 |
 | 改指派人、转给XX | `指派` | 内置字段 `--assigned`，值为 MIS 号 |
 | 改子类型 | `子类型` | type=`component_subtype` |

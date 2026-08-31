@@ -197,6 +197,39 @@ ones workitem-update (别名: wu)    更新工作项字段
   -F, --field <json>               自定义字段（WorkitemValueField JSON，可多次使用）
                                    示例: -F '{"variable":"customField13200","name":"截止时间","type":"component_time","multiple":false,"fieldValue":1773590400000}'
   -y, --yes                        跳过确认直接更新
+  ⚠️ 状态字段（state / component_state）不能通过 wu 更新，会被拦截
+     状态变更请使用 ones wst（需经工作流引擎处理扭转弹窗必填项）
+     该约束已下沉到 CLI 服务层（OnesApiService.updateIssue 会直接抛错），
+     不依赖命令层自觉，任何命令/脚本绕过都会被拦截
+
+ones workitem-status (别名: wst)   扭转工作项状态（自动探测扭转弹窗必填项）
+  -i, --id <issueId>               工作项 ID（必填）
+  -s, --state <state>              目标状态名称（支持模糊匹配，未提供则交互式选择）
+  -F, --field <json>               弹窗必填项取值（WorkitemValueField JSON，可多次使用）
+                                   时间类字段 fieldValue 传毫秒时间戳
+                                   示例: -F '{"variable":"customField22933","name":"需求评审日期","type":"component_time","multiple":false,"fieldValue":1785340800000}'
+  -c, --comment <text>             评论内容（当扭转弹窗要求必填评论时必传）
+  --attachment <path>              附件文件路径（当扭转弹窗要求必填附件时必传）
+  --list                           仅列出可流转状态及各自弹窗必填项，不执行扭转
+  -y, --yes                        非交互模式：跳过确认，必填项须通过 -F / -c / --attachment 提供
+  --json                           JSON 格式输出
+
+  执行逻辑（修改状态前强制探测弹窗配置）：
+    无弹窗 → PUT  /api/proxy/issue/{issueId}        直接扭转
+    有弹窗 → POST /api/proxy/transition/view/submit  带必填项提交
+  说明：
+    • 弹窗探测失败会硬失败中止，不会降级直接扭转（避免绕过必填项管控）
+    • 非交互模式下必填项缺失会报错，并打印可直接复制的示例命令
+    • 建议先用 --list 查看哪些状态有弹窗及其必填项（含附件/评论必填标识）
+    • 附件在扭转前上传；评论在扭转成功后发表
+    • 评论发表失败不回滚状态，会提示用手动命令补充
+
+  附件/评论必填示例：
+    ones wst -i 95854623 --list                     # 先看哪些状态要求附件/评论
+    ones wst -i 95854623 -s "需求终审通过" -y \
+      -c "评审通过，进入排期" \
+      -F '{"variable":"customField22933","name":"需求评审日期","type":"component_time","multiple":false,"fieldValue":1785340800000}'
+    ones wst -i 95854623 -s "已上线" -y --attachment ./release-note.md -c "已上线"
 
 ones workitem-delete (别名: wd)    删除工作项（⚠️ 不可恢复）
   -i, --id <issueId>               工作项 ID（必填）
@@ -468,6 +501,8 @@ ones case-update (别名: case-u)    更新用例（标题、优先级、状态�
   -f, --field <fieldName>          要修改的字段名（标题 / 优先级 / 状态）
   --val <value>                    新值（直接指定，跳过交互式选择）
   -y, --yes                        非交互模式：跳过确认，必须同时提供 -f 和 --val，值必须是 API 返回的合法值
+  ⚠️ 更新「状态」时会经工作流引擎扭转（校验目标状态合法性 + 探测扭转弹窗）
+     若该扭转存在弹窗必填项，会中止并提示改用 ones wst
 
 ones case-delete (别名: case-d)    删除用例
   -i, --id <id>                    用例 ID

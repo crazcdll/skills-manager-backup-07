@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="mt-hotel-testdata-cli",
-    version="0.1.9",
+    version="0.1.10",
     description="酒店测试数据构造 CLI",
     author="zhaoshichuan",
     author_email="zhaoshichuan@meituan.com",

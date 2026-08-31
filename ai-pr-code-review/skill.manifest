@@ -1,9 +1,9 @@
 skill-manifest-version: 1
-skill-id: 1d88332bf608325ff52ba0d6084710fc83f345dc450a4a5a41d30569bf1b797e
+skill-id: 4a7270691e27a70f2be41dc35260b58cf7c491927dd9189193e87ed140936fdb
 
 files:
   2bdf304c8b913391ef02ee608d2d53e4db8f03d5c831f2b87aadbb8a21a02286  .skillignore
-  0bd8ab051efc3fe7f774f58a66d2a77f5ca02b9d1eb8181c591a9fd45d42d64e  SKILL.md
+  2423aeaa4ca28a46215a3a89831e50cc832c21ec894d271b24c750410956d246  SKILL.md
   88915a3666de76b7c2dcb7fe2966810d28431bd2d5dd9e0e0224b6f41a527cf8  cr-config.yaml
   f8dbb8d87d35cba06489b0e88fab030c8f842a97fc08697f7daf2f4ba35bb460  references/citadel-write-guide.md
   25e2d61d6a496cbf88e513f19d7ce97d5575e15f0e5568c7e9022a0f96d0a023  references/coding-standards-checklist.md
@@ -52,8 +52,10 @@ files:
   cce024407c143fb78e6efa35698d9b2aec49a4f05412e62e8ee926550b88acbd  references/team-onboarding.md
   17839f717aa6ede64a3e5872bfd0b79e4dd128040b70abfa53d3fc3c05c0a8af  references/zero-tolerance-checklist.md
   a244c5a0ebdd495b0f1b130b7823f99e0b358deecdcf2b0c4bd22d832a0e5307  scripts/code_cli.py
+  ef51fc59a4642de8a195e9abf3177450c11b04dfd8f10347f95261c4fbaf5c93  scripts/cr_comment.py
   f1cb6102947ce051f996e11bb239b3384d11f616ea04ca340dca8d16b750739c  scripts/cr_doc_render.py
   fe93895f547b0b2c63ad43d33755b6f6fb27f389f2c7ff2aff9ccdc4a2380b4e  scripts/cr_record.py
   fd65f486837d6e512de7fdc70fc8b24c1c21c12dda64c264bdd6535edc4be7be  scripts/env-check.sh
   21ac358b246cc1e6ae2cc5373cecfd45280440f50ff40f3126a168b3387c1f6e  scripts/get_org_info.py
   c240902056d2ec8348fe23b425c27a5df86ea1c9a95a65ab830f6bb6b6c31ea4  scripts/notify.py
+  93b743a37c639ee2e5200d0e30b7aa84e570be699875b0748a0508d4818e2443  scripts/publish_results.py

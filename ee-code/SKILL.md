@@ -6,8 +6,8 @@ tag: [PR, PullRequest, CodeReview, MCode, CLI, ReviewComment, Fix, CI, Status, C
 
 metadata:
   skillhub.creator: "zhoudandan10"
-  skillhub.updater: "lenghan"
-  skillhub.version: "V3"
+  skillhub.updater: "wudi59"
+  skillhub.version: "V4"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "3439"
   skillhub.high_sensitive: "false"
@@ -44,11 +44,29 @@ This skill provides comprehensive PR (Pull Request) workflow management using `c
 
 # Prerequisites
 
-Before executing any PR workflow, verify that `code-cli` is installed and authenticated.
+Before executing any PR workflow, verify that `code-cli` is installed (version ≥ 0.1.27) and authenticated.
 
-## Step 0.1 Check if `code-cli` is installed
-- Run `code-cli --version` to verify installation
-- If the command fails, display the "CLI Not Installed" template from `references/templates.md`
+## Step 0.1 Check `code-cli` version and install/upgrade if needed
+
+- Run `code-cli --version` to check the local version
+- Handle the result as follows:
+
+| Check Result | Action |
+|--------------|--------|
+| Not installed (`command not found`) | Run the install command below |
+| Version ≥ 0.1.27 | ✅ Proceed directly, no install needed |
+| Version < 0.1.27 (e.g. 0.1.26) | Run the install command below to upgrade |
+
+```bash
+npm install -g @ee/code-cli@latest --registry=http://r.npm.sankuai.com
+
+# Verify the version meets the requirement
+code-cli --version
+```
+
+> **Version comparison rules**: compare major.minor.patch numerically, segment by segment. **Pre-release versions count as satisfying the requirement** — e.g. `0.1.27-alpha.3` is treated as ≥ 0.1.27 and does NOT need reinstalling. ⚠️ NEVER run the install command when a 0.1.27 pre-release is already installed; it may downgrade to an older version.
+
+- If install fails, display the "CLI Not Installed" template from `references/templates.md`
 
 ## Step 0.2 Check authentication status
 - Run `code-cli auth status` to verify login status
@@ -422,7 +440,8 @@ code-cli pr <subcommand> --help
 
 | Error | Solution |
 |-------|----------|
-| code-cli not found | `npm install -g @ee/code-cli --registry=http://r.npm.sankuai.com` |
+| code-cli not found | Run the Prerequisites version check flow: `npm install -g @ee/code-cli@latest --registry=http://r.npm.sankuai.com` |
+| Version below 0.1.27 | Upgrade via the Prerequisites install command (note: 0.1.27 pre-releases such as 0.1.27-alpha.3 already satisfy the requirement — do NOT reinstall) |
 | Not authenticated | Auto-run `code-cli auth login`; if fails, prompt manual login |
 | Repository/branch not found | Verify project/repo name and branch exist |
 | Permission denied | Confirm user has repo write access |

@@ -1,11 +1,11 @@
 ---
 name: citadel-database
-description: "学城多维表格操作工具。支持:文档/表格创建与管理、数据增删改查、批量操作、筛选排序、文件上传、账号转换、多维表格高级权限添加成员、自定义角色删除成员能力。当用户需要操作多维表格、批量处理表格数据、数据同步、数据收集、表格自动化，或给多维表格高级权限角色添加人员/组织/群/邮件组/应用、从自定义角色删除成员时使用。触发词:表格、多维表格、XTable、高级权限、默认角色、自定义角色、多维表格管理员、角色成员、批量操作、数据导入、数据收集。"
+description: "学城多维表格操作工具。支持:文档/表格创建与管理、数据增删改查、批量操作、筛选排序、文件上传、账号转换、多维表格高级权限角色成员增删；在此基础上新增自定义角色生命周期、表/行/列/视图权限配置、成员角色反查调整和当前用户实际表权限查询。当用户需要操作多维表格、批量处理表格数据、数据同步、数据收集、表格自动化，或给多维表格管理员、默认角色、自定义角色添加或删除人员/组织/群/邮件组/应用，以及使用上述高级权限能力时使用。触发词:表格、多维表格、XTable、高级权限、默认角色、自定义角色、多维表格管理员、角色成员、批量操作、数据导入、数据收集。"
 
 metadata:
   skillhub.creator: "zhangshufei02"
   skillhub.updater: "hekai13"
-  skillhub.version: "V22"
+  skillhub.version: "V23"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "3859"
   skillhub.high_sensitive: "true"
@@ -24,7 +24,7 @@ metadata:
 - ✅ **支持筛选和排序**：灵活的数据查询能力
 - ✅ **新增公式列** 🧮：支持创建公式列（columnType:9），自动计算数字/日期/文本/货币结果，支持本表列引用 `[#colId]` 和跨表引用 `[$tableId].[#colId]`
 - ✅ **编辑列配置** ⚙️：支持修改公式表达式、结果格式（formulaFormat）、数字/日期格式化（formatter）、货币代码、人员列多选等列级配置
-- ✅ **高级权限管理** 🔐：支持查询高级权限开关、开启/关闭高级权限、查询角色配置；支持给管理员、自定义角色添加人员/组织/大象群/邮件组/应用；支持从自定义角色删除成员；管理员和默认角色暂不支持删除成员；暂不支持修改权限配置
+- ✅ **高级权限管理** 🔐：支持查询高级权限开关、开启/关闭高级权限、查询角色配置；支持给管理员、默认角色、自定义角色添加或删除人员/组织/大象群/邮件组/应用；新增支持自定义角色增删改名、默认/自定义角色的表/行/列/视图权限配置、成员角色反查/调整及当前用户生效权限查询
 
 ## 目录
 
@@ -99,7 +99,11 @@ node -e "const cp=require('child_process'); const probe=process.platform==='win3
 
 当用户明确提到"多维表格高级权限"、"默认角色"、"自定义角色"、"多维表格管理员"、"给角色加人/删人/加组织/删组织/加群/删群/加邮件组/删邮件组/加应用/删应用"时，加载 `{baseDir}/references/advanced-permission.md`，不要使用学城文档权限命令替代。
 
-当前只支持：
+> **仪表盘权限边界**：当前 skill 不支持修改仪表盘高级权限。`createAdvancedPermRole` 和 `updateAdvancedPermRolePermissions` 的 `permissionDetails` 只能配置数据表 ID；不得新增、修改或删除仪表盘权限项。查询角色详情时可以读取接口返回的既有仪表盘权限，但不得将其作为写入目标。用户要求修改仪表盘权限时，明确告知当前不支持并停止写操作。
+
+生成 `permissionDetails.extraConfig` 时必须按权限组区分结构：`permGroupType=0/5` 只能使用 `rowOperation=1`、`rowRanges.1`、`columnRanges` 值 `0/1`、`viewOperation=1`；`permGroupType=2` 使用 `rowOperation=5/7/13/15`、`rowRanges.4/8`、`columnRanges` 值 `0/1/21`、`viewOperation=1/15`；`permGroupType=-1/4` 不得携带对象型 `extraConfig`，更新时只有明确清除旧配置才传 `extraConfig:null`。指定行且用户未说明默认值时，`0/5` 使用 `others=0`，`2` 使用 `others=1`；筛选连接符在 `rowOperation=7/15` 时默认 `or`，其余默认 `and`，用户明确指定“任一/全部”时以用户选择为准。优先把 `extraConfig` 写成 JSON 对象，不要生成二次转义字符串。
+
+原有稳定能力：
 
 - 查询高级权限开关状态
 - 开启或关闭高级权限开关
@@ -108,11 +112,15 @@ node -e "const cp=require('child_process'); const probe=process.platform==='win3
 - 给管理员、自定义角色添加人员、组织、大象群、邮件组、应用
 - 从自定义角色删除人员、组织、大象群、邮件组、应用
 
-当前不支持直接执行：
+在此基础上新增：
 
-- 给默认角色添加成员
-- 给管理员或默认角色删除成员
-- 修改角色权限、更新成员角色
+- 新增、重命名、删除自定义角色
+- 修改默认角色或自定义角色的数据表级及行/列/视图权限
+- 从管理员角色删除成员
+- 给默认角色添加或删除成员
+- 反查或调整成员角色，查询当前用户实际表权限
+
+完整命令、权限枚举、`extraConfig` 结构和高风险确认规则见 `{baseDir}/references/advanced-permission.md`。
 
 | 用户意图                    | 命令                                    |
 | -------------------------- | --------------------------------------- |
@@ -153,8 +161,13 @@ node -e "const cp=require('child_process'); const probe=process.platform==='win3
 | 在学城文档内插入多维表格     | `依次执行：createTable → addData → updateDocumentByMd` |
 | **查询高级权限开关** 🔐  | `getAdvancedPermStatus --contentId <id>` |
 | **开启/关闭高级权限开关** 🔐  | 开启前先执行 `getAdvancedPermStatus --contentId <id>` 判断是否首次开启；状态 `0` 直接执行 `updateAdvancedPermStatus --contentId <id> --status enabled`；状态 `1/2` 再查 `listAdvancedPermRoles --roleType custom --raw`，无成员 CLI 自动补 `preserveOriginalRole=true`，有成员必须询问用户并传 `--preserveOriginalRole true\|false`；关闭用 `updateAdvancedPermStatus --contentId <id> --status disabled` |
-| **添加高级权限角色成员** 🔐  | `addAdvancedRoleMembers --contentId <id> --roleType admin\|custom (--roleId <id> \| --roleName <自定义角色名>) [--person <mis>] [--orgs <json>] [--xmGroupIds <ids>] [--mails <mail>] [--appIds <ids>]` |
-| **删除高级权限自定义角色成员** 🔐  | `deleteAdvancedRoleMembers --contentId <id> --roleType custom (--roleId <id> \| --roleName <自定义角色名>) [--person <mis>] [--orgs <json>] [--xmGroupIds <ids>] [--mails <mail>] [--appIds <ids>]` |
+| **添加高级权限角色成员** 🔐  | `addAdvancedRoleMembers --contentId <id> --roleType admin\|default\|custom [--roleId <id> \| --roleName <自定义角色名>] [--person <mis>] [--orgs <json>] [--xmGroupIds <ids>] [--mails <mail>] [--appIds <ids>]` |
+| **删除高级权限默认/自定义角色成员** 🔐  | `deleteAdvancedRoleMembers --contentId <id> --roleType default\|custom [--roleId <id> \| --roleName <自定义角色名>] [--person <mis>] [--orgs <json>] [--xmGroupIds <ids>] [--mails <mail>] [--appIds <ids>]` |
+| **管理高级权限自定义角色** 🔐 | `createAdvancedPermRole` / `renameAdvancedPermRole` / `deleteAdvancedPermRole`；删除前必须读取角色详情并获得明确确认 |
+| **配置角色数据表/行/列/视图权限** 🔐 | `updateAdvancedPermRolePermissions --contentId <id> --roleType default\|custom ... --permissionDetails <json>`；仅支持数据表，不允许修改仪表盘高级权限；默认按 `tableId` 合并，`--replace true` 仅在确认不会改动既有仪表盘权限且明确确认全量覆盖后使用 |
+| **删除高级权限管理员成员** 🔐 | `deleteAdvancedRoleMembers --contentId <id> --roleType admin ...`；删除前先读取并核对管理员角色详情 |
+| **反查/调整成员角色** 🔐 | `searchAdvancedMemberRoles --contentId <id> --keyword <关键词>`；`updateAdvancedMemberRoles --userGroupId <id> (--roleIds <ids> \| --clear true)`，清空前必须明确确认 |
+| **查询当前用户表权限** 🔐 | `getAdvancedUserTablePermissions --contentId <id> --tableIds <ids>` |
 
 **图例说明**：⭐ 推荐使用 | 🔧 低层 API（调试/特殊集成用）
 

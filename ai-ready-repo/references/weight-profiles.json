@@ -1,0 +1,40 @@
+{
+  "_comment": "AI-Ready 维度权重档案（单一真相源 / single source of truth）。交互式 SKILL.md 第三步与 CLI score_commit.py 均以本文件为准，禁止在别处再硬编码权重。每个 profile 的 11 个维度权重之和必须 = 100。",
+  "version": "1.0",
+  "dimension_labels": {
+    "dim1a": "仓库定位准确性",
+    "dim1b": "仓库导航完整性",
+    "dim2": "架构文档完整性",
+    "dim3": "代码可读性",
+    "dim4": "代码可维护性",
+    "dim5": "代码可扩展性",
+    "dim6": "业务领域建模",
+    "dim7": "编码规范遵守度",
+    "dim8": "AI 协作友好度",
+    "dim9": "测试验证",
+    "dim10": "反馈回路"
+  },
+  "profiles": {
+    "backend": {
+      "_desc": "后端标准权重（Java/Maven 等），测试验证按完整 12% 计。unknown 仓库回退到此档案。",
+      "weights": {
+        "dim1a": 6, "dim1b": 6, "dim2": 12, "dim3": 8, "dim4": 7,
+        "dim5": 5, "dim6": 14, "dim7": 12, "dim8": 8, "dim9": 12, "dim10": 10
+      }
+    },
+    "frontend": {
+      "_desc": "前端权重（frontend / frontend-mono / nodejs）。前端 UI 组件测试 ROI 低、单测覆盖普遍缺失，故 dim9 测试验证从 12% 降权至 2%（降权而非归零，仅保留对优秀前端测试投入的微弱区分度）；腾出的 10% 按比例（×98/88）摊回其余 10 个维度，dim6 吸收取整余量。校验：6.7+6.7+13.4+8.9+7.8+5.6+15.5+13.4+8.9+2+11.1 = 100。",
+      "weights": {
+        "dim1a": 6.7, "dim1b": 6.7, "dim2": 13.4, "dim3": 8.9, "dim4": 7.8,
+        "dim5": 5.6, "dim6": 15.5, "dim7": 13.4, "dim8": 8.9, "dim9": 2, "dim10": 11.1
+      }
+    }
+  },
+  "repo_type_to_profile": {
+    "backend": "backend",
+    "unknown": "backend",
+    "frontend": "frontend",
+    "frontend-mono": "frontend",
+    "nodejs": "frontend"
+  }
+}

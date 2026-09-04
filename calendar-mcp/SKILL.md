@@ -5,7 +5,7 @@ description: 美团日历（日程管理）工具集。当用户要安排会议�
 metadata:
   skillhub.creator: "pangjingwei02"
   skillhub.updater: "wanhu02"
-  skillhub.version: "V7"
+  skillhub.version: "V8"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "11092"
   skillhub.high_sensitive: "false"
@@ -14,6 +14,13 @@ metadata:
 # Calendar MCP（日程管理）
 
 本 Skill 把用户意图翻译为 `oa-skills calendar-mcp` CLI 调用。Agent 不直接拼接 MCP Hub、SSE、HTTP 或 Thrift 请求；认证、开放平台路径、响应拆包和 `mis -> empId` 转换由 CLI/client 负责。
+
+## CLI 身份与首次检查
+
+- `calendar-mcp` 是 npm 包 `@it/oa-skills` 提供的子命令，不是独立 npm 包；唯一允许安装的主 CLI 包是 `@it/oa-skills@latest`。
+- 本轮首次业务调用前先执行 `node "<本 Skill 目录>/scripts/ensure-oa-skills.cjs" --check`。脚本兼容 Windows、macOS 和 Linux；这只是本地可用性检查，不是 `capabilities` 能力探测，已经成功调用过后不必重复检查。
+- 若命令不存在，读取 [runtime-and-safety.md](references/runtime-and-safety.md) 并只按其中的缺失恢复流程执行。禁止运行 `npm search`，禁止根据 Skill 名推导 npm 包名，禁止安装 `@cap/skills-calendar` 或其他猜测包。
+- 正确安装命令固定为 `npm install -g @it/oa-skills@latest --registry=https://r.npm.sankuai.com`，并由上述脚本执行。脚本返回 `onPath: false` 时，后续命令使用其 `cliPath` 绝对路径；PowerShell 调用带空格的路径时使用 `& "<cliPath>"`。无法返回路径时报告环境问题并停止，不要反复安装或更换包名。
 
 ## 执行路由
 

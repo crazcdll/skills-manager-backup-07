@@ -27,9 +27,9 @@
 ```markdown
 ❌ **code-cli 未安装**
 
-请使用以下命令安装 code-cli：
+请使用以下命令安装 code-cli（版本 ≥ 0.1.27）：
 ```bash
-npm install -g @ee/code-cli --registry=http://r.npm.sankuai.com
+npm install -g @ee/code-cli@latest --registry=http://r.npm.sankuai.com
 ```
 
 安装完成后，请使用以下命令登录：

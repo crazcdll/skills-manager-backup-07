@@ -4,59 +4,27 @@
 
 ## CLI 兼容诊断与修复
 
-CLI 自身通过共享 runner 执行版本检查和参数校验。只有出现 CLI 缺失、未知命令/参数、能力不兼容，或升级后需要复核时，才执行以下完整探测；不要让普通业务请求承担这项检查。
+CLI 自身通过共享 runner 执行版本检查和参数校验。首次业务调用只运行随 Skill 打包的跨平台检查脚本；只有出现 CLI 缺失、未知命令/参数、能力不兼容，或升级后需要复核时，才执行修复模式。不要让普通业务请求承担 `capabilities` 检查。
 
-```bash
-CALENDAR_REGISTRY="https://r.npm.sankuai.com"
-probe_calendar_cli() {
-  NO_CHECK_VERSION=true oa-skills calendar-mcp capabilities --raw 2>/dev/null | node -e '
-    const fs = require("fs");
-    const payload = JSON.parse(fs.readFileSync(0, "utf8"));
-    const required = [
-      "status.strict",
-      "raw.requiredPayload",
-      "writes.noReplay",
-      "time.strictIana",
-      "search.pagination",
-      "busy.verifiedPayload",
-      "identity.numericValidated",
-      "update.completeTimeRange",
-      "reminder.positiveMinutes",
-      "conflicts.timeZone",
-      "busyAnalysis.currentScheduleId",
-      "participantTimeZone.statusComplete",
-      "reminder.personal",
-      "freeBusy.canSet",
-      "feedback.attendee",
-      "meetingRoom.transfer.handoverEventId",
-      "meetingRoom.recommend",
-      "meetingRoom.merge",
-      "schedule.recurrence",
-      "schedule.recurrence.editBlocked",
-      "schedule.groupchatAssociation"
-    ];
-    if (payload.schemaVersion !== 1 || required.some((key) => payload.features?.[key] !== true)) {
-      process.exit(1);
-    }
-  '
-}
+`calendar-mcp` 是 `@it/oa-skills` 提供的子命令，不是 npm 包。禁止执行 `npm search` 或根据 Skill 名猜测包名；特别禁止安装不存在的 `@cap/skills-calendar`。
 
-if ! command -v oa-skills >/dev/null 2>&1; then
-  npm install -g @it/oa-skills@latest --registry="$CALENDAR_REGISTRY"
-fi
+先把 `<本 Skill 目录>` 替换为当前加载的 `SKILL.md` 所在目录。macOS、Linux、Windows CMD 和 PowerShell 都执行同一条 Node 命令，不要改写成 `command -v`、`which`、`where` 或平台专用安装脚本。
 
-if ! probe_calendar_cli; then
-  npm install -g @it/oa-skills@latest --registry="$CALENDAR_REGISTRY"
-  hash -r 2>/dev/null || true
-fi
-
-if ! probe_calendar_cli; then
-  echo "calendar-mcp CLI 能力仍与当前 Skill 不兼容，请停止业务调用并报告安装问题。" >&2
-  exit 1
-fi
+```text
+node "<本 Skill 目录>/scripts/ensure-oa-skills.cjs" --check
 ```
 
-探测失败时只允许升级一次并复探测。未知命令或本地参数错误发生在业务写入前时，可以修复 CLI 后重新构造调用；任何已经可能进入认证或远端接口的写操作都不得因为升级、认证、网络或超时错误而自动重放。
+`--check` 只从 PATH 和 npm global prefix 解析可执行文件，不安装、不联网、不执行 `capabilities`。成功时输出一行 JSON：`cliPath` 是真实可执行路径，`onPath` 表示能否继续直接使用 `oa-skills` 命令。`onPath: false` 时使用 `cliPath` 替代命令前缀；PowerShell 调用带空格的绝对路径时写成 `& "<cliPath>" calendar-mcp ...`。
+
+检查失败，或者现有 CLI 返回未知命令/参数、能力不兼容时，执行修复模式：
+
+```text
+node "<本 Skill 目录>/scripts/ensure-oa-skills.cjs" --repair
+```
+
+`--repair` 内部固定使用 `@it/oa-skills@latest` 和 `https://r.npm.sankuai.com`，兼容 Windows 的 `<npm-prefix>\oa-skills.cmd` 与 Unix 的 `<npm-prefix>/bin/oa-skills`。缺失恢复或能力升级合计只安装一次并复探测；仍失败时脚本以非零状态停止。不能重复安装、执行 `npm search` 或换成猜测包。
+
+未知命令或本地参数错误发生在业务写入前时，可以修复 CLI 后重新构造调用；任何已经可能进入认证或远端接口的写操作都不得因为升级、认证、网络或超时错误而自动重放。
 
 `capabilities` 只证明本地 CLI 支持参数，不证明目标环境已经发布对应 OpenService SDK、服务端和 DX Open schema。若目标环境返回未知字段、未知方法或契约未部署错误，立即停止；不能删掉参数后退化执行。
 

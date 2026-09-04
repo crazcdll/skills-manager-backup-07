@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "4d35741d-e762-440b-944e-80d8c1a5bbdd",
+  "path": "ai-ready-repo",
+  "path_key": "ai-ready-repo",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

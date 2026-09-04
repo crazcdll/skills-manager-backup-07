@@ -6,8 +6,8 @@ PR → 大象推送 → 登记多维表格，I/O 操作均重试4次失败通知
 
 metadata:
   skillhub.creator: "mengmuzi"
-  skillhub.updater: "mengmuzi"
-  skillhub.version: "V153"
+  skillhub.updater: "zengjiantao"
+  skillhub.version: "V154"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "5205"
   skillhub.high_sensitive: "false"
@@ -899,6 +899,8 @@ python3 "$SKILL_ROOT/scripts/publish_results.py" \
   --changed-files-file "/tmp/cr_changed_files_{prId}.md" \
   --summary-file "/tmp/cr_summary_{prId}.md" \
   [--sdd-file "/tmp/cr_sdd_{prId}.md"] \
+  [--is-sdd {has_spec}] \
+  [--consistency-rate "{alignment_rate}"] \
   [--catpaw-file "/tmp/cr_catpaw_{prId}.md"] \
   [--branch "{sourceBranch}"] \
   [--file-count {fileCount}] \
@@ -929,6 +931,8 @@ python3 "$SKILL_ROOT/scripts/publish_results.py" \
 | `--changed-files-file` | 可选 | Step 3 | 变更文件清单 markdown |
 | `--summary-file` | 可选 | Step 3 | 变更综述+总体评价+人工复审要点 |
 | `--sdd-file` | 可选 | Step 3D | SDD 校验章节 markdown |
+| `--is-sdd` | 🚨必传 | Step 3D `SDD_CHECK_RESULT.has_spec` | 本次 CR 是否有 SDD spec 产物（true/false，禁止自行推断；未传一律按 false 兜底） |
+| `--consistency-rate` | 🚨必传 | Step 3D `SDD_CHECK_RESULT.alignment_rate` | 文码一致率原值如 `90%`（保留 % 号；has_spec=false 时传空串）。脚本不做文本解析，漏传则上报空串 |
 | `--catpaw-file` | 可选 | Step 2 | CatPaw 对比章节 markdown |
 | `--branch` | 可选 | Step 2 `pr-info` | 分支名 |
 | `--file-count` | 可选 | Step 2 `pr-info` | 变更文件数 |

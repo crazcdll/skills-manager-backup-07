@@ -103,6 +103,46 @@ python3 scripts/pr-comment/code_cli.py pr-changes --url <PR_URL>
 
 策略一旦确定，全程不再切换。
 
+### Step 0.f：建立身份与启动规则观测 run
+
+PR 元信息中的作者只写入 `pr_author_mis`，不得映射为任务发起人。优先继承上游
+传入的 `identity`；独立运行时只接受可信运行时身份或用户明确声明。两者都不存在时：
+
+```text
+identity_status=unresolved
+initiator_mis=null
+pr_author_mis=<PR author>
+```
+
+受委托时复用父 `workflow_run_id`、`work_item_key`、`ruleset_commit` 和
+`outbox_dir`；独立运行时按 `mt-fe-coding-standards` 的 V3 示例创建 context，
+`work_item_key` 使用 `pr:<org>/<repo>#<pr_id>`。
+
+独立运行时先执行：
+
+```shell
+node <mt-fe-coding-standards>/coding-standards/scripts/resolve-identity.mjs \
+  --runtime-type <cloud_user_session|cloud_shared_agent|automation|unknown> \
+  --output json \
+  --output-file <identity.json>
+```
+
+平台已验签身份时追加 `--trusted-platform-identity <claim.json>`；用户明确声明时
+追加 `--allow-user-input --declared-mis <mis>`。PR-only 云端模式禁止使用
+`--trusted-local-identity`，也不得把 PR 作者写入 `initiator_mis`。
+
+加载规则前执行：
+
+```shell
+node <mt-fe-coding-standards>/coding-standards/scripts/report-stage-lifecycle.mjs start \
+  --context <workflow-context.json> \
+  --stage cr \
+  --stage-step pr_only
+```
+
+该调用对应 `stage_step=pr_only`。同一 PR 的重跑必须创建新 attempt/run，不能复用
+已经终态的 run。
+
 ## Step 1：输出准备信息
 
 严格按 `references/tpl-report.md`「准备」章节组织内容，至少包含：
@@ -111,6 +151,8 @@ python3 scripts/pr-comment/code_cli.py pr-changes --url <PR_URL>
 - PR 元信息：org/repo/pr_id、title、author、fromRef → toRef
 - 变更摘要：文件数、改动文件列表（按目录归类）
 - 上下文策略：`with-search` 或 `diff-only`，diff-only 时显式标注"上下文受限"
+- 规则上下文：当前组织路径、`organization|repository|fallback` 作用域、可选仓库身份、
+  有效规则数和 releaseRefs
 
 PR-only 模式下不输出"自由文本可靠性结论"（避免逐次重复输出"需补充材料"刷屏），改为单一阻塞判定：
 
@@ -259,6 +301,23 @@ PR-only 模式下的差异处理：
 
 此报告输出一次即可。最终总结时，无需再重复输出此报告。
 
+### Step 6.1：完成规则观测 run
+
+由 `mt-fe-coding-standards` 根据 PR diff 与已获取的远程上下文生成唯一规则事件。
+证据不足的问题仍可进入 Open Questions，但不得伪造 `matched=true`。保存事件后执行：
+
+```shell
+node <mt-fe-coding-standards>/coding-standards/scripts/report-stage-lifecycle.mjs finish \
+  --context <workflow-context.json> \
+  --stage cr \
+  --stage-step pr_only \
+  --events .duo/rule-observability/events/cr.pr_only.json \
+  --status completed
+```
+
+无 eligible rule 时提交空数组；网络失败只记录 outbox。生命周期结果和旧 CR 看板
+报告分别记录，不能互相替代。
+
 ### PR-only 报告补丁
 
 **模式声明（始终添加）**：报告概要紧随标题之后插入一行：
@@ -302,7 +361,9 @@ PR-only 模式下天然有 PR 链接，无需仓库一致性校验，触发逻�
 - **跳过**：用户显式说「不要上报」「不上报看板」
 - **执行**：按 `references/report-submit.md` 中「执行」一节的要求，通过临时文件传入 payload 并运行脚本
 - **失败**：在会话末尾静默附加一行 `⚠️ CR 看板上报失败：<原因>`，不重试，不阻塞
-- **PR-only 特别说明**：无本地 git 环境时，`operator` 从 PR 元信息 `author` 字段提取；`repo` / `branch` 从 PR URL 解析结果中取得
+- **PR-only 特别说明**：`operator` 只兼容映射自
+  `identity.initiator_mis`；`identity_status=unresolved` 时留空。PR 作者只写
+  `pr_author_mis`，`repo` / `branch` 从 PR URL 解析结果中取得
 - **字段解析、枚举映射、payload 组装**：详见 [`references/report-submit.md`](../report-submit.md)
 
 ## 修复检查（增量复查）

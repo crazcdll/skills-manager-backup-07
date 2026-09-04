@@ -69,7 +69,7 @@ SEND_URL             = "https://xopen.sankuai.com/open-apis/dx-msg/sendGroupMsgB
 
 # Step 9: 写入 DB（submit-task 新建模式 + 多维表格降级）
 DB_HOST = "spt.sankuai.com"
-DB_PATH = "/api/aicr/submit-task"
+DB_PATH = "/api/v1/aicr/submit-task"
 DB_TIMEOUT = 20
 DB_DEFAULT_SCHEME = "https"
 DEFAULT_TABLE_ID = "2751197605"
@@ -1064,38 +1064,131 @@ def _parse_consistency_rate(sdd_md):
     return f"{m.group(1)}%" if m else ""
 
 
-def _build_defender_issues(issues):
-    """从统一 Issue JSON 提取 Defender 回调契约所需的逐条 issue 明细。
-
-    依据技术方案（km.sankuai.com/collabpage/2777573642 第 6.3 节）：
-    仅 P0~P3 上报，跳过 severity=confirm（待确认问题不计入）；
-    字段名与 skill issue schema 完全一致，直接透传，不做改写；
-    km_url 由 Defender 侧（sku-operation-server）在转换阶段从 cr_result 顶层补充，
-    本字段列表内不重复携带。
-    commentId：Step 7 行内评论发送成功后回写的评论 id（评论接口返回的 id），
-    未发行内评论（P2/P3）、去重跳过或发送失败时为 None。
-    """
+def _build_doc_issues(issues, extra_fields):
+    """结构化逐条 issue 列表（覆盖学城文档展示的全部字段，含 confirm 专属字段）。
+    与 ai-cr-forlocal cr_record.py 的同名函数保持一致。"""
     result = []
-    for it in issues:
-        severity = it.get("severity", "")
-        if severity not in ("P0", "P1", "P2", "P3"):
-            continue
-        comment_id = it.get("commentId")
-        if comment_id is not None and str(comment_id).isdigit():
-            comment_id = int(comment_id)
-        result.append({
-            "severity": severity,
+    for idx, it in enumerate(issues, 1):
+        entry = {
+            "index": idx,
+            "severity": it.get("severity", ""),
             "ruleId": it.get("ruleId", "") or "",
+            "ruleName": it.get("ruleName", "") or "",
+            "ruleFile": it.get("ruleFile", "") or "",
             "anomalyType": it.get("anomalyType", "") or "",
-            "description": it.get("description", "") or "",
+            "summary": it.get("summary", "") or "",
             "file": it.get("file", "") or "",
             "line": it.get("line", 0) or 0,
             "code": it.get("code", "") or "",
+            "description": it.get("description", "") or "",
             "risk": it.get("risk", "") or "",
             "suggestion": it.get("suggestion", "") or "",
-            "commentId": comment_id,
-        })
+            "source": it.get("source", "") or "",
+            "commentId": it.get("commentId"),
+        }
+        for k in extra_fields:
+            if it.get(k):
+                entry[k] = it[k]
+        result.append(entry)
     return result
+
+
+def _build_rule_hit_summary_data(issues):
+    """结构化「规则命中摘要」。与 ai-cr-forlocal cr_record.py 的同名函数保持一致。"""
+    if not issues:
+        return {}
+    p0_rules = sorted(set(r for it in issues if it.get("severity") == "P0" for r in _expand_rids(it)))
+    p1_rules = sorted(set(r for it in issues if it.get("severity") == "P1" for r in _expand_rids(it)))
+    p2_rules = sorted(set(r for it in issues if it.get("severity") == "P2" for r in _expand_rids(it)))
+    p3_rules = sorted(set(r for it in issues if it.get("severity") == "P3" for r in _expand_rids(it)))
+    confirm_count = len([it for it in issues if it.get("severity") == "confirm"])
+
+    cr_count = mt_count = cu_count = 0
+    all_rids = []
+    for it in issues:
+        rids = _expand_rids(it)
+        all_rids.extend(rids)
+        for r in rids:
+            if r.startswith("CR:"):
+                cr_count += 1
+            elif r.startswith("MT:"):
+                mt_count += 1
+            elif r.startswith("CU:"):
+                cu_count += 1
+    if cr_count == 0 and mt_count == 0 and cu_count == 0:
+        cr_count = len([it for it in issues if it.get("source") == "step4a"])
+        mt_count = len([it for it in issues if it.get("source") == "step4b"])
+        cu_count = len([it for it in issues if it.get("source") == "step4c"])
+
+    return {
+        "total_rules": len(set(all_rids)),
+        "cr_rule_count": cr_count,
+        "mt_rule_count": mt_count,
+        "cu_rule_count": cu_count,
+        "total_hits": len(issues),
+        "p0_rules": p0_rules,
+        "p1_rules": p1_rules,
+        "p2_rules": p2_rules,
+        "p3_rules": p3_rules,
+        "confirm_count": confirm_count,
+    }
+
+
+def _build_custom_rules_data(issues):
+    """结构化「自定义规则检查结果」子节（CU: 来源 / step4c）。"""
+    cu_issues = [it for it in issues if it.get("source") == "step4c" or
+                 any(r.startswith("CU:") for r in _expand_rids(it))]
+    if not cu_issues:
+        return None
+    return _build_doc_issues(cu_issues, ("reach_analysis", "online_scenario", "impact_scope",
+                                         "confirm_reason", "possible_risk", "confirm_suggestion"))
+
+
+def _parse_line_changes(line_changes):
+    """从 "+120 -30" 格式解析 (added, removed)。解析失败返回 (None, None)。"""
+    if not line_changes:
+        return None, None
+    m_add = re.search(r'\+(\d+)', line_changes)
+    m_del = re.search(r'-(\d+)', line_changes)
+    added = int(m_add.group(1)) if m_add else None
+    removed = int(m_del.group(1)) if m_del else None
+    return added, removed
+
+
+def _build_overview_data(args):
+    """结构化「一、PR 概述」表格内容。"""
+    added, removed = _parse_line_changes(args.line_changes)
+    return {
+        "org": args.org,
+        "repo": args.repo,
+        "pr_id": args.pr_id,
+        "pr_title": args.pr_title,
+        "submitter_mis": args.submitter_mis,
+        "author_name": args.author_name,
+        "trigger_mis": args.trigger_mis,
+        "trigger_name": args.trigger_name,
+        "branch": args.branch or "",
+        "file_count": args.file_count,
+        "line_changes": args.line_changes or "",
+        "added_lines": added,
+        "removed_lines": removed,
+        "total_changed_lines": (added or 0) + (removed or 0) if (added is not None or removed is not None) else None,
+        "cr_mode": getattr(args, "cr_mode", "full"),
+        "base_commit": getattr(args, "base_commit", None),
+        "target_commit": getattr(args, "target_commit", None),
+        "commit_count": getattr(args, "commit_count", None),
+        "skill_version": f"ai-pr-code-review {SKILL_VERSION}",
+    }
+
+
+def _build_changed_files_data(args):
+    """结构化「二、变更综述」兜底用的变更文件清单。"""
+    changed_files_md = read_text_file(getattr(args, "changed_files_file", ""), "")
+    if not changed_files_md:
+        return []
+    file_lines = [l.strip().lstrip("- ").strip() for l in changed_files_md.strip().split("\n")
+                  if l.strip() and not l.startswith("#")]
+    return file_lines
 
 
 def build_cr_result(args, issues, counts, conclusion, km_url):
@@ -1104,24 +1197,74 @@ def build_cr_result(args, issues, counts, conclusion, km_url):
     2026-07-28 扩展：新增 issues 字段（逐条明细，仅 P0~P3），供下游
     sku-operation-server 侧 DefenderCallbackConverter 组装 Defender
     notify 回调的 responseMessage（技术方案 6.1/6.3 节，km.sankuai.com/collabpage/2777573642）。
+
+    2026-09-02 对齐 ai-cr-forlocal：学城文档全部章节内容以结构化 JSON 形式铺平到顶层，
+    与 assemble_citadel_doc 的 markdown 章节一一对应；issues 字段升级为
+    全量明细（P0~P3 + confirm，含文档展示的全部字段）；counts 补充变更规模信息；
+    is_sdd / 一致率由主 Agent 显式传参（--is-sdd / --consistency-rate）。
     """
     sdd_md = read_text_file(args.sdd_file, "")
-    is_sdd = bool(sdd_md.strip())
-    return {
+    # is_sdd / 一致率均由主 Agent 按 SDD 校验结论显式传入（--is-sdd / --consistency-rate），
+    # 不再从 sdd 文件文本解析（模型写文件时可能漏写「一致率」行，解析静默失败）。
+    is_sdd = bool(getattr(args, "is_sdd", False))
+    consistency_rate = (getattr(args, "consistency_rate", "") or "").strip()
+    summary_parts = split_summary_file(read_text_file(args.summary_file, ""))
+    catpaw_md = read_text_file(args.catpaw_file, "")
+
+    # counts 在 P0~P3 计数基础上补充变更规模信息（取自 --file-count / --line-changes 解析）
+    added, removed = _parse_line_changes(args.line_changes)
+    counts_full = dict(counts)
+    counts_full["changedFiles"] = args.file_count if args.file_count is not None else 0
+    counts_full["additions"] = added if added is not None else 0
+    counts_full["deletions"] = removed if removed is not None else 0
+
+    result = {
         "pr_id": args.pr_id,
         "org": args.org,
         "repo": args.repo,
         "pr_title": args.pr_title,
         "pr_url": args.pr_url,
         "conclusion": conclusion,
-        "counts": counts,
+        "counts": counts_full,
         "is_sdd": is_sdd,
-        "text_code_consistency_rate": _parse_consistency_rate(sdd_md) if is_sdd else "",
+        "text_code_consistency_rate": consistency_rate if is_sdd else "",
         "skill_version": f"ai-pr-code-review {SKILL_VERSION}",
         "km_url": km_url,
         "review_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "issues": _build_defender_issues(issues),
+        "issues": _build_doc_issues(
+            issues,
+            ("reach_analysis", "online_scenario", "impact_scope",
+             "confirm_reason", "possible_risk", "confirm_suggestion"),
+        ),
     }
+
+    # ── 学城文档章节内容，铺平到顶层 ──
+    result.update({
+        # 文档标题
+        "doc_title": f"PR #{args.pr_id} Code Review：{args.pr_title}",
+        # 一、PR 概述
+        "overview": _build_overview_data(args),
+        # 二、变更综述
+        "change_summary": summary_parts.get("change_summary", ""),
+        "changed_files": _build_changed_files_data(args),
+        # 三、SDD 产物校验
+        "sdd_check": {
+            "is_sdd": is_sdd,
+            "consistency_rate": consistency_rate if is_sdd else "",
+            "content": sdd_md,
+        },
+        # 四、Review 发现 — 规则命中摘要（明细复用顶层 issues 字段）
+        "rule_hit_summary": _build_rule_hit_summary_data(issues),
+        # 自定义规则检查结果（无则 None）
+        "custom_rules": _build_custom_rules_data(issues),
+        # 五、总体评价
+        "overall_eval": summary_parts.get("overall_eval", ""),
+        # 六、人工复审要点
+        "manual_review": summary_parts.get("manual_review", ""),
+        # 七、与 CatPaw 对比
+        "catpaw_comparison": catpaw_md,
+    })
+    return result
 
 
 # ─── Step 6: 创建学城 CR 文档 ─────────────────────────────────────────────────
@@ -1572,24 +1715,13 @@ def step8_daxiang_push(args, message_text):
 def step9_write_db(args, cr_result, counts, conclusion, km_url):
     """Step 9: 写入 DB（submit-task 新建模式 + 多维表格降级）。
 
-    路径 A（主）：POST 到 spt.sankuai.com/api/aicr/submit-task，写入 cr_task 表
+    路径 A（主）：POST 到 spt.sankuai.com/api/v1/aicr/submit-task，写入 cr_task 表
     路径 B（降级）：DB 失败 → 多维表格 addData
     全部失败 → 输出错误信息
     """
     import ssl
 
     result = {"ok": False, "skipped": False, "status": "", "error": "", "method": ""}
-
-    # 从 pr_url 解析 pr_id
-    pr_id = 0
-    m = re.search(r'/pr/(\d+)', args.pr_url or "")
-    if m:
-        pr_id = int(m.group(1))
-
-    # 拆分 org/repo
-    parts = (args.repo or "").split("/", 1)
-    org = parts[0] if len(parts) > 0 else ""
-    repo = parts[1] if len(parts) > 1 else (args.repo or "")
 
     # 构造 payload
     payload = {
@@ -1603,27 +1735,57 @@ def step9_write_db(args, cr_result, counts, conclusion, km_url):
     }
 
     # 路径 A：DB 写入
-    def _db_write():
+    # opener 构造与 SSL 策略对齐 ai-cr-forlocal cr_record.py：
+    # HTTPSHandler 必须在 build_opener 时传入（事后 add_handler 会被默认 https handler
+    # 优先级抢占导致证书配置不生效）；先严格校验，CERTIFICATE_VERIFY_FAILED 时
+    # 自动降级跳过校验重试（开发机 Python 普遍缺内网 CA，属环境问题）。
+    def _make_opener(skip_verify):
+        context = ssl.create_default_context()
+        if skip_verify:
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+        return urllib.request.build_opener(
+            urllib.request.ProxyHandler({}),  # no proxy
+            urllib.request.HTTPSHandler(context=context),
+        )
+
+    def _do_post(opener):
         url = f"{DB_DEFAULT_SCHEME}://{DB_HOST}{DB_PATH}"
         data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         req = urllib.request.Request(
             url, data=data, method="POST",
             headers={"Content-Type": "application/json; charset=utf-8"},
         )
-        proxy_handler = urllib.request.ProxyHandler({})  # no proxy
-        opener = urllib.request.build_opener(proxy_handler)
-        context = ssl.create_default_context()
-        context.check_hostname = False
-        context.verify_mode = ssl.CERT_NONE
-        opener.add_handler(urllib.request.HTTPSHandler(context=context))
         with opener.open(req, timeout=DB_TIMEOUT) as resp:
             body = resp.read().decode("utf-8", errors="replace")
             status = resp.status
         if status != 200:
             raise RuntimeError(f"DB HTTP {status}: {body}")
+        # 解析响应检查业务错误（与 cr_record.py 一致：error.code != 0 视为失败）
+        body_json = None
+        try:
+            body_json = json.loads(body)
+        except (json.JSONDecodeError, TypeError):
+            pass
+        if body_json and isinstance(body_json, dict):
+            err_obj = body_json.get("error") or body_json.get("err")
+            if isinstance(err_obj, dict) and err_obj.get("code", 0) != 0:
+                raise RuntimeError(f"DB business error: {err_obj}")
         return body
 
+    def _db_write():
+        return _do_post(_make_opener(skip_verify=False))
+
     ok, val = retry(_db_write, label="DB 写入")
+    # SSL 证书校验失败自动降级：开发机 Python 普遍缺内网 CA，属环境问题而非安全问题
+    # （目标为 *.sankuai.com 内网服务）。跳过校验重试一轮，免除用户手动配置。
+    if not ok and val and "CERTIFICATE_VERIFY_FAILED" in str(val):
+        log("⚠️  SSL 证书校验失败（本机缺内网 CA），自动降级跳过校验重试")
+
+        def _db_write_noverify():
+            return _do_post(_make_opener(skip_verify=True))
+
+        ok, val = retry(_db_write_noverify, label="DB 写入（跳过证书校验）")
     if ok:
         result["ok"] = True
         result["method"] = "db"
@@ -1721,6 +1883,10 @@ def parse_args():
     parser.add_argument("--changed-files-file", default="", help="变更文件清单章节 markdown")
     parser.add_argument("--summary-file", default="", help="总体评价章节 markdown")
     parser.add_argument("--sdd-file", default="", help="SDD 校验章节 markdown（可选）")
+    parser.add_argument("--is-sdd", type=lambda x: x.lower() in ("true", "1", "yes"), default=False,
+                        help="本次 CR 是否有 SDD spec 产物（取 SDD 校验结论 has_spec；未传时一律按 false 兜底）")
+    parser.add_argument("--consistency-rate", default="",
+                        help="文码一致率（取 SDD 校验结论 alignment_rate 原值，如 \"90%\"；无 spec 时传空或不传）")
     parser.add_argument("--catpaw-file", default="", help="与 CatPaw 对比章节 markdown（可选）")
     parser.add_argument("--branch", default="", help="PR 分支（可选）")
     parser.add_argument("--file-count", type=int, default=None, help="变更文件数（可选）")

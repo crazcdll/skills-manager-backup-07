@@ -1366,6 +1366,8 @@ oa-skills citadel-database queryUserIdentityByUid --uidList '["1027950", "102795
 
 高级权限是多维表格自己的权限体系，不等同于学城文档权限。以下命令走学城主服务 `/api/permission/*`。
 
+> 当前 CLI 的角色权限写入只支持数据表，不允许修改仪表盘高级权限。`createAdvancedPermRole`、`updateAdvancedPermRolePermissions` 的 `permissionDetails` 不得传入仪表盘 ID；查询结果中的既有仪表盘权限只允许读取，不得新增、修改或删除。
+
 ### getAdvancedPermStatus
 
 查询高级权限开关状态。
@@ -1431,30 +1433,112 @@ oa-skills citadel-database listAdvancedPermRoles \
 
 ### getAdvancedPermRoleDetail
 
-查询单个角色详情。自定义角色支持通过 `--roleName` 精确匹配并自动解析 `roleId`。
+查询单个角色详情。管理员或默认角色不传 `--roleId` 时会先查询对应类型的唯一角色并自动解析 `roleId`；自定义角色支持通过 `--roleName` 精确匹配。
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `--contentId` | number | 是 | 多维表格文档 ID |
-| `--roleId` | number | 二选一 | 角色 ID |
-| `--roleName` | string | 二选一 | 自定义角色名称，精确匹配 |
+| `--roleType` | string | 否 | `admin`、`default`、`custom`，默认 `custom` |
+| `--roleId` | number | 否 | 角色 ID；管理员/默认角色省略时自动查询唯一角色 |
+| `--roleName` | string | custom 二选一 | 自定义角色名称，精确匹配 |
 
 ```bash
 oa-skills citadel-database getAdvancedPermRoleDetail \
   --contentId "4295357904" \
   --roleName "自定义角色1" \
   --mis hekai13
+
+oa-skills citadel-database getAdvancedPermRoleDetail \
+  --contentId "4295357904" \
+  --roleType default \
+  --mis hekai13
 ```
 
-### addAdvancedRoleMembers
+### createAdvancedPermRole
 
-给管理员或自定义角色添加成员。默认角色不支持添加成员。`--mis` 是 CLI 通用执行人参数；被添加的人员 MIS 使用 `--person`。
+创建高级权限自定义角色。`permissionDetails` 可直接传 JSON，或用 `--permissionDetailsFile` 读取文件；两者二选一，且只能包含数据表 ID，不能包含仪表盘 ID。成员参数可选，格式同 `addAdvancedRoleMembers`。
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `--contentId` | number | 是 | 多维表格文档 ID |
-| `--roleType` | string | 是 | `admin`、`custom` |
-| `--roleId` | number | 否 | 角色 ID；admin 不传时自动查询唯一角色，custom 可用 `--roleName` 自动解析 |
+| `--roleName` | string | 是 | 新角色名称 |
+| `--permissionDetails` | JSON | 二选一 | 数据表权限数组，元素包含 `tableId`、`permGroupType`、可选 `extraConfig`；禁止使用仪表盘 ID |
+| `--permissionDetailsFile` | path | 二选一 | 数据表权限数组 JSON 文件；禁止包含仪表盘 ID |
+| 成员参数 | string/JSON | 否 | `--person`、`--orgs`、`--xmGroupIds`、`--mails`、`--appIds` |
+
+```bash
+oa-skills citadel-database createAdvancedPermRole \
+  --contentId "4295357904" \
+  --roleName "运营角色" \
+  --permissionDetails '[{"tableId":123456,"permGroupType":5}]' \
+  --mis hekai13
+```
+
+### renameAdvancedPermRole / deleteAdvancedPermRole
+
+重命名或删除自定义角色。执行前先读取角色详情；删除必须获得用户明确确认。
+
+```bash
+oa-skills citadel-database renameAdvancedPermRole \
+  --contentId "4295357904" \
+  --roleName "运营角色" \
+  --newRoleName "运营只读" \
+  --mis hekai13
+
+oa-skills citadel-database deleteAdvancedPermRole \
+  --contentId "4295357904" \
+  --roleId 88 \
+  --mis hekai13
+```
+
+### updateAdvancedPermRolePermissions
+
+更新默认或自定义角色的数据表级权限及 `extraConfig`，不支持修改仪表盘高级权限。表级 `permGroupType`：`-1` 无权限、`0` 可浏览、评论、`2` 可编辑、`4` 可管理、`5` 仅浏览。
+
+该枚举对齐 Data API 消费的 XTable 高级权限模型；不要传通用文档权限枚举中的 `1`、`3`。
+
+默认 `--replace false`，按 `tableId` 合并现有配置；`--replace true` 会完整替换，使用前必须读取当前角色详情并获得明确确认。如果完整替换会新增、修改或删除任何仪表盘权限项，则禁止执行。
+
+同一数据表的 `permGroupType` 不变时，省略 `extraConfig` 会保留现有详细配置；切换 `permGroupType` 时，省略 `extraConfig` 会清除旧权限组的详细配置，避免产生权限组与行列配置不匹配的请求。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `--contentId` | number | 是 | 多维表格文档 ID |
+| `--roleType` | string | 是 | `default`、`custom` |
+| `--roleId` / `--roleName` | number/string | 视角色而定 | custom 可按名称精确解析；default 不传时自动查询唯一角色 |
+| `--permissionDetails` / `--permissionDetailsFile` | JSON/path | 二选一 | 数据表权限数组；禁止使用仪表盘 ID |
+| `--replace` | boolean | 否 | 默认 false；true 为完整替换 |
+
+`extraConfig` 可包含 `rowOperation`、`rowRanges`、`columnRanges`、`viewOperation`。操作位：`1` 可见、`2` 可新增、`4` 可编辑、`8` 可删除、`16` 新增时可编辑，组合权限使用按位或。
+
+可浏览、评论和仅浏览权限（`permGroupType=0/5`）中，`rowOperation`、`viewOperation` 只能为 `1`；指定行时 `rowRanges` 必须同时且仅包含 key `1`；`columnRanges` 的权限值只能为 `0/1`；`others` 省略时默认补 `0`，传入时只能为 `0/1`。
+
+可编辑权限中，`rowOperation` 仅支持 `5/7/13/15`，`viewOperation` 仅支持 `1/15`；指定行时必须同时传完全一致的 `rowRanges.4` 和 `rowRanges.8`，`others` 省略时默认补 `1`。`columnRanges` 的权限值仅支持 `0/1/21`。`rowOperation=7/15` 时，CLI 会读取表元数据并把固定的“行创建人包含当前用户”条件补到两份行范围的第一条；`rowOperation=5/13` 时不强制或自动补创建人条件，传入的筛选条件按原样保留。
+
+指定行筛选中，用户未指定“任一/全部”时，`rowOperation=7/15` 默认使用 `or`，`rowOperation=5/13` 以及可浏览权限默认使用 `and`；用户明确指定时保留用户选择。
+
+无权限和可管理（`permGroupType=-1/4`）不支持 `extraConfig`；更新命令只在明确清除旧配置时允许传 `extraConfig:null`。CLI 在写入前会通过 Data API 的 `listTables` 校验所有目标 ID，只允许当前文档中的数据表；仪表盘或无效 ID 会被拒绝。`--replace true` 还会检查现有角色权限，避免完整替换隐式删除仪表盘权限。
+
+> `rowRanges.*.filter` 使用 Data API 消费的 XTable 权限模型元组 `["and"|"or", [[operator, colId, value, colType], ...]]`，其中 `and`=符合全部条件、`or`=符合任一条件。普通 `queryTableData --filter` 使用的 `{ "conjunction": ..., "conditions": ... }` 是 Data API 对外查询 DTO，不能未经转换直接写入高级权限 `extraConfig`。构造普通列条件时建议先执行 `getTableMeta --tableId <id>`；CLI 会校验可编辑权限结构，但不校验普通筛选条件中的选项 ID 是否存在。完整说明见 [高级权限说明](advanced-permission.md#指定行筛选格式写入前必读)。
+
+```bash
+oa-skills citadel-database updateAdvancedPermRolePermissions \
+  --contentId "4295357904" \
+  --roleType custom \
+  --roleName "运营角色" \
+  --permissionDetails '[{"tableId":123456,"permGroupType":2,"extraConfig":{"rowOperation":15,"columnRanges":{"1001":1},"viewOperation":1}}]' \
+  --mis hekai13
+```
+
+### addAdvancedRoleMembers
+
+给管理员、默认角色或自定义角色添加成员。`--mis` 是 CLI 通用执行人参数；被添加的人员 MIS 使用 `--person`。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `--contentId` | number | 是 | 多维表格文档 ID |
+| `--roleType` | string | 是 | `admin`、`default`、`custom` |
+| `--roleId` | number | 否 | 角色 ID；admin/default 不传时自动查询唯一角色，custom 可用 `--roleName` 自动解析 |
 | `--roleName` | string | 否 | 自定义角色名称，会自动解析 `roleId` |
 | `--person` | string | 否 | 要添加的人员 MIS，支持逗号分隔或 JSON 数组 |
 | `--orgs` | JSON | 否 | 组织数组，`orgId` 支持数字 ID 或部门全路径；`contractTypes`/`orgRoles` 支持 key 或名称，`country` 使用国家地区 code，未传默认 `["101"]`/`[]`/`["CHN"]` |
@@ -1463,6 +1547,12 @@ oa-skills citadel-database getAdvancedPermRoleDetail \
 | `--appIds` | string | 否 | 应用权限 ID，支持逗号分隔或 JSON 数组 |
 
 ```bash
+oa-skills citadel-database addAdvancedRoleMembers \
+  --contentId "4295357904" \
+  --roleType default \
+  --person "zhangsan" \
+  --mis hekai13
+
 oa-skills citadel-database addAdvancedRoleMembers \
   --contentId "4295357904" \
   --roleType custom \
@@ -1484,16 +1574,16 @@ oa-skills citadel-database addAdvancedRoleMembers \
 
 ### deleteAdvancedRoleMembers
 
-从自定义角色删除成员。管理员和默认角色暂不支持删除成员。`--mis` 是 CLI 通用执行人参数；被删除的人员 MIS 使用 `--person`。
+从管理员、默认角色或自定义角色删除成员。`--mis` 是 CLI 通用执行人参数；被删除的人员 MIS 使用 `--person`。
 
-删除前 CLI 会先查询角色详情并按传入的人员、组织、大象群、邮件组或应用匹配现有成员，然后走角色成员删除接口。
+删除前 CLI 会先查询角色详情，并按传入的人员、组织、大象群、邮件组或应用匹配现有成员；管理员成员按 `permId` 删除，默认和自定义角色成员按 `userGroupId` 删除。
 
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
 | `--contentId` | number | 是 | 多维表格文档 ID |
-| `--roleType` | string | 是 | `custom` |
-| `--roleId` | number | 否 | 自定义角色 ID，可用 `--roleName` 自动解析 |
-| `--roleName` | string | 否 | 自定义角色名称，会自动解析 `roleId` |
+| `--roleType` | string | 是 | `admin`、`default`、`custom` |
+| `--roleId` | number | 否 | 角色 ID；admin/default 不传时自动查询唯一角色，custom 可用 `--roleName` 自动解析 |
+| `--roleName` | string | 否 | 自定义角色名称，会自动解析 `roleId`；仅 custom 支持 |
 | `--person` | string | 否 | 要删除的人员 MIS，支持逗号分隔或 JSON 数组 |
 | `--orgs` | JSON | 否 | 组织数组，`orgId` 支持数字 ID 或部门全路径，例如 `[{"orgId":"美团/核心本地商业"}]` |
 | `--xmGroupIds` | string | 否 | 大象群 ID，支持逗号分隔或 JSON 数组 |
@@ -1503,9 +1593,63 @@ oa-skills citadel-database addAdvancedRoleMembers \
 ```bash
 oa-skills citadel-database deleteAdvancedRoleMembers \
   --contentId "4295357904" \
+  --roleType default \
+  --person "zhangsan" \
+  --mis hekai13
+
+oa-skills citadel-database deleteAdvancedRoleMembers \
+  --contentId "4295357904" \
   --roleType custom \
   --roleName "自定义角色1" \
   --person "zhangsan,lisi" \
+  --mis hekai13
+```
+
+#### 二期补充：管理员删除
+
+管理员删除仍使用 `deleteAdvancedRoleMembers`，将 `--roleType` 设为 `admin`；未传 `--roleId` 时自动查询唯一管理员角色。删除前必须读取角色详情并核对实际匹配成员。
+
+```bash
+oa-skills citadel-database deleteAdvancedRoleMembers \
+  --contentId "4295357904" \
+  --roleType admin \
+  --person "zhangsan" \
+  --mis hekai13
+```
+
+### searchAdvancedMemberRoles
+
+按关键词反查成员以及其当前所属高级权限角色。
+
+```bash
+oa-skills citadel-database searchAdvancedMemberRoles \
+  --contentId "4295357904" \
+  --keyword "zhangsan" \
+  --raw \
+  --mis hekai13
+```
+
+### updateAdvancedMemberRoles
+
+覆盖指定 `userGroupId` 的角色列表。先用 `searchAdvancedMemberRoles` 获取准确的成员 ID 和当前角色。该命令是覆盖语义；移除全部可分配角色必须显式使用 `--clear true`，并在执行前获得用户明确确认。
+
+```bash
+oa-skills citadel-database updateAdvancedMemberRoles \
+  --contentId "4295357904" \
+  --userGroupId 10001 \
+  --roleIds "88,89" \
+  --mis hekai13
+```
+
+### getAdvancedUserTablePermissions
+
+查询当前认证用户在一个或多个数据表上的实际生效权限。
+
+```bash
+oa-skills citadel-database getAdvancedUserTablePermissions \
+  --contentId "4295357904" \
+  --tableIds "123456,123457" \
+  --raw \
   --mis hekai13
 ```
 

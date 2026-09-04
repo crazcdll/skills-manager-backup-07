@@ -94,7 +94,7 @@ skills-administrative room-booking-helper query \
 
 新区间完全位于旧区间内时没有新增占用，可直接更新。否则逐段确认当前同一会议室空闲，所有新增段都可用才能写入。
 
-查询新增段时必须使用 `detail.roomDetail` 中能唯一识别当前会议室的真实字段。若无法确认查询结果是同一会议室、无法排除其他占用，或任一新增段不可用，停止写入并说明具体冲突或无法确认的区间。
+查询新增段时必须使用 `detail.roomDetail` 中的 `buildingName`、`floorName` 和 `roomName` 重新解析当前会议室。当前详情不承诺返回 `roomId`，禁止把 `equipId` 当作 `roomId`；先用 `roomName` 执行 `find-room --raw`，再用楼宇和楼层筛到唯一结果并取得真实 `roomId`，最后查询新增区间。若无法唯一解析同一会议室、无法排除其他占用，或任一新增段不可用，停止写入并说明具体冲突或无法确认的区间。
 
 ## 释放、转让、移除与删除
 

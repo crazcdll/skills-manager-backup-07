@@ -1,0 +1,8 @@
+skill-manifest-version: 1
+skill-id: e224ee418791faeb14637b6c572a3c86a68ae1539483f9f299ac5d0b5bd1ce3b
+
+files:
+  3f78ca5fb15d230ea1c68c3106bc924258e50a322aa72b6d9b084ddae6191249  SKILL.md
+  db6aec4de3a6a2de4e84ae650e1aec369c7b5948708c84a9103a5eda65aa62da  agents/openai.yaml
+  e220cf22e592b6c49b4c267d83c7f8c2d2485f28a2ac8ae3c5baa35d27878a09  scripts/resolve-effective-rules.mjs
+  74745885bab40db8dcb6a402fb98122701e669e94d3fed6e32e08989826cca20  scripts/resolve-effective-rules.test.mjs

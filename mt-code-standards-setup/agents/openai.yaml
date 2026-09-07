@@ -1,0 +1,6 @@
+interface:
+  display_name: "统一编码规范接入工具"
+  short_description: "按已登记 Git 仓库同步有效 L1 与 L2 规则包"
+  default_prompt: "Use $mt-code-standards-setup to identify this Git repository and safely synchronize its platform-authorized L1 and L2 rule bundle."
+policy:
+  allow_implicit_invocation: true

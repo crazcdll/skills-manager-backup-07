@@ -9,6 +9,8 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
+  rmdir,
   rename,
   rm,
   writeFile,
@@ -20,8 +22,10 @@ const DEFAULT_GATEWAY =
   "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-observability";
 const GATEWAY_HOSTNAME = "db0y7dgg85gphojyva.database.sankuai.com";
 const GATEWAY_PATHNAME = "/functions/v1/rule-observability";
-const BUNDLE_SCHEMA = "effective-rule-bundle/v1";
-const LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v1";
+const LEGACY_BUNDLE_SCHEMA = "effective-rule-bundle/v1";
+const BUNDLE_SCHEMA = "effective-rule-bundle/v2";
+const LEGACY_LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v1";
+const LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v2";
 const RECEIPT_SCHEMA = "mt-effective-rule-bundle-install/v1";
 const MANIFEST_NAME = ".mt-effective-rule-bundle.json";
 const MAX_LOCATOR_BYTES = 8 * 1024;
@@ -29,6 +33,8 @@ const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
 const MAX_FILE_BYTES = 512 * 1024;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const DOMAINS = new Set(["frontend", "backend"]);
+const pathKey = (value) => value.normalize("NFC").toUpperCase().toLowerCase().normalize("NFC");
+const binaryPathOrder = (left, right) => left < right ? -1 : left > right ? 1 : 0;
 
 export class RuleBundleError extends Error {
   constructor(code, message) {
@@ -191,19 +197,24 @@ const requestBundle = async ({ gatewayUrl, token, repositoryLocator, knownSnapsh
   return body;
 };
 
-const normalizeRelativePath = (value) => {
+const normalizeRelativePath = (value, versionTwo = true) => {
   const relativePath = text(value);
   if (
     !relativePath
     || relativePath.length > 240
+    || (versionTwo && Buffer.byteLength(relativePath, "utf8") > 240)
+    || /[\p{Cc}\p{Cf}\uD800-\uDFFF]/u.test(relativePath)
     || relativePath.includes("\\")
     || path.posix.isAbsolute(relativePath)
-    || !relativePath.endsWith(".md")
+    || !/[.]md$/iu.test(relativePath)
   ) {
     fail("RULE_BUNDLE_FILE_PATH_INVALID", `规则文件路径非法：${relativePath || "<empty>"}`);
   }
   const segments = relativePath.split("/");
-  if (segments.some((segment) => !segment || segment === "." || segment === ".." || segment.startsWith("."))) {
+  if (segments.some((segment) => !segment || segment === "." || segment === ".." || segment.startsWith(".")
+      || /[<>:"|?*]/u.test(segment) || /[. ]$/u.test(segment)
+      || (versionTwo && /^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:[.]|$)/iu.test(segment))
+      || (versionTwo && Buffer.byteLength(segment, "utf8") > 200))) {
     fail("RULE_BUNDLE_FILE_PATH_INVALID", `规则文件路径非法：${relativePath}`);
   }
   return relativePath;
@@ -244,13 +255,18 @@ const normalizeReleaseRefs = (releaseRefs) => {
 };
 
 const validateBundle = (body, knownSnapshotId) => {
-  if (!isObject(body) || body.schema_version !== BUNDLE_SCHEMA) {
+  if (!isObject(body) || ![LEGACY_BUNDLE_SCHEMA, BUNDLE_SCHEMA].includes(body.schema_version)) {
     fail("RULE_BUNDLE_RESPONSE_INVALID", `规则包响应必须为 ${BUNDLE_SCHEMA}`);
   }
   if (!new Set(["ready", "not_modified"]).has(body.status) || !isObject(body.snapshot)) {
     fail("RULE_BUNDLE_RESPONSE_INVALID", "规则包缺少有效 status 或 snapshot");
   }
   const snapshot = body.snapshot;
+  const versionTwo = body.schema_version === BUNDLE_SCHEMA;
+  if (versionTwo ? snapshot.resolver_version !== BUNDLE_SCHEMA : snapshot.resolver_version != null) {
+    fail("RULE_BUNDLE_RESPONSE_INVALID", "规则包生成版本与响应协议不一致");
+  }
+  const pathOrder = versionTwo ? binaryPathOrder : (left, right) => left.localeCompare(right, "en");
   const repository = snapshot.repository;
   if (
     !isObject(repository)
@@ -268,6 +284,7 @@ const validateBundle = (body, knownSnapshotId) => {
     fail("RULE_BUNDLE_TOTAL_BYTES_INVALID", "规则包总字节数非法");
   }
   const snapshotProjection = {
+    ...(versionTwo ? { resolver_version: BUNDLE_SCHEMA } : {}),
     repository_id: repository.repository_id,
     canonical_key: repository.canonical_key,
     standard_domain: repository.standard_domain,
@@ -287,12 +304,20 @@ const validateBundle = (body, knownSnapshotId) => {
   if (!files.length) fail("RULE_BUNDLE_FILES_MISSING", "ready 规则包没有文件");
 
   const seenPaths = new Set();
+  const directories = new Map();
   const normalizedFiles = files.map((file) => {
     if (!isObject(file)) fail("RULE_BUNDLE_FILE_INVALID", "规则文件格式错误");
-    const relativePath = normalizeRelativePath(file.relative_path);
-    const collisionKey = relativePath.toLocaleLowerCase("en-US");
+    const relativePath = normalizeRelativePath(file.relative_path, versionTwo);
+    const collisionKey = pathKey(relativePath);
     if (seenPaths.has(collisionKey)) fail("RULE_BUNDLE_FILE_DUPLICATE", `规则文件路径重复：${relativePath}`);
     seenPaths.add(collisionKey);
+    const parts = relativePath.split("/");
+    for (let end = 1; end < parts.length; end += 1) {
+      const directory = parts.slice(0, end).join("/");
+      const key = pathKey(directory);
+      if (directories.has(key) && directories.get(key) !== directory) fail("RULE_BUNDLE_FILE_DUPLICATE", `规则目录存在大小写或 Unicode 重名：${directory}`);
+      directories.set(key, directory);
+    }
     const content = typeof file.content === "string" ? file.content : null;
     const declaredHash = text(file.sha256);
     const byteSize = Number(file.byte_size);
@@ -308,7 +333,7 @@ const validateBundle = (body, knownSnapshotId) => {
       fail("RULE_BUNDLE_FILE_HASH_MISMATCH", `规则文件内容校验失败：${relativePath}`);
     }
     return { relative_path: relativePath, content, sha256: actualHash, byte_size: actualBytes };
-  }).sort((left, right) => left.relative_path.localeCompare(right.relative_path, "en"));
+  }).sort((left, right) => pathOrder(left.relative_path, right.relative_path));
 
   const totalBytes = normalizedFiles.reduce((sum, file) => sum + file.byte_size, 0);
   if (snapshot.total_bytes !== totalBytes) fail("RULE_BUNDLE_TOTAL_BYTES_MISMATCH", "规则包总字节数校验失败");
@@ -355,7 +380,7 @@ const readLocalManifest = async (repoRoot) => {
 const validateLocalManifestStructure = (manifest) => {
   if (
     !manifest
-    || manifest.schema_version !== LOCAL_MANIFEST_SCHEMA
+    || ![LEGACY_LOCAL_MANIFEST_SCHEMA, LOCAL_MANIFEST_SCHEMA].includes(manifest.schema_version)
     || !SHA256_PATTERN.test(text(manifest.snapshot_id))
     || !SHA256_PATTERN.test(text(manifest.manifest_hash))
     || !DOMAINS.has(manifest.standard_domain)
@@ -367,13 +392,16 @@ const validateLocalManifestStructure = (manifest) => {
     || !isObject(manifest.managed_file_hashes)
     || !isObject(manifest.managed_file_sizes)
   ) return false;
+  const versionTwo = manifest.schema_version === LOCAL_MANIFEST_SCHEMA;
+  if (versionTwo ? manifest.resolver_version !== BUNDLE_SCHEMA : manifest.resolver_version != null) return false;
+  const pathOrder = versionTwo ? binaryPathOrder : (left, right) => left.localeCompare(right, "en");
   const expectedPrefix = `${manifest.standard_domain}/`;
   const uniquePaths = new Set(manifest.managed_files);
   if (uniquePaths.size !== manifest.managed_files.length || !uniquePaths.size) return false;
   const projection = [];
-  for (const managedPath of [...uniquePaths].sort((left, right) => left.localeCompare(right, "en"))) {
+  for (const managedPath of [...uniquePaths].sort(pathOrder)) {
     if (typeof managedPath !== "string" || !managedPath.startsWith(expectedPrefix)) return false;
-    const relativePath = normalizeRelativePath(managedPath.slice(expectedPrefix.length));
+    const relativePath = normalizeRelativePath(managedPath.slice(expectedPrefix.length), versionTwo);
     const fileHash = manifest.managed_file_hashes[managedPath];
     const fileSize = manifest.managed_file_sizes[managedPath];
     if (!SHA256_PATTERN.test(text(fileHash)) || !Number.isSafeInteger(fileSize) || fileSize < 0) return false;
@@ -383,6 +411,7 @@ const validateLocalManifestStructure = (manifest) => {
   if (projection.reduce((sum, file) => sum + file.byte_size, 0) !== manifest.total_bytes) return false;
   const releaseRefs = normalizeReleaseRefs(manifest.release_refs);
   const snapshotProjection = {
+    ...(versionTwo ? { resolver_version: BUNDLE_SCHEMA } : {}),
     repository_id: manifest.repository.repository_id,
     canonical_key: manifest.repository.canonical_key,
     standard_domain: manifest.repository.standard_domain,
@@ -397,7 +426,7 @@ const validateLocalManifestFiles = async (repoRoot, manifest) => {
   const rulesRoot = path.join(repoRoot, ".mdp", "rules");
   const expectedPrefix = `${manifest.standard_domain}/`;
   for (const managedPath of manifest.managed_files) {
-    const relativePath = normalizeRelativePath(managedPath.slice(expectedPrefix.length));
+    const relativePath = normalizeRelativePath(managedPath.slice(expectedPrefix.length), manifest.schema_version === LOCAL_MANIFEST_SCHEMA);
     const fullPath = path.join(rulesRoot, manifest.standard_domain, ...relativePath.split("/"));
     await assertNoSymlink(fullPath, rulesRoot);
     if (!await exists(fullPath)) return false;
@@ -414,7 +443,8 @@ const buildLocalManifest = (bundle) => {
   const domain = bundle.snapshot.repository.standard_domain;
   const managedFiles = bundle.files.map((file) => `${domain}/${file.relative_path}`);
   return {
-    schema_version: LOCAL_MANIFEST_SCHEMA,
+    schema_version: bundle.snapshot.resolver_version === BUNDLE_SCHEMA ? LOCAL_MANIFEST_SCHEMA : LEGACY_LOCAL_MANIFEST_SCHEMA,
+    ...(bundle.snapshot.resolver_version ? { resolver_version: bundle.snapshot.resolver_version } : {}),
     snapshot_id: bundle.snapshot.snapshot_id,
     manifest_hash: bundle.snapshot.manifest_hash,
     repository: {
@@ -438,6 +468,62 @@ const buildLocalManifest = (bundle) => {
   };
 };
 
+// Resolve portable aliases before writing, including on case-sensitive systems.
+// Never traverse a symlink or choose between multiple normalization-equivalent names.
+const directoryContainsOnlyManagedFiles = async (directory, relativePath, managed, cache, normalize) => {
+  const prefix = `${normalize(relativePath)}/`;
+  if (![...managed].some((name) => normalize(name).startsWith(prefix))) return false;
+  if (!cache.has(directory)) cache.set(directory, await readdir(directory, { withFileTypes: true }));
+  for (const entry of cache.get(directory)) {
+    const child = `${relativePath}/${entry.name}`;
+    if (entry.isDirectory()) {
+      if (!await directoryContainsOnlyManagedFiles(path.join(directory, entry.name), child, managed, cache, normalize)) return false;
+    } else if (!entry.isFile() || ![...managed].some((name) => normalize(name) === normalize(child))) {
+      return false;
+    }
+  }
+  return true;
+};
+
+const existingPortablePath = async (domainPath, relativePath, cache, previousManaged) => {
+  let parent = domainPath;
+  const actual = [];
+  const parts = relativePath.split("/");
+  for (const [index, part] of parts.entries()) {
+    if (!await exists(parent)) return null;
+    if (!cache.has(parent)) cache.set(parent, await readdir(parent, { withFileTypes: true }));
+    const matches = cache.get(parent).filter((entry) => pathKey(entry.name) === pathKey(part));
+    if (matches.length > 1) fail("RULE_BUNDLE_LOCAL_COLLISION", `规则路径存在大小写或 Unicode 重名：${relativePath}`);
+    if (!matches.length) return null;
+    const entry = matches[0];
+    if (entry.isSymbolicLink()) fail("RULE_BUNDLE_LOCAL_SYMLINK", `受管路径不能是符号链接：${relativePath}`);
+    if (index < parts.length - 1 && !entry.isDirectory()) fail("RULE_BUNDLE_LOCAL_COLLISION", `规则目录位置已有文件：${relativePath}`);
+    if (entry.isDirectory() && entry.name !== part) {
+      const nativeAlias = await exists(path.join(parent, part));
+      if (entry.name.normalize("NFC") !== part.normalize("NFC") || !nativeAlias) {
+        const normalize = nativeAlias ? (value) => value.normalize("NFC") : (value) => value;
+        if (!await directoryContainsOnlyManagedFiles(path.join(parent, entry.name), [...actual, entry.name].join("/"), previousManaged, cache, normalize)) {
+          fail("RULE_BUNDLE_LOCAL_COLLISION", `目录改名涉及非受管文件，未覆盖：${relativePath}`);
+        }
+      }
+    }
+    actual.push(entry.name);
+    parent = path.join(parent, entry.name);
+  }
+  return actual.join("/");
+};
+
+const removeEmptyManagedParents = async (filePath, boundary) => {
+  let parent = path.dirname(filePath);
+  while (parent !== boundary && parent.startsWith(`${boundary}${path.sep}`)) {
+    try { await rmdir(parent); } catch (error) {
+      if (["ENOTEMPTY", "EEXIST"].includes(error.code)) return;
+      if (error.code !== "ENOENT") throw error;
+    }
+    parent = path.dirname(parent);
+  }
+};
+
 const installReadyBundle = async (repoRoot, bundle, previousManifest) => {
   const rulesRoot = path.join(repoRoot, ".mdp", "rules");
   const domain = bundle.snapshot.repository.standard_domain;
@@ -454,11 +540,15 @@ const installReadyBundle = async (repoRoot, bundle, previousManifest) => {
     );
   }
   const previousManaged = new Set(previousManifest?.managed_files || []);
+  const previousManagedNfc = new Set([...previousManaged].map((name) => name.normalize("NFC")));
+  const previousRelativePaths = new Set([...previousManaged].map((name) => name.slice(domain.length + 1)));
+  const directoryCache = new Map();
   for (const file of bundle.files) {
     const managedPath = `${domain}/${file.relative_path}`;
     const currentPath = path.join(domainPath, ...file.relative_path.split("/"));
     await assertNoSymlink(currentPath, rulesRoot);
-    if (await exists(currentPath) && !previousManaged.has(managedPath)) {
+    const existing = await existingPortablePath(domainPath, file.relative_path, directoryCache, previousRelativePaths);
+    if (existing && !previousManagedNfc.has(`${domain}/${existing}`.normalize("NFC"))) {
       fail("RULE_BUNDLE_LOCAL_COLLISION", `规则目标路径已有非受管文件，未覆盖：${managedPath}`);
     }
   }
@@ -478,10 +568,11 @@ const installReadyBundle = async (repoRoot, bundle, previousManifest) => {
 
     for (const managedPath of previousManaged) {
       if (!managedPath.startsWith(`${domain}/`)) continue;
-      const relativePath = normalizeRelativePath(managedPath.slice(domain.length + 1));
+      const relativePath = normalizeRelativePath(managedPath.slice(domain.length + 1), previousManifest.schema_version === LOCAL_MANIFEST_SCHEMA);
       const stagedOldPath = path.join(stageDomain, ...relativePath.split("/"));
       await assertNoSymlink(stagedOldPath, stageDomain);
       await rm(stagedOldPath, { force: true });
+      await removeEmptyManagedParents(stagedOldPath, stageDomain);
     }
     for (const file of bundle.files) {
       const outputPath = path.join(stageDomain, ...file.relative_path.split("/"));

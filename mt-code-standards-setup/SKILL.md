@@ -6,11 +6,12 @@ skill-dependencies:
     user_access_token_placeholder: ${user_access_token}
     audience:
       - 923a237244
+    prompt: 本技能所需的 token 占位符，请参考 mtsso-skills-official 的相关说明进行获取和注入
 
 metadata:
   skillhub.creator: "zhangce07"
   skillhub.updater: "zhangce07"
-  skillhub.version: "V2"
+  skillhub.version: "V4"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "141006"
   skillhub.high_sensitive: "false"
@@ -34,12 +35,20 @@ Agent 不得自行 clone 中心规范仓库、调用组织/订阅/规则明细�
 
 ## 身份认证
 
-只使用 `mtsso-skills-official` 为 NoCode 作品线上默认 audience `923a237244` 获取的当前用户短期票据。
+采用官方指南的 **Prompt 标准注入**：执行 Agent 根据头部依赖声明，使用 `mtsso-skills-official`
+为 NoCode 作品线上默认 audience `923a237244` 获取当前用户短期票据，再注入下方 Runner 命令。
+用户只需调用本 Skill，不需要手工获取或粘贴 Token；Runner 负责下载和校验，不自行实现取票。
 
+- 先读取或加载当前平台的 `mtsso-skills-official`，按它的流程取票；平台差异由官方 Skill 处理。
 - 实际执行前再把 `${user_access_token}` 替换为官方用户票据。
 - 票据只进入当前 Runner 进程的环境变量，不出现在参数、stdout、manifest、规则文件或回复中。
 - 不读取浏览器 Cookie，不用 Git 作者、系统账号、应用 owner 或手填 MIS 冒充当前用户。
 - 官方换票失败时按 `mtsso-skills-official` 的错误分类停止；权限不足或需人工确认的错误不得自动重试。
+- 不把 `catdesk auth exchange` 写成跨平台前置条件，不自行注册 Agent、复制其他平台凭据或修改宿主 SSO 配置。
+
+CatDesk、CatPaw IDE、CatPaw 云端 Agent 和美团沙箱沿用同一份 Skill；前提是所在平台已完成官方 SSO
+适配并绑定当前用户。首次接入或出现缺少 `client_id`、登录/权限错误时，读取
+[平台条件与验收](references/sso-platforms.md)。`923a237244` 是目标服务 audience，不是待补填的调用方身份。
 
 ## 仓库定位
 
@@ -85,17 +94,17 @@ RULE_OBSERVABILITY_USER_TOKEN='${user_access_token}' node <skill_dir>/scripts/re
 .mdp/rules/
 ├── .mt-effective-rule-bundle.json
 ├── frontend/
-│   ├── l1/<rule-set-id>.md
-│   └── l2/<rule-set-id>.md
+│   ├── l1/<rule-set-id>/<来源目录>/<原文件名>.md
+│   └── l2/<rule-set-id>/<来源目录>/<原文件名>.md
 └── backend/
-    ├── l1/<rule-set-id>.md
-    └── l2/<rule-set-id>.md
+    ├── l1/<rule-set-id>/<来源目录>/<原文件名>.md
+    └── l2/<rule-set-id>/<来源目录>/<原文件名>.md
 ```
 
 纯前端只管理 `frontend/`，纯后端只管理 `backend/`。一个 Release/来源文件对应一个物理 Markdown，不按文档中的
 逻辑规则拆成多个文件。manifest 固定为 `.mdp/rules/.mt-effective-rule-bundle.json`，至少记录：
 
-- `snapshot_id`、`manifest_hash`；
+- `snapshot_id`、`manifest_hash`，新版另含 `resolver_version`；
 - 仓库稳定身份和 `standard_domain`；
 - L1/L2 `release_refs`；
 - `managed_files`、逐文件 SHA-256 和总字节数；
@@ -105,7 +114,19 @@ Runner 先在同一文件系统暂存完整领域目录，校验路径、字节�
 再交换目录并最后更新 manifest；任一步失败都回滚。它只删除旧 manifest 明确登记的受管文件，保留未知文件，
 遇到同名非受管文件、符号链接或路径穿越时失败关闭。
 
+新版 `effective-rule-bundle/v2` 保留中文文件名和原始大小写，Unicode 统一为 NFC；例如
+`.mdp/rules/frontend/l1/frontend-l1/coding-standards/rules/ASYNC-异步与异常处理.md`。
+控制字符、路径穿越和绝对路径仍拒绝；系统非法字符、保留名、过长路径及大小写/Unicode 重名由平台
+确定性处理。路径最多 240 个 UTF-8 字节、单段最多 200 字节；长路径优先保留可读文件名，并追加来源 Hash。
+Runner 不自行改写平台路径；比较路径时考虑 NFC 和大小写等效，避免覆盖等效名称的非受管文件。
+
 ## 增量更新
+
+当前 Runner 同时接受 v1/v2 规则包与对应的本地 manifest。v2 的快照 Hash 包含 `resolver_version`，
+文件清单使用固定的字符串二进制排序，不能沿用 v1 的快照或排序公式。
+从 v1 升级时，先校验旧 manifest，再安装新包并移除旧清单登记的英文文件；保留用户自行添加的文件。
+部署应先更新数据库、再发布此兼容 Runner，最后发布输出 v2 的 Edge。旧 Runner 收到 v2 会失败关闭，
+因此必须先更新 Skill；错误时保留原有规则，不手动删文件或伪造 manifest。
 
 Runner 只在本地 manifest 及所有受管文件仍通过 SHA-256 校验时发送 `known_snapshot_id`：
 

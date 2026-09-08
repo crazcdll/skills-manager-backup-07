@@ -143,6 +143,9 @@ const friendlyServiceError = (code, message) => {
   ) {
     return "没有找到已登记的仓库，禁止下载规则；请先在规范平台登记仓库，或提供另一个已登记仓库";
   }
+  if (normalized.includes("user_login_unverified")) {
+    return "当前账号尚未登录业务研发平台完成组织核验，请先访问并登录：https://quality-gate.nocode.sankuai.com/";
+  }
   if (normalized.includes("forbidden") || normalized.includes("not_associated")) {
     return "当前用户所属组织未关联该仓库，禁止下载规则；请先完成组织与仓库关联";
   }

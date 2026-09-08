@@ -399,6 +399,7 @@ test("reports actionable not-registered and ambiguous repository errors", async 
   for (const [code, expected] of [
     ["repository_not_registered", "先在规范平台登记仓库"],
     ["repository_locator_ambiguous", "namespace/repository"],
+    ["repository_user_login_unverified", "https://quality-gate.nocode.sankuai.com/"],
   ]) {
     await assert.rejects(
       syncEffectiveRuleBundle({

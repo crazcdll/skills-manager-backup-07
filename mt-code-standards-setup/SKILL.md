@@ -11,7 +11,7 @@ skill-dependencies:
 metadata:
   skillhub.creator: "zhangce07"
   skillhub.updater: "zhangce07"
-  skillhub.version: "V7"
+  skillhub.version: "V8"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "141006"
   skillhub.high_sensitive: "false"
@@ -47,6 +47,7 @@ Agent 不得自行 clone 中心规范仓库、调用组织/订阅/规则明细�
   它会按网关拦截、扩展 Agent、本地 MOA 的顺序换票；本地 MOA 未授权时会发起大象 CIBA 授权卡片。
 - 收到 `RULE_BUNDLE_CIBA_CONFIRMATION_REQUIRED` 时，在大象确认后重新执行同一拉取；收到拒绝或冷却提示时停止，不能自动重试。
 - 收到 `RULE_BUNDLE_SSO_AGENT_CONFIG_REQUIRED` 时，当前 Agent 尚未完成官方 SSO 注册，无法发起大象 CIBA 卡片；不得把目标服务 audience 当作 Agent 的 `client_id` 使用。
+- 新增的组织管理员在首次登录平台前标记为“未经登录核验”，不能拉取规范。Runner 收到 `repository_user_login_unverified` 时，提示用户先访问并登录 [业务研发平台编码规范管理平台](https://quality-gate.nocode.sankuai.com/) 后重新拉取。
 - 官方换票失败时按 `mtsso-skills-official` 的错误分类停止；权限不足或需人工确认的错误不得自动重试。
 - 不把 `catdesk auth exchange` 写成跨平台前置条件，不自行注册 Agent、复制其他平台凭据或修改宿主 SSO 配置。
 

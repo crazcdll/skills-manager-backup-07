@@ -17,6 +17,7 @@ const AUDIENCE = "923a237244";
 const CIBA_CODES = new Set([
   "MOA_NOT_LOGGED_IN", "MOA_AUTH_REQUEST_PENDING", "ric_feedback_required",
 ]);
+const AGENT_SSO_CONFIGURATION_MARKERS = ["缺少 client_id", "missing client_id", "AGENT_SSO_CLIENT_ID"];
 
 const text = (value) => String(value ?? "").trim();
 const parseArgs = (argv) => {
@@ -79,6 +80,12 @@ export const tokenFromOfficialExchange = async ({
   } catch (cause) {
     const raw = `${text(cause?.stdout)}\n${text(cause?.stderr)}`;
     const code = errorCode(text(cause?.stdout)) || [...CIBA_CODES].find((item) => raw.includes(item));
+    if (AGENT_SSO_CONFIGURATION_MARKERS.some((marker) => raw.includes(marker))) {
+      throw new RuleBundleError(
+        "RULE_BUNDLE_SSO_AGENT_CONFIG_REQUIRED",
+        "当前 Agent 未配置官方 SSO client_id，无法发起大象 CIBA 确认。",
+      );
+    }
     if (CIBA_CODES.has(code)) {
       throw new RuleBundleError(
         "RULE_BUNDLE_CIBA_CONFIRMATION_REQUIRED",

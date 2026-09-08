@@ -11,7 +11,7 @@ skill-dependencies:
 metadata:
   skillhub.creator: "zhangce07"
   skillhub.updater: "zhangce07"
-  skillhub.version: "V6"
+  skillhub.version: "V7"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "141006"
   skillhub.high_sensitive: "false"
@@ -46,6 +46,7 @@ Agent 不得自行 clone 中心规范仓库、调用组织/订阅/规则明细�
 - 优先使用运行环境已注入的官方用户票据。没有票据时，Runner 调用官方 `mtsso-moa-local-exchange`。
   它会按网关拦截、扩展 Agent、本地 MOA 的顺序换票；本地 MOA 未授权时会发起大象 CIBA 授权卡片。
 - 收到 `RULE_BUNDLE_CIBA_CONFIRMATION_REQUIRED` 时，在大象确认后重新执行同一拉取；收到拒绝或冷却提示时停止，不能自动重试。
+- 收到 `RULE_BUNDLE_SSO_AGENT_CONFIG_REQUIRED` 时，当前 Agent 尚未完成官方 SSO 注册，无法发起大象 CIBA 卡片；不得把目标服务 audience 当作 Agent 的 `client_id` 使用。
 - 官方换票失败时按 `mtsso-skills-official` 的错误分类停止；权限不足或需人工确认的错误不得自动重试。
 - 不把 `catdesk auth exchange` 写成跨平台前置条件，不自行注册 Agent、复制其他平台凭据或修改宿主 SSO 配置。
 
@@ -93,21 +94,22 @@ node <skill_dir>/scripts/sync-effective-rules-with-sso.mjs \
 
 ## 本地目录合同
 
-平台响应中的 `files[].relative_path` 是领域目录内的安全相对路径。Runner 只写入以下结构：
+平台响应中的 `files[].relative_path` 只用于校验来源和规则包完整性。Runner 将其映射为扁平的本地目录，
+不在本地重复领域、层级或来源目录：
 
 ```text
 .mdp/rules/
 ├── .mt-effective-rule-bundle.json
-├── frontend/
-│   ├── l1/<rule-set-id>/<来源目录>/<原文件名>.md
-│   └── l2/<rule-set-id>/<来源目录>/<原文件名>.md
-└── backend/
-    ├── l1/<rule-set-id>/<来源目录>/<原文件名>.md
-    └── l2/<rule-set-id>/<来源目录>/<原文件名>.md
+├── company/
+│   └── <L1 原文件名>.md
+└── team/
+    └── <L2 规则集 ID>/<L2 原文件名>.md
 ```
 
-纯前端只管理 `frontend/`，纯后端只管理 `backend/`。一个 Release/来源文件对应一个物理 Markdown，不按文档中的
-逻辑规则拆成多个文件。manifest 固定为 `.mdp/rules/.mt-effective-rule-bundle.json`，至少记录：
+前端和后端仓库均使用相同的 `company/`、`team/` 根目录；仓库领域仍由服务端校验并写入 manifest，
+不作为本地目录层级。一个 Release/来源文件对应一个物理 Markdown，不按文档中的逻辑规则拆分。
+同一目录内出现同名来源文件时，Runner 保留文件名并追加来源 Hash，避免覆盖。manifest 固定为
+`.mdp/rules/.mt-effective-rule-bundle.json`，至少记录：
 
 - `snapshot_id`、`manifest_hash`，新版另含 `resolver_version`；
 - 仓库稳定身份和 `standard_domain`；
@@ -120,7 +122,8 @@ Runner 先在同一文件系统暂存完整领域目录，校验路径、字节�
 遇到同名非受管文件、符号链接或路径穿越时失败关闭。
 
 新版 `effective-rule-bundle/v2` 保留中文文件名和原始大小写，Unicode 统一为 NFC；例如
-`.mdp/rules/frontend/l1/frontend-l1/coding-standards/rules/ASYNC-异步与异常处理.md`。
+`.mdp/rules/company/ASYNC-异步与异常处理.md`，或
+`.mdp/rules/team/git-1-fe-l2/L2-rules.md`。
 控制字符、路径穿越和绝对路径仍拒绝；系统非法字符、保留名、过长路径及大小写/Unicode 重名由平台
 确定性处理。路径最多 240 个 UTF-8 字节、单段最多 200 字节；长路径优先保留可读文件名，并追加来源 Hash。
 Runner 不自行改写平台路径；比较路径时考虑 NFC 和大小写等效，避免覆盖等效名称的非受管文件。
@@ -148,7 +151,7 @@ Runner 只在本地 manifest 及所有受管文件仍通过 SHA-256 校验时发
 
 1. receipt 为 `mt-effective-rule-bundle-install/v1`，状态是 `installed` 或 `not_modified`。
 2. manifest 的 `snapshot_id` 与 receipt 一致。
-3. 每个 `managed_files` 都位于当前领域目录且 SHA-256 与 manifest 一致。
+3. 每个 `managed_files` 都位于 `company/` 或 `team/<规则集 ID>/` 且 SHA-256 与 manifest 一致。
 4. `release_refs` 至少包含当前领域 L1；L2 仅包含仓库实际订阅且已发布的 Release。
 5. `git diff` 只包含本次受管规则包变更，未知文件和项目规则未改变。
 

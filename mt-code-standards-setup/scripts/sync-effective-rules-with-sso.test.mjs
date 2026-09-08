@@ -44,6 +44,10 @@ test("uses the official exchange fallback and treats CIBA confirmation as a stop
     tokenFromOfficialExchange({ environment: {}, execute: async () => { const error = new Error("rejected"); error.stdout = JSON.stringify({ code: "MOA_USER_REJECTED" }); throw error; } }),
     (error) => error instanceof RuleBundleError && error.code === "RULE_BUNDLE_CIBA_REJECTED",
   );
+  await assert.rejects(
+    tokenFromOfficialExchange({ environment: {}, execute: async () => { const error = new Error("missing client id"); error.stderr = "错误: 缺少 client_id"; throw error; } }),
+    (error) => error instanceof RuleBundleError && error.code === "RULE_BUNDLE_SSO_AGENT_CONFIG_REQUIRED",
+  );
 });
 
 test("falls back to CIBA/MOA once only when an injected user ticket is rejected", async () => {

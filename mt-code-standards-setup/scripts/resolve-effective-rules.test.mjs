@@ -167,16 +167,16 @@ test("uses one bundle request and atomically installs L1 plus matching L2", asyn
   });
   assert.equal(JSON.stringify(request).includes("short-lived-user-token"), false);
   assert.equal(receipt.status, "installed");
-  assert.equal(await readFile(path.join(root, ".mdp/rules/frontend/l1/frontend-l1.md"), "utf8"), "# L1\n");
-  assert.equal(await readFile(path.join(root, ".mdp/rules/frontend/l2/team-fe-l2.md"), "utf8"), "# L2\n");
+  assert.equal(await readFile(path.join(root, ".mdp/rules/company/frontend-l1.md"), "utf8"), "# L1\n");
+  assert.equal(await readFile(path.join(root, ".mdp/rules/team/team-fe-l2/team-fe-l2.md"), "utf8"), "# L2\n");
   const manifest = JSON.parse(await readFile(
     path.join(root, ".mdp/rules/.mt-effective-rule-bundle.json"),
     "utf8",
   ));
   assert.equal(manifest.snapshot_id, body.snapshot.snapshot_id);
   assert.deepEqual(manifest.managed_files, [
-    "frontend/l1/frontend-l1.md",
-    "frontend/l2/team-fe-l2.md",
+    "company/frontend-l1.md",
+    "team/team-fe-l2/team-fe-l2.md",
   ]);
   assert.equal(JSON.stringify(manifest).includes("short-lived-user-token"), false);
   assert.equal(receipt.pull_id, "11111111-1111-4111-8111-111111111111");
@@ -208,9 +208,9 @@ test("automatically sends the exact git origin when no locator is supplied", asy
   assert.equal(request.repository_locator, origin);
 });
 
-test("preserves unrelated local files inside the managed domain directory", async () => {
+test("preserves unrelated local files outside the managed company and team paths", async () => {
   const root = await createRepository();
-  const customPath = path.join(root, ".mdp/rules/frontend/project/custom.md");
+  const customPath = path.join(root, ".mdp/rules/project/custom.md");
   await mkdir(path.dirname(customPath), { recursive: true });
   await writeFile(customPath, "# local\n", "utf8");
   await syncEffectiveRuleBundle({
@@ -248,6 +248,85 @@ test("sends a verified known snapshot and does not rewrite a not-modified bundle
   assert.equal(after, before);
 });
 
+test("migrates a verified domain tree to the flat company and team layout", async () => {
+  const root = await createRepository();
+  const ready = bundleBody({
+    version: 2,
+    files: [
+      { relative_path: "l1/frontend-l1/旧目录/基础规范.md", content: "# L1\n" },
+      { relative_path: "l2/team-fe-l2/旧目录/团队规范.md", content: "# L2\n" },
+    ],
+  });
+  const oldFiles = ready.files;
+  const legacyManaged = oldFiles.map((file) => `frontend/${file.relative_path}`);
+  const oldManifest = {
+    schema_version: "mt-effective-rule-bundle-manifest/v2",
+    resolver_version: "effective-rule-bundle/v2",
+    snapshot_id: ready.snapshot.snapshot_id,
+    manifest_hash: ready.snapshot.manifest_hash,
+    repository,
+    standard_domain: "frontend",
+    release_refs: ready.snapshot.release_refs,
+    total_bytes: ready.snapshot.total_bytes,
+    managed_files: legacyManaged,
+    managed_file_hashes: Object.fromEntries(oldFiles.map((file) => [`frontend/${file.relative_path}`, file.sha256])),
+    managed_file_sizes: Object.fromEntries(oldFiles.map((file) => [`frontend/${file.relative_path}`, file.byte_size])),
+    installed_at: "2026-09-08T00:00:00.000Z",
+  };
+  for (const file of oldFiles) {
+    const output = path.join(root, ".mdp/rules/frontend", file.relative_path);
+    await mkdir(path.dirname(output), { recursive: true });
+    await writeFile(output, file.content, "utf8");
+  }
+  const userFile = path.join(root, ".mdp/rules/frontend/个人补充.md");
+  await writeFile(userFile, "keep\n", "utf8");
+  await writeFile(
+    path.join(root, ".mdp/rules/.mt-effective-rule-bundle.json"),
+    `${JSON.stringify(oldManifest, null, 2)}\n`,
+    "utf8",
+  );
+  let request;
+  await syncEffectiveRuleBundle({
+    token: "token",
+    repositoryLocator: "hfe/hotel-web",
+    repoRoot: root,
+    fetchImpl: async (_url, init) => {
+      request = JSON.parse(init.body);
+      return response(ready);
+    },
+  });
+  assert.equal("known_snapshot_id" in request, false);
+  assert.equal(await readFile(path.join(root, ".mdp/rules/company/基础规范.md"), "utf8"), "# L1\n");
+  assert.equal(await readFile(path.join(root, ".mdp/rules/team/team-fe-l2/团队规范.md"), "utf8"), "# L2\n");
+  assert.equal(await readFile(userFile, "utf8"), "keep\n");
+  await assert.rejects(readFile(path.join(root, ".mdp/rules/frontend/l1/frontend-l1/旧目录/基础规范.md")));
+});
+
+test("keeps one flat company file per L1 source when source basenames collide", async () => {
+  const root = await createRepository();
+  const ready = bundleBody({
+    version: 2,
+    files: [
+      { relative_path: "l1/frontend-l1/目录甲/README.md", content: "# 甲\n" },
+      { relative_path: "l1/frontend-l1/目录乙/README.md", content: "# 乙\n" },
+    ],
+    refs: [{ rule_set_id: "frontend-l1", release_id: "frontend-l1@test", scope_level: "L1" }],
+  });
+  await syncEffectiveRuleBundle({
+    token: "token", repositoryLocator: "hfe/hotel-web", repoRoot: root,
+    fetchImpl: async () => response(ready),
+  });
+  const manifest = JSON.parse(await readFile(path.join(root, ".mdp/rules/.mt-effective-rule-bundle.json"), "utf8"));
+  assert.equal(manifest.managed_files.length, 2);
+  assert.equal(manifest.managed_files.filter((file) => file.startsWith("company/")).length, 2);
+  assert.equal(new Set(manifest.managed_files).size, 2);
+  const baseContent = await readFile(path.join(root, ".mdp/rules/company/README.md"), "utf8");
+  const suffixed = manifest.managed_files.find((file) => file !== "company/README.md");
+  assert.match(suffixed, /^company\/README--[a-f0-9]{16}\.md$/);
+  const suffixedContent = await readFile(path.join(root, ".mdp/rules", suffixed), "utf8");
+  assert.deepEqual(new Set([baseContent, suffixedContent]), new Set(["# 甲\n", "# 乙\n"]));
+});
+
 test("does not trust a stale manifest when a local managed file was changed", async () => {
   const root = await createRepository();
   const ready = bundleBody();
@@ -257,7 +336,7 @@ test("does not trust a stale manifest when a local managed file was changed", as
     repoRoot: root,
     fetchImpl: async () => response(ready),
   });
-  await writeFile(path.join(root, ".mdp/rules/frontend/l1/frontend-l1.md"), "changed\n", "utf8");
+  await writeFile(path.join(root, ".mdp/rules/company/frontend-l1.md"), "changed\n", "utf8");
   let request;
   await syncEffectiveRuleBundle({
     token: "token",
@@ -284,7 +363,7 @@ test("fails closed on content hash mismatch without creating managed files", asy
     }),
     (error) => error.code === "RULE_BUNDLE_FILE_HASH_MISMATCH",
   );
-  await assert.rejects(readFile(path.join(root, ".mdp/rules/frontend/l1/frontend-l1.md")));
+  await assert.rejects(readFile(path.join(root, ".mdp/rules/company/frontend-l1.md")));
 });
 
 test("rejects traversal paths and unmanaged target collisions", async () => {
@@ -300,7 +379,7 @@ test("rejects traversal paths and unmanaged target collisions", async () => {
     (error) => error.code === "RULE_BUNDLE_FILE_PATH_INVALID",
   );
 
-  const collision = path.join(root, ".mdp/rules/frontend/l1/frontend-l1.md");
+  const collision = path.join(root, ".mdp/rules/company/frontend-l1.md");
   await mkdir(path.dirname(collision), { recursive: true });
   await writeFile(collision, "user-owned\n", "utf8");
   await assert.rejects(
@@ -369,7 +448,7 @@ test("upgrades v1 ASCII files to v2 Chinese filenames and preserves user files",
   const next = bundleBody({ version: 2, files: [{ relative_path: newPath, content }] });
   const options = { token: "token", repositoryLocator: "hfe/hotel-web", repoRoot: root };
   await syncEffectiveRuleBundle({ ...options, fetchImpl: async () => response(legacy) });
-  const userFile = path.join(root, ".mdp/rules/frontend/个人补充.md");
+  const userFile = path.join(root, ".mdp/rules/个人补充.md");
   await writeFile(userFile, "user notes\n", "utf8");
   let request;
   await syncEffectiveRuleBundle({ ...options, fetchImpl: async (_url, init) => {
@@ -378,14 +457,14 @@ test("upgrades v1 ASCII files to v2 Chinese filenames and preserves user files",
   } });
   assert.equal(request.known_snapshot_id, legacy.snapshot.snapshot_id);
   assert.notEqual(next.snapshot.snapshot_id, legacy.snapshot.snapshot_id);
-  assert.equal(await readFile(path.join(root, ".mdp/rules/frontend", newPath), "utf8"), content);
-  await assert.rejects(readFile(path.join(root, ".mdp/rules/frontend", oldPath)));
+  assert.equal(await readFile(path.join(root, ".mdp/rules/company/ASYNC-异步与异常处理.MD"), "utf8"), content);
+  await assert.rejects(readFile(path.join(root, ".mdp/rules/company/async--.md")));
   assert.equal(await readFile(userFile, "utf8"), "user notes\n");
   const manifestPath = path.join(root, ".mdp/rules/.mt-effective-rule-bundle.json");
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-  assert.equal(manifest.schema_version, "mt-effective-rule-bundle-manifest/v2");
+  assert.equal(manifest.schema_version, "mt-effective-rule-bundle-manifest/v3");
   assert.equal(manifest.resolver_version, "effective-rule-bundle/v2");
-  assert.deepEqual(manifest.managed_files, [`frontend/${newPath}`]);
+  assert.deepEqual(manifest.managed_files, ["company/ASYNC-异步与异常处理.MD"]);
   const replay = await syncEffectiveRuleBundle({ ...options, fetchImpl: async (_url, init) => {
     assert.equal(JSON.parse(init.body).known_snapshot_id, next.snapshot.snapshot_id);
     return response({ ...next, status: "not_modified", files: [] });
@@ -398,13 +477,13 @@ test("blocks a user-owned case alias of a new Chinese filename before replacing 
   const legacy = bundleBody();
   const options = { token: "token", repositoryLocator: "hfe/hotel-web", repoRoot: root };
   await syncEffectiveRuleBundle({ ...options, fetchImpl: async () => response(legacy) });
-  const userFile = path.join(root, ".mdp/rules/frontend/l1/async-异步.md");
+  const userFile = path.join(root, ".mdp/rules/company/async-异步.md");
   await writeFile(userFile, "user-owned\n", "utf8");
   const next = bundleBody({ version: 2, files: [{ relative_path: "l1/ASYNC-异步.md", content: "server\n" }] });
   await assert.rejects(syncEffectiveRuleBundle({ ...options, fetchImpl: async () => response(next) }),
     (error) => error.code === "RULE_BUNDLE_LOCAL_COLLISION");
   assert.equal(await readFile(userFile, "utf8"), "user-owned\n");
-  assert.equal(await readFile(path.join(root, ".mdp/rules/frontend/l1/frontend-l1.md"), "utf8"), "# L1\n");
+  assert.equal(await readFile(path.join(root, ".mdp/rules/company/frontend-l1.md"), "utf8"), "# L1\n");
 });
 
 test("rejects unsafe v2 paths, Unicode-equivalent duplicates and symlink targets", async () => {
@@ -426,8 +505,8 @@ test("rejects unsafe v2 paths, Unicode-equivalent duplicates and symlink targets
     (error) => error.code === "RULE_BUNDLE_FILE_DUPLICATE");
   const outside = path.join(repoRoot, "outside.md");
   await writeFile(outside, "outside\n", "utf8");
-  await mkdir(path.join(repoRoot, ".mdp/rules/frontend/l1"), { recursive: true });
-  await symlink(outside, path.join(repoRoot, ".mdp/rules/frontend/l1/规范.md"));
+  await mkdir(path.join(repoRoot, ".mdp/rules/company"), { recursive: true });
+  await symlink(outside, path.join(repoRoot, ".mdp/rules/company/规范.md"));
   await assert.rejects(syncEffectiveRuleBundle({ ...options, repoRoot, fetchImpl: async () => response(bundleBody({ version: 2, files: [{ relative_path: "l1/规范.md", content: "server" }] })) }),
     (error) => error.code === "RULE_BUNDLE_LOCAL_SYMLINK");
   assert.equal(await readFile(outside, "utf8"), "outside\n");
@@ -446,33 +525,28 @@ test("v2 rejects a missing or inconsistent resolver version and cannot reuse a v
     (error) => error.code === "RULE_BUNDLE_SNAPSHOT_HASH_MISMATCH");
 });
 
-test("v1 manifest retains its original path contract during a reserved-name upgrade", { skip: process.platform === "win32" }, async () => {
+test("reserved-name upgrades keep the flat local path contract", { skip: process.platform === "win32" }, async () => {
   const root = await createRepository();
   const options = { token: "token", repositoryLocator: "hfe/hotel-web", repoRoot: root };
   await syncEffectiveRuleBundle({ ...options, fetchImpl: async () => response(bundleBody({ files: [{ relative_path: "l1/con.md", content: "legacy\n" }] })) });
   await syncEffectiveRuleBundle({ ...options, fetchImpl: async () => response(bundleBody({ version: 2, files: [{ relative_path: "l1/_CON.md", content: "current\n" }] })) });
-  await assert.rejects(readFile(path.join(root, ".mdp/rules/frontend/l1/con.md")));
-  assert.equal(await readFile(path.join(root, ".mdp/rules/frontend/l1/_CON.md"), "utf8"), "current\n");
+  await assert.rejects(readFile(path.join(root, ".mdp/rules/company/con.md")));
+  assert.equal(await readFile(path.join(root, ".mdp/rules/company/_CON.md"), "utf8"), "current\n");
 });
 
-test("directory case upgrades preserve unmanaged siblings and only rename fully managed directories", async () => {
+test("flat layout removes source directories and preserves unrelated company files", async () => {
   const legacy = bundleBody({ files: [{ relative_path: "l1/rules/async--.md", content: "rule\n" }] });
   const next = bundleBody({ version: 2, files: [{ relative_path: "l1/Rules/ASYNC-异步.md", content: "rule\n" }] });
   for (const withUserFile of [false, true]) {
     const root = await createRepository();
     const opts = { token: "token", repositoryLocator: "hfe/hotel-web", repoRoot: root };
     await syncEffectiveRuleBundle({ ...opts, fetchImpl: async () => response(legacy) });
-    const userFile = path.join(root, ".mdp/rules/frontend/l1/rules/个人.md");
+    const userFile = path.join(root, ".mdp/rules/company/个人.md");
     if (withUserFile) await writeFile(userFile, "user\n");
-    const install = () => syncEffectiveRuleBundle({ ...opts, fetchImpl: async () => response(next) });
-    if (withUserFile) {
-      await assert.rejects(install(), (error) => error.code === "RULE_BUNDLE_LOCAL_COLLISION");
-      assert.equal(await readFile(userFile, "utf8"), "user\n");
-      assert.equal(await readFile(path.join(root, ".mdp/rules/frontend/l1/rules/async--.md"), "utf8"), "rule\n");
-    } else {
-      await install();
-      assert.equal(await readFile(path.join(root, ".mdp/rules/frontend/l1/Rules/ASYNC-异步.md"), "utf8"), "rule\n");
-    }
+    await syncEffectiveRuleBundle({ ...opts, fetchImpl: async () => response(next) });
+    await assert.rejects(readFile(path.join(root, ".mdp/rules/company/async--.md")));
+    assert.equal(await readFile(path.join(root, ".mdp/rules/company/ASYNC-异步.md"), "utf8"), "rule\n");
+    if (withUserFile) assert.equal(await readFile(userFile, "utf8"), "user\n");
   }
 });
 
@@ -482,6 +556,7 @@ test("backend v2 installs Java L1 and Spring L2 Chinese files under the backend 
   const files = [{ relative_path: "l1/java-l1/Java-日期处理.md", content: "# Java 日期处理\n" }, { relative_path: "l2/team-java-l2/Spring-依赖注入.md", content: "# Spring 依赖注入\n" }];
   const body = bundleBody({ version: 2, domain: "backend", files, refs: [{ rule_set_id: "java-l1", release_id: "java-l1@test", scope_level: "L1" }, { rule_set_id: "team-java-l2", release_id: "team-java-l2@test", scope_level: "L2" }] });
   await syncEffectiveRuleBundle({ token: "token", repositoryLocator: "team/java-service", repoRoot: root, fetchImpl: async () => response(body) });
-  for (const file of files) assert.equal(await readFile(path.join(root, ".mdp/rules/backend", file.relative_path), "utf8"), file.content);
-  await assert.rejects(readFile(path.join(root, ".mdp/rules/frontend", files[0].relative_path)));
+  assert.equal(await readFile(path.join(root, ".mdp/rules/company/Java-日期处理.md"), "utf8"), files[0].content);
+  assert.equal(await readFile(path.join(root, ".mdp/rules/team/team-java-l2/Spring-依赖注入.md"), "utf8"), files[1].content);
+  await assert.rejects(readFile(path.join(root, ".mdp/rules/frontend/Java-日期处理.md")));
 });

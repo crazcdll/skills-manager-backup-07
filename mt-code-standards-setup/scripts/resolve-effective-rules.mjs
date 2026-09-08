@@ -27,6 +27,8 @@ const LEGACY_BUNDLE_SCHEMA = "effective-rule-bundle/v1";
 const BUNDLE_SCHEMA = "effective-rule-bundle/v2";
 const LEGACY_LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v1";
 const LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v2";
+const FLAT_LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v3";
+const FLAT_LOCAL_LAYOUT = "company-team/v1";
 const RECEIPT_SCHEMA = "mt-effective-rule-bundle-install/v1";
 const MANIFEST_NAME = ".mt-effective-rule-bundle.json";
 const MAX_LOCATOR_BYTES = 8 * 1024;
@@ -407,10 +409,85 @@ const readLocalManifest = async (repoRoot) => {
   }
 };
 
+const isFlatLocalManifest = (manifest) => manifest?.schema_version === FLAT_LOCAL_MANIFEST_SCHEMA;
+
+const manifestBundleSchema = (manifest) => {
+  if (isFlatLocalManifest(manifest)) return manifest.resolver_version;
+  return manifest?.schema_version === LOCAL_MANIFEST_SCHEMA
+    ? BUNDLE_SCHEMA
+    : LEGACY_BUNDLE_SCHEMA;
+};
+
+const manifestPhysicalPath = (manifest, managedPath) => {
+  const bundleSchema = manifestBundleSchema(manifest);
+  return normalizeRelativePath(managedPath, bundleSchema === BUNDLE_SCHEMA);
+};
+
+const manifestSourcePath = (manifest, managedPath) => {
+  const bundleSchema = manifestBundleSchema(manifest);
+  if (isFlatLocalManifest(manifest)) {
+    return normalizeRelativePath(
+      manifest.managed_file_sources[managedPath],
+      bundleSchema === BUNDLE_SCHEMA,
+    );
+  }
+  const prefix = `${manifest.standard_domain}/`;
+  return normalizeRelativePath(managedPath.slice(prefix.length), bundleSchema === BUNDLE_SCHEMA);
+};
+
+const isFlatManagedPath = (value, bundleSchema) => {
+  const pathValue = normalizeRelativePath(value, bundleSchema === BUNDLE_SCHEMA);
+  const parts = pathValue.split("/");
+  return (parts[0] === "company" && parts.length === 2)
+    || (parts[0] === "team" && parts.length === 3);
+};
+
+const suffixFileName = (fileName, sourcePath, attempt = 0) => {
+  const lastDot = fileName.lastIndexOf(".");
+  const stem = lastDot > 0 ? fileName.slice(0, lastDot) : fileName;
+  const extension = lastDot > 0 ? fileName.slice(lastDot) : "";
+  return `${stem}--${sha256Hex(`${sourcePath}\0${attempt}`).slice(0, 16)}${extension}`;
+};
+
+const localFilesForBundle = (bundle) => {
+  const versionTwo = bundle.snapshot.resolver_version === BUNDLE_SCHEMA;
+  const candidates = bundle.files.map((file) => {
+    const sourcePath = normalizeRelativePath(file.relative_path, versionTwo);
+    const parts = sourcePath.split("/");
+    const scope = parts[0];
+    const fileName = parts.at(-1);
+    if ((scope !== "l1" && scope !== "l2") || !fileName) {
+      fail("RULE_BUNDLE_FILE_PATH_INVALID", `规则文件层级非法：${sourcePath}`);
+    }
+    const inferredRuleSetId = parts.length > 2
+      ? parts[1]
+      : fileName.replace(/[.]md$/iu, "");
+    const candidate = scope === "l1"
+      ? `company/${fileName}`
+      : `team/${inferredRuleSetId}/${fileName}`;
+    return { ...file, source_relative_path: sourcePath, local_relative_path: candidate };
+  });
+  const occupied = new Set();
+  return candidates.map((file) => {
+    let localPath = file.local_relative_path;
+    let attempt = 0;
+    while (occupied.has(pathKey(localPath))) {
+      const parts = localPath.split("/");
+      const fileName = parts.at(-1);
+      localPath = [...parts.slice(0, -1), suffixFileName(fileName, file.source_relative_path, attempt++)].join("/");
+    }
+    if (!isFlatManagedPath(localPath, versionTwo)) {
+      fail("RULE_BUNDLE_FILE_PATH_INVALID", `规则本地路径非法：${localPath}`);
+    }
+    occupied.add(pathKey(localPath));
+    return { ...file, local_relative_path: localPath };
+  }).sort((left, right) => binaryPathOrder(left.local_relative_path, right.local_relative_path));
+};
+
 const validateLocalManifestStructure = (manifest) => {
   if (
     !manifest
-    || ![LEGACY_LOCAL_MANIFEST_SCHEMA, LOCAL_MANIFEST_SCHEMA].includes(manifest.schema_version)
+    || ![LEGACY_LOCAL_MANIFEST_SCHEMA, LOCAL_MANIFEST_SCHEMA, FLAT_LOCAL_MANIFEST_SCHEMA].includes(manifest.schema_version)
     || !SHA256_PATTERN.test(text(manifest.snapshot_id))
     || !SHA256_PATTERN.test(text(manifest.manifest_hash))
     || !DOMAINS.has(manifest.standard_domain)
@@ -422,26 +499,38 @@ const validateLocalManifestStructure = (manifest) => {
     || !isObject(manifest.managed_file_hashes)
     || !isObject(manifest.managed_file_sizes)
   ) return false;
-  const versionTwo = manifest.schema_version === LOCAL_MANIFEST_SCHEMA;
-  if (versionTwo ? manifest.resolver_version !== BUNDLE_SCHEMA : manifest.resolver_version != null) return false;
+  const flat = isFlatLocalManifest(manifest);
+  const bundleSchema = manifestBundleSchema(manifest);
+  if (![LEGACY_BUNDLE_SCHEMA, BUNDLE_SCHEMA].includes(bundleSchema)) return false;
+  if (!flat && (manifest.schema_version === LOCAL_MANIFEST_SCHEMA
+    ? manifest.resolver_version !== BUNDLE_SCHEMA
+    : manifest.resolver_version != null)) return false;
+  if (flat && (
+    manifest.local_layout !== FLAT_LOCAL_LAYOUT
+    || !isObject(manifest.managed_file_sources)
+  )) return false;
+  const versionTwo = bundleSchema === BUNDLE_SCHEMA;
   const pathOrder = versionTwo ? binaryPathOrder : (left, right) => left.localeCompare(right, "en");
-  const expectedPrefix = `${manifest.standard_domain}/`;
   const uniquePaths = new Set(manifest.managed_files);
   if (uniquePaths.size !== manifest.managed_files.length || !uniquePaths.size) return false;
+  if (flat && Object.keys(manifest.managed_file_sources).length !== uniquePaths.size) return false;
   const projection = [];
   for (const managedPath of [...uniquePaths].sort(pathOrder)) {
-    if (typeof managedPath !== "string" || !managedPath.startsWith(expectedPrefix)) return false;
-    const relativePath = normalizeRelativePath(managedPath.slice(expectedPrefix.length), versionTwo);
+    if (typeof managedPath !== "string") return false;
+    if (!flat && !managedPath.startsWith(`${manifest.standard_domain}/`)) return false;
+    if (flat && !isFlatManagedPath(managedPath, bundleSchema)) return false;
+    const sourcePath = manifestSourcePath(manifest, managedPath);
+    if (flat && !Object.hasOwn(manifest.managed_file_sources, managedPath)) return false;
     const fileHash = manifest.managed_file_hashes[managedPath];
     const fileSize = manifest.managed_file_sizes[managedPath];
     if (!SHA256_PATTERN.test(text(fileHash)) || !Number.isSafeInteger(fileSize) || fileSize < 0) return false;
-    projection.push({ relative_path: relativePath, sha256: fileHash, byte_size: fileSize });
+    projection.push({ relative_path: sourcePath, sha256: fileHash, byte_size: fileSize });
   }
   if (sha256Hex(canonicalJson(projection)) !== manifest.manifest_hash) return false;
   if (projection.reduce((sum, file) => sum + file.byte_size, 0) !== manifest.total_bytes) return false;
   const releaseRefs = normalizeReleaseRefs(manifest.release_refs);
   const snapshotProjection = {
-    ...(versionTwo ? { resolver_version: BUNDLE_SCHEMA } : {}),
+    ...(bundleSchema === BUNDLE_SCHEMA ? { resolver_version: BUNDLE_SCHEMA } : {}),
     repository_id: manifest.repository.repository_id,
     canonical_key: manifest.repository.canonical_key,
     standard_domain: manifest.repository.standard_domain,
@@ -454,10 +543,9 @@ const validateLocalManifestStructure = (manifest) => {
 const validateLocalManifestFiles = async (repoRoot, manifest) => {
   if (!validateLocalManifestStructure(manifest)) return false;
   const rulesRoot = path.join(repoRoot, ".mdp", "rules");
-  const expectedPrefix = `${manifest.standard_domain}/`;
   for (const managedPath of manifest.managed_files) {
-    const relativePath = normalizeRelativePath(managedPath.slice(expectedPrefix.length), manifest.schema_version === LOCAL_MANIFEST_SCHEMA);
-    const fullPath = path.join(rulesRoot, manifest.standard_domain, ...relativePath.split("/"));
+    const relativePath = manifestPhysicalPath(manifest, managedPath);
+    const fullPath = path.join(rulesRoot, ...relativePath.split("/"));
     await assertNoSymlink(fullPath, rulesRoot);
     if (!await exists(fullPath)) return false;
     const content = await readFile(fullPath);
@@ -471,10 +559,12 @@ const validateLocalManifestFiles = async (repoRoot, manifest) => {
 
 const buildLocalManifest = (bundle) => {
   const domain = bundle.snapshot.repository.standard_domain;
-  const managedFiles = bundle.files.map((file) => `${domain}/${file.relative_path}`);
+  const localFiles = localFilesForBundle(bundle);
+  const managedFiles = localFiles.map((file) => file.local_relative_path);
   return {
-    schema_version: bundle.snapshot.resolver_version === BUNDLE_SCHEMA ? LOCAL_MANIFEST_SCHEMA : LEGACY_LOCAL_MANIFEST_SCHEMA,
-    ...(bundle.snapshot.resolver_version ? { resolver_version: bundle.snapshot.resolver_version } : {}),
+    schema_version: FLAT_LOCAL_MANIFEST_SCHEMA,
+    local_layout: FLAT_LOCAL_LAYOUT,
+    resolver_version: bundle.snapshot.resolver_version || LEGACY_BUNDLE_SCHEMA,
     snapshot_id: bundle.snapshot.snapshot_id,
     manifest_hash: bundle.snapshot.manifest_hash,
     repository: {
@@ -486,12 +576,16 @@ const buildLocalManifest = (bundle) => {
     release_refs: bundle.snapshot.release_refs,
     total_bytes: bundle.snapshot.total_bytes,
     managed_files: managedFiles,
-    managed_file_hashes: Object.fromEntries(bundle.files.map((file) => [
-      `${domain}/${file.relative_path}`,
+    managed_file_sources: Object.fromEntries(localFiles.map((file) => [
+      file.local_relative_path,
+      file.source_relative_path,
+    ])),
+    managed_file_hashes: Object.fromEntries(localFiles.map((file) => [
+      file.local_relative_path,
       file.sha256,
     ])),
-    managed_file_sizes: Object.fromEntries(bundle.files.map((file) => [
-      `${domain}/${file.relative_path}`,
+    managed_file_sizes: Object.fromEntries(localFiles.map((file) => [
+      file.local_relative_path,
       file.byte_size,
     ])),
     installed_at: new Date().toISOString(),
@@ -555,13 +649,12 @@ const removeEmptyManagedParents = async (filePath, boundary) => {
 };
 
 const installReadyBundle = async (repoRoot, bundle, previousManifest) => {
+  const mdpRoot = path.join(repoRoot, ".mdp");
   const rulesRoot = path.join(repoRoot, ".mdp", "rules");
   const domain = bundle.snapshot.repository.standard_domain;
-  const domainPath = path.join(rulesRoot, domain);
-  const manifestPath = path.join(rulesRoot, MANIFEST_NAME);
-  await mkdir(rulesRoot, { recursive: true });
-  await assertNoSymlink(rulesRoot, repoRoot);
-  await assertNoSymlink(domainPath, rulesRoot);
+  await mkdir(mdpRoot, { recursive: true });
+  await assertNoSymlink(mdpRoot, repoRoot);
+  if (await exists(rulesRoot)) await assertNoSymlink(rulesRoot, mdpRoot);
 
   if (previousManifest?.standard_domain && previousManifest.standard_domain !== domain) {
     fail(
@@ -570,70 +663,64 @@ const installReadyBundle = async (repoRoot, bundle, previousManifest) => {
     );
   }
   const previousManaged = new Set(previousManifest?.managed_files || []);
-  const previousManagedNfc = new Set([...previousManaged].map((name) => name.normalize("NFC")));
-  const previousRelativePaths = new Set([...previousManaged].map((name) => name.slice(domain.length + 1)));
+  const previousPhysicalPaths = new Set(previousManifest
+    ? [...previousManaged].map((name) => manifestPhysicalPath(previousManifest, name))
+    : []);
+  const previousManagedNfc = new Set([...previousPhysicalPaths].map((name) => name.normalize("NFC")));
+  const localFiles = localFilesForBundle(bundle);
   const directoryCache = new Map();
-  for (const file of bundle.files) {
-    const managedPath = `${domain}/${file.relative_path}`;
-    const currentPath = path.join(domainPath, ...file.relative_path.split("/"));
+  for (const file of localFiles) {
+    const currentPath = path.join(rulesRoot, ...file.local_relative_path.split("/"));
     await assertNoSymlink(currentPath, rulesRoot);
-    const existing = await existingPortablePath(domainPath, file.relative_path, directoryCache, previousRelativePaths);
-    if (existing && !previousManagedNfc.has(`${domain}/${existing}`.normalize("NFC"))) {
-      fail("RULE_BUNDLE_LOCAL_COLLISION", `规则目标路径已有非受管文件，未覆盖：${managedPath}`);
+    const existing = await existingPortablePath(
+      rulesRoot,
+      file.local_relative_path,
+      directoryCache,
+      previousPhysicalPaths,
+    );
+    if (existing && !previousManagedNfc.has(existing.normalize("NFC"))) {
+      fail("RULE_BUNDLE_LOCAL_COLLISION", `规则目标路径已有非受管文件，未覆盖：${file.local_relative_path}`);
     }
   }
 
-  const stageRoot = await mkdtemp(path.join(rulesRoot, ".mt-bundle-stage-"));
-  const stageDomain = path.join(stageRoot, domain);
-  const stagedManifest = path.join(stageRoot, MANIFEST_NAME);
-  const backupDomain = path.join(rulesRoot, `.mt-bundle-backup-${domain}-${randomUUID()}`);
-  const backupManifest = path.join(rulesRoot, `.mt-bundle-backup-manifest-${randomUUID()}.json`);
-  let domainBackedUp = false;
-  let domainInstalled = false;
-  let manifestBackedUp = false;
-  let manifestInstalled = false;
+  const stageRoot = await mkdtemp(path.join(mdpRoot, ".mt-bundle-stage-"));
+  const stagedRulesRoot = path.join(stageRoot, "rules");
+  const stagedManifest = path.join(stagedRulesRoot, MANIFEST_NAME);
+  const backupRulesRoot = path.join(mdpRoot, `.mt-bundle-backup-${randomUUID()}`);
+  let rulesBackedUp = false;
+  let rulesInstalled = false;
   try {
-    if (await exists(domainPath)) await cp(domainPath, stageDomain, { recursive: true, errorOnExist: false });
-    else await mkdir(stageDomain, { recursive: true });
+    if (await exists(rulesRoot)) await cp(rulesRoot, stagedRulesRoot, { recursive: true, errorOnExist: false });
+    else await mkdir(stagedRulesRoot, { recursive: true });
 
     for (const managedPath of previousManaged) {
-      if (!managedPath.startsWith(`${domain}/`)) continue;
-      const relativePath = normalizeRelativePath(managedPath.slice(domain.length + 1), previousManifest.schema_version === LOCAL_MANIFEST_SCHEMA);
-      const stagedOldPath = path.join(stageDomain, ...relativePath.split("/"));
-      await assertNoSymlink(stagedOldPath, stageDomain);
+      const relativePath = manifestPhysicalPath(previousManifest, managedPath);
+      const stagedOldPath = path.join(stagedRulesRoot, ...relativePath.split("/"));
+      await assertNoSymlink(stagedOldPath, stagedRulesRoot);
       await rm(stagedOldPath, { force: true });
-      await removeEmptyManagedParents(stagedOldPath, stageDomain);
+      await removeEmptyManagedParents(stagedOldPath, stagedRulesRoot);
     }
-    for (const file of bundle.files) {
-      const outputPath = path.join(stageDomain, ...file.relative_path.split("/"));
-      await assertNoSymlink(outputPath, stageDomain);
+    for (const file of localFiles) {
+      const outputPath = path.join(stagedRulesRoot, ...file.local_relative_path.split("/"));
+      await assertNoSymlink(outputPath, stagedRulesRoot);
       await mkdir(path.dirname(outputPath), { recursive: true });
       await writeFile(outputPath, file.content, "utf8");
     }
     const manifest = buildLocalManifest(bundle);
     await writeFile(stagedManifest, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 
-    if (await exists(domainPath)) {
-      await rename(domainPath, backupDomain);
-      domainBackedUp = true;
+    if (await exists(rulesRoot)) {
+      await rename(rulesRoot, backupRulesRoot);
+      rulesBackedUp = true;
     }
-    await rename(stageDomain, domainPath);
-    domainInstalled = true;
-    if (await exists(manifestPath)) {
-      await rename(manifestPath, backupManifest);
-      manifestBackedUp = true;
-    }
-    await rename(stagedManifest, manifestPath);
-    manifestInstalled = true;
-    await rm(backupDomain, { recursive: true, force: true }).catch(() => {});
-    await rm(backupManifest, { force: true }).catch(() => {});
+    await rename(stagedRulesRoot, rulesRoot);
+    rulesInstalled = true;
+    await rm(backupRulesRoot, { recursive: true, force: true }).catch(() => {});
     return manifest;
   } catch (error) {
     try {
-      if (manifestInstalled) await rm(manifestPath, { force: true });
-      if (manifestBackedUp && await exists(backupManifest)) await rename(backupManifest, manifestPath);
-      if (domainInstalled) await rm(domainPath, { recursive: true, force: true });
-      if (domainBackedUp && await exists(backupDomain)) await rename(backupDomain, domainPath);
+      if (rulesInstalled) await rm(rulesRoot, { recursive: true, force: true });
+      if (rulesBackedUp && await exists(backupRulesRoot)) await rename(backupRulesRoot, rulesRoot);
     } catch (rollbackError) {
       fail(
         "RULE_BUNDLE_LOCAL_ROLLBACK_FAILED",
@@ -681,7 +768,12 @@ export const syncEffectiveRuleBundle = async ({
   const previousCurrent = previousTrusted
     ? await validateLocalManifestFiles(absoluteRoot, previousManifest).catch(() => false)
     : false;
-  const knownSnapshotId = previousCurrent ? previousManifest.snapshot_id : "";
+  // A verified legacy tree must be fetched once more so it can be migrated to
+  // the flat company/team layout; only the current layout may receive a
+  // not_modified response without rewriting local files.
+  const knownSnapshotId = previousCurrent && isFlatLocalManifest(previousManifest)
+    ? previousManifest.snapshot_id
+    : "";
   const body = await requestBundle({
     gatewayUrl,
     token,

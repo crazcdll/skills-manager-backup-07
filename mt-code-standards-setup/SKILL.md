@@ -11,7 +11,7 @@ skill-dependencies:
 metadata:
   skillhub.creator: "zhangce07"
   skillhub.updater: "zhangce07"
-  skillhub.version: "V4"
+  skillhub.version: "V5"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "141006"
   skillhub.high_sensitive: "false"
@@ -37,12 +37,15 @@ Agent 不得自行 clone 中心规范仓库、调用组织/订阅/规则明细�
 
 采用官方指南的 **Prompt 标准注入**：执行 Agent 根据头部依赖声明，使用 `mtsso-skills-official`
 为 NoCode 作品线上默认 audience `923a237244` 获取当前用户短期票据，再注入下方 Runner 命令。
-用户只需调用本 Skill，不需要手工获取或粘贴 Token；Runner 负责下载和校验，不自行实现取票。
+用户只需调用本 Skill，不需要手工获取或粘贴 Token；统一 Runner 负责取票、下载和校验。
 
 - 先读取或加载当前平台的 `mtsso-skills-official`，按它的流程取票；平台差异由官方 Skill 处理。
 - 实际执行前再把 `${user_access_token}` 替换为官方用户票据。
 - 票据只进入当前 Runner 进程的环境变量，不出现在参数、stdout、manifest、规则文件或回复中。
 - 不读取浏览器 Cookie，不用 Git 作者、系统账号、应用 owner 或手填 MIS 冒充当前用户。
+- 优先使用运行环境已注入的官方用户票据。没有票据时，Runner 调用官方 `mtsso-moa-local-exchange`。
+  它会按网关拦截、扩展 Agent、本地 MOA 的顺序换票；本地 MOA 未授权时会发起大象 CIBA 授权卡片。
+- 收到 `RULE_BUNDLE_CIBA_CONFIRMATION_REQUIRED` 时，在大象确认后重新执行同一拉取；收到拒绝或冷却提示时停止，不能自动重试。
 - 官方换票失败时按 `mtsso-skills-official` 的错误分类停止；权限不足或需人工确认的错误不得自动重试。
 - 不把 `catdesk auth exchange` 写成跨平台前置条件，不自行注册 Agent、复制其他平台凭据或修改宿主 SSO 配置。
 
@@ -71,19 +74,21 @@ locator 后可以带 `?` 或 `#` 参数。Runner 保留完整输入交给平台�
 随后执行随 Skill 分发的 Runner：
 
 ```shell
-RULE_OBSERVABILITY_USER_TOKEN='${user_access_token}' node <skill_dir>/scripts/resolve-effective-rules.mjs \
+node <skill_dir>/scripts/sync-effective-rules-with-sso.mjs \
   --repo-root "$PWD"
 ```
 
 用户明确提供 locator 时增加一个参数：
 
 ```shell
-RULE_OBSERVABILITY_USER_TOKEN='${user_access_token}' node <skill_dir>/scripts/resolve-effective-rules.mjs \
+node <skill_dir>/scripts/sync-effective-rules-with-sso.mjs \
   --repo-root "$PWD" \
   --repository '<repository-locator>'
 ```
 
-不要改参数、复制脚本逻辑或在失败后改走旧接口。Runner 的成功 stdout 是
+执行 Agent 应在可确认自身环境时传入 `--execution-agent`：`catdesk`、`catpaw`、`claude`、
+`codex`、`agent_1024`、`sandbox` 或 `catx`。未传时 Runner 只按环境变量识别，不能识别会记录为
+`unknown`，不猜测。不要改参数、复制脚本逻辑或在失败后改走旧接口。Runner 的成功 stdout 是
 `mt-effective-rule-bundle-install/v1` receipt；其他文字、Agent 回复或 HTTP `accepted` 均不能作为安装成功证据。
 
 ## 本地目录合同
@@ -147,5 +152,6 @@ Runner 只在本地 manifest 及所有受管文件仍通过 SHA-256 校验时发
 4. `release_refs` 至少包含当前领域 L1；L2 仅包含仓库实际订阅且已发布的 Release。
 5. `git diff` 只包含本次受管规则包变更，未知文件和项目规则未改变。
 
-向用户报告仓库稳定身份、领域、L1/L2 Release、安装文件数、总字节数以及 `installed/not_modified`。不要回显
-票据，不要声称未执行的部署或线上验证已经完成。
+每一次解析到规则包的拉取都会由平台记录可信 MIS、仓库、精确规则 UID 与 Release、执行 Agent、
+Skill 和结果状态；相同规则包快照仍会去重。向用户报告仓库稳定身份、领域、L1/L2 Release、安装文件数、
+总字节数以及 `installed/not_modified`。不要回显票据，不要声称未执行的部署或线上验证已经完成。

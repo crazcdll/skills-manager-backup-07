@@ -9,8 +9,9 @@
 
 > 使用 mt-code-standards-setup，为当前仓库下载并同步有效编码规范。
 
-执行 Agent 按依赖声明读取官方 SSO Skill、取票、注入 Runner 环境变量；同一个 Runner 调用规则包接口，
-校验并安装 `.mdp/rules/`。用户不需要配置 Token。不要再叠加 Runner 自主取票或平台专用兜底认证。
+执行 Agent 按依赖声明读取官方 SSO Skill；统一 SSO Runner 先使用已注入用户票据，缺失时才调用官方
+`mtsso-moa-local-exchange`。同一个 Runner 调用规则包接口，校验并安装 `.mdp/rules/`。用户不需要配置 Token。
+业务 Skill 不实现非官方认证，也不读取、生成或展示票据。
 
 ## 平台前提
 
@@ -40,6 +41,8 @@
   `923a237244` 只填写在 audience 中；不要让普通用户提供调用方 `client_secret`。
 - `sub_access_denied`、`act_access_denied`、`sub_act_access_denied`、`ric_feedback_required`：
   立即停止，按官方 Skill 展示返回的指引，不自动重试或切换身份。
+- `MOA_NOT_LOGGED_IN` 或 `MOA_AUTH_REQUEST_PENDING`：官方本地换票已发起或等待大象 CIBA 授权卡片；
+  用户确认后重新执行同一拉取。拒绝或冷却期也停止，不能绕过 CIBA 换用应用身份。
 - 官方返回 `AT_FOR_GW_BASE64_` 网关占位符时按官方 Skill 原样注入，不能自行解码、签发或当成真实 Token 展示。
 
 ## 每个平台分别验收

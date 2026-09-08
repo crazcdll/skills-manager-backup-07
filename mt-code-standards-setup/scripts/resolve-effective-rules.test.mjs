@@ -10,6 +10,7 @@ import {
   RuleBundleError,
   sha256Hex,
   syncEffectiveRuleBundle,
+  normalizePullExecution,
   validateRepositoryLocator,
 } from "./resolve-effective-rules.mjs";
 
@@ -41,6 +42,7 @@ const bundleBody = ({
     content: "# L2\n",
   }],
   domain = "frontend",
+  refs = releaseRefs,
   status = "ready",
   version = 1,
 } = {}) => {
@@ -64,7 +66,7 @@ const bundleBody = ({
     canonical_key: repo.canonical_key,
     standard_domain: repo.standard_domain,
     manifest_hash: manifestHash,
-    release_refs: releaseRefs,
+    release_refs: refs,
   };
   return {
     schema_version: `effective-rule-bundle/v${version}`,
@@ -74,7 +76,7 @@ const bundleBody = ({
       snapshot_id: sha256Hex(canonicalJson(snapshotProjection)),
       repository: repo,
       manifest_hash: manifestHash,
-      release_refs: releaseRefs,
+      release_refs: refs,
       total_bytes: normalizedFiles.reduce((sum, file) => sum + file.byte_size, 0),
     },
     files: status === "ready" ? normalizedFiles : [],
@@ -128,6 +130,12 @@ test("uses one bundle request and atomically installs L1 plus matching L2", asyn
       calls.push({ url, init });
       return response(body);
     },
+    execution: {
+      pullId: "11111111-1111-4111-8111-111111111111",
+      agent: "codex",
+      source: "runner_explicit_v1",
+      skillVersion: "v1-test",
+    },
   });
 
   assert.equal(calls.length, 1);
@@ -137,7 +145,16 @@ test("uses one bundle request and atomically installs L1 plus matching L2", asyn
   assert.equal("Origin" in calls[0].init.headers, false);
   assert.equal("X-NoCode-Env" in calls[0].init.headers, false);
   const request = JSON.parse(calls[0].init.body);
-  assert.deepEqual(request, { repository_locator: "hfe/hotel-web?branch=master" });
+  assert.deepEqual(request, {
+    repository_locator: "hfe/hotel-web?branch=master",
+    execution: {
+      pull_id: "11111111-1111-4111-8111-111111111111",
+      execution_agent: "codex",
+      execution_agent_source: "runner_explicit_v1",
+      skill_name: "mt-code-standards-setup",
+      skill_version: "v1-test",
+    },
+  });
   assert.equal(JSON.stringify(request).includes("short-lived-user-token"), false);
   assert.equal(receipt.status, "installed");
   assert.equal(await readFile(path.join(root, ".mdp/rules/frontend/l1/frontend-l1.md"), "utf8"), "# L1\n");
@@ -152,6 +169,16 @@ test("uses one bundle request and atomically installs L1 plus matching L2", asyn
     "frontend/l2/team-fe-l2.md",
   ]);
   assert.equal(JSON.stringify(manifest).includes("short-lived-user-token"), false);
+  assert.equal(receipt.pull_id, "11111111-1111-4111-8111-111111111111");
+  assert.equal(receipt.execution_agent, "codex");
+});
+
+test("requires an explicit known execution identity when supplied and defaults old callers safely", () => {
+  assert.equal(normalizePullExecution().agent, "unknown");
+  assert.throws(
+    () => normalizePullExecution({ pullId: "11111111-1111-4111-8111-111111111111", agent: "made-up", source: "runner_explicit_v1" }),
+    (error) => error.code === "RULE_BUNDLE_EXECUTION_INVALID",
+  );
 });
 
 test("automatically sends the exact git origin when no locator is supplied", async () => {
@@ -437,4 +464,14 @@ test("directory case upgrades preserve unmanaged siblings and only rename fully 
       assert.equal(await readFile(path.join(root, ".mdp/rules/frontend/l1/Rules/ASYNC-异步.md"), "utf8"), "rule\n");
     }
   }
+});
+
+
+test("backend v2 installs Java L1 and Spring L2 Chinese files under the backend directory", async () => {
+  const root = await createRepository();
+  const files = [{ relative_path: "l1/java-l1/Java-日期处理.md", content: "# Java 日期处理\n" }, { relative_path: "l2/team-java-l2/Spring-依赖注入.md", content: "# Spring 依赖注入\n" }];
+  const body = bundleBody({ version: 2, domain: "backend", files, refs: [{ rule_set_id: "java-l1", release_id: "java-l1@test", scope_level: "L1" }, { rule_set_id: "team-java-l2", release_id: "team-java-l2@test", scope_level: "L2" }] });
+  await syncEffectiveRuleBundle({ token: "token", repositoryLocator: "team/java-service", repoRoot: root, fetchImpl: async () => response(body) });
+  for (const file of files) assert.equal(await readFile(path.join(root, ".mdp/rules/backend", file.relative_path), "utf8"), file.content);
+  await assert.rejects(readFile(path.join(root, ".mdp/rules/frontend", files[0].relative_path)));
 });

@@ -33,6 +33,14 @@ const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
 const MAX_FILE_BYTES = 512 * 1024;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const DOMAINS = new Set(["frontend", "backend"]);
+export const EXECUTION_AGENTS = new Set([
+  "catdesk", "catpaw", "claude", "codex", "agent_1024", "sandbox", "catx", "unknown",
+]);
+const EXECUTION_AGENT_SOURCES = new Set([
+  "runner_explicit_v1", "runner_heuristic_v1", "legacy_unknown_v1",
+]);
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const pathKey = (value) => value.normalize("NFC").toUpperCase().toLowerCase().normalize("NFC");
 const binaryPathOrder = (left, right) => left < right ? -1 : left > right ? 1 : 0;
 
@@ -159,7 +167,21 @@ const validateGatewayUrl = (value) => {
   return `${url.origin}${GATEWAY_PATHNAME}`;
 };
 
-const requestBundle = async ({ gatewayUrl, token, repositoryLocator, knownSnapshotId, fetchImpl }) => {
+export const normalizePullExecution = (value = {}) => {
+  const pullId = text(value.pullId) || randomUUID();
+  const agent = text(value.agent) || "unknown";
+  const source = text(value.source) || "legacy_unknown_v1";
+  const skillName = text(value.skillName) || "mt-code-standards-setup";
+  const skillVersion = text(value.skillVersion) || null;
+  if (!UUID_PATTERN.test(pullId) || !EXECUTION_AGENTS.has(agent)
+    || !EXECUTION_AGENT_SOURCES.has(source) || skillName !== "mt-code-standards-setup"
+    || (skillVersion && (skillVersion.length > 128 || /[\p{Cc}]/u.test(skillVersion)))) {
+    fail("RULE_BUNDLE_EXECUTION_INVALID", "拉取执行环境信息不合法");
+  }
+  return Object.freeze({ pullId, agent, source, skillName, skillVersion });
+};
+
+const requestBundle = async ({ gatewayUrl, token, repositoryLocator, knownSnapshotId, execution, fetchImpl }) => {
   const trustedGateway = validateGatewayUrl(gatewayUrl);
   let response;
   try {
@@ -175,6 +197,13 @@ const requestBundle = async ({ gatewayUrl, token, repositoryLocator, knownSnapsh
       body: JSON.stringify({
         repository_locator: repositoryLocator,
         ...(knownSnapshotId ? { known_snapshot_id: knownSnapshotId } : {}),
+        execution: {
+          pull_id: execution.pullId,
+          execution_agent: execution.agent,
+          execution_agent_source: execution.source,
+          skill_name: execution.skillName,
+          skill_version: execution.skillVersion,
+        },
       }),
     });
   } catch (error) {
@@ -627,6 +656,7 @@ export const syncEffectiveRuleBundle = async ({
   token,
   repositoryLocator = "",
   repoRoot = process.cwd(),
+  execution,
   fetchImpl = globalThis.fetch,
 } = {}) => {
   if (!token) {
@@ -636,6 +666,7 @@ export const syncEffectiveRuleBundle = async ({
     );
   }
   const absoluteRoot = path.resolve(repoRoot);
+  const normalizedExecution = normalizePullExecution(execution);
   await assertGitRepository(absoluteRoot);
   const locator = validateRepositoryLocator(repositoryLocator || repositoryLocatorFromGit(absoluteRoot));
   const previousManifest = await readLocalManifest(absoluteRoot);
@@ -655,6 +686,7 @@ export const syncEffectiveRuleBundle = async ({
     token,
     repositoryLocator: locator,
     knownSnapshotId,
+    execution: normalizedExecution,
     fetchImpl,
   });
   const bundle = validateBundle(body, knownSnapshotId);
@@ -669,12 +701,17 @@ export const syncEffectiveRuleBundle = async ({
     release_refs: bundle.snapshot.release_refs,
     managed_files: manifest.managed_files,
     total_bytes: manifest.total_bytes,
+    pull_id: normalizedExecution.pullId,
+    execution_agent: normalizedExecution.agent,
   });
 };
 
 const parseArgs = (argv) => {
   const result = {};
-  const valued = new Set(["--repository", "--repo-root", "--gateway-url", "--token-env"]);
+  const valued = new Set([
+    "--repository", "--repo-root", "--gateway-url", "--token-env", "--pull-id",
+    "--execution-agent", "--execution-agent-source", "--skill-version",
+  ]);
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index];
     if (!valued.has(key) || index + 1 >= argv.length) {
@@ -685,6 +722,10 @@ const parseArgs = (argv) => {
     else if (key === "--repo-root") result.repoRoot = value;
     else if (key === "--gateway-url") result.gatewayUrl = value;
     else if (key === "--token-env") result.tokenEnv = value;
+    else if (key === "--pull-id") result.pullId = value;
+    else if (key === "--execution-agent") result.executionAgent = value;
+    else if (key === "--execution-agent-source") result.executionAgentSource = value;
+    else if (key === "--skill-version") result.skillVersion = value;
     index += 1;
   }
   return result;
@@ -698,6 +739,12 @@ const main = async () => {
     token: process.env[tokenEnv],
     repositoryLocator: args.repositoryLocator,
     repoRoot: args.repoRoot,
+    execution: {
+      pullId: args.pullId,
+      agent: args.executionAgent,
+      source: args.executionAgentSource,
+      skillVersion: args.skillVersion,
+    },
   });
   process.stdout.write(`${JSON.stringify(receipt, null, 2)}\n`);
 };

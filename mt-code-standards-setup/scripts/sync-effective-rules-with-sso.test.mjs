@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir } from "node:fs/promises";
+import { spawnSync } from "node:child_process";
+import { mkdtemp, mkdir, symlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { RuleBundleError, canonicalJson, sha256Hex } from "./resolve-effective-rules.mjs";
 import { detectExecutionAgent, syncWithOfficialSso, tokenFromOfficialExchange } from "./sync-effective-rules-with-sso.mjs";
@@ -70,4 +72,13 @@ test("does not guess an execution agent and accepts platform-specific declaratio
   assert.deepEqual(detectExecutionAgent({ CATPAW_SESSION_ID: "x" }), { agent: "catpaw", source: "runner_heuristic_v1" });
   assert.deepEqual(detectExecutionAgent({ CLAUDE_CODE_ENTRYPOINT: "x" }), { agent: "claude", source: "runner_heuristic_v1" });
   assert.deepEqual(detectExecutionAgent({ AGENT_1024_SESSION: "x" }), { agent: "agent_1024", source: "runner_heuristic_v1" });
+});
+
+test("runs the SSO wrapper when its Skill directory is installed as a symbolic link", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "setup-symlink-runner-"));
+  const entry = path.join(root, "sync-effective-rules-with-sso.mjs");
+  await symlink(fileURLToPath(new URL("./sync-effective-rules-with-sso.mjs", import.meta.url)), entry);
+  const result = spawnSync(process.execPath, [entry, "--unexpected"], { encoding: "utf8" });
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /RULE_BUNDLE_ARGUMENT_INVALID/);
 });

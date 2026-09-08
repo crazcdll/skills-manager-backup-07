@@ -3,7 +3,8 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
-import { pathToFileURL } from "node:url";
+import { realpathSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 import {
   RuleBundleError,
@@ -135,7 +136,16 @@ const main = async () => {
   process.stdout.write(`${JSON.stringify(receipt, null, 2)}\n`);
 };
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+const isDirectExecution = () => {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
+  } catch {
+    return false;
+  }
+};
+
+if (isDirectExecution()) {
   main().catch((error) => {
     const code = error instanceof RuleBundleError ? error.code : "RULE_BUNDLE_UNEXPECTED";
     process.stderr.write(`${code}: ${error.message}\n`);

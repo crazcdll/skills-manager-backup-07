@@ -2,6 +2,7 @@
 
 import { execFileSync } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
+import { realpathSync } from "node:fs";
 import {
   access,
   cp,
@@ -16,7 +17,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 const DEFAULT_GATEWAY =
   "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-observability";
@@ -749,7 +750,16 @@ const main = async () => {
   process.stdout.write(`${JSON.stringify(receipt, null, 2)}\n`);
 };
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+const isDirectExecution = () => {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
+  } catch {
+    return false;
+  }
+};
+
+if (isDirectExecution()) {
   main().catch((error) => {
     const code = error instanceof RuleBundleError ? error.code : "RULE_BUNDLE_UNEXPECTED";
     process.stderr.write(`${code}: ${error.message}\n`);

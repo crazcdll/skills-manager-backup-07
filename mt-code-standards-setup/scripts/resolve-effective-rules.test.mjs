@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtemp, mkdir, readFile, writeFile, symlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   canonicalJson,
@@ -107,6 +108,15 @@ test("declares the NoCode production audience without retaining the obsolete aud
   const obsoleteAudience = ["f32a", "546874"].join("");
   assert.match(skillSource, /audience:\s*\n\s*- 923a237244/);
   assert.equal(`${skillSource}\n${runnerSource}`.includes(obsoleteAudience), false);
+});
+
+test("runs the base runner when its Skill directory is installed as a symbolic link", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "setup-symlink-base-runner-"));
+  const entry = path.join(root, "resolve-effective-rules.mjs");
+  await symlink(fileURLToPath(new URL("./resolve-effective-rules.mjs", import.meta.url)), entry);
+  const result = spawnSync(process.execPath, [entry, "--unexpected"], { encoding: "utf8" });
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /RULE_BUNDLE_ARGUMENT_INVALID/);
 });
 
 test("rejects unsupported or unsafe locators before network access", () => {

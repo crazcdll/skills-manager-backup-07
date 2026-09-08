@@ -11,7 +11,7 @@ skill-dependencies:
 metadata:
   skillhub.creator: "zhangce07"
   skillhub.updater: "zhangce07"
-  skillhub.version: "V5"
+  skillhub.version: "V6"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "141006"
   skillhub.high_sensitive: "false"

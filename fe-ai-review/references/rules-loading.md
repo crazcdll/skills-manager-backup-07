@@ -1,90 +1,45 @@
 # 规则加载策略
 
-审查规则按可信度和适用范围依次加载。附加能力模块仍固定读取本 Skill 自带文件，不参与同步。
+规则分两类，加载方式不同：
 
-## 1. 当前组织 / 仓库有效规则（首选）
+- **审查规则**（`general-rules.md` / `trade-rules.md` / `stack/*.md`）：纯审查知识，不依赖执行流程，走本节的远程同步机制
+- **附加能力模块**（`dep-upgrade-rules.md` / `msi-api-review-rules.md`）：本身是一套 subagent 执行流程说明，与 Step 3 编排逻辑强耦合，固定读本 skill 自带的 `references/rules/base/`，**不参与**远程同步
 
-宿主存在 `RULE_OBSERVABILITY_USER_TOKEN` 时，先识别技术栈，再执行：
+Step 2「识别技术栈并加载规则」加载审查规则前，先执行完成本节的同步动作，确定这次用的是远程最新规则还是本地兜底规则。
 
-```bash
-node <skill_dir>/scripts/resolve-effective-rules.mjs \
-  --scope <auto|organization|repository> \
-  --stage cr \
-  --domain frontend \
-  --tech-stacks <react,vue,mrn,general> \
-  --format markdown \
-  --output <skill_dir>/.rules-cache/effective-rules.md
-```
+## 同步动作（仅审查规则）
 
-- `auto`：本地仓库或 PR 仓库与当前组织登记仓库精确匹配时走 `repository`；否则走
-  `organization`。
-- `repository`：服务端按 `repository_direct > organization_direct > organization_inherited`
-  选择已发布 L1/L2。
-- `organization`：只读取当前组织直接/继承订阅，不混入任何仓库直订阅；L1 使用仓库受管文件
-  或签名包兜底。
-- 当前组织来自服务端核验用户会话，输出 `org_name_path`；不得用 Git/PR 作者或手工 MIS 代替。
-- 用户会话只从环境读取，禁止写入命令、日志、报告和缓存。默认无浏览器 fallback。
-
-成功后读取 `.rules-cache/effective-rules.md`。本地模式还要追加读取业务仓库
-`.mdp/rules/project/fe/*.md` 中的 L3；服务端快照不包含 L3。
-
-准备信息必须说明：规则作用域、当前组织路径、可选仓库身份、规则数、releaseRefs，以及是否发生
-降级。不得只写“已加载远程规则”。
-
-## 2. 业务仓库 `.mdp` 回退
-
-首选链路因缺少可信会话、组织未解析、仓库未登记或网关不可用而失败时，本地模式按顺序读取：
-
-1. `.mdp/rules/company/fe/*.md`
-2. `.mdp/rules/team/fe/*.md`
-3. `.mdp/rules/project/fe/*.md`
-
-只读受版本管理文件，忽略 source manifest。必须提示：
-
-```text
-ℹ️ 当前组织/仓库订阅未刷新，本次使用仓库内 .mdp 规则。
-```
-
-PR-only 没有本地仓库时跳过本层。
-
-## 3. 旧远程规则源回退
-
-前两层都没有可用规则时，清理 `<skill_dir>/.rules-cache/legacy/` 后执行：
+删除 `<skill_dir>/.rules-cache/`（如存在），重新执行：
 
 ```bash
-git clone --depth 1 -b feature/rules-init \
-  ssh://git@git.sankuai.com/mcp/ai-cr.git \
-  <skill_dir>/.rules-cache/legacy
+git clone --depth 1 -b feature/rules-init ssh://git@git.sankuai.com/mcp/ai-cr.git <skill_dir>/.rules-cache
 ```
 
-成功时读取 `.rules-cache/legacy/rules/frontend/`；失败时进入签名包兜底。旧远程源不含当前组织/
-仓库订阅语义，准备信息必须明确标记 `legacy_remote_fallback`。
+> ⚠️ 临时措施：规则内容当前维护在 `ai-cr` 仓库的 `feature/rules-init` 分支（尚未合并到默认分支 `master`）。
 
-## 4. 签名包兜底
+- **成功** → 本次审查规则读取根目录是 `<skill_dir>/.rules-cache/rules/frontend/`
+- **失败**（网络、权限、仓库不可达等任何原因）→ 本次审查规则读取根目录回退为本 skill 自带的 `references/rules/`，并在会话中提示一句：`ℹ️ 规则仓库拉取失败，本次使用本地兜底规则（可能非最新版本）`
 
-最终读取本 Skill 的 `references/rules/`：
+两个来源的目录结构一一对应，Step 2 后续列出的审查规则路径按「读取根目录」替换前缀即可：
 
-- `base/general-rules.md`
-- `base/trade-rules.md`
-- 按技术栈选择 `stack/mrn-rules.md`、`stack/max-rules.md`、
-  `stack/miniprogram-rules.md`、`stack/duo-rules.md`
+| 规则用途 | 远程路径（读取根目录为 `.rules-cache/rules/frontend/`） | 本地兜底路径（读取根目录为 `references/rules/`） |
+|---|---|---|
+| 通用规则 | `base/general-rules.md` | `base/general-rules.md` |
+| 交易规则 | `base/trade-rules.md` | `base/trade-rules.md` |
+| MRN | `stack/mrn-rules.md` | `stack/mrn-rules.md` |
+| Max | `stack/max-rules.md` | `stack/max-rules.md` |
+| 小程序 | `stack/miniprogram-rules.md` | `stack/miniprogram-rules.md` |
+| DUO | `stack/duo-rules.md` | `stack/duo-rules.md` |
 
-并提示：
+## 附加能力模块（固定本地路径，不走同步）
 
-```text
-ℹ️ 规则网关、仓库 .mdp 和旧远程规则均不可用，本次使用签名包兜底规则（可能非最新版本）。
-```
+- 依赖升级扫描：`references/rules/base/dep-upgrade-rules.md`
+- MSI API 契约核对：`references/rules/base/msi-api-review-rules.md`
 
-## 5. 附加能力模块
+## 备注：已知限制（当前阶段刻意不做）
 
-以下流程说明固定读取本 Skill，不走任何远程同步：
+- 不校验远程规则与本 skill 版本的兼容性，规则文件结构变化可能导致本 skill 引用失效
+- 本地兜底副本是 skill 发布时刻的快照，不随远程规则仓库自动保鲜，可能与远程内容存在差异
+- 每次会话全量重新 clone，不做增量 pull
 
-- `references/rules/base/dep-upgrade-rules.md`
-- `references/rules/base/msi-api-review-rules.md`
-
-## 6. 安全与停止条件
-
-- 401/403、身份未验证、组织不明确时失败关闭；不打开浏览器，不读取 Cookie。
-- `repository` 模式仓库未登记时不得静默降为其他仓库；只有 `auto` 才允许降为组织作用域。
-- 网络失败只触发一次分层回退，不高频重试。
-- 缓存不得包含 token；每次审查开始前清理旧的有效快照文件。
+这些是当前明确接受的短期风险，不在本次改动范围内。

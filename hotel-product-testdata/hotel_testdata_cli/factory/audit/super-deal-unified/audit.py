@@ -70,6 +70,8 @@ GRAPHIC_APPKEY   = "com.sankuai.qatool.productmanage"
 GRAPHIC_SERVICE  = "com.meituan.nibqa.tdm.api.service.ProductMakeService"
 GRAPHIC_METHOD   = "auditProduct"
 GRAPHIC_CONFIG_KEY = "spuDeal"  # 通兑超团
+# auditProduct(AuditProductRequest request) —— 单参数复杂结构体，须走显式 parameterTypes 模式
+AUDIT_PRODUCT_REQUEST_TYPE = "com.meituan.nibqa.tdm.api.request.AuditProductRequest"
 
 
 def _load_super_deal_unified_interface():
@@ -203,7 +205,11 @@ def _do_graphic_audit(spu_id: str, partner_id: str) -> dict:
             appkey=GRAPHIC_APPKEY,
             service=GRAPHIC_SERVICE,
             method=GRAPHIC_METHOD,
-            params=rpc_params,
+            params=None,
+            parameter_values=[
+                json.dumps(rpc_params, ensure_ascii=False, separators=(",", ":"))
+            ],
+            parameter_types=[AUDIT_PRODUCT_REQUEST_TYPE],
             timeout_ms=60000,
             raise_on_biz_error=False,
             progress_hint=f"auditProduct spuId={spu_id} partnerId={partner_id}...",

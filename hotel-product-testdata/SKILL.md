@@ -6,7 +6,7 @@ allowed-tools: [read, exec]
 metadata:
   skillhub.creator: "mengfanchen"
   skillhub.updater: "zhaoshichuan"
-  skillhub.version: "V29"
+  skillhub.version: "V30"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "17622"
   skillhub.high_sensitive: "false"

@@ -928,7 +928,7 @@ def assemble_inline_comments(issues):
             f"**修复建议**：\n{sug}"
             f"{trace}\n\n"
             f"---\n"
-            f"💬 请回复告诉我你的判断：✅已采纳 / ⚠️规则太严 / ⏭暂不修复 / ❌误报"
+            f"💬 无回复默认检出正确，计入准确率。有异议请回复：❌误报 / ⚠️规则太严 / ⏭暂不修复"
         )
 
         inline.append({
@@ -989,7 +989,7 @@ def assemble_global_comment(args, issues, counts, conclusion, km_url):
                 lines.append(f"命中规则：`{rule_id}`")
                 lines.append(f"文件: `{file_}:{line}`")
                 lines.append(desc)
-            lines.append("💬 请回复告诉我你的判断：✅已采纳 / ⚠️规则太严 / ⏭暂不修复 / ❌误报")
+            lines.append("💬 无回复默认检出正确，计入准确率。有异议请回复：❌误报 / ⚠️规则太严 / ⏭暂不修复")
             lines.append("")
 
     lines.append("---")

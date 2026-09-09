@@ -34,6 +34,8 @@ APPKEY   = "com.sankuai.qatool.productmanage"
 SERVICE  = "com.meituan.nibqa.tdm.api.service.ProductMakeService"
 METHOD   = "auditProduct"
 DEFAULT_CONFIG_KEY = "independentSpuDeal"  # 非通兑超团；通兑超团用 spuDeal
+# auditProduct(AuditProductRequest request) —— 单参数复杂结构体，须走显式 parameterTypes 模式
+AUDIT_PRODUCT_REQUEST_TYPE = "com.meituan.nibqa.tdm.api.request.AuditProductRequest"
 
 
 def _show_schema():
@@ -102,7 +104,11 @@ def _do_graphic_audit(spu_id: str, partner_id: str, swimlane: str = "", dry_run:
             appkey=APPKEY,
             service=SERVICE,
             method=METHOD,
-            params=rpc_params,
+            params=None,
+            parameter_values=[
+                json.dumps(rpc_params, ensure_ascii=False, separators=(",", ":"))
+            ],
+            parameter_types=[AUDIT_PRODUCT_REQUEST_TYPE],
             swimlane=swimlane,
             timeout_ms=60000,
             dry_run=dry_run,

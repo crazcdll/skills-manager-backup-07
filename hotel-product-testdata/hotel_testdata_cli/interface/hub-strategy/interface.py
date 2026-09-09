@@ -27,6 +27,13 @@ METHOD_CREATE  = "createStrategy"
 METHOD_UPDATE  = "updateStrategyStatus"
 METHOD_QUERY   = "queryGoods2SpuRecordByPage"
 
+# 各方法入参类型（body 模式下 DataUnity 无法自动推断复杂结构体，须走显式 parameterTypes 模式）
+# createStrategy(HubStrategyModel hubStrategyModel)
+HUB_STRATEGY_MODEL_TYPE = "com.sankuai.hotelcrs.supply.hub.api.model.rule.HubStrategyModel"
+# queryGoods2SpuRecordByPage(QueryGoods2SpuRecordByPageParam param)
+QUERY_GOODS2SPU_PARAM_TYPE = "com.sankuai.hotelcrs.supply.hub.api.param.QueryGoods2SpuRecordByPageParam"
+# updateStrategyStatus(Long strategyId, Integer strategyStatus) —— 原始类型位置参数，无复杂结构体
+
 # ── 可选渠道枚举（供 factory 层参考）────────────────────────────────────────
 CHANNELS = {
     "2783_2_1003_1007_4006":    "酒店搜索主流程/美团App/酒店民宿/POI详情页/酒店套餐",
@@ -112,7 +119,11 @@ def create_strategy(
         appkey=APPKEY,
         service=SERVICE,
         method=METHOD_CREATE,
-        params=params,
+        params=None,
+        parameter_values=[
+            json.dumps(params, ensure_ascii=False, separators=(",", ":"))
+        ],
+        parameter_types=[HUB_STRATEGY_MODEL_TYPE],
         swimlane=swimlane,
         timeout_ms=10000,
         dry_run=dry_run,
@@ -142,17 +153,14 @@ def update_strategy_status(
 
     返回：接口响应 dict
     """
-    params = {
-        "strategyId":     strategy_id,
-        "strategyStatus": strategy_status,
-    }
-
     status_label = "发布上线" if strategy_status == 1 else "下线"
     return rpc_invoke(
         appkey=APPKEY,
         service=SERVICE,
         method=METHOD_UPDATE,
-        params=params,
+        params=None,
+        parameter_values=[str(int(strategy_id)), str(int(strategy_status))],
+        parameter_types=["java.lang.Long", "java.lang.Integer"],
         swimlane=swimlane,
         timeout_ms=20000,
         dry_run=dry_run,
@@ -191,7 +199,11 @@ def query_goods2spu(
         appkey=APPKEY,
         service=SERVICE,
         method=METHOD_QUERY,
-        params=params,
+        params=None,
+        parameter_values=[
+            json.dumps(params, ensure_ascii=False, separators=(",", ":"))
+        ],
+        parameter_types=[QUERY_GOODS2SPU_PARAM_TYPE],
         swimlane=swimlane,
         timeout_ms=10000,
         raise_on_biz_error=True,

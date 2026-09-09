@@ -1,11 +1,11 @@
 ---
 name: fe-ai-review
-description: 通用前端代码审查 skill。面向 working tree、staged、commit、branch diff 或 PR 执行结构化 CR；优先按可信当前用户组织和精确登记仓库解析已发布 L1/L2 有效规则，失败时回退仓库内 `.mdp` 或内置规则，并可选评论到 PR。
+description: 通用前端代码审查 skill。面向 working tree、staged、commit、branch diff 执行结构化 CR，按通用规则、交易规则和技术栈经验规则输出审查结论；可选将发现项评论到对应 PR。当用户要求代码审查、CR、review xx、提交前检查、push 前检查、review 本地变更、Review PR、PR 审查时使用。
 
 metadata:
   skillhub.creator: "lidingcheng"
-  skillhub.updater: "zhangce07"
-  skillhub.version: "V16"
+  skillhub.updater: "lidingcheng"
+  skillhub.version: "V18"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "39902"
   skillhub.high_sensitive: "false"
@@ -36,11 +36,21 @@ bash <skill_dir>/scripts/self-update.sh
   - `--desc`：用户意图与行为的分析描述，对用户意图和行为进行分析概括（如：执行任务、物料测试、咨询问题等）
   - `--os`：当前操作环境，填写实际运行环境（如 `catpaw`、`catdesk`、`claudecode` 等）
 
+## AI-Quality-CR-Agent 兼容
+
+如果当前运行环境为 1024 Agent，且可用 `ai-quality-cr-agent` skill：
+
+- **审查流程**仍按本 skill 执行，包括范围识别、上下文补读、规则加载、审查和复查。
+- **输出、`ai-quality-cr-agent` 侧上报和 PR 评论**优先读取并遵循该 skill 的约定；有 PR 时由其流程完成行内评论和全局评论，避免与本 skill 的评论脚本重复发送。
+- **本 skill 的 CR 看板上报仍需保留**，按既有 Step 8 执行。
+
+否则沿用本 skill 的默认输出、评论和上报策略。
+
 ## 一、任务目标
 
 - 理解用户指定范围的代码变更，协同用户完成不同类型的 Code Review
 - 默认在会话内输出报告；用户要求存档或落盘时写入 Markdown 文件
-- 加载规则等资产分三条并行线按需取用：**审查规则**（优先当前组织/仓库有效快照，再回退仓库 `.mdp`、旧远程源和本地兜底）、**附加能力模块**（依赖升级扫描 / MSI API 核对，固定本地路径）、**context**（技术栈背景知识，固定本地路径按需补读），详见「五、能力地图」
+- 加载规则等资产分三条并行线按需取用：**审查规则**（`base -> stack`，优先远程同步、失败回退本地兜底）、**附加能力模块**（依赖升级扫描 / MSI API 核对，固定本地路径）、**context**（技术栈背景知识，固定本地路径按需补读），详见「五、能力地图」
 
 ## 二、核心原则
 
@@ -59,10 +69,6 @@ bash <skill_dir>/scripts/self-update.sh
 - **审查深度倾向**：用户表达"快速过一遍"或"深度检查"等偏好时，调整自身节奏；否则按默认深度
 - **PR 链接**：形如 `dev.sankuai.com/.../pr/{id}`。
 - **模式偏好**：用户明确表达"只看本地变更""走 PR-only"等意愿时，按其偏好执行
-- **规则作用域偏好**：用户可明确指定 `organization` 或 `repository`；未指定时使用
-  `auto`，当前仓库已登记则使用仓库作用域，否则只读取当前组织直接/继承订阅
-- **规则观测上下文**：上游可传入 `workflow_run_id`、`work_item_key`、完整
-  `identity`、`ruleset_commit`、`parent_run_id` 与 `outbox_dir`
 
 未明确说明 review 范围时，按以下顺序推断：
 
@@ -101,46 +107,6 @@ CR 流程在心智上分为三个 Stage，**模式差异只发生在 Stage 1**�
 
 > TODO：Stage 2/3 内容稳定后，抽出 `references/stages/` 共享层，避免两份模式文档重复维护。
 
-### 规则召回观测（强制）
-
-CR 开始时必须调用 `mt-fe-coding-standards`，并通过统一生命周期脚本创建和完成
-`stage=cr` 的 run：
-
-```shell
-node <mt-fe-coding-standards>/coding-standards/scripts/report-stage-lifecycle.mjs start \
-  --context <workflow-context.json> \
-  --stage cr \
-  --stage-step <local|branch|pr_only>
-
-node <mt-fe-coding-standards>/coding-standards/scripts/report-stage-lifecycle.mjs finish \
-  --context <workflow-context.json> \
-  --stage cr \
-  --stage-step <local|branch|pr_only> \
-  --events <events.json> \
-  --status completed
-```
-
-受 `fe-rd-workflow` 委托时，原样复用父流程的 `workflow_run_id` 与 `identity`；
-独立执行时创建新的 workflow context。父流程和当前 Skill 不得再次拼装规则事件，
-`mt-fe-coding-standards` 是 `rule_match_events` 的唯一生产者。
-
-独立执行且没有可继承 identity 时，必须先调用
-`<mt-fe-coding-standards>/coding-standards/scripts/resolve-identity.mjs`。本地模式先
-调用 `create-trusted-local-identity.mjs`，它只使用 MOA Local Exchange 和固定
-Code `ssoUser` 接口；退出码 `2` 时保持 `declared`/`unresolved`，禁止改用
-Cookie/CDP fallback。可信平台或本地声明只能来自已完成验签/SSO 校验的适配器；
-用户明确声明只能得到 `identity_status=declared`，无来源时得到 `unresolved`。
-云端不得传本地登录态声明。
-
-使用统一应用上报票据时必须传
-`credential_subject_type=application`。即使本地适配器成功，也只能形成
-`declared/client_verified_unattested`；原始可信来源只保存在去凭证的
-`client_verification` 中。
-
-Git 提交人、Git 邮箱、运行账户和 PR 作者都不是任务发起人。无法从可信运行时或
-用户明确声明获得身份时，设置 `identity_status=unresolved` 并允许 MIS 为空。
-现有 AI CR 看板上报继续保存完整报告，与规则事件是两个并列后置动作。
-
 ## 五、能力地图
 
 本 skill 沉淀了以下能力资产，供本 skill 各模式及上游流程按需取用。
@@ -151,14 +117,9 @@ Git 提交人、Git 邮箱、运行账户和 PR 作者都不是任务发起人�
 
 ### 审查规则
 
-审查规则必须先按 [`references/rules-loading.md`](references/rules-loading.md) 解析可信当前用户组织与
-仓库有效快照。该链路使用 `scripts/resolve-effective-rules.mjs`，不会读取浏览器 Cookie，也不会把
-Git 作者、PR 作者、系统账号或应用 owner 当作当前用户。无可信会话时按文档顺序回退。
+审查规则条目必须先尝试从远程规则仓库同步，拉取失败时回退到本 skill 自带的兜底副本。详细步骤见 [`references/rules-loading.md`](references/rules-loading.md)，下列路径均相对于该文件确定的读取根目录。
 
-当 `rules-loading.md` 选择有效快照时，读取生成的单一 `effective-rules.md`，不要再重复加载下列
-兜底规则。只有进入旧远程源或签名包兜底时才按以下路径加载。
-
-基础规则（兜底时每次必读）：
+基础规则（每次必读）：
 - 通用规则：`base/general-rules.md`
 - 交易规则：`base/trade-rules.md`
 
@@ -197,17 +158,6 @@ CR 过程中收集的信息可自动提取为 MCM 变更同步模板的参考内
   - [`scripts/pr-comment/cr-comment.sh`](scripts/pr-comment/cr-comment.sh)：行内 / 全局 / 验证 / 删除
   - [`scripts/pr-comment/code_cli.py`](scripts/pr-comment/code_cli.py)：底层 MCode API 调用
 - 详细执行步骤、命令参数与评论模板：[`references/pr-comment.md`](references/pr-comment.md)
-
-### 当前组织 / 仓库有效规则
-
-- 解析脚本：[`scripts/resolve-effective-rules.mjs`](scripts/resolve-effective-rules.mjs)
-- 当前组织最小输出对齐 `identity_status`、`mis`、`organization_id`、`org_name`、
-  `org_name_path`、`source` 与 `resolved_at`。
-- 仓库作用域使用服务端优先级 `repository_direct > organization_direct >
-  organization_inherited`；组织作用域明确排除其他仓库的直订阅。
-- 规则快照只包含已发布 L1/L2；本地 L3 继续从 `.mdp/rules/project/fe/` 读取。
-- 没有可信用户会话时禁止浏览器兜底，改用仓库 `.mdp` 或签名包内规则，并在准备信息中标明
-  “组织/仓库订阅未刷新”。
 
 ### 上报看板
 

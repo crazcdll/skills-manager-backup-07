@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "1d2b71fc-3916-4db7-90c1-48f942b53375",
+  "path": "trade-sort-out-logic-2",
+  "path_key": "trade-sort-out-logic-2",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

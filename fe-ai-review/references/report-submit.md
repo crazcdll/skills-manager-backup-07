@@ -8,23 +8,13 @@ Step 8 执行的上报动作：把本次 CR 结果写入 [AI CR 看板](https://
 - **跳过**：用户说「不要上报」「不上报看板」时跳过
 - **失败**：在会话末尾静默附加一行提示，不阻塞
 
-## 与规则事件上报的职责边界
-
-本文件和 `scripts/report-submit.sh` 只负责旧 AI CR 看板中的完整审查报告。
-前端规则事件由 `mt-fe-coding-standards` 唯一生成，并通过
-`report-stage-lifecycle.mjs` 提交到规则观测网关。两条链路并列执行，不得把
-`rule_match_events` 塞入旧 payload，也不得根据 CR 报告再次生成一份重复事件。
-
-规则事件包含 `run_id + rule_id`、eligible/matched、判断摘要和最小证据引用；旧
-CR 看板保留 P0～P3 发现项、结论与变更摘要。任一链路失败都只报告自身状态。
-
 ## 字段来源
 
 ### 必填
 
 | 字段 | 来源 |
 |---|---|
-| `operator` | 只从 `identity.initiator_mis` 映射；`identity_status=unresolved` 时留空。禁止使用仓库提交人、运行账户或 PR 作者兜底 |
+| `operator` | 上下文中如有 misId 则直接使用；尝试 `git config user.email` 取 `@` 前缀；失败则用 `git config user.name`；仍失败留空 |
 | `repo` | `git remote get-url origin` 末段路径，去掉 `.git` 后缀 |
 | `branch` | `git branch --show-current` |
 | `review_mode` | 路由时已知：`local` 或 `pr-only` |
@@ -45,9 +35,6 @@ CR 看板保留 P0～P3 发现项、结论与变更摘要。任一链路失败�
 | `change_summary` | 报告变更摘要要点，转为 `string[]`，建议 `"类型: 描述"` 格式。第一条放最能代表本次变更意图的摘要，其余按重要性递减，chore/纯技术类放最后 |
 | `dep_changes` | package.json 有版本变化时填写，见格式说明 |
 | `client` | 当前运行环境。如 `catpaw`、`catdesk`、`claudecode`、`cursor`、`clawagent`、`openclaw` 等 |
-
-PR-only 模式把 PR 作者记录到规则观测 context 的 `pr_author_mis`，不写入
-`operator`。`operator` 是旧表的兼容字段，不代表当前执行凭证用户。
 
 ## 枚举映射
 
@@ -121,18 +108,6 @@ cat > "$PAYLOAD_FILE" << 'ENDJSON'
 { ... }
 ENDJSON
 bash "$SKILL_DIR/scripts/report-submit.sh" "$PAYLOAD_FILE"
-```
-
-旧报告提交完成后，不论成功与否，都按模式文档中的 Step 6.1 完成规则 run。规则
-事件只能调用规范仓库客户端：
-
-```shell
-node <mt-fe-coding-standards>/coding-standards/scripts/report-stage-lifecycle.mjs finish \
-  --context <workflow-context.json> \
-  --stage cr \
-  --stage-step <local|branch|pr_only> \
-  --events <events.json> \
-  --status completed
 ```
 
 脚本读完文件后会自动删除 `/tmp/` 下的临时文件，无需手动清理。

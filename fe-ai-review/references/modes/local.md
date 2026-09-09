@@ -95,56 +95,6 @@ PR 仓库：{org}/{repo}
 
 > 不要用当前目录的变更代替 PR 变更——那不是用户期望的审查对象。
 
-### Step 0.d：启动规则观测 run
-
-先读取上游传入的 V3 workflow context；受委托时复用父 `workflow_run_id`、
-`work_item_key`、`identity`、`ruleset_commit` 和 `outbox_dir`。独立运行时按
-`mt-fe-coding-standards` 的 V3 示例创建 context，身份只允许来自可信运行时或
-用户明确声明，无法确认时使用 `identity_status=unresolved`。
-
-独立运行时先执行：
-
-```shell
-node <mt-fe-coding-standards>/coding-standards/scripts/create-trusted-local-identity.mjs \
-  --runtime-type local_user_session \
-  --output json \
-  --output-file <verified-local-claim.json>
-
-node <mt-fe-coding-standards>/coding-standards/scripts/resolve-identity.mjs \
-  --runtime-type local_user_session \
-  --trusted-local-identity <verified-local-claim.json> \
-  --credential-subject-type application \
-  --output json \
-  --output-file <identity.json>
-```
-
-第一条命令退出码 `2` 时，第二条省略 `--trusted-local-identity`，继续生成
-`unresolved`；用户明确声明时可追加
-`--allow-user-input --declared-mis <mis>`。本地适配器不读取 Cookie、CDP、Git、
-环境变量或文件登录态。把完整解析结果写入 `workflow-context.identity`，禁止
-手工拼装 `verified` 身份。
-
-这里使用的是统一应用上报票据，因此本地适配器成功时解析结果仍为
-`declared/client_verified_unattested`，并通过 `client_verification` 保留
-去凭证的 MOA/Code 来源；只有会被网关验证的用户凭证才能保持 `verified`。
-
-按审查范围确定 stage_step：
-
-- `staged` / `working_tree` → `stage_step=local`
-- `commit` / `branch` → `stage_step=branch`
-
-在加载规则前执行：
-
-```shell
-node <mt-fe-coding-standards>/coding-standards/scripts/report-stage-lifecycle.mjs start \
-  --context <workflow-context.json> \
-  --stage cr \
-  --stage-step <local|branch>
-```
-
-started 返回 `queued` 时继续 CR，但只记录为“已校验但待上报”。不得为同一次审查
-另建第二个 run。
-
 ## Step 1: 输出准备信息
 
 严格按 `references/tpl-report.md`「准备」章节组织内容，至少包含：
@@ -152,8 +102,6 @@ started 返回 `queued` 时继续 CR，但只记录为“已校验但待上报�
 - 识别出的改动文件 / 目录
 - 对变更内容的理解
 - 已读上下文、未读或未验证范围
-- 规则上下文：当前组织路径、`organization|repository|fallback` 作用域、可选仓库身份、
-  有效规则数和 releaseRefs
 - 可靠性结论：`可信 / 需补充材料 / 不建议继续`
 
 结论分支：
@@ -263,24 +211,6 @@ started 返回 `queued` 时继续 CR，但只记录为“已校验但待上报�
 具体输出内容及风格，详见 `references/output.md`。
 
 此报告输出一次即可。最终总结时，无需再重复输出此报告。
-
-### Step 6.1：完成规则观测 run
-
-让 `mt-fe-coding-standards` 根据本次 CR 评估全部 eligible rules：真实形成发现项或
-明确结论的规则使用 `matched=true`，未召回候选使用 `matched=false`。同一规则命中
-多处只生成一条事件并累计 `application_count`。保存事件后执行：
-
-```shell
-node <mt-fe-coding-standards>/coding-standards/scripts/report-stage-lifecycle.mjs finish \
-  --context <workflow-context.json> \
-  --stage cr \
-  --stage-step <local|branch> \
-  --events .duo/rule-observability/events/cr.<stage_step>.json \
-  --status completed
-```
-
-失败、取消或跳过时使用与事实一致的终态。生命周期回执与 Step 8 的 CR 看板报告
-互不替代，任何一方失败都不得伪报另一方成功。
 
 ### MCM 参考信息
 

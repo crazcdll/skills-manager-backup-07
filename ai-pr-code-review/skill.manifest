@@ -1,14 +1,14 @@
 skill-manifest-version: 1
-skill-id: 92b032b7a837e14d8a45f0364f053a3ecf2204dbceaa2831ea8445bf3b4bcbfe
+skill-id: 539f01dfd4899ad23664e30b72dc558e98ad8d7ee7f9a014fbacfbcac415d940
 
 files:
   2bdf304c8b913391ef02ee608d2d53e4db8f03d5c831f2b87aadbb8a21a02286  .skillignore
-  d003d80b4255f51dd644871c0bb10238d618dd61a6f65b846acfa9b4efb87726  SKILL.md
+  6bb49cfc63fdefbf3a89546a95735bd2b9dbd297068f2879af6a22f40d2212bf  SKILL.md
   88915a3666de76b7c2dcb7fe2966810d28431bd2d5dd9e0e0224b6f41a527cf8  cr-config.yaml
   f8dbb8d87d35cba06489b0e88fab030c8f842a97fc08697f7daf2f4ba35bb460  references/citadel-write-guide.md
   25e2d61d6a496cbf88e513f19d7ce97d5575e15f0e5568c7e9022a0f96d0a023  references/coding-standards-checklist.md
   06cf52c59fe17bba6a225473dad6fa03f481e40297d4e2c24ebaf75b193fdff0  references/coe-rules.md
-  04c9ec1106725d43b94d8b99427cc31b62571627d3a701b57f7a5cd819879f91  references/comment-templates.md
+  86b39e4e288059a918627fe533db8fa49467b04a859d9b98d2888c4057b09604  references/comment-templates.md
   b7b0312dd33aa8b26f871756a98c1f855bfbaa2f536db5a013010ef5bbdde993  references/cr-comment.sh
   77978a49b1e250e0f1570c963e83400deeb562c0b4bd8d2ef1b3a3c289987e3a  references/daxiang-notify-api.md
   bfef5e1630b703b647b049bf9e234bc988a732c49e8d0b188a4a169d92602747  references/domain-knowledge.md
@@ -58,4 +58,4 @@ files:
   fd65f486837d6e512de7fdc70fc8b24c1c21c12dda64c264bdd6535edc4be7be  scripts/env-check.sh
   21ac358b246cc1e6ae2cc5373cecfd45280440f50ff40f3126a168b3387c1f6e  scripts/get_org_info.py
   c240902056d2ec8348fe23b425c27a5df86ea1c9a95a65ab830f6bb6b6c31ea4  scripts/notify.py
-  a1e843f7494759373fcf2871a68df32ee8ffcf8afa9c7bdc762fbbeec56e2e3d  scripts/publish_results.py
+  b26ccfdba9ec52153bf3705a0f9ee9edb9b93da6a96e6e13aa53b76b1e00d549  scripts/publish_results.py

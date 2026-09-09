@@ -5,7 +5,7 @@ description: 通过大象开放平台 API 发送消息（个人/群组）。支�
 metadata:
   skillhub.creator: "suhao20"
   skillhub.updater: "suhao20"
-  skillhub.version: "V8"
+  skillhub.version: "V10"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "1695"
   skillhub.high_sensitive: "false"
@@ -269,7 +269,7 @@ python3 $SKILL_DIR/scripts/send.py send \
 # 传入已编码的 Base64 字符串（直接使用）
 python3 $SKILL_DIR/scripts/send.py send \
   --to mis \
-  --general-data "eyJub2RlcyI6W3sidCI6InRleHQiLCJjIjoiSGVsbG8ifV19"
+  --general-data "eyJu**************"
 ```
 
 ### 发送自定义消息体（multilink 等高级类型）

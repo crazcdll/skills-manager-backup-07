@@ -49,6 +49,9 @@ FIXED_AUDIT_MORE    = False
 FIXED_AUDIT_NOTES   = []
 FIXED_SPU_TYPE      = 0
 
+# completeAuditTask(MeSpuAuditCallbackParam auditParam) —— 单参数复杂结构体，须走显式 parameterTypes 模式
+COMPLETE_AUDIT_TASK_PARAM_TYPE = "com.meituan.hotel.biz.platform.goods.facade.param.spu.MeSpuAuditCallbackParam"
+
 
 def _show_schema():
     print("""=== 套餐审核（audit/package）参数说明 ===
@@ -137,7 +140,11 @@ def main():
             appkey=APPKEY,
             service=SERVICE,
             method=METHOD,
-            params=rpc_params,
+            params=None,
+            parameter_values=[
+                json.dumps(rpc_params, ensure_ascii=False, separators=(",", ":"))
+            ],
+            parameter_types=[COMPLETE_AUDIT_TASK_PARAM_TYPE],
             dry_run=args.dry_run,
             progress_hint=f"套餐审核 spuId={args.spu_id} processId={args.process_id}，动作={action_text}",
         )

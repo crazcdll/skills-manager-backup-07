@@ -84,6 +84,11 @@ from scripts.utils import get_operator  # noqa
 # ── 接口常量 ────────────────────────────────────────────────────────────────
 APPKEY  = "com.sankuai.hotel.biz.platform"
 SERVICE = "com.meituan.hotel.biz.platform.goods.facade.standard.MeResourceFacade"
+# querySpuListPage(QuerySpuListPageParam param) —— 单参数复杂结构体
+# body 模式下 DataUnity 无法自动推断该结构体参数类型，须走显式 parameterTypes 模式
+QUERY_SPU_LIST_PAGE_PARAM_TYPE = (
+    "com.meituan.hotel.biz.platform.goods.facade.param.spu.QuerySpuListPageParam"
+)
 
 # ── MTA 查询链接 ────────────────────────────────────────────────────────────
 MTA_SPU_LINK      = "https://mta.hotel.test.sankuai.com/v2/index.html#/spu-manage/spu"
@@ -352,7 +357,11 @@ def _step3_verify_spu(
                 appkey=APPKEY,
                 service=SERVICE,
                 method="querySpuListPage",
-                params=query_params,
+                params=None,
+                parameter_values=[
+                    json.dumps(query_params, ensure_ascii=False, separators=(",", ":"))
+                ],
+                parameter_types=[QUERY_SPU_LIST_PAGE_PARAM_TYPE],
                 swimlane=swimlane,
                 timeout_ms=10000,
                 raise_on_biz_error=False,

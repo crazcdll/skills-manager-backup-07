@@ -20,6 +20,11 @@ from hotel_testdata_cli.scripts.runner import invoke, InvokeError, StepError  # 
 APPKEY  = "com.sankuai.hotel.biz.platform"
 SERVICE = "com.meituan.hotel.biz.platform.goods.facade.standard.MeGoodsFacade"
 METHOD  = "batchCreateGoods"
+# batchCreateGoods(CreateOrUpdateGoodsParam param) —— 单参数复杂结构体
+# body 模式下 DataUnity 无法自动推断该结构体参数类型，须走显式 parameterTypes 模式
+CREATE_GOODS_PARAM_TYPE = (
+    "com.meituan.hotel.biz.platform.goods.facade.param.goods.CreateOrUpdateGoodsParam"
+)
 
 _INV_ERROR_KEYWORD = "最近90天内至少30天同时有价格和库存"
 
@@ -134,7 +139,11 @@ def call_raw(
         appkey=APPKEY,
         service=SERVICE,
         method=METHOD,
-        params=params,
+        params=None,
+        parameter_values=[
+            json.dumps(params, ensure_ascii=False, separators=(",", ":"))
+        ],
+        parameter_types=[CREATE_GOODS_PARAM_TYPE],
         swimlane=swimlane,
         timeout_ms=120000,
         dry_run=dry_run,

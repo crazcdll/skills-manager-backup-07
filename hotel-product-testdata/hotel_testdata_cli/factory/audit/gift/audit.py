@@ -41,6 +41,8 @@ SERVICE  = "com.meituan.nibqa.tdm.api.service.ProductMakeService"
 METHOD   = "auditProduct"
 
 FIXED_CONFIG_KEY = "xGoods"
+# auditProduct(AuditProductRequest request) —— 单参数复杂结构体，须走显式 parameterTypes 模式
+AUDIT_PRODUCT_REQUEST_TYPE = "com.meituan.nibqa.tdm.api.request.AuditProductRequest"
 
 
 def _show_schema():
@@ -115,7 +117,11 @@ def main():
             appkey=APPKEY,
             service=SERVICE,
             method=METHOD,
-            params=rpc_params,
+            params=None,
+            parameter_values=[
+                json.dumps(rpc_params, ensure_ascii=False, separators=(",", ":"))
+            ],
+            parameter_types=[AUDIT_PRODUCT_REQUEST_TYPE],
             dry_run=args.dry_run,
             progress_hint=f"非房/礼包审核 xgoodsId={args.xgoods_id}",
         )

@@ -882,43 +882,43 @@ def main():
         epilog="""
 示例:
   # 文本消息
-  python3 send.py send --to suhao20 --text "Hello"
+  python3 send.py send --to mis --text "Hello"
 
   # Markdown 消息
-  python3 send.py send --to suhao20 --text "**加粗**" --markdown
+  python3 send.py send --to mis --text "**加粗**" --markdown
 
   # 链接卡片（image 必填）
-  python3 send.py send --to suhao20 --link --title "标题" --url "https://example.com" --link-image "https://example.com/cover.jpg"
+  python3 send.py send --to mis --link --title "标题" --url "https://example.com" --link-image "https://example.com/cover.jpg"
 
   # 文件消息（本地文件自动上传）
-  python3 send.py send --to suhao20 --file /path/to/report.xlsx
+  python3 send.py send --to mis --file /path/to/report.xlsx
 
   # 文件消息（已有 URL）
-  python3 send.py send --to suhao20 --file-url "https://example.com/file.xlsx" --file-name "报告.xlsx" --file-size 3296 --file-format "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  python3 send.py send --to mis --file-url "https://example.com/file.xlsx" --file-name "报告.xlsx" --file-size 3296 --file-format "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
   # 图片消息（本地图片自动上传）
-  python3 send.py send --to suhao20 --image /path/to/photo.jpg
+  python3 send.py send --to mis --image /path/to/photo.jpg
 
   # 图片消息（已有 URL）
-  python3 send.py send --to suhao20 --image-url "https://example.com/photo.jpg"
+  python3 send.py send --to mis --image-url "https://example.com/photo.jpg"
 
   # 名片消息
-  python3 send.py send --to suhao20 --vcard-uid 2967510770
+  python3 send.py send --to mis --vcard-uid 2967510770
 
   # 群名片消息
-  python3 send.py send --to suhao20 --gvcard-gid 70473524669
+  python3 send.py send --to mis --gvcard-gid 70473524669
 
   # 引用回复（需提供被引用消息 ID）
-  python3 send.py send --to suhao20 --quote-msg-id 1733381024879706115 --reply-text "收到！"
+  python3 send.py send --to mis --quote-msg-id 1733381024879706115 --reply-text "收到！"
 
   # 模板消息（带按钮）
-  python3 send.py send --to suhao20 --custom-template "审批通知" --custom-title "每日报销" --custom-content "请及时处理" --custom-button "通过|mtdaxiang://approve|PRIMARY" --custom-button "驳回|mtdaxiang://reject|DANGER"
+  python3 send.py send --to mis --custom-template "审批通知" --custom-title "每日报销" --custom-content "请及时处理" --custom-button "通过|mtdaxiang://approve|PRIMARY" --custom-button "驳回|mtdaxiang://reject|DANGER"
 
   # 富文本消息（general type=100，data 自动 Base64 编码）
-  python3 send.py send --to suhao20 --general-data '{"nodes":[{"t":"text","c":"Hello"}]}'
+  python3 send.py send --to mis --general-data '{"nodes":[{"t":"text","c":"Hello"}]}'
 
   # @某人
-  python3 send.py send --group 69662141203 --text "请处理" --at suhao20:苏灏
+  python3 send.py send --group 69662141203 --text "请处理" --at mis:姓名
 
   # @所有人
   python3 send.py send --group 69662141203 --text "大家注意" --at-all

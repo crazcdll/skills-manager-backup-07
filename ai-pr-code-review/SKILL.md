@@ -6,8 +6,8 @@ PR → 大象推送 → 登记多维表格，I/O 操作均重试4次失败通知
 
 metadata:
   skillhub.creator: "mengmuzi"
-  skillhub.updater: "zengjiantao"
-  skillhub.version: "V154"
+  skillhub.updater: "mengmuzi"
+  skillhub.version: "V155"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "5205"
   skillhub.high_sensitive: "false"
@@ -122,7 +122,7 @@ Step 11：验证（全链路状态播报）
 | Step 4 | ▶️ 四层审查开始 | ✅ 审查完成：P0={n}，P1={n}，P2={n}，P3={n}，结论：{四选一} | — |
 | Step 5 | ▶️ Cross-Repo 跨仓检查 | ✅ CX 检查完成：{通过N项/发现M项问题} | ⚠️ 单仓库跳过 |
 | Step 6+7+8+9 | ▶️ 发布结果（脚本一体化） | ✅ 学城文档+PR评论+大象推送+DB回写 全部完成 | ❌ 各步独立降级，不互相阻塞 |
-| Step 10 | ▶️ 采纳率回收 | ✅ 采纳率：{n}%，误报率：{n}% | ⚠️ 无历史 CR，跳过 |
+| Step 10 | ▶️ 采纳率回收 | ✅ 准确率：{n}%，误报率：{n}% | ⚠️ 无历史 CR，跳过 |
 | Step 11 | ▶️ 全链路验证 | 见 Step 11 完成报告模板 | — |
 
 > ⚠️ **AI 执行约束**：以上播报为强制要求，不得省略。步骤失败时必须明确说明失败原因和降级策略，不允许静默跳过。
@@ -1003,9 +1003,9 @@ python3 "$SKILL_ROOT/scripts/publish_results.py" \
 > ⚠️ **硬门禁：在写采纳率章节前，必须先 read_file `references/comment-templates.md` 中的「采纳率章节模板」。未读取模板直接写 = 格式一定不对。**
 
 检测到 PR 已有历史 CR 评论（含 `🤖 AI Code Review 结果`）时触发：
-1. 扫描评论区，识别标记：✅已采纳 / ⚠️规则太严 / ⏭暂不修复 / ❌误报 / 无回复=未反馈
-2. 未反馈 issue 检查对应代码行是否有变更 → 有则自动判定「已采纳」
-3. 计算采纳率/有效率/误报率，追加「上轮 CR 采纳情况」章节到本轮文档
+1. 扫描评论区，识别负向反馈标记：⚠️规则太严 / ⏭暂不修复 / ❌误报；✅已采纳标记仍兼容识别（旧评论）
+2. 无反馈 issue = 默认「检出正确·已采纳」，计入准确率；可再检查对应代码行是否有变更做二次确认（区分「默认采纳」/「变更采纳」）
+3. 计算准确率（=1-负向反馈率）/误报率，追加「上轮 CR 采纳情况」章节到本轮文档
 
 ---
 

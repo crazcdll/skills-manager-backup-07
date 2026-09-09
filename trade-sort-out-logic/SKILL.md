@@ -28,7 +28,49 @@ export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" &
 npm install -g @it/oa-skills@latest --registry=http://r.npm.sankuai.com
 ```
 
-### Phase 2：梳理代码
+### Phase 2：分支检查与同步
+
+在开始梳理代码前，必须先完成分支检查与同步流程。
+
+1. **检查当前分支**：
+   ```bash
+   git branch --show-current
+   ```
+
+2. **分支判断与处理**，按以下决策流程执行：
+
+   ```mermaid
+   flowchart TD
+       A[检查当前分支] --> B{是否为 feature/zhangce07-sync-master?}
+       B -- 是 --> C[自动 merge 远端 master]
+       B -- 否 --> D[询问用户是否切换到 feature/zhangce07-sync-master]
+       D -- 用户确认切换 --> E[切换分支] --> C
+       D -- 用户明确不切换 --> F[询问用户是否 merge 远端 master 到当前分支]
+       F -- 用户确认 --> C
+       F -- 用户明确不合并 --> G[直接开始梳理]
+       C --> G
+   ```
+
+   具体规则：
+
+   - **当前分支不是 `feature/zhangce07-sync-master` 时**：必须先询问用户是否要切换到该分支，不得自行决定。只有用户**明确表示不需要切换**时才在当前分支继续；否则先切换分支再梳理：
+     ```bash
+     git fetch origin
+     git checkout feature/zhangce07-sync-master
+     # 若本地分支不存在：git checkout -b feature/zhangce07-sync-master origin/feature/zhangce07-sync-master
+     ```
+   - **当前分支是 `feature/zhangce07-sync-master` 时（含刚切换过来的情况）**：梳理前必须先把远端 master merge 到当前分支，无需询问：
+     ```bash
+     git fetch origin
+     git merge origin/master
+     ```
+   - **用户明确不切换分支后**：询问用户是否要把远端 master merge 到当前分支，用户确认才执行 merge，用户明确拒绝则直接开始梳理。
+
+3. **安全检查**：在执行 checkout 或 merge 前，先用 `git status --porcelain` 检查工作区。若有未提交的改动，**不要执行任何分支操作**，向用户说明情况并请用户决定（提交改动、stash 或放弃分支操作），得到明确指示后再继续。
+
+4. **merge 冲突处理**：若 merge 远端 master 出现冲突，不要自行解决冲突。将冲突文件列表告知用户，由用户决定：解决冲突后继续，或 `git merge --abort` 放弃合并直接开始梳理。
+
+### Phase 3：梳理代码
 
 直接开始梳理，无需等用户确认：
 
@@ -40,7 +82,7 @@ npm install -g @it/oa-skills@latest --registry=http://r.npm.sankuai.com
    - 条件分支和异常处理
    - 副作用（useEffect / watch / componentDidMount 等）
 
-### Phase 3：生成梳理报告
+### Phase 4：生成梳理报告
 
 整理成 Markdown 格式的报告，**报告结构不做强制限制**，以下为参考模板，能够清晰展示梳理结果即可：
 
@@ -72,7 +114,7 @@ npm install -g @it/oa-skills@latest --registry=http://r.npm.sankuai.com
 <!-- 列出所有涉及的文件路径 -->
 ```
 
-### Phase 4：保存到学城文档
+### Phase 5：保存到学城文档
 
 使用 citadel skill 的文件保存流程，将报告创建为指定文档的子文档：
 
@@ -131,7 +173,7 @@ npm install -g @it/oa-skills@latest --registry=http://r.npm.sankuai.com
    rm -f "$TMP_FILE"
    ```
 
-### Phase 5：输出结果
+### Phase 6：输出结果
 
 向用户汇报：
 - 梳理结果摘要
@@ -141,6 +183,7 @@ npm install -g @it/oa-skills@latest --registry=http://r.npm.sankuai.com
 ## 注意事项
 
 1. **Node 版本**：所有 `oa-skills` 命令必须在 Node 24 环境下执行。
+2. **分支要求**：本 skill 梳理的是当前工作区代码，默认期望在 `feature/zhangce07-sync-master` 分支执行。分支检查、切换与 merge 远端 master 的流程见 Phase 2，任何分支操作前必须先确认工作区干净，遇冲突不得自行解决。
 3. **学城文件保存**：内容较长的报告必须使用 `--file` 参数通过临时文件传递内容，避免命令行参数过长导致截断。
 4. **child doc**：结果保存为指定学城文档的**子文档**，通过 `--parentId` 指定父文档。
 5. **代码搜索**：若用户未提供 `codePath`，需在项目根目录下使用 Grep、Glob、CodebaseSearch 等工具自行检索相关代码，不要依赖用户提供精确路径。

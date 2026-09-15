@@ -1,8 +1,8 @@
 skill-manifest-version: 1
-skill-id: ed99d97487accf50b5038a5f1c454bcc7711f272ee869c2a0f07430db6e12473
+skill-id: 762efa35760c9ecbeaa8a01c196c258dad8e703729fbfad767a2bb24f94e4ae9
 
 files:
-  cc4481b6148741b1b2f1582d07d233b7d1ff9dc64f47143083af10cbeb27f6ad  SKILL.md
+  67c3d3515cd14ab25f042d7c922ff284b52dcdf60fc4b75e83a45acdfd1a5525  SKILL.md
   6d4143140c14bb07b2f2cf03a02142cb0a7e007afc1acb300120a09c5760ba53  references/install-and-manage.md
   1a7116e4294bcfcb92a10a1b9cc7e4330584fa30508b56fe0b1e0f0e159c4256  references/meituan-rules.yaml
   9463ed46a1739ec424e987eaac3980fae22a8cfdd5013e471357dac1863ccd57  references/pre-install-vetting.md

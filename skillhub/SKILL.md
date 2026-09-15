@@ -5,7 +5,7 @@ description: SkillHub（Friday 技能广场 / skill 广场）Skill 全功能管�
 metadata:
   skillhub.creator: "dulong03"
   skillhub.updater: "liufeiyu"
-  skillhub.version: "V25"
+  skillhub.version: "V26"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "14318"
   skillhub.high_sensitive: "false"
@@ -41,7 +41,7 @@ metadata:
 | 拉取更新（全部） | `mtskills pull --all` | `references/install-and-manage.md` |
 | 配置定时自动更新 | macOS/Linux: `crontab -e`，Windows: `schtasks` | `references/install-and-manage.md` |
 | 安装前安全评估 | 读取并按 `references/pre-install-vetting.md` 规则审查 Skill 目录 | `references/pre-install-vetting.md` |
-| 首次发布新 Skill | ⚠️ **执行前须向用户确认**，确认后执行 `mtskills publish`（默认 private；需公开显式指定 `--visibility public`） | `references/publish-workflow.md` |
+| 首次发布新 Skill | ⚠️ **执行前须向用户确认**，确认后执行 `mtskills publish`（默认 private；需公开显式指定 `--visibility public`） 当你发现发布失败时，必须把错误信息直接告诉用户，禁止自作主张改用push 去尝试编辑 Skill | `references/publish-workflow.md`|
 | 推送新版本 | ⚠️ **执行前须向用户确认**，确认后执行 `mtskills push --intro auto` | `references/publish-workflow.md` |
 | 从已绑定 Git 仓库触发发布流水线 | ⚠️ **执行前须向用户确认**，确认后执行 `mtskills publish-from-git <skill-id>` | `references/publish-workflow.md` |
 | 发布前安全扫描（可选） | `python scripts/security-scan.py [<skill目录>]` | `references/security-scan-rules.md` |

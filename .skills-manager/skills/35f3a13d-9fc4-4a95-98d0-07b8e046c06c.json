@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "35f3a13d-9fc4-4a95-98d0-07b8e046c06c",
+  "path": "mt-code-repository-authority",
+  "path_key": "mt-code-repository-authority",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

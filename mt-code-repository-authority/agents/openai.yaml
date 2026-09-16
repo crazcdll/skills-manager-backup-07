@@ -1,0 +1,6 @@
+interface:
+  display_name: "仓库权威组织解析"
+  short_description: "通过确定性 Runner 解析仓库负责人及其权威组织链"
+  default_prompt: "Use $mt-code-repository-authority to execute the mounted repository authority task with its deterministic Runner."
+policy:
+  allow_implicit_invocation: true

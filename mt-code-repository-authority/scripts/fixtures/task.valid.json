@@ -1,0 +1,25 @@
+{
+  "schema_version": "repository-authority-task/v1",
+  "skill_contract_version": "mt-code-repository-authority/v1",
+  "job_id": "11111111-1111-4111-8111-111111111111",
+  "attempt_id": "22222222-2222-4222-8222-222222222222",
+  "runner_invocation_id": "33333333-3333-4333-8333-333333333333",
+  "request_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "actor": {
+    "mis": "zhangce07",
+    "source": "verified-edge"
+  },
+  "repository": {
+    "canonical_key": "~zhangce07/l2-rules-test",
+    "canonical_https_url": "https://dev.sankuai.com/code/repo-detail/~zhangce07/l2-rules-test/file/list",
+    "canonical_ssh_url": "ssh://git@git.sankuai.com/~zhangce07/l2-rules-test.git"
+  },
+  "execution": {
+    "deadline": "2099-01-01T00:05:00.000Z",
+    "expected_result_schema": "repository-authority-runner-result/v1",
+    "callback": {
+      "url": "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-observability/internal/repository-authority/attempts/22222222-2222-4222-8222-222222222222/result",
+      "token": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    }
+  }
+}

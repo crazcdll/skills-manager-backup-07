@@ -1,0 +1,13 @@
+skill-manifest-version: 1
+skill-id: 9082c93bd1238aaddcdc41fafa2ee3147a859f34ddf3b66bd34e9f397345cdfa
+
+files:
+  eefd8dbad4de67e569bd28854bcab06cd176361f971af912ec86b5537b3599c7  SKILL.md
+  b825f320e61ea735228ec81d3accfa4823b3756cee70bc18e65bdd4ce2f18e6a  agents/openai.yaml
+  60b13879c7caec3b4b31c6fcb951452e3250148e05c550d21661ce4bda8d59f5  references/contracts.md
+  3a88aa73bb8f343e7b4bee28b84f420ddb43448dffe3d0a7d6e1ab7853578d51  scripts/fixtures/code-cli.repository.json
+  a5ff63bf5d329775dbfc15413290fd9c60ccf5cf6f7d055a54dde78b52b2bce8  scripts/fixtures/task.valid.json
+  5e6ad5cfa4573891611074c0fe7c09e342994f1159e42b8f2fb77db5f4e79453  scripts/fixtures/yuntu.organization.json
+  554f8f764c79ea1bc053620a00507ca792ca4003b1cac91accbe9664e94edb70  scripts/repository-authority-contract.mjs
+  451b350fb39a93c2f83b079a0ccf3e17f84d54fcbf2762ba7d394f8820ac4300  scripts/run-repository-authority.mjs
+  2eec9801a6b2b7142ea20f30ff72de2948216e5f82db9cf1ac9c1ebfed6a9c70  scripts/run-repository-authority.test.mjs

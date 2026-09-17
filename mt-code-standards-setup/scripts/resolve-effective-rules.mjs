@@ -31,6 +31,10 @@ const FLAT_LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v3";
 const FLAT_LOCAL_LAYOUT = "company-team/v1";
 const RECEIPT_SCHEMA = "mt-effective-rule-bundle-install/v1";
 const MANIFEST_NAME = ".mt-effective-rule-bundle.json";
+const BOOTSTRAP_BUNDLE_SCHEMA = "l1-bootstrap-bundle/v1";
+const BOOTSTRAP_LOCAL_MANIFEST_SCHEMA = "mt-l1-bootstrap-manifest/v1";
+const BOOTSTRAP_RECEIPT_SCHEMA = "mt-l1-bootstrap-install/v1";
+const BOOTSTRAP_MANIFEST_NAME = ".mt-l1-bootstrap.json";
 const MAX_LOCATOR_BYTES = 8 * 1024;
 const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
 const MAX_FILE_BYTES = 512 * 1024;
@@ -117,6 +121,88 @@ export const validateRepositoryLocator = (value) => {
     );
   }
   return source;
+};
+
+export const canonicalRepositoryKey = (value) => {
+  const source = validateRepositoryLocator(value);
+  const main = locatorMainPart(source).replace(/\/$/u, "");
+  const patterns = [
+    /^git@git[.]sankuai[.]com:([^/]+)\/([^/]+?)(?:[.]git)?$/iu,
+    /^https:\/\/dev[.]sankuai[.]com\/code\/repo-detail\/([^/]+)\/([^/]+?)(?:\/file\/list)?$/iu,
+    /^https:\/\/git[.]sankuai[.]com\/([^/]+)\/([^/]+?)(?:[.]git)?$/iu,
+    /^ssh:\/\/git@git[.]sankuai[.]com\/([^/]+)\/([^/]+?)(?:[.]git)?$/iu,
+    /^([^/:]+)\/([^/]+)$/u,
+  ];
+  for (const pattern of patterns) {
+    const match = main.match(pattern);
+    if (match) return `${match[1].toLowerCase()}/${match[2].replace(/[.]git$/iu, "").toLowerCase()}`;
+  }
+  return "";
+};
+
+const safeEvidencePaths = (paths) => [...new Set(paths)].sort(binaryPathOrder).slice(0, 5);
+
+export const detectRepositoryDomain = async (repoRoot) => {
+  let tracked;
+  try {
+    tracked = execFileSync("git", ["ls-files", "-z", "--cached"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      maxBuffer: 4 * 1024 * 1024,
+    }).split("\0").filter(Boolean);
+  } catch {
+    fail("RULE_BUNDLE_DOMAIN_EVIDENCE_UNAVAILABLE", "无法读取 Git 已跟踪文件，不能安全判断仓库领域");
+  }
+  const safeTracked = tracked.filter((file) => (
+    !path.posix.isAbsolute(file) && !file.includes("\\") &&
+    !file.split("/").some((part) => !part || part === "." || part === "..") &&
+    !/[\p{Cc}\p{Cf}]/u.test(file)
+  ));
+  const frontendSources = safeTracked.filter((file) => /[.](?:tsx|jsx|vue)$/iu.test(file));
+  const packageFiles = safeTracked.filter((file) => /(?:^|\/)package[.]json$/u.test(file));
+  const frontendPackages = [];
+  const frontendMarkers = new Set([
+    "react", "react-dom", "react-native", "vue", "@vue/runtime-dom", "next", "nuxt",
+    "vite", "webpack", "@tarojs/taro", "@dcloudio/uni-app",
+  ]);
+  for (const packageFile of packageFiles.slice(0, 50)) {
+    try {
+      const packagePath = path.join(repoRoot, ...packageFile.split("/"));
+      const info = await lstat(packagePath);
+      if (!info.isFile() || info.isSymbolicLink()) continue;
+      const raw = await readFile(packagePath, "utf8");
+      if (Buffer.byteLength(raw, "utf8") > 1024 * 1024) continue;
+      const parsed = JSON.parse(raw);
+      const dependencies = { ...parsed?.dependencies, ...parsed?.devDependencies };
+      const markers = Object.keys(dependencies).filter((name) => frontendMarkers.has(name)).sort();
+      if (markers.length) frontendPackages.push({ path: packageFile, markers: markers.slice(0, 5) });
+    } catch {
+      // Invalid package metadata is not positive domain evidence.
+    }
+  }
+  const backendDescriptors = safeTracked.filter((file) => (
+    /(?:^|\/)pom[.]xml$/u.test(file) ||
+    /(?:^|\/)(?:build|settings)[.]gradle(?:[.]kts)?$/u.test(file)
+  ));
+  const backendSources = safeTracked.filter((file) => /[.]java$/iu.test(file));
+  const frontend = frontendSources.length > 0 || frontendPackages.length > 0;
+  const backend = backendDescriptors.length > 0 && backendSources.length > 0;
+  const evidence = {
+    tracked_file_count: safeTracked.length,
+    frontend: {
+      source_files: safeEvidencePaths(frontendSources),
+      package_manifests: frontendPackages.slice(0, 5),
+    },
+    backend: {
+      build_files: safeEvidencePaths(backendDescriptors),
+      source_files: safeEvidencePaths(backendSources),
+    },
+  };
+  return {
+    classification: frontend && backend ? "mixed" : frontend ? "frontend" : backend ? "backend" : "unknown",
+    evidence,
+  };
 };
 
 export const repositoryLocatorFromGit = (repoRoot = process.cwd()) => {
@@ -228,6 +314,50 @@ const requestBundle = async ({ gatewayUrl, token, repositoryLocator, knownSnapsh
   if (!response.ok) {
     const code = body?.error?.code || `RULE_BUNDLE_HTTP_${response.status}`;
     fail(code, friendlyServiceError(code, body?.error?.message));
+  }
+  return body;
+};
+
+const requestBootstrapBundle = async ({
+  gatewayUrl, token, canonicalKey, standardDomain, knownSnapshotId, fetchImpl,
+}) => {
+  const trustedGateway = validateGatewayUrl(gatewayUrl);
+  let response;
+  try {
+    response = await fetchImpl(`${trustedGateway}/v1/l1-rule-bundles/bootstrap`, {
+      method: "POST",
+      redirect: "error",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "X-Rule-Auth-Source": "nocode-agent-sso",
+        "X-Rule-Protocol-Version": "1.0",
+      },
+      body: JSON.stringify({
+        repository_locator: canonicalKey,
+        standard_domain: standardDomain,
+        ...(knownSnapshotId ? { known_snapshot_id: knownSnapshotId } : {}),
+      }),
+    });
+  } catch (error) {
+    fail("RULE_BUNDLE_NETWORK_FAILED", `L1 bootstrap 服务不可用：${error.message}`);
+  }
+  const rawBody = await response.text().catch(() => "");
+  if (Buffer.byteLength(rawBody, "utf8") > MAX_RESPONSE_BYTES) {
+    fail("RULE_BUNDLE_RESPONSE_TOO_LARGE", "L1 bootstrap 响应超过 4 MiB 安全上限");
+  }
+  let body = {};
+  try {
+    body = rawBody ? JSON.parse(rawBody) : {};
+  } catch {
+    fail("RULE_BUNDLE_RESPONSE_NOT_JSON", "L1 bootstrap 服务返回了非 JSON 内容");
+  }
+  if (!response.ok) {
+    const code = body?.error?.code || `RULE_BUNDLE_HTTP_${response.status}`;
+    const message = code === "repository_registered_or_unavailable"
+      ? "仓库已登记或当前不可用，禁止使用 L1 bootstrap；请处理仓库关联、权限或登记状态后重试正式规则包"
+      : text(body?.error?.message) || "L1 bootstrap 服务调用失败";
+    fail(code, message);
   }
   return body;
 };
@@ -386,6 +516,78 @@ const validateBundle = (body, knownSnapshotId) => {
   };
 };
 
+const validateBootstrapBundle = (body, knownSnapshotId) => {
+  if (!isObject(body) || body.schema_version !== BOOTSTRAP_BUNDLE_SCHEMA
+    || !new Set(["ready", "not_modified"]).has(body.status) || !isObject(body.snapshot)) {
+    fail("RULE_BUNDLE_BOOTSTRAP_RESPONSE_INVALID", `L1 bootstrap 响应必须为 ${BOOTSTRAP_BUNDLE_SCHEMA}`);
+  }
+  const snapshot = body.snapshot;
+  if (snapshot.bootstrap_version !== BOOTSTRAP_BUNDLE_SCHEMA
+    || !DOMAINS.has(snapshot.standard_domain)
+    || !SHA256_PATTERN.test(text(snapshot.snapshot_id))
+    || !SHA256_PATTERN.test(text(snapshot.manifest_hash))) {
+    fail("RULE_BUNDLE_BOOTSTRAP_RESPONSE_INVALID", "L1 bootstrap 快照字段非法");
+  }
+  const releaseRefs = normalizeReleaseRefs(snapshot.release_refs);
+  if (releaseRefs.some((release) => release.scope_level !== "L1")) {
+    fail("RULE_BUNDLE_BOOTSTRAP_RESPONSE_INVALID", "L1 bootstrap 响应包含非 L1 release");
+  }
+  const snapshotProjection = {
+    bootstrap_version: BOOTSTRAP_BUNDLE_SCHEMA,
+    standard_domain: snapshot.standard_domain,
+    manifest_hash: snapshot.manifest_hash,
+    release_refs: releaseRefs,
+  };
+  if (sha256Hex(canonicalJson(snapshotProjection)) !== snapshot.snapshot_id) {
+    fail("RULE_BUNDLE_SNAPSHOT_HASH_MISMATCH", "L1 bootstrap snapshot_id 校验失败");
+  }
+  if (body.status === "not_modified") {
+    if (!knownSnapshotId || snapshot.snapshot_id !== knownSnapshotId
+      || !Array.isArray(body.files) || body.files.length) {
+      fail("RULE_BUNDLE_NOT_MODIFIED_INVALID", "L1 bootstrap not_modified 与本地快照不一致");
+    }
+    return {
+      status: body.status,
+      snapshot: { ...snapshot, release_refs: releaseRefs },
+      files: [],
+    };
+  }
+  const syntheticRepository = {
+    repository_id: `l1-bootstrap:${snapshot.standard_domain}`,
+    canonical_key: `l1-bootstrap/${snapshot.standard_domain}`,
+    standard_domain: snapshot.standard_domain,
+  };
+  const syntheticProjection = {
+    resolver_version: BUNDLE_SCHEMA,
+    repository_id: syntheticRepository.repository_id,
+    canonical_key: syntheticRepository.canonical_key,
+    standard_domain: syntheticRepository.standard_domain,
+    manifest_hash: snapshot.manifest_hash,
+    release_refs: releaseRefs,
+  };
+  const validated = validateBundle({
+    schema_version: BUNDLE_SCHEMA,
+    status: "ready",
+    snapshot: {
+      resolver_version: BUNDLE_SCHEMA,
+      snapshot_id: sha256Hex(canonicalJson(syntheticProjection)),
+      repository: syntheticRepository,
+      release_refs: releaseRefs,
+      manifest_hash: snapshot.manifest_hash,
+      total_bytes: snapshot.total_bytes,
+    },
+    files: body.files,
+  }, "");
+  if (validated.files.some((file) => !file.relative_path.startsWith("l1/"))) {
+    fail("RULE_BUNDLE_BOOTSTRAP_RESPONSE_INVALID", "L1 bootstrap 响应包含非 L1 文件");
+  }
+  return {
+    status: "ready",
+    snapshot: { ...snapshot, release_refs: releaseRefs },
+    files: validated.files,
+  };
+};
+
 const assertNoSymlink = async (target, stopAt) => {
   let cursor = path.resolve(target);
   const boundary = path.resolve(stopAt);
@@ -409,6 +611,19 @@ const readLocalManifest = async (repoRoot) => {
     return isObject(value) ? value : null;
   } catch {
     return null;
+  }
+};
+
+const readBootstrapManifest = async (repoRoot) => {
+  const rulesRoot = path.join(repoRoot, ".mdp", "rules");
+  const manifestPath = path.join(rulesRoot, BOOTSTRAP_MANIFEST_NAME);
+  if (!await exists(manifestPath)) return { exists: false, value: null };
+  await assertNoSymlink(manifestPath, rulesRoot);
+  try {
+    const value = JSON.parse(await readFile(manifestPath, "utf8"));
+    return { exists: true, value: isObject(value) ? value : null };
+  } catch {
+    return { exists: true, value: null };
   }
 };
 
@@ -529,6 +744,9 @@ const validateLocalManifestStructure = (manifest) => {
     if (!SHA256_PATTERN.test(text(fileHash)) || !Number.isSafeInteger(fileSize) || fileSize < 0) return false;
     projection.push({ relative_path: sourcePath, sha256: fileHash, byte_size: fileSize });
   }
+  // Flattening and collision suffixes can change local filename order. The
+  // server manifest hash always uses the original source paths.
+  if (flat) projection.sort((left, right) => pathOrder(left.relative_path, right.relative_path));
   if (sha256Hex(canonicalJson(projection)) !== manifest.manifest_hash) return false;
   if (projection.reduce((sum, file) => sum + file.byte_size, 0) !== manifest.total_bytes) return false;
   const releaseRefs = normalizeReleaseRefs(manifest.release_refs);
@@ -556,6 +774,60 @@ const validateLocalManifestFiles = async (repoRoot, manifest) => {
       sha256Hex(content) !== manifest.managed_file_hashes[managedPath]
       || content.byteLength !== manifest.managed_file_sizes[managedPath]
     ) return false;
+  }
+  return true;
+};
+
+const validateBootstrapManifestStructure = (manifest) => {
+  if (!manifest || manifest.schema_version !== BOOTSTRAP_LOCAL_MANIFEST_SCHEMA
+    || manifest.bundle_schema !== BOOTSTRAP_BUNDLE_SCHEMA
+    || manifest.local_layout !== FLAT_LOCAL_LAYOUT
+    || !SHA256_PATTERN.test(text(manifest.snapshot_id))
+    || !SHA256_PATTERN.test(text(manifest.manifest_hash))
+    || !DOMAINS.has(manifest.standard_domain)
+    || !["git_tracked_evidence", "user_explicit"].includes(manifest.domain_source)
+    || !Array.isArray(manifest.managed_files) || !manifest.managed_files.length
+    || !isObject(manifest.managed_file_sources)
+    || !isObject(manifest.managed_file_hashes)
+    || !isObject(manifest.managed_file_sizes)) return false;
+  const uniquePaths = new Set(manifest.managed_files);
+  if (uniquePaths.size !== manifest.managed_files.length
+    || Object.keys(manifest.managed_file_sources).length !== uniquePaths.size) return false;
+  const projection = [];
+  for (const managedPath of [...uniquePaths].sort(binaryPathOrder)) {
+    if (typeof managedPath !== "string" || !isFlatManagedPath(managedPath, BUNDLE_SCHEMA)
+      || !managedPath.startsWith("company/")
+      || !Object.hasOwn(manifest.managed_file_sources, managedPath)) return false;
+    const sourcePath = normalizeRelativePath(manifest.managed_file_sources[managedPath], true);
+    if (!sourcePath.startsWith("l1/")) return false;
+    const fileHash = text(manifest.managed_file_hashes[managedPath]);
+    const fileSize = manifest.managed_file_sizes[managedPath];
+    if (!SHA256_PATTERN.test(fileHash) || !Number.isSafeInteger(fileSize) || fileSize < 0) return false;
+    projection.push({ relative_path: sourcePath, sha256: fileHash, byte_size: fileSize });
+  }
+  projection.sort((left, right) => binaryPathOrder(left.relative_path, right.relative_path));
+  if (sha256Hex(canonicalJson(projection)) !== manifest.manifest_hash
+    || projection.reduce((sum, file) => sum + file.byte_size, 0) !== manifest.total_bytes) return false;
+  const releaseRefs = normalizeReleaseRefs(manifest.release_refs);
+  if (releaseRefs.some((release) => release.scope_level !== "L1")) return false;
+  return sha256Hex(canonicalJson({
+    bootstrap_version: BOOTSTRAP_BUNDLE_SCHEMA,
+    standard_domain: manifest.standard_domain,
+    manifest_hash: manifest.manifest_hash,
+    release_refs: releaseRefs,
+  })) === manifest.snapshot_id;
+};
+
+const validateBootstrapManifestFiles = async (repoRoot, manifest) => {
+  if (!validateBootstrapManifestStructure(manifest)) return false;
+  const rulesRoot = path.join(repoRoot, ".mdp", "rules");
+  for (const managedPath of manifest.managed_files) {
+    const fullPath = path.join(rulesRoot, ...managedPath.split("/"));
+    await assertNoSymlink(fullPath, rulesRoot);
+    if (!await exists(fullPath)) return false;
+    const content = await readFile(fullPath);
+    if (sha256Hex(content) !== manifest.managed_file_hashes[managedPath]
+      || content.byteLength !== manifest.managed_file_sizes[managedPath]) return false;
   }
   return true;
 };
@@ -590,6 +862,41 @@ const buildLocalManifest = (bundle) => {
     managed_file_sizes: Object.fromEntries(localFiles.map((file) => [
       file.local_relative_path,
       file.byte_size,
+    ])),
+    installed_at: new Date().toISOString(),
+  };
+};
+
+const buildBootstrapManifest = (bundle, domainSource, domainEvidence) => {
+  const localFiles = localFilesForBundle({
+    ...bundle,
+    snapshot: {
+      ...bundle.snapshot,
+      resolver_version: BUNDLE_SCHEMA,
+      repository: { standard_domain: bundle.snapshot.standard_domain },
+    },
+  });
+  const managedFiles = localFiles.map((file) => file.local_relative_path);
+  return {
+    schema_version: BOOTSTRAP_LOCAL_MANIFEST_SCHEMA,
+    bundle_schema: BOOTSTRAP_BUNDLE_SCHEMA,
+    local_layout: FLAT_LOCAL_LAYOUT,
+    snapshot_id: bundle.snapshot.snapshot_id,
+    manifest_hash: bundle.snapshot.manifest_hash,
+    standard_domain: bundle.snapshot.standard_domain,
+    domain_source: domainSource,
+    domain_evidence: domainEvidence,
+    release_refs: bundle.snapshot.release_refs,
+    total_bytes: bundle.snapshot.total_bytes,
+    managed_files: managedFiles,
+    managed_file_sources: Object.fromEntries(localFiles.map((file) => [
+      file.local_relative_path, file.source_relative_path,
+    ])),
+    managed_file_hashes: Object.fromEntries(localFiles.map((file) => [
+      file.local_relative_path, file.sha256,
+    ])),
+    managed_file_sizes: Object.fromEntries(localFiles.map((file) => [
+      file.local_relative_path, file.byte_size,
     ])),
     installed_at: new Date().toISOString(),
   };
@@ -651,7 +958,7 @@ const removeEmptyManagedParents = async (filePath, boundary) => {
   }
 };
 
-const installReadyBundle = async (repoRoot, bundle, previousManifest) => {
+const installReadyBundle = async (repoRoot, bundle, previousManifest, bootstrapManifest = null) => {
   const mdpRoot = path.join(repoRoot, ".mdp");
   const rulesRoot = path.join(repoRoot, ".mdp", "rules");
   const domain = bundle.snapshot.repository.standard_domain;
@@ -666,9 +973,12 @@ const installReadyBundle = async (repoRoot, bundle, previousManifest) => {
     );
   }
   const previousManaged = new Set(previousManifest?.managed_files || []);
-  const previousPhysicalPaths = new Set(previousManifest
-    ? [...previousManaged].map((name) => manifestPhysicalPath(previousManifest, name))
-    : []);
+  const previousPhysicalPaths = new Set([
+    ...(previousManifest
+      ? [...previousManaged].map((name) => manifestPhysicalPath(previousManifest, name))
+      : []),
+    ...(bootstrapManifest?.managed_files || []),
+  ]);
   const previousManagedNfc = new Set([...previousPhysicalPaths].map((name) => name.normalize("NFC")));
   const localFiles = localFilesForBundle(bundle);
   const directoryCache = new Map();
@@ -703,6 +1013,13 @@ const installReadyBundle = async (repoRoot, bundle, previousManifest) => {
       await rm(stagedOldPath, { force: true });
       await removeEmptyManagedParents(stagedOldPath, stagedRulesRoot);
     }
+    for (const managedPath of bootstrapManifest?.managed_files || []) {
+      const stagedOldPath = path.join(stagedRulesRoot, ...managedPath.split("/"));
+      await assertNoSymlink(stagedOldPath, stagedRulesRoot);
+      await rm(stagedOldPath, { force: true });
+      await removeEmptyManagedParents(stagedOldPath, stagedRulesRoot);
+    }
+    await rm(path.join(stagedRulesRoot, BOOTSTRAP_MANIFEST_NAME), { force: true });
     for (const file of localFiles) {
       const outputPath = path.join(stagedRulesRoot, ...file.local_relative_path.split("/"));
       await assertNoSymlink(outputPath, stagedRulesRoot);
@@ -736,6 +1053,96 @@ const installReadyBundle = async (repoRoot, bundle, previousManifest) => {
   }
 };
 
+const installBootstrapBundle = async ({
+  repoRoot, bundle, previousManifest, domainSource, domainEvidence,
+}) => {
+  const mdpRoot = path.join(repoRoot, ".mdp");
+  const rulesRoot = path.join(mdpRoot, "rules");
+  await mkdir(mdpRoot, { recursive: true });
+  await assertNoSymlink(mdpRoot, repoRoot);
+  if (await exists(rulesRoot)) await assertNoSymlink(rulesRoot, mdpRoot);
+  if (previousManifest?.standard_domain
+    && previousManifest.standard_domain !== bundle.snapshot.standard_domain) {
+    fail(
+      "RULE_BUNDLE_DOMAIN_CHANGED",
+      `本地 L1 bootstrap 领域为 ${previousManifest.standard_domain}，本次判断为 ${bundle.snapshot.standard_domain}`,
+    );
+  }
+  const localFiles = localFilesForBundle({
+    ...bundle,
+    snapshot: {
+      ...bundle.snapshot,
+      resolver_version: BUNDLE_SCHEMA,
+      repository: { standard_domain: bundle.snapshot.standard_domain },
+    },
+  });
+  const previousManaged = new Set(previousManifest?.managed_files || []);
+  const previousManagedKeys = new Set([...previousManaged].map(pathKey));
+  const directoryCache = new Map();
+  for (const file of localFiles) {
+    const currentPath = path.join(rulesRoot, ...file.local_relative_path.split("/"));
+    await assertNoSymlink(currentPath, rulesRoot);
+    const existing = await existingPortablePath(
+      rulesRoot,
+      file.local_relative_path,
+      directoryCache,
+      previousManaged,
+    );
+    if (existing && !previousManagedKeys.has(pathKey(existing))) {
+      fail("RULE_BUNDLE_LOCAL_COLLISION", `L1 bootstrap 目标路径已有非受管文件，未覆盖：${file.local_relative_path}`);
+    }
+  }
+
+  const stageRoot = await mkdtemp(path.join(mdpRoot, ".mt-bootstrap-stage-"));
+  const stagedRulesRoot = path.join(stageRoot, "rules");
+  const backupRulesRoot = path.join(mdpRoot, `.mt-bootstrap-backup-${randomUUID()}`);
+  let rulesBackedUp = false;
+  let rulesInstalled = false;
+  try {
+    if (await exists(rulesRoot)) await cp(rulesRoot, stagedRulesRoot, { recursive: true, errorOnExist: false });
+    else await mkdir(stagedRulesRoot, { recursive: true });
+    for (const managedPath of previousManaged) {
+      const stagedOldPath = path.join(stagedRulesRoot, ...managedPath.split("/"));
+      await assertNoSymlink(stagedOldPath, stagedRulesRoot);
+      await rm(stagedOldPath, { force: true });
+      await removeEmptyManagedParents(stagedOldPath, stagedRulesRoot);
+    }
+    for (const file of localFiles) {
+      const outputPath = path.join(stagedRulesRoot, ...file.local_relative_path.split("/"));
+      await assertNoSymlink(outputPath, stagedRulesRoot);
+      await mkdir(path.dirname(outputPath), { recursive: true });
+      await writeFile(outputPath, file.content, "utf8");
+    }
+    const manifest = buildBootstrapManifest(bundle, domainSource, domainEvidence);
+    await writeFile(
+      path.join(stagedRulesRoot, BOOTSTRAP_MANIFEST_NAME),
+      `${JSON.stringify(manifest, null, 2)}\n`,
+      "utf8",
+    );
+    if (await exists(rulesRoot)) {
+      await rename(rulesRoot, backupRulesRoot);
+      rulesBackedUp = true;
+    }
+    await rename(stagedRulesRoot, rulesRoot);
+    rulesInstalled = true;
+    await rm(backupRulesRoot, { recursive: true, force: true }).catch(() => {});
+    return manifest;
+  } catch (error) {
+    try {
+      if (rulesInstalled) await rm(rulesRoot, { recursive: true, force: true });
+      if (rulesBackedUp && await exists(backupRulesRoot)) await rename(backupRulesRoot, rulesRoot);
+    } catch (rollbackError) {
+      fail(
+        "RULE_BUNDLE_LOCAL_ROLLBACK_FAILED",
+        `L1 bootstrap 安装失败且回滚失败：${error.message}；${rollbackError.message}`,
+      );
+    }
+    throw error;
+  } finally {
+    await rm(stageRoot, { recursive: true, force: true }).catch(() => {});
+  }
+};
+
 const assertGitRepository = async (repoRoot) => {
   if (!await exists(path.join(repoRoot, ".git"))) {
     fail("RULE_BUNDLE_GIT_REQUIRED", "当前目录不是 Git 仓库根目录，请使用 --repo-root 指定目标仓库");
@@ -747,6 +1154,7 @@ export const syncEffectiveRuleBundle = async ({
   token,
   repositoryLocator = "",
   repoRoot = process.cwd(),
+  domain = "",
   execution,
   fetchImpl = globalThis.fetch,
 } = {}) => {
@@ -761,6 +1169,20 @@ export const syncEffectiveRuleBundle = async ({
   await assertGitRepository(absoluteRoot);
   const locator = validateRepositoryLocator(repositoryLocator || repositoryLocatorFromGit(absoluteRoot));
   const previousManifest = await readLocalManifest(absoluteRoot);
+  const bootstrapState = await readBootstrapManifest(absoluteRoot);
+  let bootstrapManifest = null;
+  if (bootstrapState.exists) {
+    try {
+      if (validateBootstrapManifestStructure(bootstrapState.value)) {
+        bootstrapManifest = bootstrapState.value;
+      }
+    } catch {
+      bootstrapManifest = null;
+    }
+    if (!bootstrapManifest) {
+      fail("RULE_BUNDLE_BOOTSTRAP_MANIFEST_INVALID", "本地 L1 bootstrap manifest 非法，禁止静默覆盖");
+    }
+  }
   const previousTrusted = (() => {
     try {
       return validateLocalManifestStructure(previousManifest);
@@ -777,17 +1199,90 @@ export const syncEffectiveRuleBundle = async ({
   const knownSnapshotId = previousCurrent && isFlatLocalManifest(previousManifest)
     ? previousManifest.snapshot_id
     : "";
-  const body = await requestBundle({
-    gatewayUrl,
-    token,
-    repositoryLocator: locator,
-    knownSnapshotId,
-    execution: normalizedExecution,
-    fetchImpl,
-  });
+  let body;
+  try {
+    body = await requestBundle({
+      gatewayUrl,
+      token,
+      repositoryLocator: locator,
+      knownSnapshotId,
+      execution: normalizedExecution,
+      fetchImpl,
+    });
+  } catch (error) {
+    if (!(error instanceof RuleBundleError) || error.code !== "repository_not_registered") throw error;
+    const canonicalKey = canonicalRepositoryKey(locator);
+    if (!canonicalKey) {
+      fail(
+        "RULE_BUNDLE_BOOTSTRAP_CANONICAL_REQUIRED",
+        "仓库未登记时必须提供精确 namespace/repository 或可归一化为该形式的 Git URL，不能用裸仓库名执行 L1 bootstrap",
+      );
+    }
+    if (await exists(path.join(absoluteRoot, ".mdp", "rules", MANIFEST_NAME))) {
+      fail(
+        "RULE_BUNDLE_BOOTSTRAP_CONFLICT",
+        "本地已有正式规则包 manifest，禁止以 L1 bootstrap 静默覆盖；请先处理仓库登记或关联状态",
+      );
+    }
+    const explicitDomain = text(domain);
+    if (explicitDomain && !DOMAINS.has(explicitDomain)) {
+      fail("RULE_BUNDLE_DOMAIN_INVALID", "--domain 仅支持 frontend 或 backend");
+    }
+    const detected = explicitDomain
+      ? { classification: explicitDomain, evidence: { explicit_domain: explicitDomain } }
+      : await detectRepositoryDomain(absoluteRoot);
+    if (!DOMAINS.has(detected.classification)) {
+      fail(
+        "RULE_BUNDLE_DOMAIN_CONFIRMATION_REQUIRED",
+        `无法唯一判断仓库领域（${detected.classification}）；请根据以下 Git 已跟踪证据询问用户，并使用 --domain frontend|backend 重试：${JSON.stringify(detected.evidence)}`,
+      );
+    }
+    const bootstrapCurrent = bootstrapManifest
+      ? await validateBootstrapManifestFiles(absoluteRoot, bootstrapManifest).catch(() => false)
+      : false;
+    const bootstrapBody = await requestBootstrapBundle({
+      gatewayUrl,
+      token,
+      canonicalKey,
+      standardDomain: detected.classification,
+      knownSnapshotId: bootstrapCurrent ? bootstrapManifest.snapshot_id : "",
+      fetchImpl,
+    });
+    const bootstrapBundle = validateBootstrapBundle(
+      bootstrapBody,
+      bootstrapCurrent ? bootstrapManifest.snapshot_id : "",
+    );
+    const installedManifest = bootstrapBundle.status === "ready"
+      ? await installBootstrapBundle({
+        repoRoot: absoluteRoot,
+        bundle: bootstrapBundle,
+        previousManifest: bootstrapManifest,
+        domainSource: explicitDomain ? "user_explicit" : "git_tracked_evidence",
+        domainEvidence: detected.evidence,
+      })
+      : bootstrapManifest;
+    return Object.freeze({
+      schema_version: BOOTSTRAP_RECEIPT_SCHEMA,
+      status: bootstrapBundle.status === "ready" ? "installed" : "not_modified",
+      mode: "l1_bootstrap",
+      standard_domain: bootstrapBundle.snapshot.standard_domain,
+      domain_source: installedManifest.domain_source,
+      snapshot_id: bootstrapBundle.snapshot.snapshot_id,
+      release_refs: bootstrapBundle.snapshot.release_refs,
+      managed_files: installedManifest.managed_files,
+      total_bytes: installedManifest.total_bytes,
+      pull_id: normalizedExecution.pullId,
+      execution_agent: normalizedExecution.agent,
+    });
+  }
   const bundle = validateBundle(body, knownSnapshotId);
   const manifest = bundle.status === "ready"
-    ? await installReadyBundle(absoluteRoot, bundle, previousTrusted ? previousManifest : null)
+    ? await installReadyBundle(
+      absoluteRoot,
+      bundle,
+      previousTrusted ? previousManifest : null,
+      bootstrapManifest,
+    )
     : previousManifest;
   return Object.freeze({
     schema_version: RECEIPT_SCHEMA,
@@ -806,7 +1301,7 @@ const parseArgs = (argv) => {
   const result = {};
   const valued = new Set([
     "--repository", "--repo-root", "--gateway-url", "--token-env", "--pull-id",
-    "--execution-agent", "--execution-agent-source", "--skill-version",
+    "--execution-agent", "--execution-agent-source", "--skill-version", "--domain",
   ]);
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index];
@@ -822,6 +1317,7 @@ const parseArgs = (argv) => {
     else if (key === "--execution-agent") result.executionAgent = value;
     else if (key === "--execution-agent-source") result.executionAgentSource = value;
     else if (key === "--skill-version") result.skillVersion = value;
+    else if (key === "--domain") result.domain = value;
     index += 1;
   }
   return result;
@@ -835,6 +1331,7 @@ const main = async () => {
     token: process.env[tokenEnv],
     repositoryLocator: args.repositoryLocator,
     repoRoot: args.repoRoot,
+    domain: args.domain,
     execution: {
       pullId: args.pullId,
       agent: args.executionAgent,

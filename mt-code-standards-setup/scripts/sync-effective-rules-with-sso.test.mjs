@@ -18,6 +18,16 @@ const bundle = () => {
   return { schema_version: "effective-rule-bundle/v2", status: "ready", snapshot: { resolver_version: "effective-rule-bundle/v2", snapshot_id: snapshotId, repository: { repository_id: "repo:test", canonical_key: "hfe/test", standard_domain: "frontend" }, release_refs: refs, manifest_hash: manifestHash, total_bytes: projection[0].byte_size }, files: projection };
 };
 const response = (body) => ({ ok: true, status: 200, text: async () => JSON.stringify(body) });
+const errorResponse = (code, status) => ({
+  ok: false, status, text: async () => JSON.stringify({ error: { code } }),
+});
+const commandFailure = ({ code = 1, stdout = "", stderr = "", message = "command failed" } = {}) => {
+  const error = new Error(message);
+  error.code = code;
+  error.stdout = stdout;
+  error.stderr = stderr;
+  return error;
+};
 
 test("uses the injected official token first and records the detected Codex agent", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "setup-ciba-test-"));
@@ -31,44 +41,258 @@ test("uses the injected official token first and records the detected Codex agen
   assert.equal(receipt.authentication_mode, "injected_user_token");
   assert.equal(request.execution.execution_agent, "codex");
   assert.equal(request.execution.pull_id, "22222222-2222-4222-8222-222222222222");
+  assert.equal(JSON.stringify(receipt).includes("official-token"), false);
+  assert.equal(JSON.stringify(request).includes("official-token"), false);
 });
 
-test("uses the official exchange fallback and treats CIBA confirmation as a stop condition", async () => {
-  const exchange = async () => ({ stdout: JSON.stringify({ access_token: "ciba-token" }) });
-  assert.deepEqual(await tokenFromOfficialExchange({ environment: {}, execute: exchange }), { token: "ciba-token", mode: "official_moa_exchange" });
-  await assert.rejects(
-    tokenFromOfficialExchange({ environment: {}, execute: async () => { const error = new Error("pending"); error.stdout = JSON.stringify({ code: "MOA_AUTH_REQUEST_PENDING" }); throw error; } }),
-    (error) => error instanceof RuleBundleError && error.code === "RULE_BUNDLE_CIBA_CONFIRMATION_REQUIRED",
-  );
-  await assert.rejects(
-    tokenFromOfficialExchange({ environment: {}, execute: async () => { const error = new Error("rejected"); error.stdout = JSON.stringify({ code: "MOA_USER_REJECTED" }); throw error; } }),
-    (error) => error instanceof RuleBundleError && error.code === "RULE_BUNDLE_CIBA_REJECTED",
-  );
-  await assert.rejects(
-    tokenFromOfficialExchange({ environment: {}, execute: async () => { const error = new Error("missing client id"); error.stderr = "错误: 缺少 client_id"; throw error; } }),
-    (error) => error instanceof RuleBundleError && error.code === "RULE_BUNDLE_SSO_AGENT_CONFIG_REQUIRED",
+test("forwards an explicit bootstrap domain through the SSO wrapper", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "setup-domain-forward-"));
+  await mkdir(path.join(root, ".git"));
+  const files = [{ relative_path: "l1/java-l1/java.md", content: "# Java\n" }];
+  const projected = files.map((file) => ({
+    ...file, sha256: sha256Hex(file.content), byte_size: Buffer.byteLength(file.content),
+  }));
+  const refs = [{ rule_set_id: "java-l1", release_id: "java-l1@test", scope_level: "L1" }];
+  const manifestHash = sha256Hex(canonicalJson(projected.map(({
+    relative_path, sha256, byte_size,
+  }) => ({ relative_path, sha256, byte_size }))));
+  const snapshotId = sha256Hex(canonicalJson({
+    bootstrap_version: "l1-bootstrap-bundle/v1",
+    standard_domain: "backend",
+    manifest_hash: manifestHash,
+    release_refs: refs,
+  }));
+  const requests = [];
+  const receipt = await syncWithOfficialSso({
+    environment: { RULE_OBSERVABILITY_USER_TOKEN: "official-token" },
+    options: { repoRoot: root, repositoryLocator: "team/new-java", domain: "backend" },
+    fetchImpl: async (url, init) => {
+      requests.push(JSON.parse(init.body));
+      return url.endsWith("/v1/effective-rule-bundles/resolve")
+        ? errorResponse("repository_not_registered", 404)
+        : response({
+          schema_version: "l1-bootstrap-bundle/v1",
+          status: "ready",
+          snapshot: {
+            bootstrap_version: "l1-bootstrap-bundle/v1", snapshot_id: snapshotId,
+            standard_domain: "backend", release_refs: refs,
+            manifest_hash: manifestHash, total_bytes: projected[0].byte_size,
+          },
+          files: projected,
+        });
+    },
+  });
+  assert.equal(requests[1].standard_domain, "backend");
+  assert.equal(receipt.domain_source, "user_explicit");
+});
+
+test("accepts official JSON tokens and gateway placeholders and passes the explicit environment", async () => {
+  const environment = { PATH: "/test/bin" };
+  const calls = [];
+  const execute = async (...args) => {
+    calls.push(args);
+    return { stdout: JSON.stringify({ access_token: "official-ticket" }) };
+  };
+  assert.deepEqual(await tokenFromOfficialExchange({ environment, execute }), { token: "official-ticket", mode: "official_moa_exchange" });
+  assert.equal(calls[0][2].env, environment);
+  assert.deepEqual(
+    await tokenFromOfficialExchange({ environment, execute: async () => ({ stdout: "AT_FOR_GW_BASE64_placeholder" }) }),
+    { token: "AT_FOR_GW_BASE64_placeholder", mode: "official_gateway_exchange" },
   );
 });
 
-test("falls back to CIBA/MOA once only when an injected user ticket is rejected", async () => {
+test("stops for V13 exit 42 and legacy exit 1 access denials without portable fallback", async () => {
+  for (const exitCode of [42, 1]) {
+    let calls = 0;
+    await assert.rejects(
+      tokenFromOfficialExchange({
+        environment: {}, mis: "zhangce07",
+        execute: async () => {
+          calls += 1;
+          throw commandFailure({ code: exitCode, stdout: JSON.stringify({ error: "act_access_denied", error_description: "请由调用方管理员申请 UAC 代理权限" }) });
+        },
+      }),
+      (error) => error instanceof RuleBundleError && error.code === "RULE_BUNDLE_SSO_ACCESS_DENIED" && error.message.includes("UAC 代理权限"),
+    );
+    assert.equal(calls, 1);
+  }
+});
+
+test("treats exit-zero error JSON as failure", async () => {
+  await assert.rejects(
+    tokenFromOfficialExchange({ environment: {}, execute: async () => ({ stdout: JSON.stringify({ error: "sub_access_denied", error_description: "用户未授权" }) }) }),
+    (error) => error instanceof RuleBundleError && error.code === "RULE_BUNDLE_SSO_ACCESS_DENIED",
+  );
+  await assert.rejects(
+    tokenFromOfficialExchange({ environment: {}, execute: async () => ({ stdout: JSON.stringify({ code: "act_access_denied", error: { message: "调用方无代理权限" } }) }) }),
+    (error) => error instanceof RuleBundleError && error.code === "RULE_BUNDLE_SSO_ACCESS_DENIED",
+  );
+});
+
+test("classifies user action, pending, rejection, and cooldown as stop conditions", async () => {
+  const cases = [
+    [{ error: "ric_feedback_required", error_description: "请在大象完成风险确认" }, "RULE_BUNDLE_SSO_USER_ACTION_REQUIRED"],
+    [{ code: "MOA_AUTH_REQUEST_PENDING" }, "RULE_BUNDLE_CIBA_CONFIRMATION_REQUIRED"],
+    [{ success: false, error: { code: "MOA_NOT_LOGGED_IN" } }, "RULE_BUNDLE_CIBA_CONFIRMATION_REQUIRED"],
+    [{ code: "MOA_USER_REJECTED" }, "RULE_BUNDLE_CIBA_REJECTED"],
+    [{ code: "MOA_REJECT_COOLDOWN" }, "RULE_BUNDLE_CIBA_REJECTED"],
+  ];
+  for (const [payload, expectedCode] of cases) {
+    await assert.rejects(
+      tokenFromOfficialExchange({ environment: {}, execute: async () => ({ stdout: JSON.stringify(payload) }) }),
+      (error) => error instanceof RuleBundleError && error.code === expectedCode,
+    );
+  }
+});
+
+test("uses portable CIBA once only for explicit official Agent configuration failure", async () => {
+  const environment = { SSO_USER_ID: "zhangce07" };
+  const calls = [];
+  const credential = await tokenFromOfficialExchange({
+    environment,
+    execute: async (command, args, options) => {
+      calls.push({ command, args, options });
+      if (command === "npx") throw commandFailure({ stderr: "错误: 缺少 client_id" });
+      return { stdout: JSON.stringify({ token: "portable-ticket" }) };
+    },
+  });
+  assert.deepEqual(credential, { token: "portable-ticket", mode: "portable_sso_ciba" });
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].command, process.execPath);
+  assert.deepEqual(calls[1].args.slice(-2), ["--mis", "zhangce07"]);
+  assert.equal(calls[1].options.env, environment);
+  assert.equal(calls[1].options.timeout, 150_000);
+});
+
+test("uses portable CIBA for an explicit local capability unavailable response", async () => {
+  let calls = 0;
+  const credential = await tokenFromOfficialExchange({
+    environment: {},
+    mis: "zhangce07",
+    execute: async (command) => {
+      calls += 1;
+      if (command === "npx") {
+        return { stdout: JSON.stringify({ success: false, error: { code: "MOA_UNSUPPORTED" } }) };
+      }
+      return { stdout: JSON.stringify({ token: "portable-capability-ticket" }) };
+    },
+  });
+  assert.deepEqual(credential, { token: "portable-capability-ticket", mode: "portable_sso_ciba" });
+  assert.equal(calls, 2);
+});
+
+test("does not use portable CIBA for permission, network, timeout, or invalid-response failures", async () => {
+  const failures = [
+    commandFailure({ code: 42, stdout: JSON.stringify({ error: "sub_act_access_denied" }) }),
+    commandFailure({ code: 42, stderr: "missing client_id" }),
+    commandFailure({ code: "ENOTFOUND", stderr: "network unavailable" }),
+    commandFailure({ code: "ENOTFOUND", stderr: "network unavailable; missing client_id" }),
+    commandFailure({ code: 1, stderr: "fetch failed: missing client_id" }),
+    commandFailure({ code: 1, stderr: "网络请求失败：缺少 client_id" }),
+    commandFailure({ code: "ETIMEDOUT", message: "timed out" }),
+    Object.assign(commandFailure({ stderr: "missing client_id" }), { killed: true, signal: "SIGTERM" }),
+  ];
+  for (const failure of failures) {
+    let calls = 0;
+    await assert.rejects(
+      tokenFromOfficialExchange({ environment: {}, mis: "zhangce07", execute: async () => { calls += 1; throw failure; } }),
+      RuleBundleError,
+    );
+    assert.equal(calls, 1);
+  }
+  let invalidCalls = 0;
+  await assert.rejects(
+    tokenFromOfficialExchange({ environment: {}, mis: "zhangce07", execute: async () => { invalidCalls += 1; return { stdout: "not-json" }; } }),
+    (error) => error.code === "RULE_BUNDLE_SSO_EXCHANGE_FAILED",
+  );
+  assert.equal(invalidCalls, 1);
+});
+
+test("requires MIS before starting portable CIBA", async () => {
+  let calls = 0;
+  await assert.rejects(
+    tokenFromOfficialExchange({ environment: {}, execute: async () => { calls += 1; throw commandFailure({ stderr: "missing client_id" }); } }),
+    (error) => error instanceof RuleBundleError && error.code === "RULE_BUNDLE_PORTABLE_MIS_REQUIRED",
+  );
+  assert.equal(calls, 1);
+});
+
+test("converts portable helper failures to stable errors without exposing helper output", async () => {
+  let calls = 0;
+  await assert.rejects(
+    tokenFromOfficialExchange({
+      environment: {},
+      mis: "zhangce07",
+      execute: async (command) => {
+        calls += 1;
+        if (command === "npx") throw commandFailure({ stderr: "missing client_id" });
+        throw commandFailure({
+          stdout: JSON.stringify({ error: { code: "PORTABLE_AUTH_PROVIDER_REQUIRED", message: "secret-token-value" } }),
+          stderr: "Bearer secret-token-value",
+        });
+      },
+    }),
+    (error) => error.code === "RULE_BUNDLE_SSO_PORTABLE_PROVIDER_REQUIRED"
+      && !error.message.includes("secret-token-value"),
+  );
+  assert.equal(calls, 2);
+});
+
+test("captures portable tokens without including them in the receipt", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "setup-portable-receipt-"));
+  await mkdir(path.join(root, ".git"));
+  const receipt = await syncWithOfficialSso({
+    environment: {},
+    options: { mis: "zhangce07", repoRoot: root, repositoryLocator: "hfe/test", pullId: "33333333-3333-4333-8333-333333333333" },
+    execute: async (command) => {
+      if (command === "npx") throw commandFailure({ stderr: "缺少 client_id" });
+      return { stdout: JSON.stringify({ token: "portable-secret-ticket" }) };
+    },
+    fetchImpl: async () => response(bundle()),
+  });
+  assert.equal(receipt.authentication_mode, "portable_sso_ciba");
+  assert.equal(JSON.stringify(receipt).includes("portable-secret-ticket"), false);
+});
+
+test("refreshes an injected ticket only once after an explicit Edge unauthorized response", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "setup-ciba-retry-"));
   await mkdir(path.join(root, ".git"));
   const calls = [];
+  let exchangeCalls = 0;
   const receipt = await syncWithOfficialSso({
     environment: { RULE_OBSERVABILITY_USER_TOKEN: "expired-ticket", CATDESK_SESSION_ID: "current" },
     options: { repoRoot: root, repositoryLocator: "hfe/test", pullId: "44444444-4444-4444-8444-444444444444" },
-    execute: async () => ({ stdout: JSON.stringify({ access_token: "ciba-fallback-ticket" }) }),
+    execute: async () => { exchangeCalls += 1; return { stdout: JSON.stringify({ access_token: "replacement-ticket" }) }; },
     fetchImpl: async (_url, init) => {
       calls.push(init.headers.Authorization);
-      if (init.headers.Authorization === "Bearer expired-ticket") {
-        return { ok: false, status: 401, text: async () => JSON.stringify({ error: { code: "unauthorized" } }) };
-      }
+      if (init.headers.Authorization === "Bearer expired-ticket") return { ok: false, status: 401, text: async () => JSON.stringify({ error: { code: "unauthorized" } }) };
       return response(bundle());
     },
   });
-  assert.deepEqual(calls, ["Bearer expired-ticket", "Bearer ciba-fallback-ticket"]);
+  assert.deepEqual(calls, ["Bearer expired-ticket", "Bearer replacement-ticket"]);
+  assert.equal(exchangeCalls, 1);
   assert.equal(receipt.authentication_mode, "official_moa_exchange_after_injected_token_rejected");
   assert.equal(receipt.execution_agent, "catdesk");
+});
+
+test("does not refresh an injected ticket after another business rejection", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "setup-no-business-retry-"));
+  await mkdir(path.join(root, ".git"));
+  let exchangeCalls = 0;
+  await assert.rejects(
+    syncWithOfficialSso({
+      environment: { RULE_OBSERVABILITY_USER_TOKEN: "valid-user-ticket" },
+      options: { repoRoot: root, repositoryLocator: "hfe/test" },
+      execute: async () => { exchangeCalls += 1; return { stdout: JSON.stringify({ access_token: "unused" }) }; },
+      fetchImpl: async () => ({
+        ok: false,
+        status: 403,
+        text: async () => JSON.stringify({ error: { code: "repository_access_denied" } }),
+      }),
+    }),
+    (error) => error.code === "repository_access_denied",
+  );
+  assert.equal(exchangeCalls, 0);
 });
 
 test("does not guess an execution agent and accepts platform-specific declarations", () => {

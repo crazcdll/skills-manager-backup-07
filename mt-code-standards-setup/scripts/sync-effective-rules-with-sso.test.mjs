@@ -7,7 +7,14 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { RuleBundleError, canonicalJson, sha256Hex } from "./resolve-effective-rules.mjs";
-import { detectExecutionAgent, syncWithOfficialSso, tokenFromOfficialExchange } from "./sync-effective-rules-with-sso.mjs";
+import {
+  detectAuthAgent,
+  detectExecutionAgent,
+  EXTERNAL_AUTH_AGENTS,
+  selectAuthenticationRoute,
+  syncWithOfficialSso,
+  tokenFromOfficialExchange,
+} from "./sync-effective-rules-with-sso.mjs";
 
 const bundle = () => {
   const files = [{ relative_path: "l1/frontend-l1.md", content: "# L1\n" }];
@@ -39,10 +46,106 @@ test("uses the injected official token first and records the detected Codex agen
     fetchImpl: async (_url, init) => { request = JSON.parse(init.body); return response(bundle()); },
   });
   assert.equal(receipt.authentication_mode, "injected_user_token");
+  assert.equal(receipt.authentication_route_reason, "injected_user_token_present");
   assert.equal(request.execution.execution_agent, "codex");
   assert.equal(request.execution.pull_id, "22222222-2222-4222-8222-222222222222");
   assert.equal(JSON.stringify(receipt).includes("official-token"), false);
   assert.equal(JSON.stringify(request).includes("official-token"), false);
+  assert.equal(Object.hasOwn(request.execution, "auth_agent"), false);
+  assert.equal(Object.hasOwn(request.execution, "authentication_route_reason"), false);
+});
+
+test("routes all supported explicit external auth agents directly to portable CIBA", async () => {
+  assert.deepEqual([...EXTERNAL_AUTH_AGENTS], [
+    "github-copilot", "cursor", "windsurf", "claude-code", "codex", "gemini-cli", "amazon-q", "kiro",
+    "jetbrains-junie", "devin", "replit-agent", "cline", "roo-code", "aider", "trae", "qoder",
+    "tongyi-lingma", "tencent-codebuddy", "baidu-comate", "codegeex",
+  ]);
+  for (const authAgent of EXTERNAL_AUTH_AGENTS) {
+    const root = await mkdtemp(path.join(os.tmpdir(), "setup-external-auth-agent-"));
+    await mkdir(path.join(root, ".git"));
+    let officialCalls = 0;
+    let portableCalls = 0;
+    const receipt = await syncWithOfficialSso({
+      environment: {},
+      options: { authAgent, mis: "zhangce07", repoRoot: root, repositoryLocator: "hfe/test" },
+      execute: async (command) => {
+        if (command === "npx") officialCalls += 1;
+        else portableCalls += 1;
+        return { stdout: JSON.stringify({ token: `portable-${authAgent}` }) };
+      },
+      fetchImpl: async () => response(bundle()),
+    });
+    assert.equal(officialCalls, 0, authAgent);
+    assert.equal(portableCalls, 1, authAgent);
+    assert.equal(receipt.authentication_mode, "portable_sso_ciba", authAgent);
+    assert.equal(receipt.authentication_route_reason, "explicit_external_auth_agent", authAgent);
+  }
+});
+
+test("uses an injected token before validating an optional auth agent hint", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "setup-injected-auth-agent-"));
+  await mkdir(path.join(root, ".git"));
+  const receipt = await syncWithOfficialSso({
+    environment: { RULE_OBSERVABILITY_USER_TOKEN: "injected" },
+    options: { authAgent: "vscode", repoRoot: root, repositoryLocator: "hfe/test" },
+    fetchImpl: async () => response(bundle()),
+  });
+  assert.equal(receipt.authentication_mode, "injected_user_token");
+  assert.equal(receipt.authentication_route_reason, "injected_user_token_present");
+});
+
+test("detects high-confidence Codex and Claude Code environments for direct portable CIBA", async () => {
+  const cases = [
+    [{ CODEX_SESSION_ID: "session" }, "codex"],
+    [{ CLAUDE_CODE_ENTRYPOINT: "cli" }, "claude-code"],
+    [{ CLAUDECODE: "1" }, "claude-code"],
+  ];
+  for (const [environmentSignal, expectedAgent] of cases) {
+    const environment = { ...environmentSignal, SSO_USER_ID: "zhangce07" };
+    assert.equal(detectAuthAgent(environment).authAgent, expectedAgent);
+    assert.deepEqual(selectAuthenticationRoute({ environment }), {
+      route: "portable", reason: "detected_external_auth_agent", authAgent: expectedAgent,
+    });
+    const root = await mkdtemp(path.join(os.tmpdir(), "setup-detected-auth-agent-"));
+    await mkdir(path.join(root, ".git"));
+    let officialCalls = 0;
+    const receipt = await syncWithOfficialSso({
+      environment,
+      options: { repoRoot: root, repositoryLocator: "hfe/test" },
+      execute: async (command) => {
+        if (command === "npx") officialCalls += 1;
+        return { stdout: JSON.stringify({ token: "portable-detected-ticket" }) };
+      },
+      fetchImpl: async () => response(bundle()),
+    });
+    assert.equal(officialCalls, 0);
+    assert.equal(receipt.authentication_mode, "portable_sso_ciba");
+  }
+});
+
+test("keeps unknown and explicitly internal execution agents on the official exchange", async () => {
+  const cases = [
+    [{}, {}, "official_exchange_default"],
+    [{ CODEX_SESSION_ID: "nested" }, { agent: "catdesk" }, "explicit_internal_execution_agent"],
+  ];
+  for (const [environment, options, expectedReason] of cases) {
+    const root = await mkdtemp(path.join(os.tmpdir(), "setup-official-route-"));
+    await mkdir(path.join(root, ".git"));
+    const commands = [];
+    const receipt = await syncWithOfficialSso({
+      environment,
+      options: { ...options, repoRoot: root, repositoryLocator: "hfe/test" },
+      execute: async (command) => {
+        commands.push(command);
+        return { stdout: JSON.stringify({ access_token: "official-ticket" }) };
+      },
+      fetchImpl: async () => response(bundle()),
+    });
+    assert.deepEqual(commands, ["npx"]);
+    assert.equal(receipt.authentication_mode, "official_moa_exchange");
+    assert.equal(receipt.authentication_route_reason, expectedReason);
+  }
 });
 
 test("forwards an explicit bootstrap domain through the SSO wrapper", async () => {
@@ -275,6 +378,42 @@ test("refreshes an injected ticket only once after an explicit Edge unauthorized
   assert.equal(receipt.execution_agent, "catdesk");
 });
 
+test("keeps the external portable route when an injected ticket is rejected", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "setup-external-ciba-retry-"));
+  await mkdir(path.join(root, ".git"));
+  const authorizations = [];
+  const commands = [];
+  const receipt = await syncWithOfficialSso({
+    environment: {
+      RULE_OBSERVABILITY_USER_TOKEN: "expired-ticket",
+      CODEX_SESSION_ID: "current",
+      SSO_USER_ID: "zhangce07",
+    },
+    options: { repoRoot: root, repositoryLocator: "hfe/test" },
+    execute: async (command) => {
+      commands.push(command);
+      return { stdout: JSON.stringify({ token: "portable-replacement-ticket" }) };
+    },
+    fetchImpl: async (_url, init) => {
+      authorizations.push(init.headers.Authorization);
+      if (init.headers.Authorization === "Bearer expired-ticket") {
+        return {
+          ok: false, status: 401,
+          text: async () => JSON.stringify({ error: { code: "unauthorized" } }),
+        };
+      }
+      return response(bundle());
+    },
+  });
+  assert.deepEqual(commands, [process.execPath]);
+  assert.deepEqual(authorizations, ["Bearer expired-ticket", "Bearer portable-replacement-ticket"]);
+  assert.equal(receipt.authentication_mode, "portable_sso_ciba_after_injected_token_rejected");
+  assert.equal(
+    receipt.authentication_route_reason,
+    "detected_external_auth_agent_after_injected_token_rejected",
+  );
+});
+
 test("does not refresh an injected ticket after another business rejection", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "setup-no-business-retry-"));
   await mkdir(path.join(root, ".git"));
@@ -300,6 +439,22 @@ test("does not guess an execution agent and accepts platform-specific declaratio
   assert.deepEqual(detectExecutionAgent({ CATPAW_SESSION_ID: "x" }), { agent: "catpaw", source: "runner_heuristic_v1" });
   assert.deepEqual(detectExecutionAgent({ CLAUDE_CODE_ENTRYPOINT: "x" }), { agent: "claude", source: "runner_heuristic_v1" });
   assert.deepEqual(detectExecutionAgent({ AGENT_1024_SESSION: "x" }), { agent: "agent_1024", source: "runner_heuristic_v1" });
+  assert.deepEqual(
+    detectAuthAgent({ GITHUB_ACTIONS: "true", TERM_PROGRAM: "vscode" }),
+    { authAgent: "unknown", source: "unknown_v1" },
+  );
+  assert.equal(
+    selectAuthenticationRoute({
+      environment: { CATDESK_SESSION_ID: "internal", CODEX_SESSION_ID: "nested" },
+    }).route,
+    "official",
+  );
+  assert.equal(
+    selectAuthenticationRoute({
+      environment: { CATCLAW_SESSION_ID: "internal", CLAUDE_CODE_ENTRYPOINT: "nested" },
+    }).route,
+    "official",
+  );
 });
 
 test("runs the SSO wrapper when its Skill directory is installed as a symbolic link", async () => {
@@ -309,4 +464,10 @@ test("runs the SSO wrapper when its Skill directory is installed as a symbolic l
   const result = spawnSync(process.execPath, [entry, "--unexpected"], { encoding: "utf8" });
   assert.equal(result.status, 2);
   assert.match(result.stderr, /RULE_BUNDLE_ARGUMENT_INVALID/);
+  const invalidAuthAgent = spawnSync(process.execPath, [entry, "--auth-agent", "vscode"], {
+    encoding: "utf8",
+    env: { ...process.env, RULE_OBSERVABILITY_USER_TOKEN: "" },
+  });
+  assert.equal(invalidAuthAgent.status, 2);
+  assert.match(invalidAuthAgent.stderr, /RULE_BUNDLE_AUTH_AGENT_INVALID/);
 });

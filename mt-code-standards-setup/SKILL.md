@@ -11,7 +11,7 @@ skill-dependencies:
 metadata:
   skillhub.creator: "zhangce07"
   skillhub.updater: "zhangce07"
-  skillhub.version: "V10"
+  skillhub.version: "V11"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "141006"
   skillhub.high_sensitive: "false"
@@ -51,21 +51,27 @@ node -e "const cp=require('child_process'),fs=require('fs'),p=require('path'),np
 若 Runner 返回 `RULE_BUNDLE_SSO_PORTABLE_PROVIDER_REQUIRED`，说明当前 Node 下的包缺失或内置 shared 版本
 低于要求；在同一 Node 环境更新 `@it/oa-skills` 后重试。
 
-- 先读取或加载当前平台的 `mtsso-skills-official`，按它的流程取票；平台差异由官方 Skill 处理。
+- 先读取或加载当前平台的 `mtsso-skills-official`，理解官方 V13 默认换票合同和错误分类；平台已适配官方
+  SSO 时按该合同取票。
 - 实际执行前再把 `${user_access_token}` 替换为官方用户票据。
 - 票据只进入当前 Runner 的受控进程通信，不出现在参数、用户可见 stdout、manifest、规则文件或回复中。
 - 不读取浏览器 Cookie，不用 Git 作者、系统账号、应用 owner 或手填 MIS 冒充当前用户。
-- 优先使用运行环境已注入的官方用户票据。没有票据时，Runner 调用官方 `mtsso-moa-local-exchange`。
-  它会按网关拦截、扩展 Agent、本地 MOA 的顺序换票；本地 MOA 未授权时会发起大象 CIBA 授权卡片。
-- Codex、Claude Code 等非美团自带宿主仍先走上述官方路径。只有官方返回明确的 Agent `client_id`
-  配置缺失或本地换票能力不可用时，Runner 才使用 `oa-skills-shared` 的便携 `sso-ciba`；网络、超时、
-  非法响应、权限拒绝、人工确认、用户拒绝和冷却期均不得触发便携回退。
+- 优先使用运行环境已注入的官方用户票据。没有票据时，已知外部编码 Agent 直接使用
+  `oa-skills-shared` 的便携 `sso-ciba`，避免先执行缺少宿主 `client_id` 的官方 CLI；公司内部宿主和未知
+  宿主仍调用官方 `mtsso-moa-local-exchange`。官方 CLI 会按网关拦截、扩展 Agent、本地 MOA 的顺序换票。
+- 外部直达 CIBA 是本 Setup Skill 针对独立编码 Agent 的认证路由，不是对官方 V13 默认合同的改写，也不
+  冒充 `mtsso-moa-local-exchange` 的官方路径。20 个高覆盖外部 Agent 标识及选择规则见
+  [平台条件与验收](references/sso-platforms.md)；它们不是严格市场份额排名。
+- 未识别宿主走官方路径后，仅当官方返回明确的 Agent `client_id` 配置缺失或本地换票能力不可用时，才
+  回退便携 CIBA；网络、超时、非法响应、权限拒绝、人工确认、用户拒绝和冷却期均不得触发便携回退。
 - 便携 CIBA 需要当前操作者的公司 MIS，按 `--mis <MIS>` 或 `SSO_USER_ID` 读取。MIS 只作为 CIBA
   `login_hint`，不会写入规则请求或充当身份事实；业务 actor 仍由服务端验证短期用户票据后确定。
 - 便携认证固定换发 audience `923a237244`，缓存只允许写入单次进程创建的 `0700` 临时目录，完成或失败后
   删除整个目录；不读取或复用 Citadel 的 token/cache，也不复制、展示或要求用户提供 `client_secret`。
 - 便携 helper 仅供父 Runner 调用：票据通过父进程捕获的内部 stdout 返回，父 Runner 不转发该内容；不要单独
   执行 helper，也不要把 helper 输出写入终端、日志或文件。
+- receipt 可记录不敏感的 `authentication_mode` 和 `authentication_route_reason`，但认证宿主标识和路由原因
+  不得加入 Board 请求 Schema。
 - 收到 `RULE_BUNDLE_CIBA_CONFIRMATION_REQUIRED` 时，在大象确认后重新执行同一拉取；收到拒绝或冷却提示时停止，不能自动重试。
 - 官方换票的交互等待上限为 30 秒；便携 CIBA 单独允许最多 150 秒。超时均停止，由用户确认状态后重新执行。
 - 新增的组织管理员在首次登录平台前标记为“未经登录核验”，不能拉取规范。Runner 收到 `repository_user_login_unverified` 时，提示用户先访问并登录 [业务研发平台编码规范管理平台](https://quality-gate.nocode.sankuai.com/) 后重新拉取。
@@ -73,8 +79,8 @@ node -e "const cp=require('child_process'),fs=require('fs'),p=require('path'),np
 - 不把 `catdesk auth exchange` 写成跨平台前置条件，不自行注册 Agent、复制其他平台凭据或修改宿主 SSO 配置。
 
 便携路径能否线上使用还有一个发布前置：办公官方 Skills 默认调用方必须已获得对 `923a237244` 的 UAC
-代理授权。本仓库没有该线上授权的核验证据；完成真实用户端到端验收前，只能说明源码和本地合同已就绪，
-不能声称非美团宿主已在线可用。
+代理授权。已有 Codex 真实会话打通便携 CIBA 和规则安装，但这不能替代其余外部 Agent、用户权限和运行
+环境的逐项验收。
 
 CatDesk、CatPaw IDE、CatPaw 云端 Agent 和美团沙箱沿用同一份 Skill；前提是所在平台已完成官方 SSO
 适配并绑定当前用户。首次接入或出现缺少 `client_id`、登录/权限错误时，读取
@@ -105,14 +111,26 @@ node <skill_dir>/scripts/sync-effective-rules-with-sso.mjs \
   --repo-root "$PWD"
 ```
 
-Codex、Claude Code 等外部宿主若没有 `SSO_USER_ID`，还应传入当前操作者 MIS，供官方能力缺失时的便携
-CIBA 登录提示使用：
+Codex、Claude Code 会按高置信环境变量自动识别并直达便携 CIBA；若没有 `SSO_USER_ID`，还应传入当前
+操作者 MIS 作为 CIBA 登录提示：
 
 ```shell
 node <skill_dir>/scripts/sync-effective-rules-with-sso.mjs \
   --repo-root "$PWD" \
   --mis '<current-user-mis>'
 ```
+
+其他已知外部编码 Agent 应显式传入独立的认证宿主标识；例如 Cursor：
+
+```shell
+node <skill_dir>/scripts/sync-effective-rules-with-sso.mjs \
+  --repo-root "$PWD" \
+  --auth-agent cursor \
+  --mis '<current-user-mis>'
+```
+
+`--auth-agent` 只选择认证路径，不进入 Board 请求；允许值见
+[平台条件与验收](references/sso-platforms.md)。不要用 `--execution-agent` 代替它。
 
 用户明确提供 locator 时增加一个参数：
 
@@ -132,7 +150,8 @@ node <skill_dir>/scripts/sync-effective-rules-with-sso.mjs \
 
 执行 Agent 应在可确认自身环境时传入 `--execution-agent`：`catdesk`、`catpaw`、`claude`、
 `codex`、`agent_1024`、`sandbox` 或 `catx`。未传时 Runner 只按环境变量识别，不能识别会记录为
-`unknown`，不猜测。不要改参数、复制脚本逻辑或在失败后改走旧接口。Runner 的成功 stdout 是正式包的
+`unknown`，不猜测。该参数只用于 Board 观测，不能承载 Cursor 等外部认证宿主标识。不要改参数、复制脚本
+逻辑或在失败后改走旧接口。Runner 的成功 stdout 是正式包的
 `mt-effective-rule-bundle-install/v1` 或引导 L1 的 `mt-l1-bootstrap-install/v1` receipt；其他文字、Agent 回复或 HTTP `accepted` 均不能作为安装成功证据。
 
 ## 本地目录合同

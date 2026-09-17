@@ -35,12 +35,21 @@ const LOCAL_CAPABILITY_MISSING_MARKERS = [
   "MOA_UNSUPPORTED", "MOA_NOT_SUPPORTED", "support_type: none", '"support_type":"none"',
   "所有换票路径均不可用", "未找到可用的换票能力", "mtsso-moa-local-exchange: not found",
 ];
+export const EXTERNAL_AUTH_AGENTS = new Set([
+  "github-copilot", "cursor", "windsurf", "claude-code", "codex", "gemini-cli", "amazon-q", "kiro",
+  "jetbrains-junie", "devin", "replit-agent", "cline", "roo-code", "aider", "trae", "qoder",
+  "tongyi-lingma", "tencent-codebuddy", "baidu-comate", "codegeex",
+]);
+const INTERNAL_EXECUTION_AGENTS = new Set(["catx", "catpaw", "catdesk", "agent_1024", "sandbox"]);
+const INTERNAL_AUTH_ENV_PREFIXES = [
+  "CATX_", "CATPAW_", "CATDESK_", "CATCLAW_", "AGENT_1024", "AGENT1024", "SANDBOX",
+];
 
 const text = (value) => String(value ?? "").trim();
 const parseArgs = (argv) => {
   const result = {};
   const valued = new Set([
-    "--repository", "--repo-root", "--gateway-url", "--execution-agent", "--skill-version",
+    "--repository", "--repo-root", "--gateway-url", "--execution-agent", "--auth-agent", "--skill-version",
     "--pull-id", "--mis", "--domain",
   ]);
   for (let index = 0; index < argv.length; index += 1) {
@@ -53,6 +62,7 @@ const parseArgs = (argv) => {
     else if (key === "--repo-root") result.repoRoot = value;
     else if (key === "--gateway-url") result.gatewayUrl = value;
     else if (key === "--execution-agent") result.agent = value;
+    else if (key === "--auth-agent") result.authAgent = value;
     else if (key === "--skill-version") result.skillVersion = value;
     else if (key === "--pull-id") result.pullId = value;
     else if (key === "--mis") result.mis = value;
@@ -72,6 +82,48 @@ export const detectExecutionAgent = (environment = process.env) => {
   if (has("AGENT_1024") || has("AGENT1024")) return { agent: "agent_1024", source: "runner_heuristic_v1" };
   if (has("SANDBOX")) return { agent: "sandbox", source: "runner_heuristic_v1" };
   return { agent: "unknown", source: "legacy_unknown_v1" };
+};
+
+export const detectAuthAgent = (environment = process.env) => {
+  const has = (prefix) => Object.keys(environment).some((key) => key.startsWith(prefix));
+  if (has("CLAUDE_CODE") || has("CLAUDECODE")) {
+    return { authAgent: "claude-code", source: "environment_heuristic_v1" };
+  }
+  if (has("CODEX_")) return { authAgent: "codex", source: "environment_heuristic_v1" };
+  return { authAgent: "unknown", source: "unknown_v1" };
+};
+
+export const selectAuthenticationRoute = ({
+  environment = process.env, authAgent, executionAgent,
+} = {}) => {
+  const explicitAuthAgent = text(authAgent);
+  if (text(environment.RULE_OBSERVABILITY_USER_TOKEN)) {
+    return { route: "injected", reason: "injected_user_token_present", authAgent: explicitAuthAgent || "unknown" };
+  }
+  if (explicitAuthAgent && !EXTERNAL_AUTH_AGENTS.has(explicitAuthAgent)) {
+    throw new RuleBundleError(
+      "RULE_BUNDLE_AUTH_AGENT_INVALID",
+      "认证 Agent 必须是受支持的外部编码 Agent 标识。",
+    );
+  }
+  if (explicitAuthAgent) {
+    return { route: "portable", reason: "explicit_external_auth_agent", authAgent: explicitAuthAgent };
+  }
+  if (INTERNAL_EXECUTION_AGENTS.has(text(executionAgent))) {
+    return { route: "official", reason: "explicit_internal_execution_agent", authAgent: "unknown" };
+  }
+  if (Object.keys(environment).some((key) => INTERNAL_AUTH_ENV_PREFIXES.some((prefix) => key.startsWith(prefix)))) {
+    return { route: "official", reason: "detected_internal_host", authAgent: "unknown" };
+  }
+  const detectedExecution = detectExecutionAgent(environment);
+  if (INTERNAL_EXECUTION_AGENTS.has(detectedExecution.agent)) {
+    return { route: "official", reason: "detected_internal_execution_agent", authAgent: "unknown" };
+  }
+  const detectedAuth = detectAuthAgent(environment);
+  if (EXTERNAL_AUTH_AGENTS.has(detectedAuth.authAgent)) {
+    return { route: "portable", reason: "detected_external_auth_agent", authAgent: detectedAuth.authAgent };
+  }
+  return { route: "official", reason: "official_exchange_default", authAgent: "unknown" };
 };
 
 const parseJson = (raw) => {
@@ -172,7 +224,7 @@ const tokenFromPortableProvider = async ({ mis, environment, execute }) => {
   if (!normalizedMis) {
     throw new RuleBundleError(
       "RULE_BUNDLE_PORTABLE_MIS_REQUIRED",
-      "当前宿主缺少官方换票能力；便携 CIBA 需要通过 --mis 或 SSO_USER_ID 提供当前公司用户 MIS。",
+      "便携 CIBA 需要通过 --mis 或 SSO_USER_ID 提供当前公司用户 MIS。",
     );
   }
   const helper = fileURLToPath(new URL("./portable-user-auth.mjs", import.meta.url));
@@ -237,6 +289,18 @@ export const tokenFromOfficialExchange = async ({
   throw new RuleBundleError("RULE_BUNDLE_SSO_EXCHANGE_FAILED", "官方 SSO 换票未返回可用用户票据。");
 };
 
+const tokenFromSelectedRoute = async ({
+  selection, environment, execute = execFileAsync, mis,
+}) => {
+  if (selection.route === "injected") {
+    return { token: text(environment.RULE_OBSERVABILITY_USER_TOKEN), mode: "injected_user_token" };
+  }
+  if (selection.route === "portable") {
+    return tokenFromPortableProvider({ mis, environment, execute });
+  }
+  return tokenFromOfficialExchange({ environment, execute, mis });
+};
+
 export const syncWithOfficialSso = async ({
   options = {}, environment = process.env, execute, fetchImpl,
 } = {}) => {
@@ -245,6 +309,11 @@ export const syncWithOfficialSso = async ({
   if (explicitAgent && !EXECUTION_AGENTS.has(explicitAgent)) {
     throw new RuleBundleError("RULE_BUNDLE_EXECUTION_INVALID", "执行 Agent 必须是受支持的平台标识。");
   }
+  let selection = selectAuthenticationRoute({
+    environment,
+    authAgent: options.authAgent,
+    executionAgent: explicitAgent,
+  });
   const pullId = options.pullId || randomUUID();
   const run = (credential) => syncEffectiveRuleBundle({
     gatewayUrl: options.gatewayUrl,
@@ -260,19 +329,33 @@ export const syncWithOfficialSso = async ({
       skillVersion: options.skillVersion,
     },
   });
-  let credential = await tokenFromOfficialExchange({ environment, execute, mis: options.mis });
+  let credential = await tokenFromSelectedRoute({
+    selection, environment, execute, mis: options.mis,
+  });
   try {
     const receipt = await run(credential);
-    return { ...receipt, authentication_mode: credential.mode };
+    return {
+      ...receipt,
+      authentication_mode: credential.mode,
+      authentication_route_reason: selection.reason,
+    };
   } catch (error) {
     if (credential.mode !== "injected_user_token" || error?.code !== "unauthorized") throw error;
-    credential = await tokenFromOfficialExchange({
-      environment: { ...environment, RULE_OBSERVABILITY_USER_TOKEN: "" },
-      execute,
-      mis: options.mis,
+    const retryEnvironment = { ...environment, RULE_OBSERVABILITY_USER_TOKEN: "" };
+    selection = selectAuthenticationRoute({
+      environment: retryEnvironment,
+      authAgent: options.authAgent,
+      executionAgent: explicitAgent,
+    });
+    credential = await tokenFromSelectedRoute({
+      selection, environment: retryEnvironment, execute, mis: options.mis,
     });
     const receipt = await run(credential);
-    return { ...receipt, authentication_mode: `${credential.mode}_after_injected_token_rejected` };
+    return {
+      ...receipt,
+      authentication_mode: `${credential.mode}_after_injected_token_rejected`,
+      authentication_route_reason: `${selection.reason}_after_injected_token_rejected`,
+    };
   }
 };
 

@@ -5,7 +5,7 @@
   "sort_order": 25,
   "tools": {
     "catpaw": true,
-    "claude_code": false,
+    "claude_code": true,
     "codex": true,
     "deepseek_harness": true,
     "opencode": true

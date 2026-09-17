@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "cbd324f8-243e-439a-8f79-6f10a926f893",
+  "path": "ai-auto-test-report",
+  "path_key": "ai-auto-test-report",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

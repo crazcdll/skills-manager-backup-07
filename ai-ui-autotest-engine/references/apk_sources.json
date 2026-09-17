@@ -1,0 +1,26 @@
+{
+  "_comment": "可测性 App 安装包来源配置。供 install-app 脚本使用。更新版本时只需修改此文件。Android/Harmony 是完全独立发布的安装包（不同格式、不同版本号节奏），按 platform 分层存储；package 字段仅作交叉展示，实际探测/安装以 AppDescriptor.package_name 为准。",
+  "meituan": {
+    "android": {
+      "testability_apk_url": "https://hyperloop-s3.sankuai.com/hpx-artifacts/5707119-1559-1785814830105614/aimeituan-release_12.63.400-565173-aarch32.apk",
+      "version": "12.63.400",
+      "package": "com.sankuai.meituan",
+      "updated": "2026-07-01"
+    },
+    "harmony": {
+      "_comment": "testability_apk_url 必须是 HPX 生成的企业安装页 HTML 页面 URL（harmony-inhouse-*.html），不是 .hap 直链——HarmonyOS 对企业签名包的 hdc install 有较高概率因签名校验失败，只有通过系统浏览器打开该安装页触发的系统级安装器才是稳定安装方式，详见 platform/harmony/ops.py::HarmonyOps.install_app 顶部说明。",
+      "testability_apk_url": "https://hyperloop-s3.sankuai.com/hpx-artifacts/5793626-22501-1787211950740662/harmony-inhouse-meituan-65152.html",
+      "version": "12.64.400",
+      "package": "com.sankuai.hmeituan.beta",
+      "updated": "2026-08-20"
+    }
+  },
+  "adb_keyboard": {
+    "_comment": "ADBKeyboard 输入法 APK（内置），用于支持 adb 中文输入。setup 阶段自动安装并设为默认输入法。",
+    "local_apk": "references/ADBKeyboard.apk",
+    "package": "com.android.adbkeyboard",
+    "ime_id": "com.android.adbkeyboard/.AdbIME",
+    "version": "2.0",
+    "updated": "2026-07-06"
+  }
+}

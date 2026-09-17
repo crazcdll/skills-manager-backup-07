@@ -1,0 +1,1 @@
+# platform/ios/apps package — iOS 各目标 App 的 AppDescriptor 实现，一 App 一文件。

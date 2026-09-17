@@ -1,0 +1,7 @@
+skill-manifest-version: 1
+skill-id: ac06427846b5791a015079eba0bef264d225b9ef58d67ec3f4277719b6d94d33
+
+files:
+  385f7b466dfd5b127cb975b3240a49606fc15b64086cb72f118d59df1ff2a600  SKILL.md
+  ed88937e7affe25f469df42ac21dd5c3c5a22c5bbc900c9060431e08c01e8ec8  scripts/env_setup.py
+  861314dede7efebf076c22101bfe6f6a291d3626c14ef508e79d9e8178be2073  scripts/report_usage.py

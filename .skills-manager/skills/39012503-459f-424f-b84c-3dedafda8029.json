@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "39012503-459f-424f-b84c-3dedafda8029",
+  "path": "ai-ui-autotest-engine",
+  "path_key": "ai-ui-autotest-engine",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

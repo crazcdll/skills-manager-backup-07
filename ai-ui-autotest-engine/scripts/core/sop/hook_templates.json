@@ -1,0 +1,149 @@
+{
+  "pre_step": [
+    {
+      "id": "check_device_alive",
+      "desc": "设备连通性检查",
+      "required": true,
+      "auto": true
+    },
+    {
+      "id": "check_screen_interactive",
+      "desc": "设备熄屏/锁屏检查（仅本地真机场景，云模拟器/云真机跳过）",
+      "required": true,
+      "auto": true
+    }
+  ],
+  "on_pass": [],
+  "on_text_assertion": [
+    {
+      "id": "verify_text_assertion",
+      "desc": "T1 程序化匹配未命中，需 AI 读元素目录做语义确认。对每条断言按 id 独立判定，注意 present / gone 方向相反：present —— 文案一致→pass/exact，形态差异但语义等价→pass/semantic，文案不存在→fail；gone —— 页面已完全找不到 expect（含子串形态）→pass，仍以任何形态存在→fail。判定结果通过 override-step-result 一次性写入。",
+      "required": true,
+      "cli_hint": "【AI 语义确认】T1 程序化匹配未命中，需 AI 读元素目录做语义确认。\n\nAssertion Catalog（待确认的断言清单）：\n{assertion_list}\n\n判定口径（result = 判成什么，verdict = 怎么判出来的），按断言自己的 match 选方向：\n  match=present（期望出现）\n   result=pass, verdict=exact    —— 页面文案与 expect 完全一致\n   result=pass, verdict=semantic —— 形态差异但语义等价：截断/省略/跨节点拆分/空白或全半角差异，或 expect 是页面复合文案的子串\n   result=fail                   —— 文案不存在，或语义不等价\n  match=gone（期望消失，方向相反）\n   result=pass, verdict=exact    —— 页面已完全找不到 expect（含子串形态）\n   result=fail                   —— expect 仍以任何形态存在，reason 写清实测值\n\n1️⃣ 读元素目录文件\n   用 read_file 工具读取: {sidecar_path}\n   文件是 markdown 格式的元素目录，按视口分区（视口内 / 视口下方 / 视口上方），\n   每个元素一行，含 ID/类型/文案/center 坐标/可点击标记。\n   直接扫描文案列即可确认目标是否在页面中，无需额外 grep/脚本过滤。\n\n2️⃣ 对每条断言按 id 独立判定（对照目录的「文案」列）\n\n3️⃣ 一次性写入所有断言的判定结果（JSON dict，键=断言 id）\n     python3 scripts/cli.py override-step-result --pass/--fail --sid {{sid}} \\\n       --assert-verdict '{{\"A1\":{{\"result\":\"pass\",\"verdict\":\"exact\",\"actual\":\"待使用\"}}}}' \\\n       --desc '(分析总结)'\n\n   ⚠️ 一个步骤的所有断言（text + visual）只写一次 override：两个 hook\n      共用同一份 --assert-verdict，逐条按 id 给出 result / verdict。\n   ⚠️ 断言判定是步骤结论的唯一依据：全部 pass 才可 --pass，有任意 result=fail\n      则必须 --fail，不得出现「断言失败但步骤通过」。\n   ⚠️ result=fail 时必须在 reason 写清「实测值 vs 期望（expect / criteria）」。\n\n4️⃣ 标记完成\n   python3 scripts/cli.py flow-next --done-hooks verify_text_assertion"
+    }
+  ],
+  "on_visual_assertion": [
+    {
+      "id": "verify_visual_assertion",
+      "desc": "视觉断言需 AI 读图判定（result=pass/fail，verdict=visual）。每条断言按自己的 expect / criteria / targets 逐项判定；targets 中任一不满足则整条断言 fail，且不得因「模块存在/渲染正常」放行带硬性标准（位数/数值/状态等）的断言。判定结果通过 override-step-result 一次性写入。",
+      "required": true,
+      "cli_hint": "【视觉确认】需读图确认 UI 呈现，对每条 visual 断言独立判定。\n\nAssertion Catalog（需视觉确认的断言清单）：\n{assertion_list}\n\n1️⃣ 读元素目录确认目标视口状态\n   用 read_file 读取 {sidecar_path}，查看目标文案所在分区（视口内 / 下方 / 上方）。\n\n2️⃣ 目标不在视口时先滚动到目标，再重新读图\n   - 从目录的 center 列取参考坐标\n   - 滚动：python3 scripts/cli.py step scroll-until --action-arg '<目标文案>'\n   - 重新截图：python3 scripts/cli.py screenshot --out <新截图文件名>\n\n3️⃣ 读截图逐项判定（截图：{screenshot_path}，对照每条断言的 expect / criteria / targets）\n   带 targets 的断言必须逐项给出结果，不得只看「模块是否存在」。\n\n4️⃣ 一次性写入所有视觉断言的判定结果（键=断言 id）\n     python3 scripts/cli.py override-step-result --pass/--fail --sid {{sid}} \\\n       --assert-verdict '{{\"A3\":{{\"result\":\"fail\",\"verdict\":\"visual\",\"actual\":\"实测 13 位\",\"reason\":\"未满足 criteria：券码为 11 位数字\",\"targets\":[{{\"expect\":\"二维码可见\",\"result\":\"pass\",\"actual\":\"可见\"}},{{\"expect\":\"券码为 11 位数字\",\"result\":\"fail\",\"actual\":\"0100 8514 7753 8（13 位）\"}}]}},\"A4\":{{\"result\":\"pass\",\"verdict\":\"visual\"}}}}' \\\n       --desc '(视觉确认总结)'\n\n   ⚠️ 一个步骤的所有断言（text + visual）只写一次 override：两个 hook\n      共用同一份 --assert-verdict，逐条按 id 给出 result / verdict。\n   ⚠️ 断言判定是步骤结论的唯一依据：全部 pass 才可 --pass，有任意 result=fail\n      则必须 --fail，不得出现「断言失败但步骤通过」。\n   ⚠️ result=fail 时必须在 reason 写清「实测值 vs 期望（expect / criteria）」。\n\n4️⃣ 标记完成\n   python3 scripts/cli.py flow-next --done-hooks verify_visual_assertion"
+    }
+  ],
+  "on_text_visual_recheck": [
+    {
+      "id": "verify_text_visual_recheck",
+      "desc": "T2 语义确认的视觉复核：读图确认 T1 未命中的 text 断言在截图中确实可见（未被遮挡、不在滚动容器外）。复核不通过则修正该断言的 result/reason，不单独产生新的判定项。",
+      "required": false,
+      "cli_hint": "【视觉复核】复核上面 T2 语义确认的 text 断言：元素目录与真实截图是否一致。\n\n待复核断言：\n{assertion_list}\n\n1️⃣ 读截图：{screenshot_path}\n   对照元素目录 {sidecar_path} 与断言清单里的 match，按方向复核：\n   · match=present → 确认 expect 文案在截图中确实可见\n   · match=gone    → 确认 expect 文案在截图中确实不可见（任何形态都没有）\n\n2️⃣ 判定：\n   - 一致 → 无需额外动作，直接进入 3️⃣\n   - 不一致（present 却看不到 / gone 却仍可见 / 被遮挡）→ 用 override-step-result 修正该断言的\n     result / reason（复用同一份 --assert-verdict，勿重复写其他断言）\n\n4️⃣ 标记完成\n   python3 scripts/cli.py flow-next --done-hooks verify_text_visual_recheck"
+    }
+  ],
+  "on_api_fields_assertion": [
+    {
+      "id": "verify_api_fields",
+      "desc": "API 接口字段校验。程序已匹配到接口并提取了结构化数据，需 AI 读证据文件逐字段判定。",
+      "required": true,
+      "cli_hint": "【API 字段断言】程序已匹配到接口并提取了结构化数据，需 AI 逐字段校验。\n\n待校验字段清单：\n{expected_fields_list}\n\n1️⃣ 读证据文件\n   用 read_file 工具读取证据文件：{evidence_path}\n   文件包含原始请求/响应数据、拍平后的字段和待校验字段清单。\n\n2️⃣ 对每个期望字段做判定\n   逐项对比 expected_fields 与 extracted_fields：\n   - 从 extracted_fields 中找到对应字段的实际值\n   - 比对是否与期望值一致\n   - 记录通过/失败及原因\n\n3️⃣ 记录断言结果\n   使用 assert-fields 命令一次性记录所有字段的断言结果：\n     python3 scripts/cli.py assert-fields --sid {sid} --desc '接口字段断言完成' \\\n       --results '<field_results_json>'\n\n   field_results JSON 格式：\n     [{{\"field\":\"字段路径\",\"expected\":\"预期值\",\"actual\":\"实际值\",\"pass\":true,\"reason\":\"\"}}]\n\n4️⃣ 标记完成\n   assert-fields 命令会自动标记 hook 完成，然后执行 flow-next 推进：\n     python3 scripts/cli.py flow-next"
+    }
+  ],
+  "on_track_fields_assertion": [
+    {
+      "id": "verify_track_fields",
+      "desc": "埋点字段校验。程序已匹配到埋点事件并提取了结构化数据，需 AI 读证据文件逐字段判定。",
+      "required": true,
+      "cli_hint": "【埋点字段断言】程序已匹配到埋点事件并提取了结构化数据，需 AI 逐字段校验。\n\n待校验字段清单：\n{expected_fields_list}\n\n1️⃣ 读证据文件\n   用 read_file 工具读取证据文件：{evidence_path}\n   文件包含原始事件数据、拍平后的字段和待校验字段清单。\n\n2️⃣ 对每个期望字段做判定\n   逐项对比 expected_fields 与 extracted_fields：\n   - 从 extracted_fields 中找到对应字段的实际值\n   - 比对是否与期望值一致\n   - 记录通过/失败及原因\n\n3️⃣ 记录断言结果\n   使用 assert-fields 命令一次性记录所有字段的断言结果：\n     python3 scripts/cli.py assert-fields --sid {sid} --desc '埋点字段断言完成' \\\n       --results '<field_results_json>'\n\n   field_results JSON 格式：\n     [{{\"field\":\"字段路径\",\"expected\":\"预期值\",\"actual\":\"实际值\",\"pass\":true,\"reason\":\"\"}}]\n\n4️⃣ 标记完成\n   assert-fields 命令会自动标记 hook 完成，然后执行 flow-next 推进：\n     python3 scripts/cli.py flow-next"
+    }
+  ],
+  "on_text_not_found": [
+    {
+      "id": "resolve_text_not_found",
+      "desc": "TEXT_NOT_FOUND — tap-text 精确定位未命中：action_arg 与页面节点文案不一致（如页面是复合文案「已优惠¥219」而 action_arg 是「已优惠」）。需 AI 从候选节点选定目标并坐标点击完成操作；该口径差异记入 note，步骤结论由本步骤断言决定。",
+      "required": true,
+      "cli_hint": "【TEXT_NOT_FOUND】tap-text 精确定位未命中：action_arg 与页面节点文案不一致。\n这是最常见的场景（如底部栏文本是复合字符串\"¥236.69已优惠¥213\"，\n独立文案\"已优惠\"不存在）。不需要 find-text 重试。\n\n目标文案（action_arg）：{target_text}\n截图路径：{screenshot_path}\n\n候选节点（视图树中包含目标子串的节点，✅=可点击，坐标为设备绝对坐标）：\n{candidate_list}\n\n1️⃣ 读截图确认页面状态（错误页/白屏先恢复，不要直接判失败）\n\n2️⃣ 选定候选：\n   - 恰好一个 ✅ 可点击节点 → 即目标\n   - 多个候选 → 结合步骤 desc 与截图选最贴合的一个（整行/整块容器通常就是点击目标）\n   - 无候选 → 目标确实不在当前页面，见路径 C\n\n3️⃣ 用坐标完成点击（坐标点击只代表操作已发出，不代表步骤通过）：\n     python3 scripts/cli.py step tap --action-x <cx> --action-y <cy>\n   （坐标超出视口时引擎会自动滚动到视口后再点）\n   并把这次兜底操作绑到本步骤留痕（不要用 step --sid 重跑被声明的步骤，\n   会被 SID 冲突拦截）：\n     python3 scripts/cli.py log-record --sid {{sid}} --pass \\\n       --desc '坐标点击兜底：<实际文案>'\n\n4️⃣ 判定本步骤断言（一个步骤只写一次 override，逐条按 id 给出结果）\n   - 断言全部 pass（口径差异不影响页面功能正确性）→ 步骤 PASS，并留痕：\n     python3 scripts/cli.py override-step-result --pass --sid {{sid}} \\\n       --desc 'action_arg 与页面文案不一致，已按候选坐标点击完成操作' \\\n       --note 'action口径差异：target=<action_arg>, actual=<实际文案>, coordinate_tap=<x,y>' \\\n       --assert-verdict '{{\"<断言id>\":{{\"result\":\"pass\",\"verdict\":\"exact\",\"actual\":\"<页面实际文案>\"}}}}'\n   - 断言确有 fail → 步骤 FAIL，reason 写清实测值 vs expect：\n     python3 scripts/cli.py override-step-result --fail --sid {{sid}} \\\n       --desc '<失败结论>' \\\n       --assert-verdict '{{\"<断言id>\":{{\"result\":\"fail\",\"reason\":\"实测<实际值> ≠ 期望<expect>\"}}}}'\n\n   路径 C — 视图中完全没有包含目标子串的节点（目标不在当前页面）：\n     python3 scripts/cli.py override-step-result --fail --sid {{sid}} \\\n       --desc '页面不存在目标文案：<action_arg>（无任何子串候选）'\n\n   ⚠️ 一个步骤的所有断言（text + visual）只写一次 override：两个 hook\n      共用同一份 --assert-verdict，逐条按 id 给出 result / verdict。\n   ⚠️ 断言判定是步骤结论的唯一依据：全部 pass 才可 --pass，有任意 result=fail\n      则必须 --fail，不得出现「断言失败但步骤通过」。\n   ⚠️ result=fail 时必须在 reason 写清「实测值 vs 期望（expect / criteria）」。\n   ⚠️ action_arg 口径差异本身不是被测系统缺陷：不得因为它就把已通过的断言标 fail。\n\n5️⃣ relay-hook-result 记录本 hook 结论\n6️⃣ python3 scripts/cli.py flow-next --done-hooks resolve_text_not_found"
+    }
+  ],
+  "on_target_unresolved": [
+    {
+      "id": "resolve_target_unresolved",
+      "desc": "UNRESOLVED — 精确命中目标文案但文本节点不可点击且无可用可点击祖先",
+      "required": true,
+      "cli_hint": "【UNRESOLVED】目标文本已精确命中，但文本节点不可点击，\n且未找到可点击的祖先容器，无法自动上溯。\n\n目标文案：{target_text}\n截图路径：{screenshot_path}\n\n下方是目标周边的结构邻域树，红色（clickable）节点可直接 tap：\n{neighbor_tree}\n\n1️⃣ 读截图确认页面状态\n2️⃣ 分析结构邻域树，找到真实的点击目标：\n   - 可能是同级/子级的 CheckBox / Radio / 整行容器\n   - JSON 树中 clickable=true 的节点有 tap 坐标\n3️⃣ 跳转到真实点击目标：\n   python3 scripts/cli.py step tap --action-x <x> --action-y <y>\n4️⃣ relay-hook-result 记录结果\n5️⃣ flow-next --done-hooks resolve_target_unresolved"
+    }
+  ],
+  "on_target_ambiguous": [
+    {
+      "id": "resolve_target_ambiguous",
+      "desc": "AMBIGUOUS — 目标文案精确命中多个候选，需 AI 读截图消歧",
+      "required": true,
+      "cli_hint": "【AMBIGUOUS】目标文案精确命中 {candidate_count} 个候选可点击位置。\n\n目标文案：{target_text}\n截图路径：{screenshot_path}\n\n候选位置（坐标为设备绝对坐标，可直接 tap）：\n{candidate_list}\n\n1️⃣ 读截图确认目标上下文\n2️⃣ 结合步骤描述选择正确的候选：\n   python3 scripts/cli.py step tap --action-x <x> --action-y <y>\n3️⃣ relay-hook-result 记录结果\n4️⃣ flow-next --done-hooks resolve_target_ambiguous"
+    }
+  ],
+  "on_target_blocked": [
+    {
+      "id": "resolve_target_blocked",
+      "desc": "BLOCKED — 目标已被调试控件遮挡，需 AI 确认 Recce 移除结果或换坐标",
+      "required": true,
+      "cli_hint": "【BLOCKED】目标区域被调试控件遮挡。\n\n目标文案：{target_text}\n原目标坐标：({target_x}, {target_y})\n截图路径：{screenshot_path}\n\n1️⃣ 读截图确认 Recce 浮层是否已自动移除\n2️⃣ 若 Recce 已移除 → 直接重试 tap-text：\n   python3 scripts/cli.py step tap-text --action-arg \"{target_text}\"\n3️⃣ 若仍有遮挡 → 用 find-icon 取安全坐标：\n   python3 scripts/cli.py find-icon --anchor \"{target_text}\"\n4️⃣ relay-hook-result 记录结果\n5️⃣ flow-next --done-hooks resolve_target_blocked"
+    }
+  ],
+  "on_viewport_resolve": [
+    {
+      "id": "resolve_target_viewport",
+      "desc": "目标已在视图树中找到但不在视口内，需 AI 读截图分析滚动策略后执行",
+      "required": true,
+      "cli_hint": "【目标在视口外】AI 需确认滚动策略。\n\n目标文案：{target_text}\n目标坐标：({target_x}, {target_y})\n视口偏移：{viewport_offset}px\n视口横向偏移：{viewport_offset_x}px\n截图路径：{screenshot_path}\n\n1️⃣ 读截图分析页面结构（纵向列表还是横向容器），查看元素索引中 scrollable 和 scroll_dir 字段确认滚动容器\n2️⃣ 根据分析结果选择滚动命令：\n   纵向滚动 → step scroll-until --action-arg \"{target_text}\"\n   横向滚动 → step scroll-until --action-arg \"{target_text}\" --direction left\n3️⃣ 滚动成功 → step tap-text --action-arg \"{target_text}\"\n4️⃣ relay-hook-result 记录结果\n5️⃣ flow-next --done-hooks resolve_target_viewport"
+    }
+  ],
+  "on_scroll_target_not_found": [
+    {
+      "id": "resolve_scroll_target_not_found",
+      "desc": "SCROLL_TARGET_NOT_FOUND — scroll-until 精确匹配未命中，AI 读元素目录做语义匹配后决定下一步",
+      "required": true,
+      "cli_hint": "【SCROLL_TARGET_NOT_FOUND】scroll-until 用下方文案精确匹配未命中，已停止滚动。\n\n原目标文案（仅用于比对，不要原样重试）：{target_text}\n截图路径：{screenshot_path}\n\n📋 元素目录已写入（页面全量元素 + 分区 + center 坐标）：\n   {element_index_path}\n   用 read_file 读取该 markdown，直接扫「文案」列，无需 grep/脚本过滤。\n\n1️⃣ 在目录里做语义匹配，确认三件事：\n   · 页面上真实的**节点文案**是什么 —— 它才是可用的精确匹配值\n     （允许文本截断/省略/跨节点聚合）\n   · 该元素在哪个分区（视口内 / 视口上方 / 视口下方）\n   · 对应行的 center 坐标\n\n2️⃣ 按结果分支处理：\n\n   ⚠️ 重试必须使用 1️⃣ 找到的真实节点文案。原目标文案已精确匹配失败，\n      原样重试必然再次失败，不要浪费一轮。\n\n   路径 A — 找到语义匹配目标，且在视口内:\n     无需滚动，直接跳到 3️⃣\n     （仅代表滚动/定位动作完成，不代表断言通过）\n\n   路径 B — 找到语义匹配目标，但在视口外:\n     用真实节点文案滚动到位：\n        python3 scripts/cli.py step --sid {{sid}} scroll-until \\\n          --action-arg \"<1️⃣ 中匹配到的真实节点文案>\" --direction <up/down>\n     （目标在视口上方用 up，下方用 down）\n\n   路径 C — 目录里也没有语义等价元素（目标确实不存在）:\n     标记步骤 FAIL：\n        python3 scripts/cli.py override-step-result --fail \\\n          --sid {{sid}} --desc \"目标文案不存在：{target_text}\"\n\n3️⃣ relay-hook-result 记录结果\n   --resolution 写清口径差异，如 semantic_match:<原目标文案>→<真实节点文案>\n4️⃣ flow-next --done-hooks resolve_scroll_target_not_found\n\n⚠️ 重跑/定位不会重置本步骤原有断言：断言若仍为 pending，\n   flow-next 会继续提示 verify_text_assertion hook，需按该 hook 指引用\n   override-step-result --assert-verdict 一次性判定（键=断言 id）。\n   不要只完成本 hook 就让流程推进，否则报告会出现「步骤 PASS + 断言 pending」自相矛盾。"
+    }
+  ],
+  "on_scroll_exhausted": [
+    {
+      "id": "resolve_scroll_exhausted",
+      "desc": "VERTICAL/HORIZONTAL_SCROLL_EXHAUSTED — scroll-until 渐进滚动耗尽次数后目标仍未进入视口，需 AI 读截图判断状态后处理",
+      "required": true,
+      "cli_hint": "【SCROLL_EXHAUSTED】scroll-until 渐进滚动 {scroll_direction} 已达上限（{swipes}次），目标文案仍未进入视口。\n\n目标文案：{target_text}\n截图路径：{screenshot_path}\n滚动方向：{scroll_direction}\n\n1️⃣ 读截图判断当前状态：\n   - 页面是否已到底/顶边界（内容已加载完毕）\n   - 是否加载异常（骨架屏 / 错误态 / 空白）\n   - 目标是否已在视口内但 inspect-tree 未命中（WebView 渲染）\n\n2️⃣ 按结果分支处理：\n\n   路径 A — 目标已在视口（截图可见）:\n     用 find-text 或坐标定位：\n     python3 scripts/cli.py find-text --text \"{target_text}\"\n     如 find-text 返回坐标 → tap --action-x <x> --action-y <y>\n     步骤标记 PASS：\n     python3 scripts/cli.py override-step-result --pass \\\n       --sid {{sid}} --desc \"截图确认目标已在视口内\"\n\n   路径 B — 已到边界但目标不存在:\n     python3 scripts/cli.py override-step-result --fail \\\n       --sid {{sid}} --desc \"已滚动到底部/边界，目标不存在：{target_text}\"\n\n   路径 C — 页面状态异常:\n     按异常类型处理（重试 / 修复 / 跳过）\n\n3️⃣ relay-hook-result 记录结果\n4️⃣ flow-next --done-hooks resolve_scroll_exhausted"
+    }
+  ],
+  "on_warn": [
+    {
+      "id": "log_step_warn",
+      "desc": "步骤 WARN（动作成功但部分断言未命中），需读图分析后记录",
+      "required": true,
+      "cli_hint": "动作已执行成功，但部分预期文案未命中（WARN）。\n先读截图确认页面当前状态，再按以下优先级处理：\n\n1️⃣ 读截图分析（始终优先）\n   读取截图，逐项对照 Assertion Catalog 断言清单确认：\n   - 页面仍在加载中（骨架屏/loading）→ 等待后重试：\n     python3 scripts/cli.py find-text --text \"<页面锚点文案>\"\n   - 页面已正常渲染但文案不同（实际 UI 与预期文案有差异）→ 记录 FAIL（带实际文案）：\n     python3 scripts/cli.py override-step-result --fail --sid {sid} --desc \"文案精确匹配未命中，实际文案：<实际页面文案>\" --note \"expected=<预期文案>, actual=<实际页面文案>\"\n   - 页面异常（错误页/白屏）→ 按步骤类型处理：\n     滚动类 → 检查页面是否真的到底了，确认后直接 PASS\n     断言类 → 确认文案确实不存在，记录 FAIL"
+    }
+  ],
+  "on_fail": [
+    {
+      "id": "read_screenshot_and_analyze",
+      "desc": "读截图分析失败原因（始终优先，再试其他策略前必须先读图确认）",
+      "required": true,
+      "cli_hint": "步骤失败，先读截图确认页面当前状态，再根据分析结果选择恢复策略：\n\n1️⃣ 读截图分析（始终优先于任何自动检测）\n   读取步骤截图，确认页面当前状态并判断失败原因：\n   - 页面正常渲染（预期 UI 可见但操作未命中）→ 跳转到 3️⃣ 按 action 类型重试\n   - 错误兜底页（含「加载失败」「服务异常」「网络异常」「网络加载失败」「请稍后重试」「出错了」等文案）→ 跳转到 2️⃣ 错误兜底页处理\n   - 页面仍在 loading 加载中（骨架屏/loading 动画）→ 等待后重试：\n     python3 scripts/cli.py find-text --text \"<页面锚点文案>\"\n   - 页面异常（白屏/错误页/无内容）→ 尝试 2️⃣ 错误兜底页处理\n   - 系统弹窗遮挡（权限弹窗/更新提示/广告浮层等）→ 先关闭弹窗再确认\n   - 操作点错位置（截图显示点击了其他元素/区域）→ 跳转到 3️⃣ 按 action 类型重试\n\n2️⃣ 错误兜底页（含加载失败/服务异常/网络异常等文案，且有重试按钮）\n   → 用 find-text 扫描页面上的可点击操作文案：\n      python3 scripts/cli.py find-text --text \"重试/重新加载/刷新/Retry/Reload\"\n   → 找到后点击重试按钮：\n      python3 scripts/cli.py step --sid {sid}b tap-text --action-arg \"<找到的文案>\"\n   → 点击后等待 5s 让页面重新加载\n   → 重新执行原步骤断言（换新 sid 避免覆盖）：\n      python3 scripts/cli.py step --sid {sid}c assert-text --asserts '[{{\"kind\":\"text\",\"match\":\"present\",\"expect\":\"<原断言文案>\"}}]' --step-type assert --desc \"<原步骤描述>（重试后）\"\n   → 恢复成功则自动覆盖父步骤终态，无需手动 override-step-result\n   → 恢复失败则继续下方通用处理\n\n  错误兜底页但无重试按钮（或重试后仍失败）\n   → 记录 FAIL 并尝试跳转到下一个 case：\n      python3 scripts/cli.py override-step-result --fail --sid {sid} --desc \"错误兜底页无法恢复：点击重试后仍未成功\"\n   → python3 scripts/cli.py skip-case --reason '错误兜底页，自动重试后仍未恢复'\n\n3️⃣ 其他失败原因（非错误兜底页，按 action 类型处理）\n  open-url（页面跳转失败）→ 重新执行 open-url 重试，最多 3 次：\n     python3 scripts/cli.py open-url --url \"<URL>\"\n  scroll-until（滚动未找到目标文案）→ 用 find-text 确认是否存在，不存在则 skip-case\n  back（返回键执行失败）→ 读截图确认当前页面状态\n  input-text/blur-input（输入/失焦操作失败）→ 用 find-input 重定位后重试\n  scroll-edge（滚动到边界）→ 检查是否可滚动，确认后直接 PASS\n\n4️⃣ 以上均无法恢复 → 记录失败跳过：\n  python3 scripts/cli.py override-step-result --fail --sid {sid} --desc \"<失败原因>\"\n  → 然后 flow-next 继续推进（不阻断流程）"
+    },
+    {
+      "id": "log_step_fail_fallback",
+      "desc": "重试无法恢复时的最终记录",
+      "required": false,
+      "cli_hint": "最终无法恢复时记录 FAIL 结果：\n  python3 scripts/cli.py override-step-result --fail --sid {sid} --desc \"<失败原因>\"\n"
+    }
+  ],
+  "on_back_unexpected": [
+    {
+      "id": "log_step_warn",
+      "desc": "back 未返回到预期页面，读截图确认当前状态",
+      "required": true,
+      "cli_hint": "读截图确认当前页面状态：\n⚠️ back 不能重试，再次 back 只会多退一页，不要尝试重复 back。\n\n  弹窗仍存在（back 未关闭弹窗）\n    → 弹窗有关闭按钮（X/取消）→ 用 tap-text 关闭\n      python3 scripts/cli.py find-text --text \"<关闭/取消>\"\n    → 弹窗无关闭按钮 → 用 recover_via_scheme 跳过恢复到目标页\n\n  已回到上一页（back 返回过度）\n    → 记录 WARN 后跳转到 recover_via_scheme：\n      python3 scripts/cli.py override-step-result --ok 2 --sid {sid} --desc \"back 返回过度，已回到上一页\"\n\n  已进入其他页面（页面跳转异常）\n    → 记录 WARN 后跳转到 recover_via_scheme：\n      python3 scripts/cli.py override-step-result --ok 2 --sid {sid} --desc \"back 后进入非预期页面\""
+    },
+    {
+      "id": "recover_via_scheme",
+      "desc": "用 open-url 重跳 landing_scheme 恢复到目标页，继续后续步骤",
+      "required": true,
+      "cli_hint": "恢复目标页后继续后续步骤：\n  python3 scripts/cli.py open-url --url \"<landing_scheme>\"\n  恢复后确认页面正常：python3 scripts/cli.py find-text --text \"<页面锚点文案>\""
+    }
+  ]
+}

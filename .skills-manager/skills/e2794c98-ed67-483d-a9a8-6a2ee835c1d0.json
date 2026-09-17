@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "e2794c98-ed67-483d-a9a8-6a2ee835c1d0",
+  "path": "ai-auto-ui-test",
+  "path_key": "ai-auto-ui-test",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

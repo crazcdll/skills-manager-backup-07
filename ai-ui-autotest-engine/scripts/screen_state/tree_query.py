@@ -309,8 +309,10 @@ def inspect_tree_find_by_id(m_id, wait_sec=6, max_attempts=1):
     """按 resource-id（m_id）精确查找节点，返回中心坐标和详情。
 
     用于验证码输入框等有稳定 resource-id 但无文案的元素定位。
-    返回 {"center": (cx,cy), "m_id": str, "class_name": str, "text": str | None}
+    返回 {"center": (cx,cy), "m_id": str, "class_name": str, "text": str | None,
+          "checked": bool | None}
     或 None（未找到该 ID 或坐标缺失）。
+    checked 为三值：True/False 为真实勾选态，None 表示该节点未暴露勾选属性。
     """
     nodes = get_current_nodes(wait_sec=wait_sec)
     if nodes is None:
@@ -325,6 +327,7 @@ def inspect_tree_find_by_id(m_id, wait_sec=6, max_attempts=1):
                     "class_name": n.get("class_name"),
                     "text": n.get("text"),
                     "clickable": n.get("clickable", False),
+                    "checked": n.get("checked"),
                 }
     return None
 def native_list_texts(wait_sec=6, max_attempts=1):

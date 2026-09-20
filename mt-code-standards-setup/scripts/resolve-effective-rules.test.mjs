@@ -142,9 +142,17 @@ const createTrackedRepository = async (files) => {
 test("accepts every supported locator and preserves query/hash suffixes", () => {
   const locators = [
     "https://dev.sankuai.com/code/repo-detail/hfe/hotel-web/file/list?branch=master#readme",
+    "http://assets.sankuai.com/git/team/hotel-web?branch=master",
     "https://git.sankuai.com/hfe/hotel-web.git?ref=master",
     "ssh://git@git.sankuai.com/hfe/hotel-web.git?ref=master",
+    "ssh://git@git.dianpingoa.com/hfe/hotel-web.git",
+    "ssh://git@git.vip.sankuai.com:2198/hfe/hotel-web.git",
+    "ssh://git@unknown.example.com/team/CaseSensitive.git",
+    "ssh://git@gitserver/team/CaseSensitive.git",
+    "ssh://git@[2001:db8::1]:2222/team/CaseSensitive.git",
     "git@git.sankuai.com:hfe/hotel-web.git#master",
+    "git@unknown.example.com:team/CaseSensitive.git",
+    "git@unknown.example.com:/srv/git/CaseSensitive.git",
     "hfe/hotel-web?ref=master",
     "hotel-web?ref=master",
   ];
@@ -153,7 +161,12 @@ test("accepts every supported locator and preserves query/hash suffixes", () => 
 
 test("derives an exact canonical key only from namespace-qualified locators", () => {
   assert.equal(canonicalRepositoryKey("git@git.sankuai.com:HFE/Hotel-Web.git#main"), "hfe/hotel-web");
+  assert.equal(canonicalRepositoryKey("ssh://git@git.dianpingoa.com/HFE/Hotel-Web.git"), "hfe/hotel-web");
   assert.equal(canonicalRepositoryKey("https://dev.sankuai.com/code/repo-detail/HFE/Hotel-Web/file/list"), "hfe/hotel-web");
+  assert.equal(canonicalRepositoryKey("ssh://git@git.vip.sankuai.com:2198/HFE/Hotel-Web.git"), "");
+  assert.equal(canonicalRepositoryKey("git@unknown.example.com:HFE/Hotel-Web.git"), "");
+  assert.equal(canonicalRepositoryKey("https://git.sankuai.com/HFE/Hotel-Web.git"), "");
+  assert.equal(canonicalRepositoryKey("https://tools.sankuai.com/git/HFE/Hotel-Web"), "");
   assert.equal(canonicalRepositoryKey("hotel-web"), "");
 });
 
@@ -194,7 +207,19 @@ test("runs the base runner when its Skill directory is installed as a symbolic l
 });
 
 test("rejects unsupported or unsafe locators before network access", () => {
-  for (const locator of ["", "https://example.com/hfe/hotel-web", "../hotel-web", "hotel\nweb"]) {
+  for (const locator of [
+    "",
+    "https://example.com/hfe/hotel-web",
+    "https://sankuai.com",
+    "ssh://user@git.sankuai.com/hfe/hotel-web.git",
+    "ssh://git@git.sankuai.com",
+    "ssh://git@git.sankuai.com:0/hfe/hotel-web.git",
+    "git@git.sankuai.com:",
+    "https://dev.sankuai.com/code/repo-detail/hfe/%2e%2e/file/list",
+    "../hotel-web",
+    "hotel\tweb",
+    "hotel\nweb",
+  ]) {
     assert.throws(
       () => validateRepositoryLocator(locator),
       (error) => error instanceof RuleBundleError && error.code === "RULE_BUNDLE_REPOSITORY_INVALID",

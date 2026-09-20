@@ -40,7 +40,7 @@ def warn_on_drift(run):
     print(f"STEP [DRIFT_WARNING] {drift_msg}")
     print(f"  ⚠️ 请先完成上一步 [{prior_sid}] 的后续操作，再执行当前步骤")
     print(f"  如上一步弹窗未关闭：用 find-icon --anchor <邻近文案> 从结构树中读出关闭按钮坐标 + "
-          f"step tap --action-x <x> --action-y <y> 关闭 + log-record 记录")
+          f"step tap --action-x <x> --action-y <y> --desc '坐标点击兜底：关闭弹窗' 关闭 + log-record 记录")
     print(f"  完成后用 python3 scripts/cli.py flow-next --done-hooks <hook_id> 标记")
 
 

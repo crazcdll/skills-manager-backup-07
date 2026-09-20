@@ -11,7 +11,7 @@ skill-dependencies:
 metadata:
   skillhub.creator: "zhangce07"
   skillhub.updater: "zhangce07"
-  skillhub.version: "V11"
+  skillhub.version: "V12"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "141006"
   skillhub.high_sensitive: "false"
@@ -91,15 +91,17 @@ CatDesk、CatPaw IDE、CatPaw 云端 Agent 和美团沙箱沿用同一份 Skill�
 默认从目标仓库根目录执行，Runner 自动读取 `git remote get-url origin`。也可由用户明确提供以下任一种 locator：
 
 - Code HTTPS 页面地址；
-- `https://git.sankuai.com/...` clone 地址；
-- `ssh://git@git.sankuai.com/...`；
-- `git@git.sankuai.com:namespace/repository.git`；
+- `sankuai.com` 或其子域下的 HTTP(S) 仓库地址；
+- `ssh://git@host/...`（包括线上 `git.sankuai.com`、`git.dianpingoa.com` 和线下 `git.vip.sankuai.com:2198`）；
+- `git@host:path` 格式；
 - `namespace/repository`；
 - 唯一仓库名，如 `rn_hotel_inland`。
 
 locator 后可以带 `?` 或 `#` 参数。Runner 保留完整输入交给平台，平台只用主仓库身份匹配。仅仓库名匹配到
 多条记录时，要求用户补充 `namespace/repository` 或完整地址；不要任选一条。当前目录没有 origin 时，向用户
-询问仓库 locator。
+询问仓库 locator。未登记仓库的 L1 bootstrap 只接受可确定映射为同一线上 MCode 仓库的 Code 页面地址、
+`git.sankuai.com`/`git.dianpingoa.com` 的 SSH 或 SCP 地址，或明确的 `namespace/repository`；通用 HTTP(S)、线下 VIP 和未知主机地址必须先在平台登记，
+不能仅按相同路径折叠为线上仓库。
 
 ## 唯一执行方式
 

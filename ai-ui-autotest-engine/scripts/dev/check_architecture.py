@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """架构守卫 —— 用静态检查固化错误体系与分层约束，防止回退。
 
-五项检查：
+六项检查：
 
   1. no-sys-exit            （硬失败）除 CLI 边界外，任何模块不得调用 `sys.exit()`
                             —— 业务/核心层只 raise core.errors.AutotestError 或返回退出码，
@@ -15,6 +15,10 @@
                             抓「漏再导出 / 破损导入」（只看 import cli 或编译发现不了）。
   5. staged-deletion-referenced（硬失败）git 暂存区里删除的模块不得仍被引用；
                             固化「删除旧模块必须在所有引用方改完之后」这条纪律。
+  6. placeholder-single-entry（硬失败）`resolve_placeholders` 只允许在 flow_init.py 调用。
+                            steps-input 在 flow-init 时被解析并落盘为唯一事实来源，
+                            运行期读者只读解析后的产物；其它模块各自解析会让
+                            C0 case-init 重载时又把未解析原文带回来（历史回归根因）。
 
 用法：
     python3 scripts/dev/check_architecture.py                  # 检查
@@ -72,6 +76,14 @@ SWALLOW_ALLOWLIST = {
 
 # ── 规则 2 棘轮基线：当前存量吞噬点数量，只允许下降 ────────────────
 SWALLOW_BASELINE = 57
+
+# ── 规则 6：允许调用 resolve_placeholders 的模块（占位符解析唯一入口）────
+# flow_init.py        流初始化边界：解析后落盘为唯一事实来源
+# placeholder_resolver.py  解析器定义处（内部递归自调）
+PLACEHOLDER_RESOLVE_ALLOWLIST = {
+    "core/flow/flow_init.py",
+    "core/placeholder/placeholder_resolver.py",
+}
 
 _TOP_PKGS = {
     "actions", "assertions", "context", "core", "device_platform",
@@ -293,6 +305,28 @@ def check_staged_deletions_not_referenced():
     return bad
 
 
+def check_placeholder_resolve_single_entry():
+    """规则6：resolve_placeholders 只允许在 flow_init.py 调用。
+
+    steps-input 被 flow-init 解析后落盘为唯一事实来源（原文档另存 raw），
+    运行期读者（case-init / 报告等）只读解析后的产物。此规则固化
+    「解析收敛在边界」这条纪律，防止读者各自解析 / 漏解析而复发回归。
+    """
+    bad = []
+    for path in _iter_py_files():
+        if _rel(path) in PLACEHOLDER_RESOLVE_ALLOWLIST:
+            continue
+        tree = _parse(path)
+        if tree is None:
+            continue
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Name)
+                    and node.func.id == "resolve_placeholders"):
+                bad.append(f"{_rel(path)}:{node.lineno}")
+    return bad
+
+
 def main():
     list_swallow = "--list-swallow" in sys.argv
     failures = []
@@ -335,6 +369,14 @@ def main():
             + "\n  ".join(del_bad)
         )
 
+    resolve_bad = check_placeholder_resolve_single_entry()
+    if resolve_bad:
+        failures.append(
+            "规则6 失败：resolve_placeholders 只允许在 flow_init.py 调用"
+            "（steps-input 由 flow-init 统一解析并落盘，其它模块不得再各自解析）\n  "
+            + "\n  ".join(resolve_bad)
+        )
+
     if failures:
         print("❌ 架构守卫未通过：\n")
         for f in failures:
@@ -343,7 +385,8 @@ def main():
 
     print(f"✅ 架构守卫通过"
           f"（sys.exit 违规 0；静默吞噬 {len(swallows)}/{SWALLOW_BASELINE}；跨包循环 0；"
-          f"模块导入 {len(list(_iter_py_files()))} 全通；无破损删除引用）")
+          f"模块导入 {len(list(_iter_py_files()))} 全通；无破损删除引用；"
+          f"占位符解析单一入口 0 违规）")
     return 0
 
 

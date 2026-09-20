@@ -19,7 +19,7 @@
 #   REPO_SSH  = ssh://git@git.sankuai.com/nibfe/trade-fe-rule.git
 #   KB_DIR    = $TRADE_KB_DIR 或 ~/.trade-fe-kb
 #   TARGET    = release/main
-#   REVIEWERS = changsusheng / hfe_stash / it_catpaw
+#   REVIEWERS = changsusheng / it_catpaw
 # =============================================================================
 set -euo pipefail
 
@@ -31,10 +31,8 @@ readonly TARGET_BRANCH="release/main"
 readonly KB_DIR="${TRADE_KB_DIR:-$HOME/.trade-fe-kb}"
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly CODE_API="${SCRIPT_DIR}/_code_.sh"
-readonly CODE_BASE_URL="http://git.sankuai.com"
-# 固定 reviewer（不含 PR 创建人 hfe_stash，Bitbucket 禁止 author = reviewer）
+# 固定 reviewer；PR API 使用 hfe_stash 身份，Bitbucket 禁止 author = reviewer。
 readonly REVIEWERS=("changsusheng" "it_catpaw")
-# PR 创建者（_code_.sh auth 账号），永远不得出现在 reviewers 中
 readonly PR_AUTHOR="hfe_stash"
 
 if [ ! -f "${CODE_API}" ]; then
@@ -43,19 +41,26 @@ if [ ! -f "${CODE_API}" ]; then
 fi
 
 # ─── 依赖检查 ────────────────────────────────────────────────────────────────
-for _cmd in git curl jq openssl; do
+# Query snapshots only need Git; update/PR commands retain the full toolchain.
+if [ "${1:-}" = "query_snapshot" ]; then
+  _required_commands=(git)
+else
+  _required_commands=(git curl jq openssl)
+fi
+for _cmd in "${_required_commands[@]}"; do
   if ! command -v "${_cmd}" &>/dev/null; then
     echo "ERROR: 缺少依赖命令: ${_cmd}，请先安装后重试" >&2
     exit 9
   fi
 done
+unset _required_commands
 unset _cmd
 
 # shellcheck disable=SC1090
 source "${CODE_API}"
 
 # ─── 工具函数 ────────────────────────────────────────────────────────────────
-_log() { echo "[trade-kb] $*"; }
+_log() { echo "[trade-kb] $*" >&2; }
 _err() { echo "[trade-kb][ERROR] $*" >&2; }
 
 # ─── sync_kb ─────────────────────────────────────────────────────────────────
@@ -87,6 +92,28 @@ sync_kb() {
 
   _log "✅ KB 已同步到最新 ${TARGET_BRANCH}"
   echo "${KB_DIR}"
+}
+
+# ─── query_snapshot ──────────────────────────────────────────────────────────
+# Fetch release/main for queries without changing the user's branch or worktree.
+query_snapshot() {
+  if [ ! -d "${KB_DIR}/.git" ]; then
+    if [ -e "${KB_DIR}" ]; then
+      _err "目录 ${KB_DIR} 已存在但不是 git 仓库，请手动处理后重试"
+      exit 11
+    fi
+    if ! git clone "${REPO_SSH}" "${KB_DIR}" >/dev/null; then
+      _err "git clone 失败，请检查 SSH Key：ssh -T git@git.sankuai.com"
+      exit 11
+    fi
+  fi
+
+  if ! git -C "${KB_DIR}" fetch --no-tags origin \
+    "refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}" >/dev/null; then
+    _err "git fetch ${TARGET_BRANCH} 失败，请检查网络/SSH 配置"
+    exit 12
+  fi
+  git -C "${KB_DIR}" rev-parse --verify "refs/remotes/origin/${TARGET_BRANCH}^{commit}"
 }
 
 # ─── resolve_mis ─────────────────────────────────────────────────────────────
@@ -212,12 +239,11 @@ commit_push() {
 
 # ─── pr_create_wrapper ───────────────────────────────────────────────────────
 # 参数: branch title desc
-# 设计原则：body 写入 tmp 文件 → curl -d @file，完全绕开 shell 变量多层传递链。
-# 400 时打印完整响应体，便于定位 reviewer/字段/内容类问题。
+# 认证、HTTPS 请求和响应体清理由 _code_.sh 统一处理，避免凭据散落到多个脚本。
 pr_create_wrapper() {
   local branch="${1:?need branch}" title="${2:?need title}" desc="${3:?need desc}"
 
-  # ── reviewers：固定列表（已排除 PR_AUTHOR=hfe_stash）+ 动态当前用户 ──
+  # ── reviewers：固定列表 + 动态当前用户，排除 PR 创建者 ──
   local reviewers_json='[]'
   for mis in "${REVIEWERS[@]}"; do
     reviewers_json="$(echo "${reviewers_json}" | jq --arg mis "${mis}" '. + [{"user": {"name": $mis}}]')"
@@ -233,12 +259,8 @@ pr_create_wrapper() {
     fi
   fi
 
-  # ── body 写文件，彻底避免 shell 变量展开破坏 JSON ──
-  local body_file resp_file
-  body_file="$(mktemp)"
-  resp_file="$(mktemp)"
-
-  jq -cn \
+  local body resp
+  body="$(jq -cn \
     --arg title "${title}" \
     --arg desc "${desc}" \
     --arg branch "${branch}" \
@@ -261,33 +283,11 @@ pr_create_wrapper() {
       },
       deleteSourceRefAfterMerge: true,
       reviewers: $reviewers
-    }' > "${body_file}"
+    }')"
 
   _log "创建 PR: ${REPO_PROJECT}/${REPO_NAME} ${branch} → ${TARGET_BRANCH}"
-  _log "request body: $(cat "${body_file}")"
-
-  # ── 直接 curl -d @file，不经过 _code_.sh 函数链 ──
-  local http_code
-  http_code=$(curl -s \
-    --connect-timeout 5 \
-    --max-time 30 \
-    -o "${resp_file}" \
-    -w "%{http_code}" \
-    -X POST "${CODE_BASE_URL}/rest/api/2.0/projects/${REPO_PROJECT}/repos/${REPO_NAME}/pull-requests" \
-    -H "Authorization: Basic aGZlX3N0YXNoOkVWYXp0cEA5Mzg=" \
-    -H "Content-Type: application/json" \
-    -H "Accept: application/json" \
-    -d @"${body_file}")
-
-  local resp
-  resp="$(cat "${resp_file}")"
-  rm -f "${body_file}" "${resp_file}"
-
-  _log "response HTTP ${http_code}: ${resp}"
-
-  if [[ "${http_code}" != 2* ]]; then
-    _err "pr_create 失败 HTTP ${http_code}"
-    _err "完整错误响应: ${resp}"
+  if ! resp="$(pr_create "${REPO_PROJECT}" "${REPO_NAME}" "${body}")"; then
+    _err "pr_create 请求失败。"
     local fallback_url
     fallback_url="$(fallback_pr_url "${branch}")"
     _err "代码已 push，请手动建 PR: ${fallback_url}"
@@ -298,14 +298,14 @@ pr_create_wrapper() {
   local pr_id
   pr_id="$(echo "${resp}" | jq -r '.id // empty' 2>/dev/null || true)"
   if [ -z "${pr_id}" ] || [ "${pr_id}" = "null" ]; then
-    _err "HTTP ${http_code} 但响应无 .id: ${resp}"
+    _err "PR 创建响应缺少 id。"
     local fallback_url
     fallback_url="$(fallback_pr_url "${branch}")"
     echo "${fallback_url}"
     return 0
   fi
 
-  local pr_url="${CODE_BASE_URL}/code/repo-detail/${REPO_PROJECT}/${REPO_NAME}/pr/detail/${pr_id}"
+  local pr_url="${CODE_API_BASE}/code/repo-detail/${REPO_PROJECT}/${REPO_NAME}/pr/detail/${pr_id}"
   _log "✅ PR 创建成功: ${pr_url}"
   echo "${pr_url}"
 }
@@ -313,7 +313,7 @@ pr_create_wrapper() {
 # ─── fallback_pr_url ─────────────────────────────────────────────────────────
 fallback_pr_url() {
   local branch="${1:?need branch}"
-  echo "${CODE_BASE_URL}/code/repo-detail/${REPO_PROJECT}/${REPO_NAME}/pr/create?sourceBranch=${branch}&targetBranch=${TARGET_BRANCH}"
+  echo "${CODE_API_BASE}/code/repo-detail/${REPO_PROJECT}/${REPO_NAME}/pr/create?sourceBranch=${branch}&targetBranch=${TARGET_BRANCH}"
 }
 
 # ─── 主入口 ───────────────────────────────────────────────────────────────────
@@ -324,6 +324,7 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
 
 子命令:
   sync_kb
+  query_snapshot
   resolve_mis
   compute_branch <mis> <topic>
   safe_checkout_new <base_branch>

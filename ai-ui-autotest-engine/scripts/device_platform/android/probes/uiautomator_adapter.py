@@ -99,7 +99,12 @@ def _convert_node(xml_node) -> dict:
                 "width": str(w) if w is not None else None,
                 "height": str(h) if h is not None else None,
             },
-            "misc": {"isClickable": "true" if clickable else "false"},
+            "misc": {
+                "isClickable": "true" if clickable else "false",
+                # 透传勾选态，供 node_adapter 读取复选框 checked（避免登录页盲点取反）
+                "isCheckable": attrs.get("checkable", "false"),
+                "isChecked": attrs.get("checked", "false"),
+            },
         },
         "children": [],
     }

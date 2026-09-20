@@ -6,7 +6,7 @@ description: 移动端 UI 自动化测试。以 Flow 输入驱动，执行环境
 metadata:
   skillhub.creator: "wangshicheng05"
   skillhub.updater: "wangshicheng05"
-  skillhub.version: "V155"
+  skillhub.version: "V159"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "93069"
   skillhub.high_sensitive: "false"
@@ -24,6 +24,7 @@ metadata:
 4. 环境不可用时快速失败并收尾，不重试、不换数据对照、不深挖日志。
 5. **AI 不得预填环境选项**：先跑 `*-required` 看输出再问用户，禁止在 `save-answers` 中预填未选择的值。提取的 `options` 必须原样传给 AskQuestion，禁止自行构造、合并、删减或改标签。
 6. **禁止复用历史产物**：每轮测试的判定依据必须全部来自**本次运行**的实时产物（`.run/`、`output/run-<ts>/`），不得引用历史 `output/` 下的截图、报告或日志作为判定依据。
+7. **CASES 文件强制约定**：先 `cases-create --tag <tag>` 创建空文件，AI 再写入内容；写完 `wc -c` 确认非空后再 `steps-generate`。禁止用编辑器直接新建该文件。
 
 ## 二、运行模型
 
@@ -47,11 +48,10 @@ python3 scripts/cli.py config-required --flow-source <flow-文件路径>
 # 录入测试身份（替换下方占位）
 python3 scripts/cli.py save-answers --answers '{"account":"<测试身份>","password":"<对应凭据>"}'
 python3 scripts/cli.py flow-convert --tag {tag}  # 多 Flow 场景：一次 --tag all 转换所有 Flow
-# 先创建空 CASES JSON 文件占位
-mkdir -p .run/tmp && touch .run/tmp/cases-<tag>.json
-# AI 写入完整 steps，env 段引用已录入的测试身份
-python3 scripts/cli.py steps-generate --input '.run/tmp/cases-<tag>.json' --tag <tag>
-python3 scripts/cli.py flow-init --dir <run-name> --input '.run/tmp/steps-input-<tag>.json' --flow-name <Flow名> --mis <mis>  # ⚠️ 多 Flow 场景：只执行一次，所有 Flow 合入一个 cases 数组
+# 强制约定：先用 cases-create 创建空 CASES 文件，AI 再写入 steps（写完 wc -c 确认非空）
+python3 scripts/cli.py cases-create --tag {tag}
+python3 scripts/cli.py steps-generate --input '.run/tmp/cases-{tag}.json' --tag {tag}
+python3 scripts/cli.py flow-init --dir <run-name> --input '.run/tmp/steps-input-{tag}.json' --flow-name <Flow名> --mis <mis>  # ⚠️ 多 Flow 场景：只执行一次，所有 Flow 合入一个 cases 数组
 python3 scripts/cli.py flow-next  # 阶段 1 入口，获取引擎第一条指令
 ```
 
@@ -72,8 +72,8 @@ AI 不再手动决定下一步，按 `flow-next` 返回的命令执行，阶段�
 ### 流程
 
 1. `flow-convert --tag <tag>` → 解析元数据，输出 `metadata-<TAG>.json`
-2. `mkdir -p .run/tmp && touch .run/tmp/cases-<tag>.json` → 创建空文件占位
-3. AI 写入 steps 内容（含 device/env/cases/steps）
+2. `cases-create --tag <tag>` → 创建空 CASES 文件占位（强制约定，写内容前必须先执行）
+3. AI 写入 steps 内容（含 device/env/cases/steps），写完 `wc -c` 确认非空
 4. `steps-generate --input '.run/tmp/cases-<tag>.json' --tag <tag>` → 输出 `steps-input-<TAG>.json`
 5. `flow-init` → 载入引擎
 
@@ -129,7 +129,7 @@ AI 不再手动决定下一步，按 `flow-next` 返回的命令执行，阶段�
   }]
 }
 ```
-`landing_scheme` 必须完整，日期占位符 `{T+N}` 执行时替换。支持 `{T+N:format}` 语法指定格式（如 `{T+4:%Y%m%d}` 输出 yyyyMMdd，`{T+4:%Y-%m-%d}` 输出 YYYY-MM-DD），不指定 format 时默认 `%Y-%m-%d`。`flow-init` 自动追加 debug 浮窗关闭参数，无需手动填写。UI / API / Track 步骤执行后均自动截图（命名 `case_NN_{sid}.png`），统一归档到当前 Case 的 `frames/` 目录；步骤记录以 `screenshots` 数组承载（每项含 `file`/`label`/`kind`），报告层跨同一 SID 的多条记录合并截图，任一记录有图即不丢图。API/Track 步骤匹配成功后自动 PASS，如果配置了 `expected_fields`，引擎会自动生成 `verify_api_fields` 或 `verify_track_fields` hook，AI 通过 `assert-fields` 命令做逐字段判定。
+`landing_scheme` 必须完整，日期占位符 `{T+N}` 执行时替换。支持 `{T+N:format}` 语法指定格式（如 `{T+4:%Y%m%d}` 输出 yyyyMMdd，`{T+4:%Y-%m-%d}` 输出 YYYY-MM-DD），不指定 format 时默认 `%Y-%m-%d`。`flow-init` 自动追加 debug 浮窗关闭参数，无需手动填写。UI / API / Track 步骤执行后均自动截图（命名 `case_NN_{sid}.png`），统一归档到当前 Case 的 `frames/` 目录；步骤记录以 `screenshots` 数组承载（每项含 `file`/`label`/`kind`），报告层跨同一 SID 的多条记录合并截图，任一记录有图即不丢图。API/Track 步骤匹配成功后自动 PASS；**埋点 `match` 用 `val_cid`/`nm`（分类级标识）命中多条时转 PENDING**，生成 `verify_track_fields` hook（携带候选清单），需 AI 按 `nm`/`val_lab` 语义选定后用 `assert-fields --picked <序号>` 消歧；配了 `expected_fields` 也生成该 hook。`val_bid`（精确事件 ID）命中永不歧义。响应体不进 `extracted_fields`，结构落 `diagnostics/response_skeleton_<SID>.md`，取值用 `response-search`。
 
 **顶层字段**：
 
@@ -158,7 +158,17 @@ AI 不再手动决定下一步，按 `flow-next` 返回的命令执行，阶段�
 |---|---|---|---|
 | `ui` | `action` | — | UI 交互与断言步骤 |
 | `api` | `api_assert`（含 `path` + 可选 `expected_fields`） | `action` / `step-type` / `screenshot` / `asserts` | 接口字段验证（从录制数据匹配，逐字段断言） |
-| `track` | `track_assert`（含 `match` + 可选 `expected_fields`） | `action` / `step-type` / `screenshot` | 埋点事件验证（匹配即 PASS，字段由 AI 后续判定） |
+| `track` | `track_assert`（含 `match` + 可选 `expected_fields`） | `action` / `step-type` / `screenshot` | 埋点事件验证。`match` 用 `val_bid`（精确，命中即 PASS）或 `val_cid`/`nm`（分类级，命中多条→转 PENDING，AI 用 `assert-fields --picked` 消歧） |
+
+**`api_assert` 语义规范**：
+
+| 字段 | 必填 | 语义 |
+|---|---|---|
+| `path` | ✅ | Flow 原文路径，不补 `https://`；**后缀段匹配**（至少末尾一段一致即命中） |
+| `expected_fields` | ❌ | **缺省 = 不校验字段**（匹配成功即自动 PASS）；配了才有字段级判定 |
+| `[].source` | ❌ | `request` / `response` / `meta`（仅展示）；状态码固定写 `{"source":"meta","field":"http_code","expected":"200"}` |
+| `[].field` | ✅ | **生成期可写语义名**（如「价格字段」）；真实路径 `response.<点号路径>` 由 `assert-fields` 解析后回写 |
+| `[].expected` | ❌ | 允许直接引用 Flow 原文（含自然语言） |
 
 ### Action 选择映射表
 
@@ -212,15 +222,16 @@ Flow 含 `pending`/`待审校`/`以实际为准` 时：操作推定最合理文�
 
 `step` 命令的 `--help` 会列出每个 action 子命令及其必填参数（数据源 `ACTION_SPECS`，与运行时前置校验规则强一致，参数缺失会在写入任何状态前直接报错并给出标准用法，不占用 SID）。本节只做命令分类导航，不重复列参数。**阶段 1 中 AI 不应手动构造命令，直接执行 `flow-next` 返回的指令即可。**
 
-- **Flow 转换与审校**：`flow-convert`（轻量模式：解析 Flow .md 元数据，供 AI 写步骤参考） `steps-generate`（接收 AI 编写的 CASES JSON，通过 StepsGenerator 完成 sid 编号/校验/占位符替换，输出最终 steps-input.json）
+- **Flow 转换与审校**：`flow-convert`（轻量模式：解析 Flow .md 元数据，供 AI 写步骤参考） `cases-create`（创建空 CASES 文件，写内容前必须先执行） `steps-generate`（接收 AI 编写的 CASES JSON，完成 sid 编号/校验/占位符替换，输出 steps-input.json）
 - **交互与断言**：`screenshot`（`--out` 为纯文件名时归档到当前 Case 的 `frames/`；为路径时按原路径） `open-url` `tap-text` `tap` `scroll-until` `scroll-edge` `input-text` `blur-input` `assert-multi` `swipe` `dismiss-recce`（`assert-text` 合并至 `step assert-text`）
 - **元素定位**：`find-text --text <文案>` `find-icon --anchor <邻近文案>` `find-input --anchor <邻近文案>` `probe-status` `inspect-tree`
-- **Flow 引擎驱动**：`step` `log-record` `override-step-result` `assert-fields` `flow-init` `flow-status`（`--sid <SID>` 查单步精简详情）`flow-case-status` `flow-next` `flow-advance` `hook-info`（`--hook-id <ID> [--sid <SID>]` 按需查询单个 hook 的完整操作指引）`ack` `skip-case` `flow-fail` `flow-finalize` `gen-report`
+- **Flow 引擎驱动**：`step` `log-record` `override-step-result` `assert-fields`（API/Track 字段判定；埋点多候选用 `--picked <序号>` 消歧） `response-search`（API 响应按需视图：`--skeleton` 结构总览 / `--query` 关键字定位 / `--path` 精确取值） `flow-init` `flow-status`（`--sid <SID>` 查单步精简详情）`flow-case-status` `flow-next` `flow-advance` `hook-info`（`--hook-id <ID> [--sid <SID>]` 按需查询单个 hook 的完整操作指引）`ack` `skip-case` `flow-fail` `flow-finalize` `gen-report`
 - **异常终止**：`report-error`（异常终止收尾前调用，上报 AI 分析结论和解决方案）
 - **环境与设备**：`check-deps` `preflight-clean` `post-clean` `install-app` `force-stop` `launch` `set-location` `mock` `mock-snapshot` `mock-restore` `device-required` `env-required` `env-prepare` `validate` `case-init`
 
 以下是 `--help` 之外仍需要说明的行为语义（不属于参数，`--help` 不会体现）：
 - `back` 是 Flow action，单独执行用 `step back`。
+- `step` 的独立操作（不绑定声明步骤）若未提供 `--desc`，引擎按 action + 参数自动派生描述，不会写入 desc 为空的孤立记录。
 - `dismiss-recce` 检测并拖离 Recce 调试浮层（`tap-text` 遇遮挡时自动调用，也可手动使用）。
 - `log-record / override-step-result --img` 可指定已有截图（`frames/` 下的文件名；不传时自动截当前画面并归档到 `frames/`）。同一 SID 的多条记录截图会在报告层自动合并，任一记录有图即不丢图。
 - `log-record` 是唯一能写「无判定备注」的入口：传 `--note` 且不带 `--pass/--fail/--ok` → 记录 `ok=None`，带 `--sid` 归步骤 `annotations`、不带则归 Case `notes`，均不计入通过/失败统计。

@@ -1,4 +1,3 @@
-import hashlib
 import json
 import os
 import shutil
@@ -15,20 +14,18 @@ def manifest_path(base_dir):
 def events_path(base_dir):
     return os.path.join(audit_dir(base_dir), "run-events.jsonl")
 
-def create_run_manifest(base_dir, ctx, source_path):
-    source_hash = ""
-    try:
-        with open(source_path, "rb") as f:
-            source_hash = hashlib.sha256(f.read()).hexdigest()
-    except OSError:
-        pass
+def create_run_manifest(base_dir, ctx):
+    """写入运行清单（run-manifest.json）。
+
+    只记录运行标识/状态/用例清单等审计元信息；不再记录 steps-input 的路径与哈希
+    —— 原始用例原文由 case-init 随日志落盘（case_utils.append_source_notes），
+    报告按日志读取，无需按路径回查。
+    """
     data = {
         "run_id": ctx["meta"]["batch_run_id"],
         "state": "active",
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "flow_name": ctx["meta"]["flow_name"],
-        "steps_input_path": source_path,
-        "steps_input_sha256": source_hash,
         "expected_cases": len(ctx.get("cases_manifest", [])),
         "cases": [{"case_id": c["case_id"], "case_name": c["case_name"]} for c in ctx.get("cases_manifest", [])],
     }

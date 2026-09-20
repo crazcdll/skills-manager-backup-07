@@ -1,9 +1,10 @@
 # 更新流程详细指引
 
-> 本文件由 SKILL.md 在公共前置（`cd ~/.trade-fe-kb`）**之前**读取，CWD 此时尚未改变。
-> - KB 根目录：`~/.trade-fe-kb/`（公共前置后的 CWD）
+> 本文件由 SKILL.md 在业务库同步**之前**读取。
+> - KB 根目录：`~/.trade-fe-kb/`；脚本自行定位目录，不依赖调用者 CWD。
 > - **`SKILL_DIR`**：harness 注入的 `Base directory for this skill:` 绝对路径，**与 CWD 无关**，脚本路径均用此变量拼接，禁止猜测。
 > - 更新流程无需用户中途确认，MR 评审即为合规审核入口。
+> - **API 认证：** PR POST 与 HTTP raw GET 共用 `scripts/_code_.sh` 内已有的 `hfe_stash` Basic Authorization，无需用户配置。Git 同步和 push 仍使用当前用户的 Git/SSH 身份。
 
 ---
 
@@ -71,7 +72,7 @@ Read ~/.trade-fe-kb/_governance/templates/<type>.tpl.md  ← 对应类型模板
 
 ## Step 4：创建分支
 
-> `safe_checkout_new` 内部会校验当前分支必须是 `release/main`；SKILL.md 公共前置（`git checkout release/main && git pull`）已保证这一前提。若脚本报错"当前分支非 release/main"，说明公共前置未成功执行，应重新执行 SKILL.md 第一步。
+> `safe_checkout_new` 内部会校验当前分支必须是 `release/main`；SKILL.md 更新流程先检查已有工作区，再执行 `sync_kb`。若脚本报错"当前分支非 release/main"，返回更新流程检查当前状态，不强行切换分支。
 
 ```bash
 # SKILL_DIR = harness 注入的 "Base directory for this skill:" 绝对路径
@@ -111,7 +112,7 @@ Commit message 规范：前缀固定 `docs:`，简述"加了什么"。
 
 ## Step 6：创建 PR
 
-Reviewer 由脚本自动指定（`changsusheng`、`hfe_stash`、`it_catpaw`）：
+Reviewer 由脚本自动指定（`changsusheng`、`it_catpaw`）；创建者 `hfe_stash` 不作为 Reviewer：
 
 ```bash
 # SCRIPTS 同 Step 4，来自 "Base directory for this skill:" 注入值

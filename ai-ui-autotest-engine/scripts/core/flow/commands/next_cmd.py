@@ -9,7 +9,7 @@ from core.util.case_utils import resolve_case_path
 from core.flow.flow_context import load_context
 from core.flow.lifecycle import advance_stage
 from core.flow.state import get_next_action
-from core.flow.step_scheduler import mark_hook_done
+from core.flow.step_scheduler import _ASSERT_FIELDS_HOOKS, mark_hook_done
 
 
 def _dispatch_next_action(run_dir, label):
@@ -81,7 +81,11 @@ def _dispatch_next_action(run_dir, label):
                 desc = first_hook.get("desc", "")
                 print(f"  hook [TODO] {hid}: {desc}")
                 print(f"  详情: python3 scripts/cli.py hook-info --hook-id {hid} --sid {step_sid}")
-                print(f"  标记完成: python3 scripts/cli.py flow-next --done-hooks {hid}")
+                if hid in _ASSERT_FIELDS_HOOKS:
+                    print(f"  ⚠️ 该 hook 必须经 assert-fields 提交结论（埋点多候选用 --picked <序号> 消歧），"
+                          f"不能 flow-next --done-hooks 空标记")
+                else:
+                    print(f"  标记完成: python3 scripts/cli.py flow-next --done-hooks {hid}")
                 if len(hooks) > 1:
                     remaining_names = ", ".join(h["id"] for h in hooks[1:])
                     print(f"  ⏩ 后续 {len(hooks)-1} 个 hook 待完成: {remaining_names}")

@@ -54,18 +54,6 @@ def _load_check_deps():
         return None
 
 
-def read_text_file(path) -> str:
-    """读取文本文件内容；不存在或不可读时返回 "" 并留痕（报告层唯一文本读取入口）。"""
-    if not path or not os.path.isfile(path):
-        return ""
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            return f.read()
-    except OSError as e:
-        soft_fail("infra", "REPORT_READ_TEXT_FAILED", f"{path}: {e}")
-        return ""
-
-
 def list_dir(path) -> list:
     """列出目录内容（已排序）；不可读时返回 [] 并留痕。"""
     try:

@@ -98,7 +98,9 @@ def _note_report(record, images, kind="ui"):
     shots = resolve_screenshots(record, images)
     return {
         "sid": record.get("sid") or None,
-        "source": record.get("_src", "step"),
+        # 显式 source（原始用例原文 flow_source / steps_input）优先；
+        # 普通 log-record 无 source 字段时回退到 _src（"log"）。
+        "source": record.get("source") or record.get("_src", "step"),
         "kind": kind,
         "desc": record.get("d", ""),
         "ok": None,
@@ -129,6 +131,7 @@ def _group_fields(fields, kind):
         {"prefix": "response.data.", "label": "页面数据", "collapsed": True},
         {"prefix": "response.", "label": "响应数据", "collapsed": True},
         {"prefix": "query.", "label": "查询参数", "collapsed": True},
+        {"prefix": "meta.", "label": "接口元信息", "collapsed": True},
         {"prefix": "req_headers.", "label": "请求头", "collapsed": True},
         {"prefix": "resp_headers.", "label": "响应头", "collapsed": True},
         {"prefix": "_", "label": "元数据", "collapsed": True},

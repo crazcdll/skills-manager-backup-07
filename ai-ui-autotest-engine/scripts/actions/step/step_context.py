@@ -65,3 +65,34 @@ def _validate_step_parameters(step_definition, args):
                 "STEP ABORT: --step-type assert 必须提供 --asserts JSON 数组，"
                 "否则断言不会被执行、步骤会被静默判定为 PASS"
             )
+
+
+def _ensure_step_desc(args):
+    """为未提供 --desc 的步骤补全可读描述（原地写回 args.desc）。
+
+    声明步骤由 SOP 传入 --desc；独立/兜底操作（坐标点击、滚动到目标、返回等）
+    在 hook 指引里通常不带 --desc，若直接落盘会得到一条 desc 为空的孤立 finding，
+    在报告里表现为一条没有描述的多余记录。这里按 action + 参数派生描述：
+    既保证记录可读，也不强制每个调用点都手写 --desc（否则会打断既有 hook 指引）。
+    """
+    if (getattr(args, "desc", "") or "").strip():
+        return
+    action = getattr(args, "step_action", "") or "step"
+    arg = (getattr(args, "action_arg", "") or "").strip()
+    anchor = (getattr(args, "action_anchor", "") or "").strip()
+    url = (getattr(args, "url", "") or "").strip()
+    ax = getattr(args, "action_x", None)
+    ay = getattr(args, "action_y", None)
+    if action == "open-url" and url:
+        desc = f"open-url {url}"
+    elif action in ("tap-text", "scroll-until") and arg:
+        desc = f"{action} 「{arg}」"
+    elif action in ("input-text", "blur-input") and anchor:
+        desc = f"{action} @「{anchor}」"
+    elif action == "tap" and ax is not None and ay is not None:
+        desc = f"tap @({ax},{ay})"
+    elif action == "scroll-edge":
+        desc = f"scroll-edge {getattr(args, 'direction', '') or 'down'}"
+    else:
+        desc = action
+    args.desc = desc

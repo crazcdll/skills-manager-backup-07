@@ -1,4 +1,4 @@
-# W5：构造超团（非通兑/通兑）+ 审核
+# W5：构造超团（非通兑/通兑/商促通兑）+ 审核
 
 ## 场景覆盖
 
@@ -6,6 +6,7 @@
 |---------|------|---------|
 | 超团、非通兑超团、单店超团 | 非通兑 | spuExchangeType=1，单 poiId |
 | 通兑超团、多店超团 | 通兑 | spuExchangeType=0，poiId=null，≥2个 poiId |
+| 商促通兑超团、商促超团、活动超团 | 商促通兑 | spuExchangeType=2，poiId=null，不关联门店/产品，必须用户提供商促活动ID+选单ID |
 | 境外超团、境外通兑 | 境外变体 | 加 `--overseas`，专属全日房用多人同价模式（priceSameTag=1 + priceFactorInfos） |
 | 直连通兑超团、直连商品通兑超团 | 直连通兑 | 关联商品是直连商品（非预付专属全日房），先调 zl-hotel-testdata skill 创建 isSuperDeal=true 直连商品，再用 `--goods-ids` 复用 |
 | 图文审核 | 共用 | BPM 基础信息审核通过后调 `auditProduct` RPC 提交图文（code=2024 预期） |
@@ -17,9 +18,12 @@
 ```
 用户说"超团"或"非通兑超团"或"单店超团" → 走【非通兑流程】
 用户说"通兑超团"或"多店超团" → 走【通兑流程】
+用户说"商促通兑超团"或"商促超团"或"活动超团" → 走【商促通兑流程】
 用户说"直连通兑超团"或"直连商品包装成通兑超团"或"直连商品做通兑" → 走【境内通兑直连超团流程】
 用户说"境外"或"海外" → 追加 `--overseas`，并视需要加 `--max-adult N`
 ```
+
+> ⚠️ **商促通兑超团必须用 AskQuestion 向用户提问**获取两个必填 ID：①关联商促活动 ID（promoActivityId）②选择选单 ID（sieveGoodsId）。这两个 ID 无法自动构造（商促活动由营销系统管理），必须用户提供测试环境真实存在的活动/选单 ID。
 
 ---
 
@@ -482,6 +486,116 @@ create-super-deal-unified.py 默认自动串联完整审核流程（与普通通
 
 ---
 
+## 【商促通兑超团】创建流程
+
+> 🎯 **场景**：用户需要创建**商促通兑超团**（spuExchangeType=2）——关联商促活动 + 选择选单的超团形态，**不需要关联固定门店和产品**（无需走全日房 W1 / 非房 W3 / 直连商品等任何前置流程），选单覆盖门店由后端按商促活动动态解析。
+>
+> 模板来源：线上成功抓包（traceId=0a15e4e7844b1789030427605，spuId=2257594710，MTA 网关
+> `/api/v1/mta/prepay/partner/{partnerId}/spu/submit` 扁平请求 → 映射为标准嵌套 SpuModel；
+> MTA 网关后端最终调用的也是同一个 `MeResourceFacade#submitSpu` RPC，本 skill 直接走 RPC 直调）。
+>
+> ✅ **已实测验证（2026-09-10，spuId=2257596873，partnerId=4570390，promoActivityId=100100422，sieveGoodsId=1671782299）**：
+> 走 `MeResourceFacade#submitSpu` RPC + 嵌套 SpuModel（spuExchangeType=2 + spuPromoActivityModel）
+> 创建商促通兑超团**完整跑通**：创建成功 → auditProduct 审核通过（coupon/giftCard/sieve 均为 4）
+> → updateSpuStatus 上线成功 → `status=1`（上架）。后端还会自动回填
+> `promoActivityName`（本次回填为“库存融合自动化专用”）并按活动展开 `sieveModelList`，
+> 验证了「不关联门店/产品、选单由后端动态解析」的设计。
+
+### 前置条件
+
+| 所需 ID | 是否必填 | 说明 |
+|---------|------|------|
+| `partnerId` | ✅ 必填 | 供应商ID |
+| `promoActivityId` | ✅ 必填 | **关联商促活动 ID**，必须由用户提供（AskQuestion 提问），且必须是测试环境真实存在的活动 |
+| `sieveGoodsId` | ✅ 必填 | **选择选单 ID**，必须由用户提供（AskQuestion 提问），且必须是测试环境真实存在的选单 |
+
+> ⚠️ 与非通兑/普通通兑的最大差异：**无任何数据前置流程**（不需要全日房/非房/直连商品），
+> 但商促活动 ID 和选单 ID 无法自动构造，必须向用户提问获取。
+> 线上抓包值 `100100422 / 1671782299` 不能直接在测试环境使用。
+
+### Step 1：dry-run 校验（可选）
+
+```bash
+python3 factory/super-deal-promo/create-super-deal-promo.py \
+  --partner-id <partnerId> \
+  --promo-activity-id <商促活动ID> \
+  --sieve-goods-id <选择选单ID> \
+  [--product-name "<超团名称>"] \
+  [--sale-price 7000] \
+  [--line-price 8000] \
+  [--inventory 1000] \
+  [--person-bind-limit 5] \
+  [--room-nights 1] \
+  [--sell-end YYYY-MM-DD] \
+  [--checkin-start YYYY-MM-DD --checkin-end YYYY-MM-DD] \
+  [--promo-activity-name "<活动名>"] \
+  [--swimlane <泳道>] \
+  [--skip-audit] \
+  [--skip-refresh-spu-cache] \
+  [--cache-env test|prod] \
+  --dry-run
+```
+
+默认值贴近线上商促形态：售价 7000分(70元) / 划线价 8000分(80元) / 有效期约一年，
+可按需覆盖。`--dry-run` 只打印最终 SpuModel，不实际提交。
+
+> ⚠️ **售卖结束时间后端硬约束（实测 2026-09-10，code=200014082）**：最长只能设置
+> 从今天算起 363 天内，脚本默认取 362 天留余量；线上抓包创建日距今 365 天能过，
+> 推测网关/线上与测试环境校验不一致，以测试环境实测为准。
+
+### Step 2：正式提交（自动串联审核上线）
+
+去掉 `--dry-run` 执行同一命令。脚本按顺序执行：
+
+1. 构建 SpuModel（spuExchangeType=2 + spuPromoActivityModel{promoActivityId, sieveGoodsId} + poiId=null + relatedGoodsList=[]）
+2. `MeResourceFacade#submitSpu` RPC 提交商促通兑超团，同步返回 spuId
+3. **（自动）** 串联审核流程（与普通通兑完全一致，复用 `factory/audit/super-deal-unified/audit.py --graphic-only --auto-online`）：
+   - `auditProduct`（configKey=spuDeal）完成图文+优惠券+选单侧审核
+   - `updateSpuStatus`（status=1）上线，内置异步入库重试等待
+4. **（自动）** 上线后刷新 SPU 套餐产品缓存（商促不绑定门店，不刷 POI-SPU 映射缓存；选单门店由后端按活动动态解析）
+
+```bash
+python3 factory/super-deal-promo/create-super-deal-promo.py \
+  --partner-id <partnerId> \
+  --promo-activity-id <商促活动ID> \
+  --sieve-goods-id <选择选单ID>
+```
+
+### 审核上线说明
+
+- 商促通兑 `autoPublish=false`，审核上线流程**与普通通兑超团完全一致**：`auditProduct`（configKey=spuDeal）图文信息审核 → `updateSpuStatus` 上线
+- 创建脚本默认自动串联，无需手动执行；加 `--skip-audit` 可跳过
+- 手动审核命令（跳过自动串联时）：
+  ```bash
+  python3 factory/audit/super-deal-unified/audit.py \
+    --spu-id <spuId> --partner-id <partnerId> --graphic-only --auto-online
+  ```
+- 入库/在线状态验证与非通兑/通兑一致：`python3 factory/super-deal/query-spu.py --partner-id <partnerId> --spu-id <spuId> --wait`
+
+> ⚠️ **实测已知现象（2026-09-10，spuId=2257596873，均为正常异步入库延迟，脚本内置重试自动处理，无需人工干预）**：
+> 1. 上线首次重试报 `spu红包为空`（code=200014033）或 `spu红包(xxx)未上线`——审核通过后红包异步入库未完成，等待重试即可（实测第 2 次重试成功）；
+> 2. 可能报 `上一次的修改仍在执行中，请稍后重试`（code=200014059）——上一次上线动作仍在异步执行，同样等待重试；
+> 3. `spuAuditModel.auditStatus` 停留在 `8`（不会变为 4）——与普通通兑一致的正常残留现象，不影响上线；
+> 4. `mBoxId` 审核后自动生成（本次实测 600120871324），验证魔盒已入库；
+> 5. SPU 缓存刷新依赖 goodsoperator-cli 账号权限（酒店_C端RD 角色），无权限时报 403 不阻塞主流程。
+
+### 与其他超团的关键差异
+
+| 项目 | 非通兑 | 普通达兑 | 商促通兑 |
+|-----|--------|---------|---------|
+| spuExchangeType | 1 | 0 | **2** |
+| 门店 | 单 poiId | ≥2 shopIds | **null（不绑定）** |
+| 关联产品 | 1 个专属全日房 | 每门店各 1 个 | **无（relatedGoodsList=[]）** |
+| 前置流程 | W1 + W3（非房自动） | 每门店 W1 | **无** |
+| 商促关联字段 | 无 | 无 | **spuPromoActivityModel{promoActivityId, sieveGoodsId} 必填（用户提供）** |
+| topPoiList | 无此约束 | 所有门店 | **[]（后端按活动动态解析）** |
+| 价格默认 | 20000/30000 分 | 20000/30000 分 | **7000/8000 分** |
+| 有效期默认 | 30/31 天 | 30/31 天 | **约一年（362 天，后端约束最长 363 天）** |
+| autoPublish | true（自动上线） | false（auditProduct 审核） | **false（auditProduct 审核，与通兑一致）** |
+| 创建脚本 | super-deal/create-super-deal.py | super-deal-unified/create-super-deal-unified.py | **super-deal-promo/create-super-deal-promo.py** |
+
+---
+
 ## 完整执行链路
 
 ```
@@ -494,6 +608,11 @@ create-super-deal-unified.py 默认自动串联完整审核流程（与普通通
 [前置 A] 为每个门店重复 W1：factory/fullday/create-fullday.py → goodsId1, goodsId2, ...
 [W5]     factory/super-deal-unified/create-super-deal-unified.py --shop-ids "..." --goods-ids "..." → spuId
          → 自动串联 BPM 审核 + auditProduct 图文审核 + 上线 + 缓存刷新
+
+商促通兑超团：
+[提问]   AskQuestion 向用户获取 promoActivityId + sieveGoodsId（必填，无法自动构造）
+[W5]     factory/super-deal-promo/create-super-deal-promo.py --promo-activity-id <id> --sieve-goods-id <id> → spuId
+         → 自动串联 auditProduct 图文审核 + 上线 + SPU 缓存刷新（与普通通兑一致）
 ```
 
 ---

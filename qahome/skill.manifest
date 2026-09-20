@@ -1,8 +1,8 @@
 skill-manifest-version: 1
-skill-id: 66da7f349dce61f704bc14ed3e6c90c5c140c9eda48a77caf3c5e00bf3905179
+skill-id: 0ab05a480fd11b4362c294e7c73ca14a1d4bcbe1155949995cc163cef42e06a2
 
 files:
-  80fdc483dd526197373d741f51677fac40c14b24b271b54482b150299547e142  SKILL.md
+  f44625118497f9e91de6f3c0a684693ce5edecb61b790517f3ee2dfc57293f70  SKILL.md
   f3dee69d23d9db2b1e3716cec0e399b047fea983e082efdf367ea9edc2d8c387  bin/ciba-request.mjs
   8143f6a10b63e703fe42c32cc59478b76dcf7935da2a51afc54c6f445c5bb41e  bin/qahome.mjs
   685d70632c2bcbdd756de4bb6c3eb8137734e6948b4eb27c59657dc130f8aaf6  config.local.json.example

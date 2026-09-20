@@ -3,7 +3,8 @@ import json
 import sys
 from core.sop.hook_templates import HOOK_TEMPLATES
 from core.sop.on_fail import REASON_CODE_HOOK_MAP
-from core.sop.hook_render import _build_expected_fields_list, _finalize_hooks, _select_params
+from core.sop.hook_render import (_build_expected_fields_list, _finalize_hooks,
+                                 _format_track_candidates, _select_params)
 
 
 # hook_id → 该 hook 声明的动作必须在 steps.jsonl 里留下对应 sid 的记录。
@@ -154,9 +155,16 @@ def get_hooks_for_result(ok_val, action_type, assertions=None, effect_desc="",
         evidence_path = api_fields.get("evidence_path", "")
         lines = _build_expected_fields_list(expected_fields)
         h = dict(HOOK_TEMPLATES["on_api_fields_assertion"][0])
+        # 浅骨架单独落文件（diagnostics/response_skeleton_<sid>.md），由证据路径推导，供 AI 直接 read_file
+        skeleton_path = ""
+        if evidence_path and "api_evidence_" in evidence_path:
+            skeleton_path = evidence_path.replace(
+                "api_evidence_", "response_skeleton_"
+            ).rsplit(".", 1)[0] + ".md"
         h["hint_params"] = {
             "evidence_path": evidence_path or "(未生成)",
             "expected_fields_list": lines,
+            "skeleton_path": skeleton_path or "(未生成)",
         }
         hooks.append(h)
 
@@ -164,11 +172,15 @@ def get_hooks_for_result(ok_val, action_type, assertions=None, effect_desc="",
     if track_fields:
         expected_fields = track_fields.get("expected_fields", {})
         evidence_path = track_fields.get("evidence_path", "")
+        candidates = track_fields.get("candidates") or []
         lines = _build_expected_fields_list(expected_fields, is_api=False)
         h = dict(HOOK_TEMPLATES["on_track_fields_assertion"][0])
         h["hint_params"] = {
+            "match": track_fields.get("match", ""),
             "evidence_path": evidence_path or "(未生成)",
             "expected_fields_list": lines,
+            "candidate_list": _format_track_candidates(candidates),
+            "candidate_count": len(candidates),
         }
         hooks.append(h)
 

@@ -468,6 +468,7 @@ export const buildRunnerResult = ({
   verifiedAt,
   timings,
   error,
+  skillContractVersion = SKILL_CONTRACT_VERSION,
 }) => {
   const result = {
     schema_version: RESULT_SCHEMA,
@@ -481,7 +482,7 @@ export const buildRunnerResult = ({
     owner,
     organization,
     evidence: {
-      skill_contract_version: SKILL_CONTRACT_VERSION,
+      skill_contract_version: skillContractVersion,
       ee_code_cli_version: versions.eeCodeCliVersion,
       yuntu_cli_version: versions.yuntuCliVersion,
       account_mapping_contract_version: null,
@@ -490,7 +491,7 @@ export const buildRunnerResult = ({
     },
     error,
   };
-  validateRunnerResult(result);
+  validateRunnerResult(result, skillContractVersion);
   const bytes = Buffer.from(JSON.stringify(result), "utf8");
   if (bytes.byteLength > MAX_RESULT_BYTES) {
     throw new AuthorityContractError("runner result is too large", {
@@ -501,7 +502,10 @@ export const buildRunnerResult = ({
   return result;
 };
 
-export const validateRunnerResult = (result) => {
+export const validateRunnerResult = (
+  result,
+  expectedSkillContractVersion = SKILL_CONTRACT_VERSION,
+) => {
   exactObject(result, new Set([
     "schema_version", "attempt_id", "runner_invocation_id", "request_hash",
     "task_artifact_hash", "execution_status", "resolution_status", "repository",
@@ -530,7 +534,7 @@ export const validateRunnerResult = (result) => {
     "account_mapping_contract_version", "verified_at", "timings_ms",
   ]), "result evidence");
   if (
-    evidence.skill_contract_version !== SKILL_CONTRACT_VERSION ||
+    evidence.skill_contract_version !== expectedSkillContractVersion ||
     typeof evidence.ee_code_cli_version !== "string" ||
     typeof evidence.yuntu_cli_version !== "string" ||
     !(evidence.account_mapping_contract_version === null ||

@@ -24,7 +24,8 @@ from actions.track_step_executor import execute_track_step
 from core.flow.step_scheduler import set_step_started as fc_set_step_started
 from core.audit.runtime_audit import append_event
 from actions.step.step_context import (
-    _init_step_context, _resolve_sid_conflict, _validate_step_parameters,
+    _ensure_step_desc, _init_step_context, _resolve_sid_conflict,
+    _validate_step_parameters,
 )
 from actions.step.step_finalize import (
     _print_ai_checklist, _print_step_review_guidance, _update_flow_context_after_step,
@@ -61,6 +62,7 @@ def _cmd_step(args):
     invalidate_cache()
 
     # 1~3) 上下文初始化 / sid 冲突检查 / 参数契约校验
+    _ensure_step_desc(args)
     root_dir, flow_context, case_workspace, case_index = _init_step_context(args)
     run = StepRun(args=args, root_dir=root_dir, flow_context=flow_context,
                   case_workspace=case_workspace, case_index=case_index,

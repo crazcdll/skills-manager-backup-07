@@ -77,6 +77,45 @@ def build_steps_json(case_steps, case_id=""):
             errors.append(f"{kind.upper()} 步骤 {_R(sid, desc)} action 非法: {action!r}")
         if _kr["arg_check"] and _kr["arg_check"](action, s):
             errors.append(f"{kind.upper()} 步骤 {_R(sid, desc)} 的 {action} 必须提供 action_arg")
+        # api_assert 结构硬校验：path 为空会匹配任意录制请求 → 静默假通过
+        if kind == "api":
+            _api = s.get("api_assert")
+            if isinstance(_api, dict):
+                if not str(_api.get("path") or "").strip():
+                    errors.append(
+                        f"API 步骤 {_R(sid, desc)} 的 api_assert.path 必填且不能为空"
+                        f"（path 为空会匹配任意录制请求，导致静默假通过）"
+                    )
+                _efs = _api.get("expected_fields")
+                if _efs is not None:
+                    if not isinstance(_efs, list):
+                        errors.append(
+                            f"API 步骤 {_R(sid, desc)} 的 api_assert.expected_fields 必须是数组"
+                        )
+                    else:
+                        for _ei, _ef in enumerate(_efs):
+                            if not isinstance(_ef, dict) or not str(_ef.get("field") or "").strip():
+                                errors.append(
+                                    f"API 步骤 {_R(sid, desc)} 的 expected_fields[{_ei}] 必须提供非空 field"
+                                    f"（如 {{\"source\":\"request\",\"field\":\"goodsId\",\"expected\":\"123\"}}）"
+                                )
+        # track_assert 结构硬校验：match 为空时 match_events 直接返回空 → 步骤必失败。
+        # 运行时已安全（不会假通过），但应在生成/装载期尽早拦截，避免白等 10s 轮询。
+        if kind == "track":
+            _track = s.get("track_assert")
+            if isinstance(_track, dict) and not str(_track.get("match") or "").strip():
+                errors.append(
+                    f"TRACK 步骤 {_R(sid, desc)} 的 track_assert.match 必填且不能为空"
+                    f"（正确示例: {{\"track_assert\":{{\"match\":\"事件名\"}}}}）"
+                )
+            # 埋点期望字段：{字段名: 期望值} 对象。语义名允许，由 AI 判定时落到实测字段。
+            _tef = _track.get("expected_fields") if isinstance(_track, dict) else None
+            if _tef is not None and not isinstance(_tef, dict):
+                errors.append(
+                    f"TRACK 步骤 {_R(sid, desc)} 的 track_assert.expected_fields 必须是对象"
+                    f"（如 {{\"page_type\":\"全日房\",\"button_name\":\"房型详情\"}}）"
+                )
+
         # 校验 asserts 字段（新协议）
         asserts = s.get("asserts", [])
         if asserts and not isinstance(asserts, list):

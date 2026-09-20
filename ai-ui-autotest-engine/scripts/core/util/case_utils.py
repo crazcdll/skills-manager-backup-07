@@ -7,8 +7,10 @@ from core.util.json_utils import write_json_atomic, read_json
 import zlib
 
 from core.util.paths import (
-    CONFIG_DIR, CASES_DIR, ENV_ANSWERS_FILE, ensure_dirs, RUN_DIR, get_active_case,
+    CONFIG_DIR, CASES_DIR, ENV_ANSWERS_FILE, FLOWS_DIR, SKILL_DIR, ensure_dirs,
+    RUN_DIR, get_active_case,
 )
+from core.util.records import STEPS_FILENAME, SRC_NOTE, StepRecord
 
 def resolve_case_path(path):
     if not path:
@@ -136,3 +138,107 @@ def cmd_save_answers(args):
     if "env_type" in answers:
         v = answers["env_type"]
         print(f"  \u2139\ufe0f env_type={v} \u5bf9\u5e94\u73af\u5883: {ENV_TYPE_OPTIONS.get(v, '?')} \u2014 \u786e\u8ba4\u8fd9\u662f AskQuestion \u7528\u6237\u9009\u62e9\u7684\u7ed3\u679c\uff0c\u800c\u975e AI \u81ea\u884c\u5047\u5b9a")
+
+
+# ═══════════════════════════════════════════════════════════════════
+# 原始用例原文：执行期一次性读取 → 内嵌进 case 日志
+#
+# 背景：报告需要展示「原始 md 测试用例」。历史做法是记录一个路径、上报时再按
+# 路径重读，一旦路径变动/目录被清理/记录不准，内容就丢失。改为：执行期（case-init）
+# 把原文直接作为无判定备注写进 case 的 steps.jsonl，上报时只读日志，不再依赖路径。
+# ═══════════════════════════════════════════════════════════════════
+
+def _read_text_safe(path):
+    """读取文本文件内容，不可读时返回空串。"""
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return f.read()
+    except (OSError, UnicodeDecodeError):
+        return ""
+
+
+def resolve_flow_content(flow_source="", name_hints=None):
+    """解析原始 Flow .md 的路径与内容（执行期读取，供日志内嵌）。
+
+    解析顺序：
+      1) flow_source 指向可读文件 → 直接用（相对路径按 SKILL_DIR 解析）
+      2) 否则在 .run-input/flows/ 按 name_hints（case_id/case_name）匹配文件名
+      3) 否则该目录下恰好只有一个 .md → 用它
+    返回 (path, content, name)；解析不到返回 ("", "", "")。
+    """
+    if flow_source:
+        path = flow_source if os.path.isabs(flow_source) else os.path.join(SKILL_DIR, flow_source)
+        path = os.path.normpath(path)
+        content = _read_text_safe(path)
+        if content:
+            return path, content, os.path.basename(path)
+
+    try:
+        md_files = sorted(
+            f for f in os.listdir(FLOWS_DIR)
+            if f.endswith(".md") and os.path.isfile(os.path.join(FLOWS_DIR, f))
+        )
+    except OSError:
+        md_files = []
+
+    for hint in (name_hints or ()):
+        hint = str(hint or "").strip()
+        if not hint:
+            continue
+        for f in md_files:
+            if hint in f:
+                path = os.path.join(FLOWS_DIR, f)
+                return path, _read_text_safe(path), f
+    if len(md_files) == 1:
+        path = os.path.join(FLOWS_DIR, md_files[0])
+        return path, _read_text_safe(path), md_files[0]
+    return "", "", ""
+
+
+def append_source_notes(case_workspace, entries):
+    """把原始用例原文作为无判定备注写进 case 的 steps.jsonl（幂等）。
+
+    entries: [{"source": "flow_source"|"steps_input", "desc": ..., "note": ...}]
+    同 source 已存在则跳过，避免 case-init 重跑产生重复。返回实际写入的 source 列表。
+    """
+    if not case_workspace or not entries:
+        return []
+    path = os.path.join(case_workspace, STEPS_FILENAME)
+    existing = set()
+    if os.path.isfile(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        rec = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    src = rec.get("source")
+                    if src:
+                        existing.add(src)
+        except (OSError, UnicodeDecodeError) as e:
+            # 惰性导入：core.errors → exception_reporter → 本模块 会构成循环依赖
+            from core.errors import soft_fail
+            soft_fail("infra", "SOURCE_NOTES_READ_FAILED", f"{path}: {e}")
+
+    written = []
+    for entry in entries:
+        src = entry.get("source")
+        if not src or src in existing or not entry.get("note"):
+            continue
+        StepRecord(
+            sid="",
+            src=SRC_NOTE,
+            type=src,
+            desc=entry.get("desc", ""),
+            ok=None,
+            status="note",
+            note=entry["note"],
+            extra={"source": src},
+        ).append(case_workspace)
+        existing.add(src)
+        written.append(src)
+    return written

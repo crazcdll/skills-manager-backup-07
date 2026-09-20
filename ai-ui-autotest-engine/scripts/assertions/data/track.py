@@ -4,6 +4,11 @@
 从 AppMock 录制数据中筛选 lx0.meituan.com 请求，解析灵犀事件，
 按 match 标识匹配事件（val_bid → val_cid → nm 优先级），
 提取原始事件数据，创建 AppMock 归档规则。
+
+匹配语义：val_bid 是精确事件 ID；val_cid / nm 是分类/类型级标识，
+同一标识下可能同时存在多个**不同**事件（如一个 cid 下既有 PV 曝光又有多个 MV
+模块曝光）。因此 val_cid / nm 命中多条时不由引擎武断取第一条，而是把候选集
+交给 AI 按 nm / val_lab 语义消歧。
 """
 import json
 import base64
@@ -106,33 +111,27 @@ def parse_events(items):
     return events, event_to_item
 
 def match_events(events, assertion):
-    """按标识匹配埋点事件。
+    """按标识匹配埋点事件，返回全部候选。
 
-    assertion 必须是 {"match": "标识字符串"} 格式。
-    查找优先级：val_bid → val_cid → nm（值域无交叉，不会误匹配）。
+    assertion 必须是 {"match": "标识字符串"} 格式。查找优先级：
+      val_bid → val_cid → nm（同层命中即停止下降，不跨层混合）
 
-    返回命中的 event 列表，取最后一条。
+    返回 {"tier": <命中的字段名|None>, "candidates": [event, ...]}：
+      · val_bid：精确事件 ID。同一 bid 重复上报（同一次点击/曝光多次入库）
+        视为同一逻辑事件，不算歧义 —— 调用方可直接取首条。
+      · val_cid / nm：分类/类型级标识，多条往往代表**不同事件**（如 PV + 多个 MV），
+        属于歧义，必须交 AI 按 nm / val_lab 语义消歧，不得静默取第一条。
     """
     target = assertion.get("match") or None
     if not target:
-        return []
+        return {"tier": None, "candidates": []}
 
-    # 优先级1: val_bid（最精确）
-    for ev in events:
-        if ev.get("val_bid") == target:
-            return [{"event": ev}]
+    for tier in ("val_bid", "val_cid", "nm"):
+        hits = [ev for ev in events if ev.get(tier) == target]
+        if hits:
+            return {"tier": tier, "candidates": hits}
 
-    # 优先级2: val_cid（分类级别）
-    for ev in events:
-        if ev.get("val_cid") == target:
-            return [{"event": ev}]
-
-    # 优先级3: nm（事件类型）
-    for ev in events:
-        if ev.get("nm") == target:
-            return [{"event": ev}]
-
-    return []
+    return {"tier": None, "candidates": []}
 
 def _collect_val_lab_layers(event):
     """从事件中提取 val_lab 及相关子层字段，供 AI 判定。"""
@@ -170,7 +169,12 @@ def _create_track_mock(item, event, mis):
         "response": resp_val if resp_val is not None else {},
         "request_headers": header_val if header_val is not None else {},
     }, ensure_ascii=False)
-    event_id = event.get("val_bid") or event.get("val_cid") or event.get("nm", "unknown")
+    # 事件 ID 必须逐事件唯一：val_cid 是分类级标识，同一个 cid 下有 PV/MV/MC 等多个
+    # 事件。只用 cid 作归档 key 会让同 cid 的不同事件复用同一条 AppMock 规则、
+    # 互相覆盖响应体（后一条冲掉前一条的证据）。无 bid 时用 cid:nm 组合。
+    event_id = event.get("val_bid") or ":".join(
+        p for p in (event.get("val_cid"), event.get("nm")) if p
+    ) or "unknown"
     # rule / desc 必须稳定（不带时间戳）：平台对同 (rule, desc) 幂等复用，否则每个
     # 埋点断言步骤都会新建一条归档规则，把分组撑到 100 条上限以上（超限后
     # getMockConfigs 直接 500，规则就无法枚举了）。
@@ -193,10 +197,3 @@ def _create_track_mock(item, event, mis):
         "aHR0cHM6Ly9hcHBtb2NrLnNhbmt1YWkuY29tL2FwcF9tb2NrL21hbmFnZS9tb2NrRGV0YWlsLw=="
     ).decode()
     return f"{prefix}{mock_id}"
-    mock_id = result.get("mockId")
-    if mock_id:
-        prefix = base64.b64decode(
-            "aHR0cHM6Ly9hcHBtb2NrLnNhbmt1YWkuY29tL2FwcF9tb2NrL21hbmFnZS9tb2NrRGV0YWlsLw=="
-        ).decode()
-        return f"{prefix}{mock_id}"
-    return None

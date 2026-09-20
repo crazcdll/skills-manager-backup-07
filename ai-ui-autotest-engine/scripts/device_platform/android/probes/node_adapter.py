@@ -83,6 +83,10 @@ def _walk(node, depth, parent_idx, nodes):
 
     misc = props.get("misc") or {}
 
+    # 勾选态三值语义：属性缺失 → None（不可判定），避免把"未知"误判为 False
+    _checked_raw = misc.get("isChecked")
+    checked = None if _checked_raw is None else (str(_checked_raw).lower() == "true")
+
     idx = len(nodes)
     nodes.append({
         "text": text,
@@ -94,6 +98,7 @@ def _walk(node, depth, parent_idx, nodes):
         "w": int(layout["width"]) if layout.get("width") is not None else None,
         "h": int(layout["height"]) if layout.get("height") is not None else None,
         "clickable": misc.get("isClickable") == "true",
+        "checked": checked,
         "scrollable": misc.get("isScrollable") == "true",
         "scroll_dir": _infer_scroll_dir(node.get("class", "")),
         "depth": depth,

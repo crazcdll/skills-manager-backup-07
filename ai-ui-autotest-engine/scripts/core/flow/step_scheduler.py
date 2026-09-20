@@ -16,7 +16,7 @@ from core.sop.hook_router import (
     get_hooks_for_result,
 )
 from core.audit.runtime_audit import append_event
-from core.util.records import StepRecord, SRC_EFFECT_VERIFIED
+from core.util.records import StepRecord, SRC_ASSERT_FIELDS, SRC_EFFECT_VERIFIED
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -245,6 +245,13 @@ def apply_followup_result(run_dir, sid, ok_val, assert_verdicts=None):
     save_context(run_dir, ctx)
 
 
+# 断言校验类 hook：结论由 AI 的 override（--assert-verdict）一次性给出，
+# 断言全部落定后由 _resolve_assertion_hooks 统一置为 completed。
+_ASSERTION_VERIFY_HOOKS = {
+    "verify_text_assertion", "verify_text_visual_recheck", "verify_visual_assertion",
+}
+
+
 def _apply_assertion_verdicts(step, assert_verdicts):
     """把 AI 的逐断言判定合并进 step["assertions"]，并按断言修正步骤结论。
 
@@ -264,6 +271,24 @@ def _apply_assertion_verdicts(step, assert_verdicts):
     if compute_result_from_entries(merged) == 0 and step.get("ok") != 0:
         step["ok"] = 0
         step["status"] = "failed"
+    _resolve_assertion_hooks(step)
+
+
+def _resolve_assertion_hooks(step):
+    """断言全部落定（无 pending）后，把断言校验类 hook 标记完成。
+
+    AI 的 override 判定就是这些 hook 的结论——一个步骤只写一次 --assert-verdict，
+    text / visual 共用同一份。不在此收口的话，verify_text_visual_recheck
+    （required=false，flow-next 不会追问）会永远以 completed=false 留在
+    flow-context 与报告里，形成「指引说已覆盖、报告仍显示未完成」的不一致。
+    """
+    from assertions.engine import compute_result_from_entries
+
+    if compute_result_from_entries(step.get("assertions") or {}) is None:
+        return  # 仍有断言待判定，hook 保留未完成状态
+    for hook in step.get("hooks", []) or []:
+        if hook.get("id") in _ASSERTION_VERIFY_HOOKS:
+            hook["completed"] = True
 
 
 def apply_hook_result(run_dir, sid, hook_id, ai_result):
@@ -329,6 +354,17 @@ def _steps_jsonl_has_sid(run_dir, sid):
     return _steps_jsonl_any(run_dir, lambda rec: rec.get("sid") == sid)
 
 
+def _steps_jsonl_has_src(run_dir, sid, src):
+    """检查 steps.jsonl 中是否存在指定 sid + _src 的记录。"""
+    return _steps_jsonl_any(
+        run_dir, lambda rec: rec.get("sid") == sid and rec.get("_src") == src
+    )
+
+
+# 断言判定类 hook：必须经 assert-fields 提交结论，不能用 flow-next --done-hooks 空标记。
+_ASSERT_FIELDS_HOOKS = {"verify_api_fields", "verify_track_fields"}
+
+
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -387,6 +423,16 @@ def _mark_hook_done_core(run_dir, ctx, step, hook_id):
                 f"steps.jsonl 中未找到 sid={step['sid']} 的记录 —— "
                 f"标记 {hook_id} 前必须先调用 override-step-result 记录该步骤的最终结果"
             )
+    # 字段/消歧判定类 hook 必须经 assert-fields 落结论。否则 flow-next --done-hooks 会把
+    # 「命中多个候选但尚未消歧」的 PENDING 埋点步骤直接定为 PASS
+    # （_finalize_effect_pending_step 无条件修正 PENDING → PASS）。
+    if hook_id in _ASSERT_FIELDS_HOOKS and not _steps_jsonl_has_src(
+            run_dir, step["sid"], SRC_ASSERT_FIELDS):
+        return False, (
+            f"{hook_id} 必须通过 assert-fields 命令完成（提交字段判定/候选选定结果），"
+            f"不能用 flow-next --done-hooks 直接标记。请执行: "
+            f"python3 scripts/cli.py assert-fields --sid {step['sid']} ..."
+        )
     for h in step.get("hooks", []):
         if h["id"] == hook_id and not h.get("completed"):
             h["completed"] = True

@@ -1,9 +1,10 @@
 skill-manifest-version: 1
-skill-id: 798713c29cd5403d2e6053fed6a2e65a09c0be1e330b65b1e3272575394ea5de
+skill-id: 2269b08288e4268dc512dd1d7b1f26b28bfa2c5c78b7dfbe8757a4d501aaa94c
 
 files:
-  8b61dcd872fb39b539c30adea8e7d8d1d994eaa8e4343d0efaa008545243b5a9  SKILL.md
-  930caaf617ca0dea08c30e2597506d6f9827b324cd760d50770c26085099a4e5  references/query-workflow.md
-  86f74dc83110f99bbfb98fded6fa2d998347428b7fa8cd993e48106ac3073da2  references/update-workflow.md
-  0c4d99cb9b773274e6abf8b8c0bc94f93b65c411e8a7d68d97a3eb2ae518c9ac  scripts/_code_.sh
-  1153bfb8d0e21ececc9fda5caec13b6eb8b65b249efbc961a24daefbe6da9f9f  scripts/auto-pr.sh
+  574c6f5e24092c263eefa506e18ac65d84a0b3a0b514e6719e55181529a50a21  SKILL.md
+  df451046c15aea7c2a8954b7996423416dd87d898505a07272b4aa0ba7f42053  references/query-workflow.md
+  d8455172f29fb190038e52836d4bf4f8b6026b6542a85fac4b568da96b262213  references/update-workflow.md
+  6fe90c3e43c5848df67253dea0d05bdc70df0cc2733c81863542e1b8816be898  scripts/_code_.sh
+  f68099f55e3092df408a290b94972e67555d1a2856966c6804ab5f0025ee8405  scripts/auto-pr.sh
+  0727c43c55ad26ee24085a19a9ca02b655cd33bc50be8f2f010ef06199e3519f  scripts/external-kb.sh

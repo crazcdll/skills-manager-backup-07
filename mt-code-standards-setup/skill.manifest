@@ -1,13 +1,13 @@
 skill-manifest-version: 1
-skill-id: 234c948f9c7e54a80e35a10bbc420d39437e2c091c8010043bda0e2657ede9ad
+skill-id: c57c9f494b34a945c438b62436014c78cebb90aa107b83df1ddc33b3e3846723
 
 files:
-  63e1d8739d3ed2e3a1ece7807a3700752d9410670143f13e40cbbdee1b3d8fed  SKILL.md
+  d2b2cbbf4776fb4f5e844e6096ad134a5118c0d4fa6b63e63a64c7bbb9776703  SKILL.md
   db6aec4de3a6a2de4e84ae650e1aec369c7b5948708c84a9103a5eda65aa62da  agents/openai.yaml
   4e35985027766b294bcedc89d61210e9f5352e08267a805df4db7c6271f86c9a  references/sso-platforms.md
   0488f9cb40dcfe177ff42e6c2a615244aa6f6406da468c465722b23346caaf94  scripts/portable-user-auth.mjs
   ce83171c2d1a1fdfbb288a6a58d37fc4b2c42c12ff408849f6b382ba026ea244  scripts/portable-user-auth.test.mjs
-  35d3327b04d64cff0090f98e5caee64cce4ccfc875357ba491f8b129d0e9379a  scripts/resolve-effective-rules.mjs
-  647d609d959f9ce6e7c8a01a75512cc494bc581aa47dbf7643d4bb5a8144bb65  scripts/resolve-effective-rules.test.mjs
+  2721882488d659ea3c36d32109cec8d2841e935469cc125a253c3defb3f834f2  scripts/resolve-effective-rules.mjs
+  ac979ee9bbbf725c5b1381eae2c8949a58ecaf061927d39f55aa75b205ec9f8d  scripts/resolve-effective-rules.test.mjs
   d4cba52c331e5c229fd20321acf69e1d05ff1aa6e38b05caba5f838961df0b51  scripts/sync-effective-rules-with-sso.mjs
   c445274e28abc9fecc4093f82d82f9bc1cc66e42aeceb37602662f47e2e8c870  scripts/sync-effective-rules-with-sso.test.mjs

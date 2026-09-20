@@ -14,7 +14,7 @@ from screen_state.inspect_tree import (
     inspect_tree_find_center, invalidate_cache,
     dump_inspect_tree, parse_inspect_tree,
     is_debug_overlay, _overlapping_clickables,
-    hit_nodes_at,
+    hit_nodes_at, _find_clickable_center,
 )
 from actions.handlers.base import _auto_scroll_coords_to_viewport
 
@@ -83,6 +83,50 @@ def _dedup_candidates(candidates):
             seen.add(key)
             unique.append(cd)
     return unique
+
+
+def _unique_substring_tap_target(nodes, query):
+    """action_arg 是某个节点文案的子串、且候选文案形态唯一时，返回 (center, matched_text)。
+
+    与断言策略的 T1.5「唯一子串 → 语义等价」口径一致：形态唯一时结论是确定的，
+    直接定位并点击，不再消耗一轮 AI hook（实测单次 ~50s）。
+    多形态语义不确定 → 返回 (None, "")，交 AI 消歧。
+
+    只考虑「节点文案包含 query」方向——反向（节点文案是 query 的子串）会把更短、
+    更泛的节点误当目标（如 action_arg「已优惠¥184」命中页面「已优惠」）。
+    """
+    if not nodes or not query:
+        return None, ""
+    texts = {}
+    for n in nodes:
+        for t in ((n.get("all_text") or "").strip(),
+                  (n.get("content_desc") or "").strip()):
+            if t and query in t:
+                texts.setdefault(t, n)
+    if len(texts) != 1:
+        return None, ""
+    text, node = next(iter(texts.items()))
+    return _find_clickable_center(nodes, node), text
+
+
+def _record_substring_fallback(args, target, actual, center):
+    """把「子串唯一兜底」这一 action 口径差异写入运行时间线，保证可追溯。
+
+    兜底成功后不再生成 TEXT_NOT_FOUND hook，若不在此留痕，报告中就看不到
+    「action_arg 与页面实际文案不一致」这一事实（此前由 hook 的 anomaly 承载）。
+    """
+    try:
+        from core.audit.runtime_audit import append_event
+        from core.util.case_utils import resolve_case_path
+        run_dir = resolve_case_path(getattr(args, "dir", None))
+        if not run_dir:
+            return
+        append_event(run_dir, "tap_text.substring_fallback", {
+            "action": "tap-text", "target": target, "actual": actual,
+            "center": list(center),
+        })
+    except Exception as e:  # noqa: BLE001 — 留痕失败不得影响点击结果
+        soft_fail("infra", "TAP_SUBSTRING_FALLBACK_AUDIT_FAILED", e)
 
 
 def _low_confidence_warning(text, info):
@@ -231,6 +275,19 @@ def handle_tap_text(action_arg, args):
             _nodes = get_current_nodes(wait_sec=1)
         except Exception as e:
             soft_fail("device", "TAP_SUBSTRING_HINT_SCAN_FAILED", e)
+
+        # 唯一子串兜底：action_arg 恰好是唯一一个节点文案的子串 → 结论确定，直接点击。
+        # 避免为一处文案口径差异（页面「已优惠¥184」vs action_arg「已优惠」）白等一轮
+        # AI hook。多形态 / 无可点击祖先时不兜底，仍走下面的 handoff。
+        _center, _matched = _unique_substring_tap_target(_nodes, action_arg)
+        if _center:
+            _ops = get_platform_ops()
+            if _ops.tap(*_center):
+                print(f"  TAP-TEXT 唯一子串命中: '{action_arg}' → 「{_matched}」 @ {tuple(_center)}")
+                _record_substring_fallback(args, action_arg, _matched, _center)
+                return {"ok": True, "reason": "", "ctx": {}, "inspect_tree_impact": "unknown"}
+            print(f"  TAP-TEXT 唯一子串命中但 tap 失败: '{action_arg}' @ {tuple(_center)}，转 AI 处理")
+
         _substring_hints = []
         if _nodes:
             for _n in _nodes:
@@ -311,7 +368,8 @@ def handle_tap_text(action_arg, args):
         for i, cd in enumerate(unique, 1):
             _cx, _cy = cd["center"]
             print(f"  [{i}] 「{cd['text']}」@ ({_cx},{_cy}) clickable={cd['clickable']}")
-        print(f"  💡 请结合截图和步骤描述，用 step tap --action-x <x> --action-y <y> 选择正确目标")
+        print(f"  💡 请结合截图和步骤描述，用 step tap --action-x <x> --action-y <y> "
+              f"--desc '坐标点击兜底：<实际文案>' 选择正确目标")
         return _handoff("AMBIGUOUS", action_arg,
                          candidates=[{"text": cd["text"], "center": list(cd["center"])}
                                      for cd in unique])

@@ -1,12 +1,12 @@
 ---
 name: hotel-product-testdata
-description: 酒店商品数据构造助手。支持：全日房（普通/免费取消/收费取消/不可取消/附近专享/境外多人多价/境外多人同价）、钟点房（仅境内，可取消/不可取消）、非房（xGoods）、套餐、超团（非通兑/通兑）、营销报名（生意助手/全域通）、缓存刷新/改价审核、商品上线/下线、房态&库存修改（开房/关房/设置库存余量）、基础实体创建（POI/供应商/房型/合同）及配置（门店私海认领/供应商绑定门店/价格模式切换），以及非房审核、套餐审核、超团审核（非通兑/通兑）、礼包审核。支持四种前置数据场景：①完全没有基础数据（查数据池或全新构造）②已有客户ID和门店ID（绑定门店+查/建合同）③只有客户ID（新建门店+绑定）④只有门店ID（数据池查供应商+绑定）。触发词：创建酒店商品、创建全日房、创建钟点房、全日房RPC、钟点房RPC、酒店直调接口、MeGoodsFacade、batchCreateGoods、创建全参数产品、酒店RPC上单、创建非房、非房审核、xGoods审核、创建套餐、套餐审核、房转套餐、货盘规则上单、创建超团、超团审核、非通兑超团、通兑超团、礼包审核、营销报名、生意助手报名、全域通报名、缓存刷新、改价审核、商品上线、商品下线、发布上线、恢复上线、batchOnlineSwitch、创建POI、创建供应商、创建房型、创建合同、查询合同、开房、关房、设置库存、补库存、修改房态、修改库存、batchUpdateInventory、库存不足上线失败、境外全日房、多人多价、priceSameTag、priceFactorInfos、门店私海认领、私海认领、claim poi、供应商绑定门店、绑定门店、bind partner poi、在指定客户下构造商品、指定partnerId构造、指定门店构造商品、资质审核通过、audit poi qualification、价格模式切换、切换底价、切换卖价、底价模式、卖价模式、switch price mode、工具906、工具928。不要用于：非酒店类商品、直连产品（走 zl-hotel-testdata skill）、境外钟点房（不存在此场景）。
+description: 酒店商品数据构造助手。支持：全日房（普通/免费取消/收费取消/不可取消/附近专享/境外多人多价/境外多人同价）、钟点房（仅境内，可取消/不可取消）、非房（xGoods）、套餐、超团（非通兑/通兑/商促通兑，商促通兑需用户提供商促活动ID+选单ID，不关联门店和产品）、闲置房（仅境内，子产品，依赖境内全日房母产品，HTTP 接口 rechargeV2）、营销报名（生意助手/全域通）、缓存刷新/改价审核、商品上线/下线、房态&库存修改（开房/关房/设置库存余量）、基础实体创建（POI/供应商/房型/合同）及配置（门店私海认领/供应商绑定门店/价格模式切换），以及非房审核、套餐审核、超团审核（非通兑/通兑）、礼包审核。支持四种前置数据场景：①完全没有基础数据（查数据池或全新构造）②已有客户ID和门店ID（绑定门店+查/建合同）③只有客户ID（新建门店+绑定）④只有门店ID（数据池查供应商+绑定）。触发词：创建酒店商品、全日房、钟点房、酒店直调接口、MeGoodsFacade、batchCreateGoods、创建全参数产品、酒店RPC上单、xGoods审核、房转套餐、货盘规则上单、非通兑超团、通兑超团、闲置房上单、闲置房充值、batchRechargeFreeHouse、rechargeV2、生意助手报名、全域通报名、发布上线、恢复上线、batchOnlineSwitch、查询合同、补库存、batchUpdateInventory、库存不足上线失败、境外全日房、多人多价、priceSameTag、priceFactorInfos、claim poi、bind partner poi、在指定客户下构造商品、指定partnerId构造、指定门店构造商品、资质审核通过、audit poi qualification、切换底价、切换卖价、底价模式、卖价模式、switch price mode、工具906、工具928。不要用于：非酒店类商品、直连产品（走 zl-hotel-testdata skill）、境外钟点房（不存在此场景）、境外闲置房（不存在此场景）。
 allowed-tools: [read, exec]
 
 metadata:
   skillhub.creator: "mengfanchen"
-  skillhub.updater: "zhaoshichuan"
-  skillhub.version: "V30"
+  skillhub.updater: "liruzhen"
+  skillhub.version: "V31"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "17622"
   skillhub.high_sensitive: "false"
@@ -74,6 +74,13 @@ python3 -c "from meituan.cli.commands.du_thrift import invoke_thrift; print('OK'
 testdata-cli --version 2>/dev/null || npm install -g @cscqa/testdata-cli --registry=http://r.npm.sankuai.com
 ```
 
+**4.1 merchant-testdata-cli + tdm-cli 安装检查**（W10 闲置房专用：merchant-testdata-cli 按 partnerId 查询商家账号登录名；tdm-cli 免密登录换 ebbsid，已安装跳过）：
+```bash
+merchant-testdata-cli --version 2>/dev/null || curl -fsSL https://friday.sankuai.com/open/cli/deploy/merchant-testdata-cli/install.sh | bash
+which tdm || echo "⚠️ 缺少 tdm-cli，W10 闲置房充值无法换票"
+```
+> ⚠️ 仅 **W10 闲置房场景**需要，其余商品类型（全日房/钟点房/非房/套餐/超团等）走 DataUnity 工具或标准 Thrift RPC，不依赖这两个 CLI，可在进入 W10 前再按需安装。闲置房充值是 **HTTP 直连 EB 网关 rechargeV2**（2026-09-16 实测修正，非 Thrift），且**商家必须先开通资金池**（否则接口假成功 data=null），详见 `references/workflows/w10-create-freeRoom.md` 前置 B/C。
+
 **5. testdata-report-execution 上报组件依赖**（执行记录上报，已安装跳过）：
 ```bash
 bash "$SKILL_DIR/scripts/setup.sh"
@@ -119,7 +126,8 @@ bash "$SKILL_DIR/scripts/setup.sh"
 | 构造非房 xGoods + 审核（只支持境内） | `references/workflows/w3-create-non-room.md` | partnerId + poiId |
 | 构造套餐 + 审核（只支持境内） | `references/workflows/w4-create-package.md` | partnerId + poiId + contractId |
 | 构造房转套餐（货盘规则上单，系统自动生成套餐，无需 contractId） | `references/workflows/w9-create-palletize-package.md` | partnerId + poiId + roomId |
-| 构造超团（非通兑/通兑）+ 审核 | `references/workflows/w5-create-super-deal.md` | 需先按 W1 单独创建专属全日房拿 goodsId；非通兑: partnerId + poiId + goodsId；通兑: partnerId + ≥2 poiId + 对应 goodsIds |
+| 构造超团（非通兑/通兑/商促通兑）+ 审核 | `references/workflows/w5-create-super-deal.md` | 需先按 W1 单独创建专属全日房拿 goodsId；非通兑: partnerId + poiId + goodsId；通兑: partnerId + ≥2 poiId + 对应 goodsIds；商促通兑: partnerId + 商促活动ID + 选单ID（用户提供，不关联门店/产品） |
+| 构造闲置房（仅境内，子产品） | `references/workflows/w10-create-freeRoom.md` | 需先按 W1 单独创建境内全日房母产品拿 goodsId；partnerId + poiId + goodsId（customerId 可选，不传自动换算） |
 | 营销报名 / 缓存刷新 / 改价审核 / 上线下线 | `references/workflows/w6-marketing-ops.md` | goodsId / spuId / productId 之一 |
 | 开房 / 关房 / 修改库存余量 | `references/workflows/w7-inventory-ops.md` | partnerId + poiId + roomId |
 | 门店私海认领 / 供应商绑定门店 / 价格模式切换 | `references/workflows/w8-infra-bootstrap.md` | poiId（认领）/ poiId+partnerId（绑定）/ platformContractId（价格模式） |
@@ -152,7 +160,7 @@ bash "$SKILL_DIR/scripts/setup.sh"
 
 | 时机 | 行动 |
 |------|------|
-| 进入任意 workflow 前 | 读对应 workflow 文件（w1～w8） |
+| 进入任意 workflow 前 | 读对应 workflow 文件（w1～w10） |
 | 参数含义/枚举不确定时 | 执行 `python3 factory/<路径>/xxx.py --show-schema`（所有脚本均支持） |
 | --show-schema 不够时 | 读 `factory/<类型>/schema.json` |
 | 供应商参数枚举 | 读 `factory/infra/create-partner-schema.json` |
@@ -162,6 +170,7 @@ bash "$SKILL_DIR/scripts/setup.sh"
 | 境外多人多价（priceSameTag / priceFactorInfos） | 读 `factory/fullday/schema.json` 的 scenario_8/9 节 |
 | 供应商/contractNo/房型命名问题 | 读 `references/pitfalls/infra.md` |
 | Thrift RPC 调用报错 | 读 `references/pitfalls/rpc.md` |
+| 闲置房商家账号查询问题 | 读 `references/workflows/w10-create-freeRoom.md` 的「前置 B」节 |
 
 ---
 
@@ -171,6 +180,6 @@ bash "$SKILL_DIR/scripts/setup.sh"
 |------|------|
 | `REPORT_TABLE` | `hotel_testdata_records` |
 | `skill_name` | `hotel-product-testdata` |
-| `product_type` | `fullday` / `hourly` / `non_room` / `package` / `super_deal` / `infra` / `marketing` / `inventory` |
+| `product_type` | `fullday` / `hourly` / `non_room` / `package` / `super_deal` / `free_room` / `infra` / `marketing` / `inventory` |
 
 > detail 字段结构为通用规范，定义在 `testdata-report-execution` SKILL.md 的「上报 detail 字段（通用规范）」章节中。

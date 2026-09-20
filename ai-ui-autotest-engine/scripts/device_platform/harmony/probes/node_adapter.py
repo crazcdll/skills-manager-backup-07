@@ -80,6 +80,10 @@ def _walk(node, depth, parent_idx, nodes):
     # 唯一性，可用于日志/调试定位，但跨次采集不稳定，不应长期持久化引用）。
     m_id = _norm_text(attrs.get("id")) or _norm_text(attrs.get("accessibilityId"))
 
+    # 勾选态三值语义：属性缺失 → None（不可判定），避免把"未知"误判为 False
+    _checked_raw = attrs.get("checked")
+    checked = None if _checked_raw is None else (str(_checked_raw).lower() == "true")
+
     idx = len(nodes)
     nodes.append({
         "text": text,
@@ -91,6 +95,7 @@ def _walk(node, depth, parent_idx, nodes):
         "w": w,
         "h": h,
         "clickable": attrs.get("clickable") == "true",
+        "checked": checked,
         "scrollable": attrs.get("scrollable") == "true",
         "scroll_dir": attrs.get("scrollDirection"),  # "horizontal" / "vertical"
         "depth": depth,

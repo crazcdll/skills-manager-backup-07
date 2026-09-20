@@ -135,7 +135,7 @@ ai-ui-autotest-engine/
 
 `text_input.py` 封装文本输入与清空：含 CJK 字符走 ADBKeyboard broadcast，纯 ASCII 直接调 `PlatformOps.input_text`，清空用批量退格 keyevent，输入结果统一走 inspect-tree 校验。
 
-`api_step_executor.py`/`track_step_executor.py` 是接口断言与埋点断言的独立执行器：拉取 AppMock 录制快照 → 最新记录匹配（埋点额外做 lx0 解析 + 顶层/tag 递归匹配）→ 提取关键字段写入 `extracted_fields`，不执行程序化断言，最终判定由 AI 通过 `override-step-result` 完成。
+`api_step_executor.py`/`track_step_executor.py` 是接口断言与埋点断言的独立执行器：拉取 AppMock 录制快照 → 最新记录匹配（埋点额外做 lx0 解析 + 顶层/tag 递归匹配）→ 提取关键字段写入 `extracted_fields`（接口侧仅 query/request/meta/headers；响应体不入索引，浅骨架单独落 `diagnostics/response_skeleton_<sid>.md`，字段定位与取值走 `response-search --query/--path`），不执行程序化断言，字段级判定由 AI 通过 `assert-fields` 写入——判定结果以 `fa.field_results` 落盘（报告层唯一读取契约，经 `report/schema.build_evidence` → `report/steps._expand_field_results_to_fields` 展开为步骤 evidence 的 `api_assert.<真实路径>`），并把解析出的真实路径回写步骤 `api_assert.expected_fields`（原声明存 `declared_fields`）。
 
 `standalone_commands.py` 提供独立的 UI 交互原语（截图、滚动、断言），供引擎和 AI 直接调用。
 
@@ -283,7 +283,7 @@ PlatformOps（怎么操作设备）、DeviceLifecycle（怎么获取和释放设
 | AppMock 全功能 | 规则 CRUD、录制、泳道、域名映射、MRN 锁包 |
 | DUO 协议 Mock | nodeDataMap 组件级字段精准修改 |
 | 埋点验证 | lx0 录制数据解析 + 事件匹配 + 字段提取（extracted_fields），AI 分析判定 |
-| 接口验证 | 业务接口录制数据匹配 + 字段提取（extracted_fields），AI 分析判定 |
+| 接口验证 | 业务接口录制数据匹配 + 字段提取（query/request/meta/headers）+ 响应浅骨架文件 + `response-search` 按需检索；字段判定经 `fa.field_results` 并入步骤 evidence（`api_assert.<真实路径>`），真实路径回写声明 |
 | UI 质量扫描 | 占位符/乱码、入口缺失、区域遮挡检测 |
 | 多 Case 批量执行 | 一个 Flow 拆分多个 Case，循环执行 |
 | Mock 基线快照与回滚 | Case 间/Batch 级精确回滚 |
@@ -325,17 +325,22 @@ python3 scripts/cli.py save-answers --answers '{"account":"<手机号>","passwor
 # 4. 收集可选配置（ptest、锁包等）
 python3 scripts/cli.py config-required --flow-source <flow-文件路径>
 
-# 5. 将 Flow 语义转换为可执行步骤
-python3 scripts/cli.py flow-convert --flow .run-input/flows/flow-{NN}-{场景简称}.md --tag {tag}
+# 5. 解析 Flow 元数据（供 AI 写步骤参考）
+python3 scripts/cli.py flow-convert --flow-source .run-input/flows/flow-{NN}-{场景简称}.md --tag {tag}
 
-# 6. 初始化 flow-context
+# 6. CASES 文件（强制约定）：先创建空文件 → AI 写入 → 落盘校验 → 生成 steps-input
+python3 scripts/cli.py cases-create --tag {tag}
+#    AI 写入完整 CASES（device/env/cases/steps），wc -c 确认非空后：
+python3 scripts/cli.py steps-generate --input '.run/tmp/cases-{tag}.json' --tag {tag}
+
+# 7. 初始化 flow-context（占位符在此解析，并固化 steps-input 为唯一事实来源；原文另存 steps-input.raw.json）
 python3 scripts/cli.py flow-init --dir <run-name> --input '.run/tmp/steps-input-<tag>.json' --flow-name <name> --mis <mis>
 
-# 7. 进入引擎驱动，按 flow-next 返回的命令逐步执行
+# 8. 进入引擎驱动，按 flow-next 返回的命令逐步执行
 python3 scripts/cli.py flow-next   # 获取下一步
 # ... 按 flow-next 返回的指令逐条执行 ...
 
-# 8. 收尾（flow-finalize → post-clean，由引擎 T2 阶段自动完成）
+# 9. 收尾（flow-finalize → post-clean，由引擎 T2 阶段自动完成）
 ```
 
 ### 开发者扩展指南

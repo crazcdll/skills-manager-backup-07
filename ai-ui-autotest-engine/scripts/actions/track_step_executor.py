@@ -8,8 +8,8 @@
 import os
 import time
 
-from core.util.json_utils import write_json_atomic
-from core.errors import FlowStateError, StepAssertionError, soft_fail
+from core.util.json_utils import read_json, write_json_atomic
+from core.errors import FlowStateError, PayloadError, StepAssertionError, soft_fail
 
 from core.util.case_utils import resolve_mis
 from core.flow.step_scheduler import update_step_result as fc_update_step
@@ -70,9 +70,15 @@ def _save_parsed_events(case_ws, sid, events):
 
 
 def _fetch_and_match_event(mis, assertion, timeout_sec, case_ws=None, sid=None):
+    """轮询录制数据，返回命中的全部候选事件。
+
+    返回 (res, events, event_to_item, attempt)：
+      res = {"tier": <命中的字段名|None>, "candidates": [event, ...]}
+    """
     deadline = time.time() + timeout_sec
     attempt = 0
     events = []
+    event_to_item = []
     while True:
         attempt += 1
         data = appmock_record_data(
@@ -81,19 +87,15 @@ def _fetch_and_match_event(mis, assertion, timeout_sec, case_ws=None, sid=None):
         items = data.get("items", []) if data else []
         lx0_items = extract_lx0_items(items)
         events, event_to_item = parse_events(lx0_items)
-        matched = match_events(events, assertion)
-        if matched:
-            m = matched[-1]
-            event = m["event"]
-            idx = events.index(event)
-            source_item = event_to_item[idx] if idx < len(event_to_item) else None
+        res = match_events(events, assertion)
+        if res["candidates"]:
             # 匹配成功后保存扁平化事件列表
             _save_parsed_events(case_ws, sid, events)
-            return event, source_item, events, attempt
+            return res, events, event_to_item, attempt
         if time.time() >= deadline:
             # 超时也保存已拉取的数据（方便排查为何未匹配）
             _save_parsed_events(case_ws, sid, events)
-            return None, None, events, attempt
+            return {"tier": None, "candidates": []}, events, event_to_item, attempt
         print(f"  埋点步骤: 第 {attempt} 次轮询未匹配到事件，等待 2s 后重试...")
         time.sleep(2)
 
@@ -115,6 +117,101 @@ def _extract_track_fields(event, layers):
             for lk, lv in layer_dict.items():
                 extracted[f"{layer_name}.{lk}"] = lv
     return truncate_values(extracted)
+
+
+def _save_candidates(case_ws, sid, res, events, event_to_item, match_val):
+    """落盘多候选明细，供 AI 消歧并支持选定后重建证据。
+
+    仅在歧义（val_cid / nm 命中多条）时调用。除每个候选的拍平字段（供 AI 读）外，
+    还保留原始事件与所属请求（item）：AI 用 assert-fields --picked 选定后，
+    由该文件重建最终 track_evidence_<sid>.json 并归档 Mock。
+
+    返回 (path, brief)：path 为候选文件路径；brief 为塞进 hook hint_params 的精简清单
+    （只含序号/nm/val_bid），避免候选详情把 flow-context.json 撑大。
+    """
+    if not case_ws:
+        return None, []
+    diag_dir = os.path.join(case_ws, "diagnostics")
+    os.makedirs(diag_dir, exist_ok=True)
+
+    candidates = []
+    items = {}
+    item_key_by_obj = {}
+    for i, ev in enumerate(res["candidates"], 1):
+        idx = events.index(ev) if ev in events else -1
+        item = event_to_item[idx] if 0 <= idx < len(event_to_item) else None
+        item_key = None
+        if item is not None:
+            # 同一请求可能承载多个事件，按对象标识去重，避免重复存原始请求
+            item_key = item_key_by_obj.get(id(item))
+            if item_key is None:
+                item_key = f"req_{len(items)}"
+                item_key_by_obj[id(item)] = item_key
+                items[item_key] = item
+        candidates.append({
+            "index": i,
+            "nm": ev.get("nm"),
+            "val_cid": ev.get("val_cid"),
+            "val_bid": ev.get("val_bid"),
+            "fields": _extract_track_fields(ev, _collect_val_lab_layers(ev)),
+            "event": ev,
+            "item_key": item_key,
+        })
+
+    payload = {
+        "sid": sid,
+        "match": match_val,
+        "tier": res.get("tier"),
+        "count": len(candidates),
+        "candidates": candidates,
+        "items": items,
+    }
+    path = os.path.join(diag_dir, f"track_candidates_{sid}.json")
+    try:
+        write_json_atomic(path, payload)
+    except Exception as e:
+        print(f"  ⚠️ 候选文件保存失败: {e}")
+        path = None
+    brief = [{"index": c["index"], "nm": c["nm"], "val_bid": c["val_bid"]}
+             for c in candidates]
+    return path, brief
+
+
+def select_candidate(case_ws, sid, candidates_path, picked, expected_fields=None, mis=None):
+    """按 AI 选定的候选序号重建最终证据（多候选消歧的落点）。
+
+    候选文件 track_candidates_<sid>.json 保存了每个候选的原始事件与所属请求；
+    选定后：① 覆盖 track_evidence_<sid>.json 为所选事件；② 归档 AppMock。
+    返回 (所选候选项 dict, appmock_url)：候选项含 index/nm/val_bid/fields。
+
+    picked 为 1-based 序号（与候选清单一致）。
+    """
+    if not candidates_path or not os.path.isfile(candidates_path):
+        raise PayloadError(f"候选文件不存在: {candidates_path or '(空)'}")
+    data = read_json(candidates_path, default={}) or {}
+    cands = data.get("candidates") or []
+    if not isinstance(picked, int) or not (1 <= picked <= len(cands)):
+        raise PayloadError(
+            f"--picked 越界: {picked}（候选共 {len(cands)} 条，序号从 1 开始）"
+        )
+    chosen = cands[picked - 1]
+    event = chosen.get("event") or {}
+    layers = _collect_val_lab_layers(event)
+    extracted = _extract_track_fields(event, layers)
+    _save_evidence(case_ws, sid, event, layers, extracted, expected_fields=expected_fields)
+
+    # 归档 AppMock：复用候选文件保留的原始请求
+    appmock_url = None
+    item_key = chosen.get("item_key")
+    item = (data.get("items") or {}).get(item_key) if item_key else None
+    if item is not None and mis:
+        try:
+            appmock_url = _create_track_mock(item, event, mis)
+            if appmock_url:
+                print(f"  AppMock: {appmock_url}")
+        except Exception as e:
+            soft_fail("infra", "TRACK_APPMOCK_ARCHIVE_FAILED", e)
+    return chosen, appmock_url
 
 
 def _take_screenshot(case_ws, ci, sid):
@@ -165,14 +262,16 @@ def execute_track_step(root_dir, case_ws, ctx, step_def, args):
     if expected_fields:
         print(f"  字段校验: {len(expected_fields)} 个预期字段")
 
-    event, source_item, events, attempts = _fetch_and_match_event(
+    res, events, event_to_item, attempts = _fetch_and_match_event(
         mis, assertion, timeout_sec, case_ws=case_ws, sid=sid,
     )
+    candidates = res.get("candidates") or []
+    tier = res.get("tier")
 
     # 无论成功失败，都补一张现场截图作为证据
     shot_name = _take_screenshot(case_ws, ci, sid)
 
-    if not event:
+    if not candidates:
         ok_val = 0
         recorded_events = [
             {"nm": e.get("nm", ""), "val_cid": e.get("val_cid", ""),
@@ -200,8 +299,51 @@ def execute_track_step(root_dir, case_ws, ctx, step_def, args):
             print(f"     - track_assert 格式错误，正确示例: {{\"track_assert\": {{\"match\":\"c_hotel_createorder_unified\"}}}}")
         raise StepAssertionError(f"TRACK STEP [{sid}] 未匹配到埋点事件 (共 {attempts} 次轮询, 事件 {len(events)} 个)")
 
+    # ── 歧义判定 ──────────────────────────────────────────────
+    # val_bid 是精确事件 ID，重复上报视为同一逻辑事件；val_cid / nm 是分类级标识，
+    # 命中多条往往代表**不同事件**（如一个 cid 下 PV 曝光 + 多个 MV 模块曝光）。
+    # 后者引擎不武断取第一条，而是转 PENDING，把候选集交给 AI 按 nm/val_lab 语义消歧。
+    ambiguous = tier in ("val_cid", "nm") and len(candidates) > 1
+
+    if ambiguous:
+        candidates_path, brief = _save_candidates(
+            case_ws, sid, res, events, event_to_item, match_val,
+        )
+        record = StepRecord(
+            sid=sid, src=SRC_STEP, type="track", desc=desc, ok=None, status="pending",
+            ms=int((time.time() - step_start) * 1000), kind="track",
+            expected_fields=expected_fields or None,
+            extra={"matched": True, "ambiguous": True, "tier": tier,
+                   "candidate_count": len(candidates), "candidates_path": candidates_path},
+        )
+        record.shot(shot_name, label="埋点现场", kind=SHOT_STEP)
+        assertions_data = {
+            "track_fields": {
+                "match": match_val,
+                "tier": tier,
+                "ambiguous": True,
+                "candidates": brief,
+                "candidates_path": candidates_path or "",
+                "expected_fields": expected_fields or {},
+                "evidence_path": candidates_path or "",
+            }
+        }
+        _finalize_step(root_dir, case_ws, record, ci, sid, None, "track",
+                       screenshot=shot_name, fail_reason="", assertions=assertions_data)
+        print(f"TRACK STEP [{sid}] ⏸ PENDING | match={match_val} 命中 {len(candidates)} 个候选 (tier={tier})")
+        if candidates_path:
+            print(f"  📋 候选明细: {candidates_path}")
+        print(f"  💡 候选事件: {[c.get('nm') for c in brief]}")
+        print(f"  💡 需 AI 按 nm/val_lab 语义选定后执行: "
+              f"assert-fields --sid {sid} --picked <序号> ...")
+        return 0
+
+    # ── 唯一命中（含 val_bid 重复上报）：直接采纳；空 expected_fields 时自动 PASS ──
+    event = candidates[0]
+    idx = events.index(event) if event in events else -1
+    source_item = event_to_item[idx] if 0 <= idx < len(event_to_item) else None
     event_nm = event.get("nm", "")
-    print(f"  ✅ MATCHED | nm={event_nm}")
+    print(f"  ✅ MATCHED | nm={event_nm} (tier={tier})")
 
     layers = _collect_val_lab_layers(event)
     extracted_fields = _extract_track_fields(event, layers)
@@ -239,6 +381,11 @@ def execute_track_step(root_dir, case_ws, ctx, step_def, args):
     if expected_fields:
         assertions_data = {
             "track_fields": {
+                "match": match_val,
+                "tier": tier,
+                "ambiguous": False,
+                "candidates": [],
+                "candidates_path": "",
                 "expected_fields": expected_fields,
                 "evidence_path": evidence_path or "",
             }

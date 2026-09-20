@@ -1,0 +1,197 @@
+{
+  "_comment": "商促通兑超团 SpuModel 参数说明，来源为线上成功抓包（traceId=0a15e4e7844b1789030427605，spuId=2257594710）映射为标准嵌套 SpuModel",
+  "_rpc": {
+    "appkey": "com.sankuai.hotel.biz.platform",
+    "service": "com.meituan.hotel.biz.platform.goods.facade.standard.MeResourceFacade",
+    "method": "submitSpu",
+    "signature": "submitSpu(java.lang.Long userId, com.meituan.hotel.biz.platform.goods.facade.model.spu.SpuModel): MeBaseResult",
+    "note": "与非通兑/普通通兑超团共用同一已注册 OCTO 接口。MTA 前端网关 /api/v1/mta/prepay/partner/{partnerId}/spu/submit 创建商促通兑超团时后端最终也调到本 RPC（网关扁平 DTO 的 relatePromoActivityModel 映射到 superDealRelatedModel.spuPromoActivityModel）"
+  },
+  "_input_mode": "必传 partner-id + promo-activity-id + sieve-goods-id（均由用户提供）；不需要任何前置流程（无全日房 W1 / 非房 W3 / 直连商品），poiId=null、relatedGoodsList=[]",
+  "_key_diff_from_other_super_deals": [
+    "spuExchangeType=2（非通兑=1，普通通兑=0）",
+    "poiId=null 且 relatedGoodsList=[]（不绑定固定门店和产品，无任何前置流程）",
+    "superDealRelatedModel.spuPromoActivityModel 必填（promoActivityId + sieveGoodsId 须由用户提供）",
+    "superDealSieveModel.topPoiList=[]（选单覆盖门店由后端按商促活动动态解析）",
+    "autoPublish=false，创建后自动串联 auditProduct 审核 + updateSpuStatus 上线（复用 factory/audit/super-deal-unified/audit.py，与普通通兑一致）",
+    "mBoxId=null（后端自动创建，响应返回 bizacctid）",
+    "价格默认 7000/8000 分（贴近线上商促形态，其他超团默认 20000/30000 分）",
+    "有效期默认约一年 364 天（贴近线上商促形态，其他超团默认 30/31 天）",
+    "以下字段忠实抓包保持 null：couponTitle / coupon.startDate / coupon.endDate / couponInventoryModel.startDateTime / giftUse.startTime / periodDays / splitRoomNight",
+    "purchaseRestrictionRule.periodUnit=2（其他超团模板为 null）",
+    "网关请求中的 writeNewSellStrategy / zlActivityModelList / activityIds 为网关层字段，嵌套 SpuModel 无对应，直调 RPC 不传"
+  ],
+  "cli": {
+    "partner-id": {
+      "type": "string/long",
+      "required": true,
+      "desc": "供应商ID；必须与 SpuModel.spuBaseModel.partnerId 一致"
+    },
+    "promo-activity-id": {
+      "type": "integer",
+      "required": true,
+      "maps_to": "superDealModel.superDealRelatedModel.spuPromoActivityModel.promoActivityId",
+      "desc": "关联商促活动 ID，必须由用户提供，且必须是测试环境真实存在的活动（线上抓包值 100100422 不能直接在测试环境使用）"
+    },
+    "sieve-goods-id": {
+      "type": "integer",
+      "required": true,
+      "maps_to": "superDealModel.superDealRelatedModel.spuPromoActivityModel.sieveGoodsId",
+      "desc": "选择选单 ID，必须由用户提供，且必须是测试环境真实存在的选单"
+    },
+    "promo-activity-name": {
+      "type": "string",
+      "required": false,
+      "default": null,
+      "maps_to": "superDealModel.superDealRelatedModel.spuPromoActivityModel.promoActivityName",
+      "desc": "商促活动名称（可选，线上抓包请求未传）"
+    },
+    "payload-file": {
+      "type": "string",
+      "required": false,
+      "desc": "自定义完整 SpuModel JSON 文件路径（覆盖默认模板，动态字段仍由 CLI 参数覆盖）"
+    },
+    "payload-json": {
+      "type": "string",
+      "required": false,
+      "desc": "自定义完整 SpuModel JSON 字符串（与 payload-file 互斥）"
+    },
+    "product-name": {
+      "type": "string",
+      "required": false,
+      "desc": "超团标题；不传时自动生成唯一名称"
+    },
+    "sale-price": {
+      "type": "integer",
+      "default": 7000,
+      "unit": "分",
+      "maps_to": "superDealModel.superDealCouponModel.superDealGiftCardModel.mtPrice",
+      "desc": "售价，默认 7000 分=70 元（贴近线上商促形态）"
+    },
+    "line-price": {
+      "type": "integer",
+      "default": 8000,
+      "unit": "分",
+      "maps_to": "superDealModel.superDealBaseModel.linePrice",
+      "constraint": "必须大于等于 sale-price",
+      "desc": "划线价，默认 8000 分=80 元"
+    },
+    "inventory": {
+      "type": "integer",
+      "default": 1000,
+      "maps_to": "superDealModel.superDealCouponModel.couponInventoryModel.inventoryAmount"
+    },
+    "person-bind-limit": {
+      "type": "integer",
+      "default": 5,
+      "maps_to": "superDealModel.superDealCouponModel.personBindLimit"
+    },
+    "room-nights": {
+      "type": "integer",
+      "default": 1,
+      "maps_to": "superDealModel.superDealCouponModel.superDealGiftCardModel.roomNights"
+    },
+    "sell-end": {
+      "type": "date",
+      "format": "YYYY-MM-DD",
+      "default": "今天+362天",
+      "maps_to": "superDealModel.superDealCouponModel.couponInventoryModel.endDateTime（当天 00:00，忠实抓包）",
+      "timezone": "Asia/Shanghai",
+      "constraint": "后端硬约束（实测 2026-09-10）：最长只能设置从今天算起 363 天内，否则报 code=200014082"
+    },
+    "checkin-start": {
+      "type": "date",
+      "format": "YYYY-MM-DD",
+      "default": "今天",
+      "maps_to": "superDealGiftUseModel.availableCheckInDateList[0].startDate",
+      "timezone": "Asia/Shanghai"
+    },
+    "checkin-end": {
+      "type": "date",
+      "format": "YYYY-MM-DD",
+      "default": "今天+362天",
+      "maps_to": "availableCheckInDateList[0].endDate + superDealGiftUseModel.endTime（当天 23:59:59）",
+      "timezone": "Asia/Shanghai"
+    },
+    "swimlane": {
+      "type": "string",
+      "required": false,
+      "desc": "用户指定泳道；空字符串表示主干"
+    },
+    "skip-audit": {
+      "type": "boolean flag",
+      "default": false,
+      "desc": "跳过创建后的自动审核（auditProduct 图文信息审核 + 自动上线）；默认创建后自动串联，复用 factory/audit/super-deal-unified/audit.py"
+    },
+    "skip-refresh-spu-cache": {
+      "type": "boolean flag",
+      "default": false,
+      "desc": "跳过上线后的 SPU 缓存刷新；默认审核上线后自动刷新（仅 SPU 缓存，商促不绑定门店不刷 POI-SPU 映射）"
+    },
+    "cache-env": {
+      "type": "string",
+      "choices": ["test", "prod"],
+      "default": "test",
+      "desc": "goodsoperator-cli 缓存刷新环境（默认 test，与本 skill 创建商品所用环境一致）"
+    },
+    "dry-run": {
+      "type": "boolean flag",
+      "default": false,
+      "desc": "打印最终 SpuModel 但不实际提交 submitSpu"
+    }
+  },
+  "validated_top_level_fields": {
+    "spuBaseModel": {
+      "spuId": null,
+      "spuType": 1,
+      "spuSecondType": 0,
+      "status": 0,
+      "autoPublish": false,
+      "poiId": null,
+      "relatedGoodsNum": 0,
+      "relatedPoiNum": 0,
+      "spuRelatedGoodsType": 1
+    },
+    "superDealModel": {
+      "superDealBaseModel": {
+        "spuExchangeType": 2,
+        "spuServiceType": 2,
+        "preCheckDays": 0,
+        "distinctionAddPrice": false
+      },
+      "superDealRelatedModel": {
+        "relatedGoodsByFile": false,
+        "spuPromoActivityModel": "{promoActivityId, promoActivityName?, sieveGoodsId}"
+      },
+      "superDealCouponModel": {
+        "payLimitTime": 30,
+        "purchaseRestrictionRule": {"periodUnit": 2}
+      }
+    }
+  },
+  "fixed_fields_from_capture": {
+    "spuImageInfoModel": "null（审核时由 auditProduct 添加默认图文，与普通通兑 submitSpu 不能带图文的约束一致）",
+    "couponTitle": "null（subTitle 由标题自动生成 '<标题>红包'）",
+    "coupon.startDate / coupon.endDate": "null（售卖时间在 couponInventoryModel）",
+    "couponInventoryModel.startDateTime": "null",
+    "superDealGiftCardModel.splitRoomNight": "null",
+    "superDealGiftUseModel.startTime / periodDays": "null",
+    "superDealSieveModel": "sieveModelList=null, topPoiList=[]（选单门店由后端按商促活动动态解析）",
+    "spuActivityStockModel": "null（商促抓包无此字段）",
+    "mBoxId": "null（后端自动创建，响应返回 bizacctid）"
+  },
+  "_audit": "商促通兑 autoPublish=false，创建成功后默认自动串联 factory/audit/super-deal-unified/audit.py --graphic-only --auto-online（auditProduct 图文审核 + updateSpuStatus 上线），审核上线流程与普通通兑超团完全一致；加 --skip-audit 可跳过",
+  "core_constraints": [
+    "promoActivityId 与 sieveGoodsId 必填，且必须是测试环境真实存在的商促活动/选单",
+    "售卖结束时间最长只能设置从今天算起 363 天内（实测 code=200014082，默认取 362 天留余量）",
+    "spuExchangeType 必须为 2（商促通兑）",
+    "poiId 必须为 null（不绑定单门店）",
+    "relatedGoodsList 必须为空（不关联固定产品）",
+    "superDealSieveModel.topPoiList 必须为空（选单门店由后端动态解析）",
+    "autoPublish 为 false（需 auditProduct 审核后才可上线，与普通通兑一致）",
+    "spuSaleStrategyList 必须包含 saleChannel=1 和 saleChannel=2",
+    "linePrice 和 mtPrice 均为正整数且单位为分，linePrice 不能小于 mtPrice",
+    "spuImageInfoModel 创建时必须为 null（带了会导致 auditProduct 把图文推到「审核中」）"
+  ]
+}
+

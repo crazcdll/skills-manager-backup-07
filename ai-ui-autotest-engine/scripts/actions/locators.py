@@ -93,7 +93,8 @@ def _cmd_find_text(args):
             print(f"  可点击坐标: ({center[0]}, {center[1]})")
             print(f"  💡 该文案位于 {result['probe_name']} 渲染层，坐标为设备物理像素，"
                   f"可直接用 `tap --x {center[0]} --y {center[1]}` 或 "
-                  f"`step tap --action-x {center[0]} --action-y {center[1]}` 点击")
+                  f"`step tap --action-x {center[0]} --action-y {center[1]}` 点击"
+                  f"（独立兜底操作需带 --desc '坐标点击兜底：<实际文案>'）")
         else:
             print(f"FIND-TEXT OK: '{keyword}' 命中于 [{result['probe_name']}] 渲染层（无坐标）")
         return 0

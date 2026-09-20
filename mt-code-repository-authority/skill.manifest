@@ -1,13 +1,20 @@
 skill-manifest-version: 1
-skill-id: 9082c93bd1238aaddcdc41fafa2ee3147a859f34ddf3b66bd34e9f397345cdfa
+skill-id: b5938861054ec3918a4e93f4d8ffa2df4884f47bc96d2882aa668f318c7f1fec
 
 files:
-  eefd8dbad4de67e569bd28854bcab06cd176361f971af912ec86b5537b3599c7  SKILL.md
-  b825f320e61ea735228ec81d3accfa4823b3756cee70bc18e65bdd4ce2f18e6a  agents/openai.yaml
-  60b13879c7caec3b4b31c6fcb951452e3250148e05c550d21661ce4bda8d59f5  references/contracts.md
+  e2c2a19c1d2c64064561b6c18e63dfad11b52fb58497810a7895e3a20f7447e3  SKILL.md
+  8f67b7943cc02fb4be0e74cb9e143eeebd090bb5e755357f8f261c6f79240034  agents/openai.yaml
+  0fdba5106fb67ed721bfac77aad7a0dfa4a1d9dfee459a76db11bd7a81abf85f  references/contracts.md
   3a88aa73bb8f343e7b4bee28b84f420ddb43448dffe3d0a7d6e1ab7853578d51  scripts/fixtures/code-cli.repository.json
   a5ff63bf5d329775dbfc15413290fd9c60ccf5cf6f7d055a54dde78b52b2bce8  scripts/fixtures/task.valid.json
   5e6ad5cfa4573891611074c0fe7c09e342994f1159e42b8f2fb77db5f4e79453  scripts/fixtures/yuntu.organization.json
-  554f8f764c79ea1bc053620a00507ca792ca4003b1cac91accbe9664e94edb70  scripts/repository-authority-contract.mjs
+  5bc316442dd94e4d866c40830a2f68f0101b8d4e0aee105dcc2756960b106a42  scripts/organization-refresh-contract.mjs
+  f6a0d44a2ef14f4844bb8f1c4e11e0cda7711bde02de83f0bb4a79d8edc31056  scripts/read-citadel-table-page.mjs
+  7f26efdb9b9ef2106eef5f0b6252e2d443ec5c55d81416164d686928f6c286a2  scripts/repository-authority-contract.mjs
+  8d4ac5923b956c86c58ca3753dde1b0a9e7127ff08201dbcd6a9175afd4ef3f1  scripts/repository-authority-v3-contract.mjs
+  22e61cd4a0afc3c7b376ee0dc402fb31e2a33bc3232e8d86c85e0be4a196bd26  scripts/run-organization-refresh.mjs
+  f01790bd02679bb3608c4d200fac11b49abd3f0b141f030207b8b5c56179915d  scripts/run-organization-refresh.test.mjs
+  18f8c2d598fa028ea78caf2f0f300be8a02b0931113cb19f0f5eb0d7341423f5  scripts/run-repository-authority-v3.mjs
+  2c00e12bdb778c85713e9e9f4e0ce5e380200b1c06d6e9872a6d7c7338770c15  scripts/run-repository-authority-v3.test.mjs
   451b350fb39a93c2f83b079a0ccf3e17f84d54fcbf2762ba7d394f8820ac4300  scripts/run-repository-authority.mjs
   2eec9801a6b2b7142ea20f30ff72de2948216e5f82db9cf1ac9c1ebfed6a9c70  scripts/run-repository-authority.test.mjs

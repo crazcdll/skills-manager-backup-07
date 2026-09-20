@@ -66,6 +66,26 @@ def _build_expected_fields_list(expected_fields, is_api=True):
         for i, (field, exp) in enumerate(expected_fields.items(), 1):
             lines.append(f"   [{i}] field={field} expected={exp}")
     return "\n".join(lines)
+def _format_track_candidates(candidates, limit=10):
+    """埋点候选事件清单（精简）。
+
+    数据源：断言层写入 track_fields.candidates 的精简清单（index/nm/val_bid）。
+    完整字段在 track_candidates_<sid>.json，由 hook 指引 AI read_file —— 这里只给
+    判别用的最小信息，避免多候选详情把 flow-context.json 撑大。
+    """
+    if not candidates:
+        return "   （唯一命中，无需选择）"
+    lines = []
+    for c in candidates[:limit]:
+        lines.append(
+            f"   [{c.get('index')}] nm={c.get('nm') or '-'} "
+            f"val_bid={c.get('val_bid') or '(无)'}"
+        )
+    if len(candidates) > limit:
+        lines.append(f"   … 其余 {len(candidates) - limit} 条见候选人文件")
+    return "\n".join(lines)
+
+
 def render_hook_cli_hint(hook, sid):
     """按需渲染 hook 的 cli_hint：模板 + hint_params → 完整提示文本。
 

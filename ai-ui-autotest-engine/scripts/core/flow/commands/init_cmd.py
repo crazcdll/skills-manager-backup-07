@@ -9,7 +9,7 @@ import os
 
 from core.errors import FlowStateError, PayloadError, UsageError
 from core.util.paths import SKILL_DIR
-from core.util.case_utils import resolve_case_path, resolve_mis
+from core.util.case_utils import append_source_notes, resolve_case_path, resolve_mis
 from core.util.paths import set_active_case
 from core.util.json_utils import write_json_atomic, read_json
 from core.audit.usage_reporter import report_usage
@@ -149,6 +149,9 @@ def _cmd_case_init(args):
     manifest = cases_manifest[ci]
 
     steps_json_path = ctx["meta"]["steps_json_path"]
+    # 方案 A：steps_json_path 在 flow-init 时已固化为「解析后」的唯一事实来源
+    # （原文另存 steps-input.raw.json），此处及后续所有读者一律纯读，
+    # 不得再做占位符解析（由 dev/check_architecture.py 规则6 强制）。
     ai_input = read_json(steps_json_path, default={})
     cases = ai_input.get("cases", [])
     case_data = cases[ci]
@@ -171,6 +174,34 @@ def _cmd_case_init(args):
 
     workspace_dir = os.path.join(run_dir, manifest["workspace_dir"])
     os.makedirs(workspace_dir, exist_ok=True)
+
+    # ── 原始用例原文随日志落盘 ────────────────────────────────────
+    # 执行期把 flow-init 已读取的 Flow 原文与 steps-input 原文写进本 case 的 steps.jsonl（幂等）。
+    # 上报时报告只读日志，不再按路径重查。
+    flow_content = manifest.get("flow_content", "")
+    flow_name = manifest.get("flow_source_name") or f"{manifest.get('case_name', 'flow')}.md"
+
+    source_entries = []
+    if flow_content:
+        source_entries.append({
+            "source": "flow_source",
+            "desc": flow_name,
+            "note": flow_content,
+        })
+    try:
+        with open(steps_json_path, "r", encoding="utf-8") as _f:
+            steps_text = _f.read()
+    except OSError:
+        steps_text = ""
+    if steps_text:
+        source_entries.append({
+            "source": "steps_input",
+            "desc": os.path.basename(steps_json_path),
+            "note": steps_text,
+        })
+    embedded_sources = append_source_notes(workspace_dir, source_entries)
+    if embedded_sources:
+        print(f"  📄 原始用例原文已随日志落盘: {', '.join(embedded_sources)}")
 
     for cs in ctx.get("cases_summary", []):
         if cs["case_id"] == manifest["case_id"]:

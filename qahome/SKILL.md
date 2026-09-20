@@ -14,13 +14,30 @@ skill-dependencies:
 metadata:
   skillhub.creator: "chenlinjie03"
   skillhub.updater: "rennannan"
-  skillhub.version: "V12"
+  skillhub.version: "V13"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "26639"
   skillhub.high_sensitive: "false"
 ---
 
 ℹ️ 环境说明：本 Skill 所有操作均针对 QAHome 测试环境，查询对象为测试账户（测试手机号、测试 userId），无真实用户账户风险。
+
+## 认证（必读 · 所有接口调用前）
+
+所有 qahome 接口（短信查询 `/smsqueue/query`、用户查询 `/user`、建号 `/user/regNewUser/`）都要求 `access-token` 请求头，**audience 必须是 `b399154e46`**（声明在头部 skill-dependencies，正文重申防止跳读元数据）。
+
+**token 获取优先路径**（2026-09-14 实测：moa-local-exchange 3/3 成功且调 qahome 200；CIBA prod token 调 qahome 2/2 全部 302，对 qahome 无效）：
+
+1. 首选 `npx mtsso-moa-local-exchange --audience "b399154e46"`（本地 MOA 换票，秒级，实测 100% 成功）
+2. 备选（headless/无本地 MOA 登录态环境）：用本 skill 自带脚本 `node bin/ciba-request.mjs GET --url <qahome接口> --mis <mis>`——内部按 qahome 的 client_id b399154e46 定向换票（OIDC→Token Exchange→CIBA），实测有效（2026-09-14 验证）
+3. ⚠️ **禁止手工拿裸 CIBA prod token 直调 qahome**：`sso-auth-cli --force-ciba get` 直接拿的 prod token（带 `**mtssoprod**` 标识）audience 不匹配 b399154e46，实测 2/2 全 302。CIBA prod token 只适用于「跨环境换领」场景（如 persona 标签：prod token → cross-env-exchange-token 换 test token）
+
+**遇 HTTP 302 / 401 时的排障顺序**（2026-09-14 实测翻车教训：先后试了错误 audience 的缓存 token → 302；moa-local-exchange 换票后仍 302——最后重换 audience 正确的 moa token 才通）：
+
+1. **先怀疑 audience 不对**：本地缓存的 token 可能是其他 skill 换的（audience 不含 `b399154e46`），带着这种 token 调 qahome 必然 302。不要重试，直接重新 moa-local-exchange
+2. moa-local-exchange 换票后仍 302：检查换票命令是否真的带了 `--audience "b399154e46"`，再用 token 前 30 字符比对是否与上次缓存的相同（相同说明没换新）
+3. moa-local-exchange 本身失败（环境无 SSO 登录态/MOA 未适配）：提示用户当前环境不支持，需在支持 MOA 登录态的环境执行，或人工从浏览器登录 qahome 后取 token
+4. **禁止**盲目重试同一个无效 token——302 不是「平台自动刷新」能解决的
 
 ## 查验证码工作流
 
@@ -55,7 +72,7 @@ curl -s -X POST "https://qahome.sankuai.com/smsqueue/query" \
 | `resultCode: 1` | 手机号格式错误或接口异常 | 提示用户确认手机号是否为11位纯数字 |
 | `result` 为空数组 | 该号码暂无短信记录 | 提示无记录，不报错 |
 | `message` 中无验证码特征 | 非验证码类短信 | 返回完整 `message` 供用户判断 |
-| 401 / 403 | SSO token 失效 | 平台会自动刷新，重新执行即可 |
+| 401 / 403 | SSO token 失效 | 按「认证（必读）」章节排障顺序重新换票（注意 audience 必须为 b399154e46） |
 | 命令超时 / 无响应 | 网络不通或 qahome 服务异常 | 提示检查网络，等待 30s 后可重试 |
 
 ### 阶段 2：提取验证码并输出
@@ -125,7 +142,7 @@ curl -s -X POST "https://qahome.sankuai.com/user" \
 
 | 现象 | 原因 | 处理方式 |
 |------|------|---------|
-| `status: 401` | SSO token 失效 | 平台会自动刷新，重新执行即可 |
+| `status: 401` | SSO token 失效 | 按「认证（必读）」章节排障顺序重新换票（注意 audience 必须为 b399154e46） |
 | `resultCode: 0` 但 result 为空/null | 该手机号/userId 不存在 | 提示用户确认输入是否正确 |
 | `resultCode` 非 0 | 接口异常 | 展示 message 字段信息 |
 
@@ -170,7 +187,7 @@ curl -s -X GET "https://qahome.sankuai.com/user/regNewUser/" \
 
 | 现象 | 原因 | 处理方式 |
 |------|------|---------|
-| HTTP 302 跳转 SSO | token 失效 | 平台自动刷新，重新执行 |
+| HTTP 302 跳转 SSO | token 无效（多为 audience 不对） | 按「认证（必读）」章节排障：先核 audience，重换票，禁止盲目重试 |
 | `resultCode` 非 0 | 接口异常 | 展示 message 字段 |
 | result 为 null | 创建失败 | 提示用户重试 |
 

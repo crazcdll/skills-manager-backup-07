@@ -36,9 +36,13 @@ def build_merged_text(nodes):
 
 
 def new_node(*, text=None, content_desc=None, x=None, y=None, w=None, h=None,
-             clickable=False, depth=0, parent=None, class_name="", m_id=None):
+             clickable=False, depth=0, parent=None, class_name="", m_id=None,
+             checked=None):
     """构造一个符合 UiNode 契约的节点字典（children_idx/merged_text 由调用方/
     build_merged_text 填充），供各平台 adapter 统一调用，避免手写字典遗漏字段。
+
+    checked: 勾选态三值语义 —— True/False 为真实状态，None 表示该平台/节点未暴露
+             勾选属性（不可判定），供复选框类操作前读状态、避免盲点取反。
     """
     return {
         "text": text,
@@ -50,6 +54,7 @@ def new_node(*, text=None, content_desc=None, x=None, y=None, w=None, h=None,
         "w": w,
         "h": h,
         "clickable": bool(clickable),
+        "checked": checked,
         "depth": depth,
         "parent": parent,
         "children_idx": [],

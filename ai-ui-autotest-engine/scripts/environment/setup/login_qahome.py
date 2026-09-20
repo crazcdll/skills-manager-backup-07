@@ -18,6 +18,21 @@ _LOGIN_ELEMENT_IDS = {
     "agreement_text": "passport_index_tip_term_agree",  # 协议文案
     "password_login_link": "user_password_login", # 密码登录入口
 }
+
+# ── 登录页交互稳定性参数 ────────────────────────────────────────────
+# 旧实现三连点固定间隔 0.5s、点完"获取验证码"即无条件判成功，
+# 导致偶发"协议未勾选 → 按钮禁用点击无效 → 却进入验证码死轮询"。
+# 现改为"动作 + 状态校验 + 有界重试"。
+_INPUT_SETTLE = 0.8            # 手机号输入框点击聚焦后的稳定等待
+_TYPE_SETTLE = 1.0             # ADB Keyboard 异步提交后的页面重排稳定等待
+_AGREEMENT_MAX_ATTEMPTS = 3    # 协议勾选最多尝试次数（原坐标 + 左右微调）
+_AGREEMENT_TAP_OFFSETS = ((0, 0), (-30, 0), (30, 0))  # 勾选点偏移，抵消坐标轻微漂移
+_AGREEMENT_SETTLE = 0.8        # 勾选后等待状态更新的稳定等待
+_GET_CODE_MAX_ATTEMPTS = 3     # "勾选协议 + 点获取验证码 + 校验跳转"最多尝试次数
+_CODE_PAGE_TIMEOUT = 12.0      # 点"获取验证码"后等待跳转的最长时间（单次 dump≈5s，需覆盖≥2次采集）
+_CODE_PAGE_INTERVAL = 1.2      # 页面跳转轮询间隔
+
+
 def _locate_login_element(name):
     """通过 resource-id 定位登录页元素，返回 center/detail 或 None。"""
     eid = _LOGIN_ELEMENT_IDS.get(name)
@@ -33,9 +48,14 @@ def _locate_login_elements():
     一次 dump 解析全部节点，从 3 次 dump 优化到 1 次。
 
     Returns:
-        dict: {"phone_input": (cx,cy), "checkbox": (cx,cy)|None, "send_code_btn": (cx,cy)}
+        dict: {
+          "phone_input": (cx,cy) | None,
+          "checkbox": {"center": (cx,cy), "checked": bool|None} | None,
+          "send_code_btn": (cx,cy) | None,
+        }
         任一元素缺失时对应值为 None（而非整体返回 None），
         调用方自行判断必填元素是否存在。
+        checkbox.checked 为三值：True/False 为真实勾选态，None 表示未暴露勾选属性。
     """
     from screen_state.inspect_tree import dump_inspect_tree, parse_inspect_tree, invalidate_cache
     invalidate_cache()
@@ -53,7 +73,7 @@ def _locate_login_elements():
         if m_id == "passport_mobile_phone":
             result["phone_input"] = center
         elif m_id == "dynamic_checkbox":
-            result["checkbox"] = center
+            result["checkbox"] = {"center": center, "checked": n.get("checked")}
         elif m_id == "passport_mobile_next":
             result["send_code_btn"] = center
     return result
@@ -63,48 +83,146 @@ def _center_of_node(node):
     if None in (x, y, w, h):
         return None
     return x + w // 2, y + h // 2
-def _login_page_action(phone, ops):
-    """在登录页执行完整操作：输入手机号 → 勾选协议 → 点击获取验证码。
-
-    一次 dump 视图树批量获取所有元素坐标，避免逐元素重复 dump。
-    所有操作基于 resource-id 定位，不依赖文案匹配。
+def _read_checkbox_state():
+    """复采视图树，读取协议复选框的当前勾选态。
 
     Returns:
-        (True, click_ts) — 验证码已发送
+        dict {"center": (cx,cy), "checked": bool|None} 或 None（未定位到复选框）。
+        checked=None 表示视图树未暴露勾选属性（不可判定），按"已点击"处理。
+    """
+    from screen_state.inspect_tree import invalidate_cache
+    invalidate_cache()
+    node = inspect_tree_find_by_id(_LOGIN_ELEMENT_IDS["checkbox"], wait_sec=4, max_attempts=1)
+    if not node:
+        return None
+    return {"center": node.get("center"), "checked": node.get("checked")}
+
+
+def _ensure_agreement_checked(checkbox, ops):
+    """确认协议已勾选；未勾选时点击，并在复选框周边微调重试。
+
+    规避两个坑：
+      - 已勾选仍盲点 → 会把勾选"取反"取消：这里先读状态，仅未勾选才点击；
+      - 点击落空后在同一点死磕 → 原坐标失败后在左右微调重试。
+
+    Returns:
+        True — 已确认勾选（或状态不可判定，按已点击继续）
+        False — 多次尝试后仍确认未勾选
+    """
+    if not checkbox:
+        print("QAHOME-LOGIN: ⚠️ 未定位到复选框 (dynamic_checkbox)，跳过协议勾选")
+        return True
+
+    center = checkbox.get("center")
+    if checkbox.get("checked") is True:
+        print("QAHOME-LOGIN: 协议已勾选，跳过点击（避免误取消）")
+        return True
+
+    for i in range(_AGREEMENT_MAX_ATTEMPTS):
+        dx, dy = _AGREEMENT_TAP_OFFSETS[min(i, len(_AGREEMENT_TAP_OFFSETS) - 1)]
+        tap_xy = (center[0] + dx, center[1] + dy)
+        print(f"QAHOME-LOGIN: 勾选协议 @ {tap_xy}（第 {i + 1}/{_AGREEMENT_MAX_ATTEMPTS} 次）")
+        ops.tap(*tap_xy)
+        time.sleep(_AGREEMENT_SETTLE)
+
+        state = _read_checkbox_state()
+        if state is None or state.get("checked") is None:
+            # 复选框节点没暴露勾选属性（不可判定）→ 已点击一次即接受，
+            # 避免把"读不到状态"误当成"未勾选"而反复点击、把已勾选的协议又点掉
+            print("QAHOME-LOGIN: ⚠️ 无法判定协议勾选状态，按已点击继续")
+            return True
+        if state.get("checked") is True:
+            print("QAHOME-LOGIN: ✅ 协议已确认勾选")
+            return True
+        if state.get("center"):
+            center = state["center"]
+        print(f"QAHOME-LOGIN: 协议仍未勾选（checked={state.get('checked')}），重试...")
+    print("QAHOME-LOGIN: ❌ 多次尝试后协议仍未勾选")
+    return False
+
+
+def _wait_code_page(timeout=_CODE_PAGE_TIMEOUT, interval=_CODE_PAGE_INTERVAL):
+    """等待页面跳转到"输入验证码"页（验证码发送成功的可靠信号）。
+
+    手机号页与验证码页同处 passport LoginActivity（Fragment 切换），焦点窗口不变，
+    因此只能按页面内容判定：出现验证码输入框（mID=edit_text_view）或「输入验证码」文案。
+    返回 True 才算发送成功，避免"空点击"被误判为已发送。
+    """
+    from screen_state.inspect_tree import dump_inspect_tree, parse_inspect_tree, invalidate_cache
+    deadline = time.time() + timeout
+    while True:
+        invalidate_cache()
+        raw = dump_inspect_tree(wait_sec=1, max_attempts=1)
+        if raw:
+            for n in parse_inspect_tree(raw):
+                if n.get("m_id") == "edit_text_view":
+                    return True
+                if "输入验证码" in (n.get("all_text") or ""):
+                    return True
+        if time.time() >= deadline:
+            return False
+        time.sleep(interval)
+
+
+def _login_page_action(phone, ops):
+    """在登录页执行完整操作：输入手机号 → 确认协议勾选 → 点获取验证码并校验跳转。
+
+    相比旧实现（固定 0.5s 间隔、点完即判成功），本实现按"动作 + 状态校验 + 有界重试"：
+      1. 手机号输入后等页面稳定再复采坐标，避免用输入前的旧坐标点击；
+      2. 勾选协议后读回 checked 状态确认，未生效时在复选框周边微调重试；
+      3. 点"获取验证码"后校验页面是否跳到"输入验证码"页，只有跳转成功才判成功，
+         否则重试（有界）——这是拦住"空点击 → 死轮询验证码"的关键一环。
+
+    Returns:
+        (True, click_ts) — 验证码已成功发送（页面已进入验证码输入页）
         (False, 0) — 失败
     """
-    # 一次 dump，批量获取所有登录元素坐标
+    # 1. 首次 dump：定位手机号输入框
     elements = _locate_login_elements()
     phone_field = elements.get("phone_input")
     if not phone_field:
         print("QAHOME-LOGIN: ❌ 未找到手机号输入框 (passport_mobile_phone)")
         return False, 0
 
-    # 1. 输入手机号
+    # 2. 输入手机号（ADB Keyboard 异步提交，后置等待需覆盖输入+页面重排）
     print(f"QAHOME-LOGIN: 输入账号 @ {phone_field}")
-    ops.tap(*phone_field)
-    time.sleep(0.5)
-    ops.input_text(phone)
-    time.sleep(0.5)
-
-    # 2. 勾选协议（直接点击复选框，而非文案）
-    checkbox = elements.get("checkbox")
-    if checkbox:
-        print(f"QAHOME-LOGIN: 勾选协议 @ {checkbox}")
-        ops.tap(*checkbox)
-        time.sleep(0.5)
-    else:
-        print("QAHOME-LOGIN: ⚠️ 未找到复选框 (dynamic_checkbox)，可能已默认同意，继续")
-
-    # 3. 点击获取验证码
-    send_btn = elements.get("send_code_btn")
-    if not send_btn:
-        print("QAHOME-LOGIN: ❌ 未找到获取验证码按钮 (passport_mobile_next)")
+    if not ops.tap(*phone_field):
+        print("QAHOME-LOGIN: ❌ tap 手机号输入框失败")
         return False, 0
-    print(f"QAHOME-LOGIN: 点击获取验证码 @ {send_btn}")
-    ops.tap(*send_btn)
-    time.sleep(2)
-    return True, time.time()
+    time.sleep(_INPUT_SETTLE)
+    ops.input_text(phone)
+    time.sleep(_TYPE_SETTLE)
+
+    # 3. 勾选协议 + 点获取验证码 + 校验跳转（有界重试，每轮复采坐标）
+    for attempt in range(1, _GET_CODE_MAX_ATTEMPTS + 1):
+        elements = _locate_login_elements()
+        send_btn = elements.get("send_code_btn")
+        if not send_btn:
+            print(f"QAHOME-LOGIN: ❌ 第 {attempt} 轮未找到获取验证码按钮 (passport_mobile_next)")
+            return False, 0
+
+        # 3a. 协议：读状态 → 仅在未勾选时点击 → 复核
+        if not _ensure_agreement_checked(elements.get("checkbox"), ops):
+            print(f"QAHOME-LOGIN: ⚠️ 第 {attempt} 轮协议仍未勾选，重试...")
+            time.sleep(0.5)
+            continue
+
+        # 3b. 点击获取验证码
+        print(f"QAHOME-LOGIN: 点击获取验证码 @ {send_btn}（第 {attempt}/{_GET_CODE_MAX_ATTEMPTS} 次）")
+        ops.tap(*send_btn)
+        click_ts = time.time()
+
+        # 3c. 校验是否跳到"输入验证码"页
+        if _wait_code_page():
+            print(f"QAHOME-LOGIN: ✅ 已进入验证码输入页，验证码请求已发送 ({time.strftime('%H:%M:%S')})")
+            return True, click_ts
+        print(f"QAHOME-LOGIN: ⚠️ 第 {attempt} 轮点击后 {_CODE_PAGE_TIMEOUT}s 内未进入验证码输入页，重试...")
+        time.sleep(0.5)
+
+    print("QAHOME-LOGIN: ❌ 多轮尝试后仍未进入验证码输入页，判定验证码发送失败")
+    return False, 0
+
+
 def qahome_login_trigger(phone, mock_enabled=False):
     """检测 App 状态 → 导航到登录页 → 发送验证码。
 
@@ -144,21 +262,24 @@ def qahome_login_trigger(phone, mock_enabled=False):
         if simplified:
             print(f"QAHOME-LOGIN: 检测到简化版登录页（预填手机号），直接点击验证码登录 @ {simplified['center']}")
             if not ops.tap(*simplified["center"]):
-                print("QAHOME-LOGIN: ❌ tap 验证码登录失败")
-                return False, 0
-            click_ts = time.time()
-            time.sleep(2)
-            _post_focus = _current_focus_window()
-            _post_pid = ops.pidof(app.package_name)
-            print(f"[LOGIN-DIAG] 点击后焦点: {_post_focus!r}, PID: {_post_pid!r}")
-            try:
-                if not bool(_post_pid):
-                    print("QAHOME-LOGIN: ❌ App 进程在点击获取验证码后崩溃")
-                    return False, 0
-            except Exception as e:
-                soft_fail("app", "QAHOME_CRASH_CHECK_FAILED", e)
-            print(f"QAHOME-LOGIN: ✅ 验证码请求已发送 ({time.strftime('%H:%M:%S')})")
-            return True, click_ts
+                print("QAHOME-LOGIN: ❌ tap 验证码登录失败，回退标准登录流程")
+            else:
+                click_ts = time.time()
+                time.sleep(2)
+                _post_focus = _current_focus_window()
+                _post_pid = ops.pidof(app.package_name)
+                print(f"[LOGIN-DIAG] 点击后焦点: {_post_focus!r}, PID: {_post_pid!r}")
+                try:
+                    if not bool(_post_pid):
+                        print("QAHOME-LOGIN: ❌ App 进程在点击获取验证码后崩溃")
+                        return False, 0
+                except Exception as e:
+                    soft_fail("app", "QAHOME_CRASH_CHECK_FAILED", e)
+                # 校验页面是否真的跳到验证码输入页（与标准流程同一道"防死轮询"闸门）
+                if _wait_code_page():
+                    print(f"QAHOME-LOGIN: ✅ 已进入验证码输入页，验证码请求已发送 ({time.strftime('%H:%M:%S')})")
+                    return True, click_ts
+                print("QAHOME-LOGIN: ⚠️ 简化版点击后未进入验证码输入页，回退标准登录流程")
     else:
         print(f"[LOGIN-DIAG] 不在登录页, focus={focus!r}, is_foreground={app.is_foreground(focus)}")
         if not app.is_foreground(focus):
@@ -201,6 +322,9 @@ def qahome_login_wait_code(phone, click_ts, max_attempts=10, interval=2.0, fresh
     按时间过滤：只取最近 freshness_seconds 秒内发送的验证码，避免使用过期验证码。
     """
     now = time.time()
+    # 新鲜度锚点用"点击获取验证码"的时刻（而非轮询开始时刻），
+    # 避免把点击前发送、轮询时才查到的旧验证码误判为本次验证码。
+    anchor = click_ts or now
     print(f"QAHOME-LOGIN: 轮询获取验证码（最多 {max_attempts} 次，只取 {freshness_seconds}s 内发送的）...")
     for i in range(max_attempts):
         print(f"QAHOME-LOGIN: 查询验证码 {i+1}/{max_attempts}...")
@@ -212,7 +336,7 @@ def qahome_login_wait_code(phone, click_ts, max_attempts=10, interval=2.0, fresh
                 if any(kw in msg for kw in _LOGIN_CODE_KEYWORDS):
                     # 时间过滤：只取最近 freshness_seconds 秒内发送的验证码
                     sms_ts = _parse_sms_time(sms_time_str)
-                    if sms_ts > 0 and (now - sms_ts) > freshness_seconds:
+                    if sms_ts > 0 and (anchor - sms_ts) > freshness_seconds:
                         code_match = _SMS_CODE_RE.search(msg)
                         matched_code = code_match.group(1) if code_match else "?"
                         print(f"QAHOME-LOGIN: ⏭️ 跳过过期验证码: {matched_code} ({sms_time_str})")

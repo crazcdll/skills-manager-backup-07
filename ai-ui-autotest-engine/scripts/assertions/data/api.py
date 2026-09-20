@@ -50,8 +50,12 @@ def match_items(items, assertion):
 
     匹配规则：
       - path: 按 / 拆分后从末尾逐段匹配（后缀段匹配），至少最后一段必须一致
+      - path 为空：直接返回空列表（不放行）——否则会匹配任意录制项并取最后一条，
+        形成「静默假通过」（生成侧已由 build_steps_json 硬校验 path 必填）
     """
-    path_pattern = assertion.get("path", "")
+    path_pattern = assertion.get("path") or ""
+    if not str(path_pattern).strip():
+        return []
 
     matched = []
     for item in items:

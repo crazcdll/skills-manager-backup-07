@@ -35,7 +35,7 @@ from core.placeholder.placeholder_resolver import (
     _cmd_placeholder_required, _cmd_placeholder_substitute,
 )
 from core.flow.flow_convert import flow_convert_main, cmd_flow_create
-from core.flow.steps_generator import cmd_steps_generate
+from core.flow.steps_generator import cmd_steps_generate, cmd_cases_create
 from core.flow.commands.init_cmd import _cmd_flow_init, _cmd_flow_add_case, _cmd_case_init
 from core.flow.commands.validate_cmd import _cmd_validate
 from core.flow.commands.status_cmd import _cmd_flow_status, _cmd_flow_case_status
@@ -72,6 +72,7 @@ from actions.recording.log_cmd import _cmd_log_record
 from actions.recording.override_cmd import _cmd_override_step_result
 from actions.recording.relay_cmd import _cmd_relay_hook_result
 from actions.recording.assert_fields_cmd import _cmd_assert_fields
+from actions.api_step_executor import cmd_response_search
 
 from core.audit.exception_reporter import cmd_report_error
 
@@ -81,9 +82,15 @@ from core.audit.exception_reporter import cmd_report_error
 # ═══════════════════════════════════════════════════════════════════
 
 def _add_step_result_args(parser, require_sid=True):
-    """添加步骤结果公共参数。"""
-    if require_sid:
-        parser.add_argument("--sid", required=True, help="绑定的步骤 SID")
+    """添加步骤结果公共参数。
+
+    --sid 一律注册（required 由调用方决定）：override-step-result 必填；
+    log-record 可选——用于把兜底操作（坐标点击等）绑定到声明的步骤。
+    若仅在 require_sid 时注册，HOOK 指引中的 `log-record --sid <SID>`
+    会直接被 argparse 拒收（unrecognized arguments: --sid）。
+    """
+    parser.add_argument("--sid", required=require_sid,
+                        help="绑定的步骤 SID" + ("" if require_sid else "（可选：绑定到声明的步骤）"))
     parser.add_argument("--desc", required=True, help="结果描述")
     group = parser.add_mutually_exclusive_group()
     group.add_argument("--pass", dest="passed", action="store_true", help="标记结果为 PASS")
@@ -361,6 +368,10 @@ def build_parser():
     p.add_argument("--input", required=True, dest="json", help="CASES JSON 文件路径")
     p.add_argument("--tag", required=True, help="输出文件 tag")
 
+    p = sub.add_parser("cases-create", help="创建空 CASES JSON 文件（强制约定：AI 写内容前必须先创建）")
+    p.add_argument("--tag", required=True, help="输出文件 tag")
+    p.add_argument("--force", action="store_true", help="已存在时重置为空文件")
+
     p = sub.add_parser("save-answers", help="持久化环境答案到 env_answers.json")
     p.add_argument("--answers", required=True, help='JSON 对象')
 
@@ -475,6 +486,18 @@ def build_parser():
     p.add_argument("--sid", required=True, help="绑定的步骤 SID")
     p.add_argument("--desc", required=True, help="结果描述")
     p.add_argument("--results", required=True, help="JSON 数组，字段级别断言结果")
+    p.add_argument("--picked", type=int, default=None,
+                   help="埋点多候选消歧：选定目标事件序号（1-based，见 track_candidates_<sid>.json）。"
+                        "仅当步骤命中多个候选时必填")
+
+    # response-search：在 API 证据的原始响应里按关键字/路径检索
+    p = sub.add_parser("response-search", help="在 API 步骤原始响应里按关键字/路径检索")
+    p.add_argument("--sid", default=None, help="API 步骤 SID（缺省取最新证据文件）")
+    _resp = p.add_mutually_exclusive_group(required=True)
+    _resp.add_argument("--query", default=None, help="按键名或值子串检索（大小写不敏感）")
+    _resp.add_argument("--path", default=None, help="按点号路径精确取值，如 response.data.price")
+    _resp.add_argument("--skeleton", action="store_true", help="输出响应浅骨架（结构总览）")
+    p.add_argument("--limit", type=int, default=50, help="检索条数上限（默认 50）")
 
     sub.add_parser("cleanup", help="异常中断后的资源清理（泳道关闭+Mock 状态清理）")
 
@@ -660,6 +683,8 @@ def dispatch(args):
         return flow_convert_main(args)
     if cmd == "steps-generate":
         return cmd_steps_generate(args)
+    if cmd == "cases-create":
+        return cmd_cases_create(args)
     if cmd == "save-answers":
         return cmd_save_answers(args)
     if cmd == "validate":
@@ -719,6 +744,7 @@ _LEVEL1_HANDLERS = {
     "override-step-result": _cmd_override_step_result,
     "relay-hook-result": _cmd_relay_hook_result,
     "assert-fields": _cmd_assert_fields,
+    "response-search": cmd_response_search,
 }
 
 _LEVEL2_HANDLERS = {

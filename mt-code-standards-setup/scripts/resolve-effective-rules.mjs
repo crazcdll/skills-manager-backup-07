@@ -16,6 +16,7 @@ import {
   rm,
   writeFile,
 } from "node:fs/promises";
+import { isIP } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -87,11 +88,17 @@ const exists = async (target) => {
 
 const locatorMainPart = (value) => {
   const source = text(value);
-  if (!source || Buffer.byteLength(source, "utf8") > MAX_LOCATOR_BYTES || /[\0\r\n]/.test(source)) {
+  if (!source || Buffer.byteLength(source, "utf8") > MAX_LOCATOR_BYTES || /[\s\u0000-\u001f\u007f-\u009f]/u.test(source)) {
     fail("RULE_BUNDLE_REPOSITORY_INVALID", "仓库地址为空、过长或包含非法字符");
   }
   const suffixIndex = source.search(/[?#]/);
   return suffixIndex < 0 ? source : source.slice(0, suffixIndex);
+};
+
+const validRepositoryHost = (hostname) => {
+  const unwrapped = hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
+  return Boolean(isIP(unwrapped))
+    || /^(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)(?:[.][A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$/u.test(hostname);
 };
 
 /**
@@ -99,25 +106,39 @@ const locatorMainPart = (value) => {
  * by the platform, so the original value (including query/hash) is preserved.
  */
 export const validateRepositoryLocator = (value) => {
+  const main = locatorMainPart(value);
   const source = text(value);
-  const main = locatorMainPart(source);
-  if (/(?:^|[/:])[.]{1,2}(?:[/]|$)/.test(main)) {
+  if (/(?:^|[/:])[.]{1,2}(?:[/]|$)/.test(main) || /%(?:2e|2f|5c)/iu.test(main)) {
     fail("RULE_BUNDLE_REPOSITORY_INVALID", "仓库地址不能包含相对路径片段");
   }
   const atom = "[A-Za-z0-9._~-]+";
   const repository = "[A-Za-z0-9._-]+";
-  const patterns = [
-    new RegExp(`^https://dev[.]sankuai[.]com/code/repo-detail/${atom}/${repository}(?:/file/list)?/?$`),
-    new RegExp(`^https://git[.]sankuai[.]com/${atom}/${repository}(?:[.]git)?/?$`),
-    new RegExp(`^ssh://git@git[.]sankuai[.]com/${atom}/${repository}(?:[.]git)?/?$`),
-    new RegExp(`^git@git[.]sankuai[.]com:${atom}/${repository}(?:[.]git)?$`),
-    new RegExp(`^${atom}/${repository}$`),
-    new RegExp(`^${repository}$`),
-  ];
-  if (!patterns.some((pattern) => pattern.test(main))) {
+  const shorthand = new RegExp(`^(?:${atom}/${repository}|${repository})$`);
+  const scp = main.match(/^git@([A-Za-z0-9.-]+):([^\s]+)$/u);
+  let valid = shorthand.test(main);
+  if (scp) {
+    valid = validRepositoryHost(scp[1])
+      && /^(?=.*[A-Za-z0-9])\/?[^\s?#:]+(?:\/[^\s?#:]+)*\/?$/u.test(scp[2]);
+  } else if (/^[A-Za-z][A-Za-z0-9+.-]*:\/\//u.test(main)) {
+    try {
+      const url = new URL(main);
+      const hasRepositoryPath = url.pathname.split("/").some((part) => part && part !== "." && part !== "..");
+      if (url.protocol === "http:" || url.protocol === "https:") {
+        const hostname = url.hostname.toLowerCase();
+        valid = (hostname === "sankuai.com" || hostname.endsWith(".sankuai.com"))
+          && !url.username && !url.password && (!url.port || Number(url.port) > 0) && hasRepositoryPath;
+      } else if (url.protocol === "ssh:") {
+        valid = url.username === "git" && !url.password && validRepositoryHost(url.hostname)
+          && (!url.port || Number(url.port) > 0) && hasRepositoryPath;
+      }
+    } catch {
+      valid = false;
+    }
+  }
+  if (!valid) {
     fail(
       "RULE_BUNDLE_REPOSITORY_INVALID",
-      "仓库仅支持 Code HTTPS、ssh://、git@...:、namespace/repository 或唯一仓库名",
+      "仓库仅支持 sankuai.com 的 HTTP(S)、合法 ssh://git@... 或 git@host:path 地址；兼容 namespace/repository 和唯一仓库名",
     );
   }
   return source;
@@ -127,10 +148,9 @@ export const canonicalRepositoryKey = (value) => {
   const source = validateRepositoryLocator(value);
   const main = locatorMainPart(source).replace(/\/$/u, "");
   const patterns = [
-    /^git@git[.]sankuai[.]com:([^/]+)\/([^/]+?)(?:[.]git)?$/iu,
-    /^https:\/\/dev[.]sankuai[.]com\/code\/repo-detail\/([^/]+)\/([^/]+?)(?:\/file\/list)?$/iu,
-    /^https:\/\/git[.]sankuai[.]com\/([^/]+)\/([^/]+?)(?:[.]git)?$/iu,
-    /^ssh:\/\/git@git[.]sankuai[.]com\/([^/]+)\/([^/]+?)(?:[.]git)?$/iu,
+    /^git@(?:git[.]sankuai[.]com|git[.]dianpingoa[.]com):([^/]+)\/([^/]+?)(?:[.]git)?$/iu,
+    /^https?:\/\/dev[.]sankuai[.]com\/code\/repo-detail\/([^/]+)\/([^/]+?)(?:\/file\/list)?$/iu,
+    /^ssh:\/\/git@(?:git[.]sankuai[.]com|git[.]dianpingoa[.]com)\/([^/]+)\/([^/]+?)(?:[.]git)?$/iu,
     /^([^/:]+)\/([^/]+)$/u,
   ];
   for (const pattern of patterns) {

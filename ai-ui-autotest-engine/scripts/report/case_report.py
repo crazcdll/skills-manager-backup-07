@@ -4,10 +4,14 @@
 import json
 import os
 
-from report.data_collector import _read_skill_version, list_dir, read_text_file
+from report.data_collector import _read_skill_version, list_dir
 from report.model import normalize_step_records
 from report.schema import assertion_summary, summary
 from report.steps import _note_report, _record_report, _stage_report, build_step
+
+
+# 原始用例原文记录的 source 标记：仅作为无判定备注展示，不进时间线 raw_records。
+_SOURCE_NOTE_KINDS = ("flow_source", "steps_input")
 
 
 def _verdict_counts(reports):
@@ -38,6 +42,37 @@ def _wall_clock_duration(case_stages, steps_exec_duration):
         if stage.get("layer") == "case_loop" and stage.get("duration_ms") is not None
     )
     return stage_total if stage_total > 0 else steps_exec_duration
+
+
+def _report_missing_flow_source(manifest, context):
+    """原始 Flow 原文缺失时上报诊断（case 日志与 manifest 均无内容）。"""
+    from core.util.paths import FLOWS_DIR
+    from core.audit.exception_reporter import report_exception
+    flow_source = manifest.get("flow_source", "")
+    flows_dir_exists = os.path.isdir(FLOWS_DIR)
+    flows_dir_contents = list_dir(FLOWS_DIR) if flows_dir_exists else []
+    flow_basename = os.path.basename(flow_source) if flow_source else ""
+    report_exception(
+        event="flow_content_empty",
+        message="原始 Flow .md 原文缺失（case 日志与 manifest 均无内容）",
+        category="script",
+        severity="error",
+        stage="build_report",
+        extra={
+            "flow_source": flow_source or "",
+            "flow_source_name": manifest.get("flow_source_name", ""),
+            "flow_source_basename_in_flows_dir": (
+                flow_basename in flows_dir_contents if flow_basename else None
+            ),
+            "flow_content_in_manifest": bool(manifest.get("flow_content", "")),
+            "flows_dir": FLOWS_DIR,
+            "flows_dir_exists": flows_dir_exists,
+            "flows_dir_contents": flows_dir_contents,
+            "case_id": manifest.get("case_id", ""),
+            "case_name": manifest.get("case_name", ""),
+            "flow_name": context.get("meta", {}).get("flow_name", ""),
+        },
+    )
 
 
 def build_case(manifest, context, records, images):
@@ -83,85 +118,31 @@ def build_case(manifest, context, records, images):
     )
     case_status = resolve_case_status(summary_status, steps_finalized, counts["fail"])
 
+    # 原始用例原文（Flow md / steps-input）由 case-init 在执行期直接写进本 case 的
+    # steps.jsonl（source 字段标记）。报告只从日志记录读取 —— 不再按路径重查，
+    # 路径变动/目录清理都不会丢内容。
     notes = []
-    flow_content = manifest.get("flow_content", "")
-    flow_source = manifest.get("flow_source", "")
-    # 优先使用 manifest 中已缓存的 flow_content（flow-init 时注入），
-    # 兜底：回退到运行时读取文件（I/O 归口 data_collector）
-    if not flow_content and flow_source:
-        flow_content = read_text_file(flow_source)
-    if flow_content:
-        flow_filename = flow_source
-        if flow_filename:
-            flow_filename = os.path.basename(flow_filename) if os.path.sep in flow_filename else flow_filename
-        notes.append({
-            "sid": None,
-            "source": "flow_source",
-            "kind": "ui",
-            "desc": flow_filename or "flow.md",
-            "ok": None,
-            "ok_label": None,
-            "timestamp": None,
-            "duration_ms": None,
-            "duration_ms_inferred": False,
-            "screenshot": None,
-            "screenshots": [],
-            "note": flow_content,
-            "evidence": None,
-        })
+    embedded = {}
+    for record in note_records:
+        src = record.get("source")
+        if src in _SOURCE_NOTE_KINDS and src not in embedded:
+            embedded[src] = record
+
+    flow_note = embedded.get("flow_source")
+    if flow_note:
+        notes.append(_note_report(flow_note, images))
     else:
-        # ── flow_content 为空时上报异常诊断信息 ──
-        from core.util.paths import FLOWS_DIR
-        from core.audit.exception_reporter import report_exception
-        _flows_dir_exists = os.path.isdir(FLOWS_DIR)
-        _flows_dir_contents = []
-        _flow_source_basename = os.path.basename(flow_source) if flow_source else ""
-        if _flows_dir_exists:
-            _flows_dir_contents = list_dir(FLOWS_DIR)
-        report_exception(
-            event="flow_content_empty",
-            message="原始 Flow .md 内容为空，可能为路径或文件缺失问题",
-            category="script",
-            severity="error",
-            stage="build_report",
-            extra={
-                "flow_source": flow_source or "",
-                "flow_source_exists": bool(flow_source and os.path.isfile(flow_source)),
-                "flow_source_basename_in_flows_dir": _flow_source_basename in _flows_dir_contents if _flow_source_basename else None,
-                "flow_content_in_manifest": bool(manifest.get("flow_content", "")),
-                "run_input_exists": os.path.isdir(
-                    __import__("core.util.paths", fromlist=["RUN_INPUT_DIR"]).RUN_INPUT_DIR
-                ),
-                "flows_dir": FLOWS_DIR,
-                "flows_dir_exists": _flows_dir_exists,
-                "flows_dir_contents": _flows_dir_contents,
-                "case_id": manifest.get("case_id", ""),
-                "case_name": manifest.get("case_name", ""),
-                "flow_name": context.get("meta", {}).get("flow_name", ""),
-            })
+        # 原文由 case-init 随日志落盘；记录缺失即异常，上报诊断。
+        _report_missing_flow_source(manifest, context)
 
-    # 读取原始 steps-input.json 并附加到 notes
-    steps_json_path = context.get("meta", {}).get("steps_json_path", "")
-    steps_input_content = read_text_file(steps_json_path)
-    if steps_input_content:
-        steps_input_filename = os.path.basename(steps_json_path) if os.path.sep in steps_json_path else steps_json_path
-        notes.append({
-            "sid": None,
-            "source": "steps_input",
-            "kind": "ui",
-            "desc": steps_input_filename or "steps-input.json",
-            "ok": None,
-            "ok_label": None,
-            "timestamp": None,
-            "duration_ms": None,
-            "duration_ms_inferred": False,
-            "screenshot": None,
-            "screenshots": [],
-            "note": steps_input_content,
-            "evidence": None,
-        })
+    steps_note = embedded.get("steps_input")
+    if steps_note:
+        notes.append(_note_report(steps_note, images))
 
-    notes.extend(_note_report(record, images) for record in note_records)
+    notes.extend(
+        _note_report(record, images) for record in note_records
+        if record.get("source") not in _SOURCE_NOTE_KINDS
+    )
 
     # ack --result 的人工结论：以前只写入 flow-context 却无任何消费方（静默丢失），
     # 这里落到 notes（无判定备注），保证 AI 通过 ack 写下的结论在报告中可追溯。
@@ -219,7 +200,9 @@ def build_case(manifest, context, records, images):
         # timeline 在 build_run 中统一构建（合并所有数据源），此处仅保留 SOP 阶段
         "timeline": case_stages,
         "steps": steps,
-        "raw_records": records,  # 原始 steps.jsonl 记录，用于时间线完整展示
+        # raw_records 供时间线完整展示。原始用例原文已在 notes 中呈现，
+        # 必须从 raw_records 剔除，否则同一份 md / steps-input 会在上报 payload 里重复两份。
+        "raw_records": [r for r in records if r.get("source") not in _SOURCE_NOTE_KINDS],
         "findings": findings,
         "notes": notes,
         "summary": {

@@ -431,13 +431,28 @@ class AndroidOps(PlatformOps):
     # ═══════════════════════════════════════════════════════════
 
     def check_foreground(self) -> str:
-        """读取 mCurrentFocus 行（小写），查询失败返回空串。"""
+        """读取当前实时焦点窗口标识（mCurrentFocus 行，小写），失败返回空串。
+
+        ⚠️ 不能直接取第一条 mCurrentFocus：`dumpsys window` 的输出以
+        `WINDOW MANAGER LAST ANR` 段开头，该段内嵌了 **ANR 时刻的窗口快照**，
+        其中含一条陈旧的 mCurrentFocus（例如首页 MainActivity）。若取第一条，
+        会在"实际已跳到登录页"时误判为仍在首页，进而放弃导航/误判登录态。
+
+        正确做法：定位**最后一个** `WINDOW MANAGER DISPLAY CONTENTS` 段
+        （即实时窗口状态，ANR 快照段在其之前），只在该段内读取 mCurrentFocus。
+        """
         try:
             r = imeituan_shell("dumpsys", "window")
             out = (r.stdout or "") if r else ""
         except Exception:
             return ""
-        for line in out.splitlines():
+        lines = out.splitlines()
+        # 定位最后一个实时 DISPLAY CONTENTS 段的起始行；其前的同名段属于 LAST ANR 快照
+        live_start = 0
+        for i, line in enumerate(lines):
+            if "WINDOW MANAGER DISPLAY CONTENTS" in line:
+                live_start = i
+        for line in lines[live_start:]:
             line = line.strip()
             if line.startswith("mCurrentFocus="):
                 return line.lower()

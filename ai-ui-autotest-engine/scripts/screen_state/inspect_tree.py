@@ -20,7 +20,7 @@
 from screen_state.tree_hit import _overlapping_clickables, hit_nodes_at
 from screen_state.tree_match import (
     MATCH_EXACT, MATCH_EXACT_DESC, MATCH_SUBSTR,
-    _find_best_nodes,
+    _find_best_nodes, _find_clickable_center,
     find_substring_candidates,
 )
 from screen_state.tree_neighborhood import build_neighborhood_tree
@@ -53,7 +53,7 @@ __all__ = [
     "parse_inspect_tree", "is_debug_overlay", "_center_of",
     # 匹配
     "MATCH_EXACT", "MATCH_EXACT_DESC", "MATCH_SUBSTR",
-    "find_substring_candidates", "_find_best_nodes",
+    "find_substring_candidates", "_find_best_nodes", "_find_clickable_center",
     # 邻域
     "build_neighborhood_tree",
     # 命中

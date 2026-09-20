@@ -490,6 +490,41 @@ def mask_password(env: dict) -> dict:
     return shown
 
 
+def cases_json_path(tag: str) -> str:
+    """返回 CASES JSON 的绝对路径（.run/tmp/cases-<tag>.json）。"""
+    return os.path.join(STEPS_INPUT_DIR, f"cases-{tag}.json")
+
+
+def _create_empty_cases_file(path: str):
+    """在磁盘上创建空 CASES JSON 文件（强制约定的第一步）。"""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as _f:
+        pass
+
+
+def cmd_cases_create(args):
+    """cases-create 命令：强制约定 —— AI 写内容前必须先创建空 CASES 文件。
+
+    为什么必须先用命令/终端创建空文件：
+      AI 用编辑器「新建」文件时，内容可能尚未落盘，随后 steps-generate
+      会读到空文件并因 JSON 解析失败而中断。先创建空文件可让 AI 的写入
+      成为「修改已存在文件」，并留下明确的落盘校验入口。
+    """
+    tag = args.tag
+    path = cases_json_path(tag)
+    force = getattr(args, "force", False)
+
+    if os.path.exists(path) and os.path.getsize(path) > 0 and not force:
+        print(f"⚠️  已存在非空文件，跳过创建: {path}（{os.path.getsize(path)} 字节）")
+        print("   如需重置为空文件，请加 --force")
+        return
+
+    _create_empty_cases_file(path)
+    print(f"✅ 空 CASES 文件已创建: {path}")
+    print("   强制约定：AI 写入完整 CASES（device/env/cases/steps）并确认落盘后，再执行：")
+    print(f"   python3 scripts/cli.py steps-generate --input '.run/tmp/cases-{tag}.json' --tag {tag}")
+
+
 def cmd_steps_generate(args):
     """steps-generate 命令：接收 AI 编写的 CASES JSON，输出最终 steps-input.json。"""
     import json as _json
@@ -498,22 +533,34 @@ def cmd_steps_generate(args):
     raw = args.json
     if not os.path.isabs(raw):
         raw = os.path.normpath(os.path.join(SKILL_DIR, raw))
+    if not os.path.exists(raw):
+        # 强制约定：不代 AI 造数据，只创建空文件占位并提示正确顺序
+        _create_empty_cases_file(raw)
+        print(f"✅ 空文件已创建: {raw}")
+        print("   强制约定：AI 必须先写入完整 CASES 内容，确认落盘后再执行 steps-generate")
+        return
     try:
         with open(raw, "r", encoding="utf-8") as _f:
             raw = _f.read()
-    except FileNotFoundError:
-        os.makedirs(os.path.dirname(raw), exist_ok=True)
-        with open(raw, "w", encoding="utf-8") as _f:
-            pass
-        print(f"\u2705 \u7a7a\u6587\u4ef6\u5df2\u521b\u5efa: {raw}")
-        print(f"   AI \u8bf7\u5199\u5165\u5b8c\u6574 steps \u5185\u5bb9\u540e\u91cd\u65b0\u6267\u884c steps-generate")
-        return
     except Exception as e:
         raise PayloadError(f"ERROR: 读取文件失败: {e}") from e
+
+    # 强制约定门禁：文件存在但为空 = AI 写入的内容尚未落盘
+    if not raw.strip():
+        raise PayloadError(
+            "ERROR: CASES 文件存在但为空: {}\n"
+            "  ⚠️ 强制约定：必须先用 `cases-create` 创建空文件，AI 写入内容并落盘后再执行本命令。\n"
+            "  常见原因：编辑器写入尚未落盘，steps-generate 读到的仍是空文件。\n"
+            "  处理步骤：\n"
+            "    1) python3 scripts/cli.py cases-create --tag <tag>\n"
+            "    2) AI 写入完整 CASES 内容，并确认落盘（wc -c <file> 应 > 0）\n"
+            "    3) 重新执行 steps-generate".format(raw)
+        )
+
     try:
         data = _json.loads(raw)
     except _json.JSONDecodeError as e:
-        raise PayloadError(f"ERROR: JSON 解析失败: {e}") from e
+        raise PayloadError(f"ERROR: JSON 解析失败: {e}\n  文件: {raw}（{len(raw)} 字节）") from e
 
     # \u626b\u63cf .run-input/flows/ \u83b7\u53d6 .md \u6587\u4ef6\u5217\u8868
     flow_sources = []

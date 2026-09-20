@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "7689a4e8-3eb2-4c0f-83a2-a35a2b867738",
+  "path": "infra-raptor",
+  "path_key": "infra-raptor",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

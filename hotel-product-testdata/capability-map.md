@@ -1,9 +1,47 @@
 # capability-map.md — hotel-product-testdata 能力地图
 
 > 本文件回答一个问题：**这个 Skill 现在具不具备某项能力？**
-> 查询顺序：① 已支持能力清单 → ② 明确不支持清单 → ③ 常见说法对照表 → ④ 都查不到时看「能力归属判定规则」。
+> 查询顺序：① 能力事实源声明 → ② 已支持能力清单 → ③ 明确不支持清单 → ④ 常见说法对照表 → ⑤ 都查不到时看「能力归属判定规则」。
 > 编号口径：本 Skill 无独立 `scenarios/index.md`，场景清单以 `SKILL.md`「场景路由」表 + `references/workflows/w1~w9-*.md` 为单一事实来源。地图中的「场景编号」= workflow 编号（W1～W9），与 `references/workflows/` 目录下文件一一对应。
-> 最后同步时间：2026-08-03（对齐 SKILL.md 当前版本 + w1~w9 workflow 全文；本次新增 W3 非房独立售卖/加购能力，依据 PR hotel/hotel-biz-platform#3281 + 学城前后端交互接口 contentId=2769956950）。
+> 最后同步时间：2026-08-28（对齐《capability-map.md 建设规范 v0.2》，km.sankuai.com/collabpage/2775962365：新增能力事实源声明、3.3 缺口分类、2.3 叶子枚举 CLI 委托；能力内容仍对齐 2026-08-03 版本的事实）。
+
+---
+
+## 能力事实源声明（v0.2 规范第 0 节）
+
+```YAML
+capability_map_version: "0.2"
+
+architecture:
+  primary: workflow_orchestrator   # SKILL.md 场景路由 → w1~w9 工作流 → factory/ 脚本族；W4/W5 委托 zl-hotel-testdata
+
+resolution_modes:
+  - static_map        # 工作流文档（w1~w9）中的场景覆盖表
+  - cli_schema        # factory/<域>/<脚本>.py 的 --show-schema / factory/<域>/schema.json
+  - delegated_skill   # zl-hotel-testdata（直连产品）、zl-hotel-room-mapping（房型映射兜底）
+
+sources_of_truth:
+  stable_boundary:
+    - capability-map.md              # 本文件
+    - SKILL.md（场景路由表）
+    - references/workflows/w1-create-fullday.md ～ w9-create-palletize-package.md
+  leaf_capability:
+    - "hotel_testdata_cli/factory/<域>/<脚本>.py --show-schema（全部 factory 脚本均支持）"
+    - "hotel_testdata_cli/factory/<域>/schema.json（参数约束）"
+    - "testdata-cli query-testdata list-tags --query-tab 1 --biz-line 20（数据池标签全集）"
+  contract_docs:
+    - references/pitfalls/{infra,inventory,rpc}.md
+    - references/shared/enums.md（共用枚举）
+    - references/goods/model.md（RPC 字段全量）
+
+safe_probes:            # 仅允许无写入探测，不得为判断能力真伪而发起任何写入调用
+  - "factory/<域>/<脚本>.py --help"
+  - "factory/<域>/<脚本>.py --show-schema"
+  - "factory/<域>/<脚本>.py --dry-run（仅创建类脚本，输出约束校验，不落库）"
+
+verification_contract:
+  minimum: dry_run    # 创建类操作先 --dry-run 确认「[约束校验] ✅ 通过」再正式执行；查询/审核类直接执行后回读
+```
 
 ---
 
@@ -13,24 +51,24 @@
 
 | 能力名称 | 对应场景编号 | 关键入参 | 关键输出 | 备注 |
 |---------|------------|---------|---------|------|
-| 全日房构造（普通/免费取消/收费取消/不可取消） | W1 | partnerId+poiId+roomId+contractNo，cancelItemType/moveUpCancelDays/payCancelPeriodModels | goodsId | 默认「当天18:00前免费取消、无早餐」 |
+| 全日房构造（普通/免费取消/收费取消/不可取消） | W1 | partnerId+poiId+roomId+contractNo，cancelItemType/moveUpCancelDays/payCancelPeriodModels | goodsId（异步，等大象推送/轮询）；rpCancelModel 含对应取值；脚本自动串联上线(batchOnlineSwitch status=2)/开房设库存/缓存刷新 | 默认「当天18:00前免费取消、无早餐」 |
 | 全日房-早餐规则（单早/双早/平日周末差异化） | W1 | rpBreakFastModel.normalRule.num（1/2）+ weekendRule | goodsId | — |
 | 全日房-附近专享（3公里可见） | W1 | rpDisplayModel.normalRule.distanceRange=1 | goodsId | — |
 | 全日房-现付担保/非担保 | W1 | paymentType=1/2，rpGuaranteeModel | goodsId | paymentType=0（预付，默认）不传 rpGuaranteeModel |
 | 全日房-境外多人多价/多人同价 | W1 | priceSameTag（0/1）+ maxAdultAdmissibility + priceFactorInfos | goodsId | 境外专属；priceInfo 须传 null；需 W8 先切换 VPOI 价格模式 |
 | 全日房-底价/卖价模式产品创建 | W1 | basePrice/salePrice + priceChangeMode 等 | goodsId | 价格模式需先在 W8 用工具928/合同侧切换 |
 | 全日房绑定非房/礼包（rpServiceModel） | W1（依赖 W3） | 非房查询结果字段映射至 serviceModels | goodsId | 非房须先按 W3 创建+审核通过 |
-| 钟点房构造（普通/自定义时长/不可取消/自定义接待时间） | W2 | typeLimitValue（1~23h）、receiveTimeStart/End、cancelItemType | goodsId | 仅支持境内，不支持境外钟点房、不支持收费取消、paymentType 固定0（预付） |
+| 钟点房构造（普通/自定义时长/不可取消/自定义接待时间） | W2 | typeLimitValue（1~23h）、receiveTimeStart/End、cancelItemType | goodsId（goodsType=2，typeLimitValue 生效）；rpBreakFastModel/rpSerialModel 固定 null | 仅支持境内，不支持境外钟点房、不支持收费取消、paymentType 固定0（预付） |
 | 钟点房绑定非房/礼包 | W2（依赖 W3） | 同 W1 rpServiceModel 机制 | goodsId | 字段映射规则与 W1 一致 |
-| 非房 xGoods 构造（单门店，餐饮/景点门票/玩乐一日游模板） | W3 | partnerId+poiId、--type catering\|scenic\|tour | xGoodsId | 不需要 contractNo/roomId（普通非房）；商品名≤20字符；**不支持**批量门店逗号分隔/游客信息类型/境外（历史文档误标，代码从未支持，2026-08-03 已修正） |
+| 非房 xGoods 构造（单门店，餐饮/景点门票/玩乐一日游模板） | W3 | partnerId+poiId、--type catering\|scenic\|tour | xGoodsId（**同步**返回）；商品名≤20字符 | 不需要 contractNo/roomId（普通非房）；**不支持**批量门店逗号分隔/游客信息类型/境外（历史文档误标，代码从未支持，2026-08-03 已修正）；--type 枚举以 create-non-room.py --show-schema 实时探测为准 |
 | 非房独立售卖（加购）构造（CRS-60） | W3 | `--sell-status 1` + 8 扩展字段：promotionText/displayOrder/contractNo/totalStock/marketPrice/salePrice/commissionRate/maxNumPerOrder | xGoodsId（basicInfoModel.sellStatus=1） | contractNo 仅支持预付(=2)/团购(=0)合同，禁止包销(=5)；stockModel 为顶层新模型（非 basicInfoModel 字段）；commissionRate 万分位整数；创建后不可绑定 goods/套餐/超团；vpoi 需在 metaId=1074 白名单内；已自动补齐价值凭证联动校验所需的 priceProofUrls；2026-08-03 已用 partnerId=4570381/poiId=1090269468135297 实测创建+审核通过（xGoodsId=2257281540） |
 | 非房审核（通过/驳回） | W3 | xGoodsId+partnerId+shopId | 审核结果 | 直接 RPC `auditProduct`，无需 BPM/浏览器；无 --action 参数（历史文档误标，脚本本身不区分 pass/reject 参数） |
-| 套餐构造-预付自建模式 | W4 | 关联 W1 全日房 goodsId + W3 审核通过的 xGoodsId | spuId | 同步接口，创建即上线，无需额外审核 |
+| 套餐构造-预付自建模式 | W4 | 关联 W1 全日房 goodsId + W3 审核通过的 xGoodsId | spuId（同步接口，创建即上线，无需额外审核） | — |
 | 套餐构造-境外套餐 | W4 | 同上 + `--overseas` | spuId | — |
 | 套餐构造-直连产品包装（落地/不落地） | W4（依赖 zl-hotel-testdata skill） | `--goods-source direct-land/direct-noland`，直连 goodsId | spuId | 直连产品需先由 zl-hotel-testdata skill 创建；`200013028` 报错需补调 zl-hotel-room-mapping（mode2） |
 | 房转套餐（货盘规则上单，系统自动生成套餐） | W9 | 全日房(带非房)goodsId → CSV → S3 → 货盘规则 strategyId | spuId（由 queryGoods2SpuRecordByPage 查得） | 不需要 contractId，不走 create-package.py，无需手动审核 |
-| 超团构造-非通兑（单店） | W5 | partnerId+单 poiId+专属全日房 goodsId | spuId | spuExchangeType=1；autoPublish=true 自动上线；默认自动创建+审核绑定一条非房（可 --skip-xgoods / --xgoods-id 复用） |
-| 超团构造-通兑（多店，≥2门店） | W5 | partnerId(entity-type=2)+≥2个 poiId+对应 goodsIds | spuId | spuExchangeType=0；autoPublish=false，创建脚本自动串联 BPM+auditProduct 审核+上线+缓存刷新 |
+| 超团构造-非通兑（单店） | W5 | partnerId+单 poiId+专属全日房 goodsId | spuId（spuExchangeType=1）；autoPublish=true 自动上线 | 默认自动创建+审核绑定一条非房（可 --skip-xgoods / --xgoods-id 复用） |
+| 超团构造-通兑（多店，≥2门店） | W5 | partnerId(entity-type=2)+≥2个 poiId+对应 goodsIds | spuId（spuExchangeType=0，poiId=null）；创建脚本自动串联 BPM+auditProduct 审核+上线+缓存刷新 | autoPublish=false |
 | 超团构造-境外变体（非通兑/通兑） | W5 | 同上 + `--overseas` [--max-adult N] | spuId | 专属全日房走境外多人同价模式 |
 | 超团构造-境内通兑直连超团 | W5（依赖 zl-hotel-testdata skill，编排5步） | partnerId(entity-type=2) + 直连商品 isSuperDeal=true | spuId | 全流程 Agent 自动编排：新建门店(W8路径D)→创建直连商品→查goodsId→建通兑超团→审核上线；直连商品超团需调两次 auditProduct |
 | 超团加价日历（周末/节假日加价） | W5 | `--base-add-price`（数组，含 startDate/endDate/weekPrices） | spuId | 写入 SPU 顶层，不影响全日房价格；日期须落在入离日期范围内 |
@@ -164,11 +202,66 @@
 
 若该取值/字段**不在**已支持场景的枚举范围内，且**不属于**「二、明确不支持清单」中已列出的项，则视为**潜在缺口，标记为待评估**，反馈给 Skill 维护者（不能直接归为"已支持"或"不支持"）。
 
+### 4.3 缺口分类规则（v0.2 规范 3.3：发现入口 ≠ 已支持）
+
+本 Skill 的事实源包含 CLI schema（--show-schema / schema.json）和 `--set` 任意字段透传。**仅能发现命令、接口或可透传字段，不得直接判定为"已支持"**，必须继续核实参数契约、前置资源、状态流转、后置回读是否都已覆盖。缺口分五类，前四类优先补文档契约与编排，不要重复建设底层能力：
+
+| 缺口类型 | 判定特征 | 处置方式 |
+|---------|---------|--------|
+| 能力发现文档缺口 | 叶子命令/API 已存在，但 workflow/地图未写明如何发现或正确使用 | 补 workflow/地图条目，当天同步本地图 |
+| 参数契约缺口 | 入口存在，但字段枚举、联动约束、默认值或参数模型不清楚 | 用 safe_probes 探测 schema 后补契约文档 |
+| 工作流编排缺口 | 原子操作存在，但前后置步骤或委托 Skill 编排缺失 | 补 workflow 编排步骤 |
+| 验证契约缺口 | 能发起操作但无法可靠回读核心状态（如造完商品无法确认 spuId/goodsId 状态） | 补回读手段（queryGoodsInfo / queryGoods2SpuRecordByPage 等） |
+| 真实能力缺口 | 底层命令、接口、模板或依赖本身不存在 | 反馈 Skill 维护者评估排期，不得自行硬编码参数绕过（见 SKILL.md IRON LAW） |
+
+> ⚠️ 特别提醒：`--set` 可透传任意 RPC 字段 ≠ 该字段对应的业务场景已支持。用 `--set` 透传后必须按 verification_contract 回读验证产出物核心字段/状态，否则只能判为"参数契约缺口/需人工确认"。
+
+### 4.4 叶子枚举 CLI 委托（v0.2 规范 2.3）
+
+对以下叶子枚举，本地图不硬编码维护枚举个数清单，**委托给 CLI 作为事实源**：CLI choices 级枚举新增/下线视为事实源自更新，**不触发本地图同步**：
+
+- 非房 `--type` 模板枚举（catering/scenic/tour…）→ 以 `create-non-room.py --show-schema` 实时探测为准
+- 营销报名 `--config-key` 枚举 → 以 `enroll-marketing.py --show-schema` 实时探测为准
+- 库存 `--count-type` / `--inv-switch` 枚举 → 以 `update-inventory.py --show-schema` 实时探测为准
+- 数据池 tags 枚举 → 以 `testdata-cli query-testdata list-tags` 实时探测为准
+
+**委托前提（均满足）**：①顶部 `sources_of_truth.leaf_capability` 已声明对应 CLI 探测入口；②本地图对应能力行/4.2 表格中的枚举描述为动态表述（已标注"以 --show-schema 实时探测为准"），未硬编码具体枚举清单；③CLI 未收录枚举时的兜底通道为 `--set` 直传（须有后端已支持的代码级证据）+ 构造后按 verification_contract 回读验证，CLI 收录后兜底通道自动作废。
+
+**边界**：本委托只豁免枚举级小迭代的地图同步。命令族级（新增 factory 脚本）、场景级（新增业务场景行）、依赖级（新增前置依赖或回读方式）变更，仍按下方「附：一致性校验规则」当天同步地图。CLI 能发现枚举入口，不等于该业务场景的前置数据、参数契约、编排、验证都已覆盖（4.3 仍适用），首次执行仍需走完整核对。
+
 ---
 
-## 附：一致性说明
+## 附：一致性校验规则（v0.2 规范 2.1/2.2）
 
-本 Skill 无独立 `check_capability_map.py` 校验脚本（因场景清单本身就是 `SKILL.md` 场景路由表 + workflows/ 目录文件名，天然与本地图的场景编号列（W1~W9）一一对应，无需额外维护 index.md）。**新增/下线 workflow 文件时，须同一次提交内同步更新本文件的对应条目**，并检查：
-1. `references/workflows/` 下每个 `w*.md` 文件是否在「一、已支持能力清单」中有对应条目
-2. 「一、已支持能力清单」中引用的每个 W 编号是否在 `references/workflows/` 下真实存在对应文件
+本 Skill 无独立 `check_capability_map.py` 校验脚本，按顶部声明的架构（workflow_orchestrator）执行人工/CI 校验。**新增/下线 workflow、factory 脚本、schema、委托关系时，当次提交内同步更新本文件对应条目**（不要攒着以后补），并逐项检查：
+
+1. **static_map（场景编号一致性）**：`references/workflows/` 下每个 `w*.md` 文件在「一、已支持能力清单」中有对应条目；「一」中引用的每个 W 编号在 `references/workflows/` 下真实存在对应文件
+2. **cli_schema（命令族/schema 存在性）**：「一」中引用的每个 `factory/<域>/<脚本>.py` 真实存在于 `hotel_testdata_cli/factory/`，且 `--help` 可探测到；引用的 schema.json 真实存在
+3. **delegated_skill（委托关系一致性）**：引用的委托 Skill（zl-hotel-testdata、zl-hotel-room-mapping）在当前环境可被定位
+4. **contract_docs（契约文档存在性）**：顶部 `sources_of_truth` 声明的 pitfalls/enums/model 文档真实存在
+5. 任一不一致 → 阻断提交，先修事实源或本地图
+
+> 建议后续将上述检查固化为 pre-commit hook 或 PR checklist（规范 2.2）。
+
+---
+
+## 附录：开发者自查清单（v0.2 规范附录 A）
+
+P0 必查：
+
+- [x] 地图分三段：已支持 / 不支持 / 常见说法对照（不是场景清单摘要版）
+- [x] 顶部有能力事实源声明：架构类型、解析方式、事实源、安全探测、验证契约
+- [x] 已支持清单里的能力定位符（W 编号 / 命令 / 委托）能和声明的事实源对上，按架构跑了对应校验（见「附：一致性校验规则」）
+- [x] 归属判定规则里除静态实体归属标准外，还有"新增信号识别标准"（4.2）与"缺口分类规则"（4.3）
+- [x] 发现入口、字段透传不直接写成已支持，已按发现/参数/编排/验证/真实缺口五类分类核实
+- [x] 用真实需求手动测过一遍，不翻完整原文、只靠地图和声明的 safe_probes 就能给出结论
+
+P1 建议：
+
+- [x] 不支持清单每条都有原因和反馈路径
+- [x] 改场景/命令/接口/工作流和改地图在同一次提交里完成
+
+P2 加分：
+
+- [x] 常见说法对照表跟着真实看漏的案例持续补（如"工具906"待确认条目）
 

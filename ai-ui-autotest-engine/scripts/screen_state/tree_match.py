@@ -7,6 +7,37 @@ from screen_state.tree_parse import _center_of, is_debug_overlay
 MATCH_EXACT = 0        # 精确匹配（mText == query）
 MATCH_EXACT_DESC = 1   # 精确匹配 contentDescription
 MATCH_SUBSTR = 2       # 子串回退（仅用于语义等价判定，见 find_substring_candidates）
+
+# 子串候选的最小有效重叠字符数。
+# 单字符重叠不构成语义等价：expect「入离时间」与无关文案「1间」/「房间将整晚保留」
+# 只共享「间」，把它当成「入离时间仍在页面上」的残留证据是误报（gone 断言因此
+# 频繁落入 AI hook）。因此要求至少重叠 min(len(query), MIN_SUBSTR_OVERLAP) 个连续字符。
+MIN_SUBSTR_OVERLAP = 2
+
+
+def _longest_common_substring_len(a, b):
+    """a 与 b 的最长公共连续子串长度（文案很短，O(len(a)*len(b)) 足够）。"""
+    if not a or not b:
+        return 0
+    prev = [0] * (len(b) + 1)
+    best = 0
+    for ca in a:
+        cur = [0] * (len(b) + 1)
+        for j, cb in enumerate(b, 1):
+            if ca == cb:
+                cur[j] = prev[j - 1] + 1
+                if cur[j] > best:
+                    best = cur[j]
+        prev = cur
+    return best
+
+
+def _has_meaningful_overlap(query, text):
+    """text 与 query 的重叠是否足以构成语义等价候选（见 MIN_SUBSTR_OVERLAP）。"""
+    if not query or not text:
+        return False
+    return _longest_common_substring_len(query, text) >= min(len(query), MIN_SUBSTR_OVERLAP)
+
 def _match_node(node, query):
     """对单个节点做精确匹配，返回匹配等级（越小越优先），不匹配返回 None。
 
@@ -33,7 +64,7 @@ def _find_best_nodes(nodes, query):
     results.sort(key=lambda x: (x[0], x[1]))
     return results
 def find_substring_candidates(nodes, query):
-    """子串回退候选：query 是节点文本的子串，或节点文本是 query 的子串。
+    """子串回退候选：query 与节点文本存在「有效重叠」（见 _has_meaningful_overlap）。
 
     调用方（scroll-until / 断言策略）必须自行处理多候选：
       - 候选文案形态唯一 → 语义等价，可直接使用；
@@ -48,7 +79,7 @@ def find_substring_candidates(nodes, query):
         cd = n.get("content_desc") or ""
         if not t and not cd:
             continue
-        if query in t or query in cd or (t and t in query) or (cd and cd in query):
+        if _has_meaningful_overlap(query, t) or _has_meaningful_overlap(query, cd):
             results.append((MATCH_SUBSTR, i, n))
     results.sort(key=lambda x: (abs(len(x[2].get("text") or x[2].get("content_desc") or "") - len(query)), x[1]))
     return results

@@ -11,9 +11,9 @@ import time
 
 from urllib.parse import urlparse, parse_qs, urlunparse
 
-from core.util.case_utils import resolve_case_path
-from core.util.paths import SKILL_DIR, OUTPUT_DIR
-from core.util.json_utils import read_json
+from core.util.case_utils import resolve_case_path, resolve_flow_content
+from core.util.paths import OUTPUT_DIR
+from core.util.json_utils import read_json, write_json_atomic
 from core.audit.runtime_audit import create_run_manifest
 from core.flow.flow_context import save_context
 from core.sop.on_fail import (
@@ -135,6 +135,20 @@ def init_from_steps_json(run_dir, steps_json_path, flow_name="", device_serial=N
     # 统一替换所有占位符：{T+N} → 自动日期，{xxx} → env_answers 值
     ai_input = resolve_placeholders(ai_input, env_answers)
 
+    # ══════════════════════════════════════════════════════════
+    #  ④ 固化「解析后的 steps-input」为唯一事实来源（方案 A）
+    #    落盘的 steps_json_path 从此只含已解析值；原始（含占位符）版本
+    #    另存为 steps-input.raw.json 以备溯源。
+    #    这样运行期所有读者（case-init / 报告等）只需纯读，禁止再各自解析
+    #    —— 否则 C0 case-init 重载原始文件会覆盖本处解析结果（历史回归根因），
+    #    由 dev/check_architecture.py 规则6 强制。
+    # ══════════════════════════════════════════════════════════
+    if steps_json_path and os.path.isfile(steps_json_path):
+        raw_snapshot = os.path.join(os.path.dirname(steps_json_path), "steps-input.raw.json")
+        if not os.path.isfile(raw_snapshot):
+            with open(raw_snapshot, "w", encoding="utf-8") as _f:
+                _f.write(raw_text)
+        write_json_atomic(steps_json_path, ai_input)
 
     # 从替换后的完整数据中重新提取 cases（替换前提取的 cases 仍指向原始数据，
     # 里面的 landing_scheme 等字段未经日期替换，直接使用会导致日期占位符残留）
@@ -172,26 +186,18 @@ def init_from_steps_json(run_dir, steps_json_path, flow_name="", device_serial=N
             "landing_scheme": landing_scheme,
         }
 
-        # flow_source 归一化为绝对路径，并读取原始内容供下游报告使用
-        raw_source = case.get("flow_source", "")
-        if raw_source:
-            if os.path.isabs(raw_source):
-                manifest_entry["flow_source"] = os.path.normpath(raw_source)
-            else:
-                manifest_entry["flow_source"] = os.path.normpath(os.path.join(SKILL_DIR, raw_source))
-            # 在 flow-init 时就将原始 Flow 内容读入 manifest，
-            # 避免 preflight-clean/post-clean 清空 .run-input/ 后报告无原始语义文件
-            flow_path = manifest_entry["flow_source"]
-            if os.path.isfile(flow_path):
-                try:
-                    with open(flow_path, "r", encoding="utf-8") as _f:
-                        _content = _f.read()
-                    if _content:
-                        manifest_entry["flow_content"] = _content
-                except OSError:
-                    pass
-        else:
-            manifest_entry["flow_source"] = ""
+        # 原始 Flow 原文：flow-init 时一次性读取并内嵌（flow_source 缺失时按
+        # case_id/case_name 在 .run-input/flows/ 兜底匹配）。避免 preflight/post-clean
+        # 清空 .run-input/ 后报告无原始语义文件。flow_source_name 供 case-init 落日志
+        # 与报告 desc 使用。
+        flow_path, flow_content, flow_name = resolve_flow_content(
+            case.get("flow_source", ""),
+            name_hints=[case_id, case_name],
+        )
+        manifest_entry["flow_source"] = flow_path
+        manifest_entry["flow_source_name"] = flow_name or f"{case_name}.md"
+        if flow_content:
+            manifest_entry["flow_content"] = flow_content
 
         cases_manifest.append(manifest_entry)
         cases_summary.append({
@@ -261,5 +267,5 @@ def init_from_steps_json(run_dir, steps_json_path, flow_name="", device_serial=N
     }
 
     save_context(run_dir, ctx)
-    create_run_manifest(run_dir, ctx, steps_json_path)
+    create_run_manifest(run_dir, ctx)
     return ctx

@@ -32,10 +32,7 @@ liulichao     刘立超
 zhangce07     张策
 wangyu193     王宇
 wb_xuweixin   许未鑫
-duanshuhuai   段舒怀
 hwhm_mamenglong  华为-马孟龙
-wangwenting09 王文婷
-yanyi22       颜怡
 liyanyan25    李炎炎
 zhangyanbing  张艳兵
 ```

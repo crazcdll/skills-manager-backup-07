@@ -1,13 +1,17 @@
 skill-manifest-version: 1
-skill-id: c57c9f494b34a945c438b62436014c78cebb90aa107b83df1ddc33b3e3846723
+skill-id: c4cc225eda1c8fbd0f402babe986808a391c059c532abdf896fc3fb97608b698
 
 files:
-  d2b2cbbf4776fb4f5e844e6096ad134a5118c0d4fa6b63e63a64c7bbb9776703  SKILL.md
-  db6aec4de3a6a2de4e84ae650e1aec369c7b5948708c84a9103a5eda65aa62da  agents/openai.yaml
-  4e35985027766b294bcedc89d61210e9f5352e08267a805df4db7c6271f86c9a  references/sso-platforms.md
-  0488f9cb40dcfe177ff42e6c2a615244aa6f6406da468c465722b23346caaf94  scripts/portable-user-auth.mjs
-  ce83171c2d1a1fdfbb288a6a58d37fc4b2c42c12ff408849f6b382ba026ea244  scripts/portable-user-auth.test.mjs
-  2721882488d659ea3c36d32109cec8d2841e935469cc125a253c3defb3f834f2  scripts/resolve-effective-rules.mjs
-  ac979ee9bbbf725c5b1381eae2c8949a58ecaf061927d39f55aa75b205ec9f8d  scripts/resolve-effective-rules.test.mjs
-  d4cba52c331e5c229fd20321acf69e1d05ff1aa6e38b05caba5f838961df0b51  scripts/sync-effective-rules-with-sso.mjs
-  c445274e28abc9fecc4093f82d82f9bc1cc66e42aeceb37602662f47e2e8c870  scripts/sync-effective-rules-with-sso.test.mjs
+  b8b783e58335c9ae184a7375fe46e1346399db189aa7cf8161caa35118c21dea  README.md
+  1992ec282464a88b7db82c1fde1db895b1a0358a5ad1892f3a073dbfffe7c48d  SKILL.md
+  1c5097a615e013e61976f9da3344c706b3b93216713456bb9aacd00a7db4ce0d  agents/openai.yaml
+  d546e4c274db6a2c4bad34f862319f63987f179b49ada6c977bc0601b2800397  bin/mt-code-standards.mjs
+  e29b3bf72a95b885aca22edaee92d2861ee9481bfdf8f37d33f0d8c7bf204b94  bin/mt-code-standards.test.mjs
+  2d3f67dcd16daaec80b6bdba2ba4878cce4b1337060523c7ef1a6fc4972aa4c8  package.json
+  0036175f0e76d2b6df73109cdb37d86db218a4677bbbea0900300ee599351468  references/sso-platforms.md
+  ee9bace08b96641ebd55c494f39fdd1eefb251c8f9994b2b743d07bb813dc20f  scripts/portable-user-auth.mjs
+  0ad5b10a11efa5a350282ab85443e3fa12e9eb7f8d035f06335a88e4f9e22f35  scripts/portable-user-auth.test.mjs
+  316fc9922098a83b7fc3189934afac10da19abc46374e8a9934dc2dd4d9ba643  scripts/resolve-effective-rules.mjs
+  5065a60240d91ee0e633d64b599b91b6f77edb76271d9a457ab79d53f4e2a48f  scripts/resolve-effective-rules.test.mjs
+  df5dd93017cc178aa1614167e49260d82887cd713acc97d6eac9399c099f02b9  scripts/sync-effective-rules-with-sso.mjs
+  2c4a9913a82303675aa8cc3a4e8bf36ddf752ff0c2c3e15beb7f6523c96bb4c2  scripts/sync-effective-rules-with-sso.test.mjs

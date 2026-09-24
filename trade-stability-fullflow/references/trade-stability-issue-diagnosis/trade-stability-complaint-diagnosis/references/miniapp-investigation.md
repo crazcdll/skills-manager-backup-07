@@ -65,7 +65,7 @@ raptorfe --version 2>/dev/null && echo "ok" || echo "missing"
 
 ### A0. 查询 Raptor 小程序前端异常（⚠️ 与后端日志查询并行）
 
-小程序有前端异常上报，**应与后端日志查询并行进行**，从 dev-assets.md 获取对应的 `projectId`。
+小程序有前端异常上报，**应与后端日志查询并行进行**，从 trade-fe-stability-kb 知识库资产条目获取对应的 `project_id`（见 [trade-stability-complaint-diagnosis](../SKILL.md) 第一步「匹配问题页面」）。
 
 **Step 1：用 raptorfe CLI 查异常汇总**
 
@@ -124,7 +124,7 @@ raptorfe web error get-log-detail \
 | `baseInfo.pageId` | 页面实例 ID |
 | `baseInfo.上报时间` | 精确上报时间 |
 
-**备用方案（raptorfe CLI 不可用时）**：从 dev-assets.md 获取 `raptor 异常链接`，提供链接供用户手动查看：
+**备用方案（raptorfe CLI 不可用时）**：从 trade-fe-stability-kb 知识库资产条目获取 `raptor_error_url`，提供链接供用户手动查看：
 
 ```
 aHR0cHM6Ly9yYXB0b3IubXdzLnNhbmt1YWkuY29tL21wL2Vycm9yL2xpc3Q/cHJvamVjdElkPXtwcm9qZWN0SWR9JlRBRzg9e+mhtemdoui3r+W+hO+8iFVSTOe8luegge+8iX0=

@@ -1,12 +1,12 @@
 ---
 name: trade-stability-issue-diagnosis
-description: 交易前端稳定性告警、客诉等问题排查与定位专家。支持两种使用模式：
-  (1) 独立模式：直接接收告警/TT工单/客诉/用户反馈原始信号，自动完成信息提取 → 变更查询 → 分发排查的完整闭环；
+description: 交易前端稳定性告警、反馈等问题排查与定位专家。支持两种使用模式：
+  (1) 独立模式：直接接收告警/TT工单/反馈（客诉/用户反馈等）原始信号，自动完成信息提取 → 变更查询 → 分发排查的完整闭环；
   (2) 全流程模式：作为稳定性全流程第四步「排查根因」统一入口，接收第一步和第二步已有结果后直接分发排查。
   根据信号类型自动分发到对应子流程：
   - 告警信号（Raptor / CIA / 成功率 / 48h首现）→ 路径 A：trade-stability-alert-diagnosis
-  - TT工单 / 客诉 / 用户反馈 → 路径 B：trade-stability-complaint-diagnosis
-  - 告警 + 客诉同时存在 → 路径 A + B 并行，两路均完成后综合输出
+  - TT工单 / 反馈（用户投诉、客诉、C端反馈、产研反馈、测试反馈、用户反馈等）→ 路径 B：trade-stability-complaint-diagnosis
+  - 告警 + 反馈（或 TT）同时存在 → 路径 A + B 并行，两路均完成后综合输出
   - 信号类型不明确 → 默认路径 B 兜底
   覆盖业务线：餐（meishi）、综（gc）、酒（hotel）、景（travel）。
   触发词：排查根因、问题排查、问题定位、告警排查、问题诊断、issue diagnosis、交易问题、线上问题、帮我排查、帮我定位。
@@ -51,7 +51,7 @@ description: 交易前端稳定性告警、客诉等问题排查与定位专家�
 读取并执行 [trade-stability-information-fetch/SKILL.md](../trade-stability-information-fetch/SKILL.md) 完成信息提取。
 
 核心任务：
-- 识别信号类型（告警 / TT工单 / 客诉 / 用户反馈）
+- 识别信号类型（告警 / TT工单 / 反馈）
 - 匹配业务线（餐 / 综 / 酒 / 景）
 - 提取：页面名称、技术栈、bundle名、仓库链接、diva发布链接、projectId、前端raptor异常链接、后端日志 topic（可能有多个）
 
@@ -82,7 +82,7 @@ description: 交易前端稳定性告警、客诉等问题排查与定位专家�
 
 | 输入项 | 来源 | 说明 |
 |--------|------|------|
-| 信号类型 | 第一步·信息提取结果 | 告警 / TT工单 / 客诉 / 用户反馈 |
+| 信号类型 | 第一步·信息提取结果 | 告警 / TT工单 / 反馈 |
 | 业务线 | 第一步·信息提取结果 | 餐 / 综 / 酒 / 景 |
 | Bundle 名 / 页面名 | 第一步·信息提取结果 | 如 `rn_meishi_group_order_detail` |
 | 告警时间 / 问题时间 | 第一步·信息提取结果 | YYYY-MM-DD HH:mm |
@@ -96,8 +96,8 @@ description: 交易前端稳定性告警、客诉等问题排查与定位专家�
 | 信号类型 | 排查路径 | 执行方式 |
 |---------|---------|---------|
 | 告警（Raptor / CIA / 成功率 / 48h首现） | **路径 A：告警排查** | 读取 [trade-stability-alert-diagnosis/SKILL.md](trade-stability-alert-diagnosis/SKILL.md) |
-| TT 工单 / 客诉 / 用户反馈 | **路径 B：问题诊断** | 读取 [trade-stability-complaint-diagnosis/SKILL.md](trade-stability-complaint-diagnosis/SKILL.md) |
-| 告警 + 同时有 TT / 客诉 | **路径 A + B 并行** | 同时读取两个子 Skill，两路均完成后综合输出 |
+| TT 工单 / 反馈（客诉/用户反馈等） | **路径 B：问题诊断** | 读取 [trade-stability-complaint-diagnosis/SKILL.md](trade-stability-complaint-diagnosis/SKILL.md) |
+| 告警 + 同时有 TT / 反馈 | **路径 A + B 并行** | 同时读取两个子 Skill，两路均完成后综合输出 |
 | 信号类型不明确 | **路径 B（兜底）** | 读取 [trade-stability-complaint-diagnosis/SKILL.md](trade-stability-complaint-diagnosis/SKILL.md) |
 
 > ⚠️ **路径选择后不得中途切换**。若路径 A 排查中发现需要查用户日志，仍在路径 A 框架内完成，不切换到路径 B。
@@ -122,7 +122,7 @@ description: 交易前端稳定性告警、客诉等问题排查与定位专家�
 
 ## 路径 B：问题诊断
 
-**适用信号**：TT 工单、客诉、用户反馈、功能异常反馈
+**适用信号**：TT 工单、反馈（用户投诉、客诉、C端反馈、产研反馈、测试反馈、用户反馈等）
 
 **执行**：读取并严格遵循 [trade-stability-complaint-diagnosis/SKILL.md](trade-stability-complaint-diagnosis/SKILL.md) 中的完整排查流程。
 

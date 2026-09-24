@@ -1,0 +1,6 @@
+skill-manifest-version: 1
+skill-id: 2baa8a043c1d27e10eb8f11fbf063dd35c8c0b38f8ed21637b70a4e1fead844a
+
+files:
+  568abf1c6286fb2c98af57990eef16b4126406056148c4bab8e43fc8351120df  SKILL.md
+  fc1ecc47c6cf25bcda85122daca33feae847447bd304a4577fde60526192f6ec  agents/openai.yaml

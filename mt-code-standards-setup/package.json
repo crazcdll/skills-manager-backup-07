@@ -1,0 +1,26 @@
+{
+  "name": "mt-code-standards-setup",
+  "version": "1.0.0",
+  "description": "业务研发平台编码规范独立拉取 CLI",
+  "type": "module",
+  "bin": {
+    "mt-code-standards": "bin/mt-code-standards.mjs"
+  },
+  "files": [
+    "bin/mt-code-standards.mjs",
+    "scripts/portable-user-auth.mjs",
+    "scripts/resolve-effective-rules.mjs",
+    "scripts/sync-effective-rules-with-sso.mjs",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@it/oa-skills-shared": "1.2.1"
+  },
+  "publishConfig": {
+    "registry": "http://r.npm.sankuai.com"
+  },
+  "license": "UNLICENSED"
+}

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdtemp, mkdir, readFile, writeFile, symlink } from "node:fs/promises";
+import { access, mkdtemp, mkdir, readFile, writeFile, symlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -48,12 +48,15 @@ const bundleBody = ({
   refs = releaseRefs,
   status = "ready",
   version = 1,
+  repositoryIdentity = repository,
+  stage,
+  dependencyHash = sha256Hex("delivery-dependency"),
 } = {}) => {
   const normalizedFiles = files.map((file) => ({
     ...file,
     sha256: file.sha256 || sha256Hex(file.content),
     byte_size: file.byte_size ?? Buffer.byteLength(file.content, "utf8"),
-  })).sort((left, right) => version === 2
+  })).sort((left, right) => version >= 2
     ? (left.relative_path < right.relative_path ? -1 : left.relative_path > right.relative_path ? 1 : 0)
     : left.relative_path.localeCompare(right.relative_path, "en"));
   const projection = normalizedFiles.map(({ relative_path, sha256, byte_size }) => ({
@@ -62,25 +65,27 @@ const bundleBody = ({
     byte_size,
   }));
   const manifestHash = sha256Hex(canonicalJson(projection));
-  const repo = { ...repository, standard_domain: domain };
+  const repo = { ...repositoryIdentity, standard_domain: domain };
   const snapshotProjection = {
-    ...(version === 2 ? { resolver_version: "effective-rule-bundle/v2" } : {}),
+    ...(version >= 2 ? { resolver_version: `effective-rule-bundle/v${version}` } : {}),
     repository_id: repo.repository_id,
     canonical_key: repo.canonical_key,
     standard_domain: repo.standard_domain,
     manifest_hash: manifestHash,
     release_refs: refs,
+    ...(version === 3 ? { stage, dependency_hash: dependencyHash } : {}),
   };
   return {
     schema_version: `effective-rule-bundle/v${version}`,
     status,
     snapshot: {
-      ...(version === 2 ? { resolver_version: "effective-rule-bundle/v2" } : {}),
+      ...(version >= 2 ? { resolver_version: `effective-rule-bundle/v${version}` } : {}),
       snapshot_id: sha256Hex(canonicalJson(snapshotProjection)),
       repository: repo,
       manifest_hash: manifestHash,
       release_refs: refs,
       total_bytes: normalizedFiles.reduce((sum, file) => sum + file.byte_size, 0),
+      ...(version === 3 ? { stage, dependency_hash: dependencyHash } : {}),
     },
     files: status === "ready" ? normalizedFiles : [],
   };
@@ -91,6 +96,8 @@ const bootstrapBody = ({
   domain = "frontend",
   refs = [{ rule_set_id: `${domain}-l1`, release_id: `${domain}-l1@test`, scope_level: "L1" }],
   status = "ready",
+  stage,
+  dependencyHash = sha256Hex("bootstrap-delivery-dependency"),
 } = {}) => {
   const normalizedFiles = files.map((file) => ({
     ...file,
@@ -100,22 +107,26 @@ const bootstrapBody = ({
   const manifestHash = sha256Hex(canonicalJson(normalizedFiles.map(({
     relative_path, sha256, byte_size,
   }) => ({ relative_path, sha256, byte_size }))));
+  const version = stage ? 2 : 1;
+  const schema = `l1-bootstrap-bundle/v${version}`;
   const snapshotId = sha256Hex(canonicalJson({
-    bootstrap_version: "l1-bootstrap-bundle/v1",
+    bootstrap_version: schema,
     standard_domain: domain,
     manifest_hash: manifestHash,
     release_refs: refs,
+    ...(stage ? { stage, dependency_hash: dependencyHash } : {}),
   }));
   return {
-    schema_version: "l1-bootstrap-bundle/v1",
+    schema_version: schema,
     status,
     snapshot: {
-      bootstrap_version: "l1-bootstrap-bundle/v1",
+      bootstrap_version: schema,
       snapshot_id: snapshotId,
       standard_domain: domain,
       release_refs: refs,
       manifest_hash: manifestHash,
       total_bytes: normalizedFiles.reduce((sum, file) => sum + file.byte_size, 0),
+      ...(stage ? { stage, dependency_hash: dependencyHash } : {}),
     },
     files: status === "ready" ? normalizedFiles : [],
   };
@@ -248,6 +259,9 @@ test("uses one bundle request and atomically installs L1 plus matching L2", asyn
   });
 
   assert.equal(calls.length, 1);
+  assert.ok(calls[0].url.startsWith(
+    "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-distribution/",
+  ));
   assert.ok(calls[0].url.endsWith("/v1/effective-rule-bundles/resolve"));
   assert.equal(calls[0].init.method, "POST");
   assert.equal(calls[0].init.headers["X-Rule-Auth-Source"], "nocode-agent-sso");
@@ -287,6 +301,122 @@ test("requires an explicit known execution identity when supplied and defaults o
   assert.throws(
     () => normalizePullExecution({ pullId: "11111111-1111-4111-8111-111111111111", agent: "made-up", source: "runner_explicit_v1" }),
     (error) => error.code === "RULE_BUNDLE_EXECUTION_INVALID",
+  );
+});
+
+test("sends an explicit stage and installs a verified v3 bundle with dependency context", async () => {
+  const root = await createRepository();
+  const body = bundleBody({ version: 3, stage: "coding" });
+  let request;
+  const receipt = await syncEffectiveRuleBundle({
+    token: "token",
+    repositoryLocator: "hfe/hotel-web",
+    repoRoot: root,
+    stage: "coding",
+    fetchImpl: async (_url, init) => {
+      request = JSON.parse(init.body);
+      return response(body);
+    },
+  });
+  assert.equal(request.stage, "coding");
+  assert.equal(receipt.stage, "coding");
+  const manifest = JSON.parse(await readFile(
+    path.join(root, ".mdp/rules/.mt-effective-rule-bundle.json"),
+    "utf8",
+  ));
+  assert.equal(manifest.schema_version, "mt-effective-rule-bundle-manifest/v4");
+  assert.equal(manifest.resolver_version, "effective-rule-bundle/v3");
+  assert.equal(manifest.stage, "coding");
+  assert.equal(manifest.dependency_hash, body.snapshot.dependency_hash);
+});
+
+test("does not reuse a snapshot across stages and removes files from the previous stage", async () => {
+  const root = await createRepository();
+  const options = { token: "token", repositoryLocator: "hfe/hotel-web", repoRoot: root };
+  const coding = bundleBody({
+    version: 3,
+    stage: "coding",
+    files: [{ relative_path: "l1/java-l1-compact/compact.md", content: "# compact\n" }],
+  });
+  await syncEffectiveRuleBundle({ ...options, stage: "coding", fetchImpl: async () => response(coding) });
+  const customPath = path.join(root, ".mdp/rules/project/custom.md");
+  await mkdir(path.dirname(customPath), { recursive: true });
+  await writeFile(customPath, "# custom\n", "utf8");
+  const review = bundleBody({
+    version: 3,
+    stage: "cr",
+    files: [{ relative_path: "l1/java-l1/full.md", content: "# full\n" }],
+  });
+  let request;
+  await syncEffectiveRuleBundle({
+    ...options,
+    stage: "cr",
+    fetchImpl: async (_url, init) => {
+      request = JSON.parse(init.body);
+      return response(review);
+    },
+  });
+  assert.equal("known_snapshot_id" in request, false);
+  await assert.rejects(readFile(path.join(root, ".mdp/rules/company/compact.md")));
+  assert.equal(await readFile(path.join(root, ".mdp/rules/company/full.md"), "utf8"), "# full\n");
+  assert.equal(await readFile(customPath, "utf8"), "# custom\n");
+});
+
+test("treats delivery policy changes as new staged snapshots even when files are unchanged", async () => {
+  const root = await createRepository();
+  const options = {
+    token: "token", repositoryLocator: "hfe/hotel-web", repoRoot: root, stage: "coding",
+  };
+  const first = bundleBody({ version: 3, stage: "coding", dependencyHash: sha256Hex("policy-a") });
+  await syncEffectiveRuleBundle({ ...options, fetchImpl: async () => response(first) });
+  const second = bundleBody({ version: 3, stage: "coding", dependencyHash: sha256Hex("policy-b") });
+  let request;
+  await syncEffectiveRuleBundle({
+    ...options,
+    fetchImpl: async (_url, init) => {
+      request = JSON.parse(init.body);
+      return response(second);
+    },
+  });
+  assert.equal(request.known_snapshot_id, first.snapshot.snapshot_id);
+  assert.notEqual(first.snapshot.snapshot_id, second.snapshot.snapshot_id);
+  const manifest = JSON.parse(await readFile(
+    path.join(root, ".mdp/rules/.mt-effective-rule-bundle.json"),
+    "utf8",
+  ));
+  assert.equal(manifest.snapshot_id, second.snapshot.snapshot_id);
+  assert.equal(manifest.dependency_hash, second.snapshot.dependency_hash);
+});
+
+test("rejects stage downgrade, stage mismatch and an explicit empty stage before installation", async () => {
+  for (const invalidStage of ["", "review"]) {
+    const root = await createRepository();
+    let calls = 0;
+    await assert.rejects(
+      syncEffectiveRuleBundle({
+        token: "token", repositoryLocator: "hfe/hotel-web", repoRoot: root,
+        stage: invalidStage,
+        fetchImpl: async () => { calls += 1; return response(bundleBody()); },
+      }),
+      (error) => error.code === "RULE_BUNDLE_STAGE_INVALID",
+    );
+    assert.equal(calls, 0);
+  }
+  const downgradeRoot = await createRepository();
+  await assert.rejects(
+    syncEffectiveRuleBundle({
+      token: "token", repositoryLocator: "hfe/hotel-web", repoRoot: downgradeRoot,
+      stage: "coding", fetchImpl: async () => response(bundleBody({ version: 2 })),
+    }),
+    (error) => error.code === "RULE_BUNDLE_RESPONSE_INVALID",
+  );
+  const mismatchRoot = await createRepository();
+  await assert.rejects(
+    syncEffectiveRuleBundle({
+      token: "token", repositoryLocator: "hfe/hotel-web", repoRoot: mismatchRoot,
+      stage: "coding", fetchImpl: async () => response(bundleBody({ version: 3, stage: "cr" })),
+    }),
+    (error) => error.code === "RULE_BUNDLE_STAGE_MISMATCH",
   );
 });
 
@@ -360,6 +490,111 @@ test("automatically sends the exact git origin when no locator is supplied", asy
     },
   });
   assert.equal(request.repository_locator, origin);
+});
+
+test("runs without Git when repository is explicit and writes to the current directory", async () => {
+  const currentDirectory = await mkdtemp(path.join(os.tmpdir(), "setup-no-git-"));
+  let requested;
+  const receipt = await syncEffectiveRuleBundle({
+    token: "token",
+    repositoryLocator: "hotel-web",
+    cwd: currentDirectory,
+    fetchImpl: async (_url, init) => {
+      requested = JSON.parse(init.body);
+      return response(bundleBody());
+    },
+  });
+  assert.equal(requested.repository_locator, "hotel-web");
+  assert.equal(receipt.repository.canonical_key, "hfe/hotel-web");
+  assert.equal(await readFile(path.join(currentDirectory, ".mdp/rules/company/frontend-l1.md"), "utf8"), "# L1\n");
+});
+
+test("uses output-dir before repo-root while repo-root remains the Git discovery source", async () => {
+  const repositoryRoot = await createTrackedRepository({ "README.md": "test\n" });
+  execFileSync("git", ["remote", "add", "origin", "git@git.sankuai.com:hfe/hotel-web.git"], { cwd: repositoryRoot });
+  const outputRoot = await mkdtemp(path.join(os.tmpdir(), "setup-output-"));
+  await syncEffectiveRuleBundle({
+    token: "token",
+    repoRoot: repositoryRoot,
+    outputDir: outputRoot,
+    fetchImpl: async () => response(bundleBody()),
+  });
+  await access(path.join(outputRoot, ".mdp/rules/.mt-effective-rule-bundle.json"));
+  await assert.rejects(access(path.join(repositoryRoot, ".mdp/rules/.mt-effective-rule-bundle.json")));
+});
+
+test("resolves relative repo-root and output-dir from the supplied cwd", async () => {
+  const workingDirectory = await mkdtemp(path.join(os.tmpdir(), "setup-relative-base-"));
+  const repositoryRoot = path.join(workingDirectory, "repository");
+  await mkdir(repositoryRoot);
+  execFileSync("git", ["init", "-q"], { cwd: repositoryRoot });
+  await writeFile(path.join(repositoryRoot, "README.md"), "test\n", "utf8");
+  execFileSync("git", ["add", "README.md"], { cwd: repositoryRoot });
+  execFileSync("git", ["remote", "add", "origin", "git@git.sankuai.com:hfe/hotel-web.git"], { cwd: repositoryRoot });
+  await syncEffectiveRuleBundle({
+    token: "token",
+    cwd: workingDirectory,
+    repoRoot: "repository",
+    outputDir: "generated rules",
+    fetchImpl: async () => response(bundleBody()),
+  });
+  await access(path.join(workingDirectory, "generated rules/.mdp/rules/.mt-effective-rule-bundle.json"));
+  await assert.rejects(access(path.join(repositoryRoot, ".mdp/rules/.mt-effective-rule-bundle.json")));
+});
+
+test("does not create the managed directory when an explicit repository is not registered", async () => {
+  const outputRoot = await mkdtemp(path.join(os.tmpdir(), "setup-not-found-"));
+  await assert.rejects(
+    syncEffectiveRuleBundle({
+      token: "token",
+      repositoryLocator: "missing-repository",
+      cwd: outputRoot,
+      fetchImpl: async () => response({ error: { code: "repository_not_registered" } }, 404),
+    }),
+    (error) => error.code === "repository_not_registered",
+  );
+  await assert.rejects(access(path.join(outputRoot, ".mdp")));
+});
+
+test("keeps a verified snapshot incremental for a repository name locator", async () => {
+  const outputRoot = await mkdtemp(path.join(os.tmpdir(), "setup-name-incremental-"));
+  const ready = bundleBody({ version: 2 });
+  await syncEffectiveRuleBundle({
+    token: "token", repositoryLocator: "hotel-web", cwd: outputRoot,
+    fetchImpl: async () => response(ready),
+  });
+  let request;
+  const receipt = await syncEffectiveRuleBundle({
+    token: "token", repositoryLocator: "hotel-web", cwd: outputRoot,
+    fetchImpl: async (_url, init) => {
+      request = JSON.parse(init.body);
+      return response(bundleBody({ version: 2, status: "not_modified" }));
+    },
+  });
+  assert.equal(request.known_snapshot_id, ready.snapshot.snapshot_id);
+  assert.equal(receipt.status, "not_modified");
+});
+
+test("refuses to replace another repository in the same output directory", async () => {
+  const outputRoot = await mkdtemp(path.join(os.tmpdir(), "setup-repository-conflict-"));
+  await syncEffectiveRuleBundle({
+    token: "token", repositoryLocator: "hotel-web", cwd: outputRoot,
+    fetchImpl: async () => response(bundleBody({ version: 2 })),
+  });
+  const original = await readFile(path.join(outputRoot, ".mdp/rules/company/frontend-l1.md"), "utf8");
+  const otherRepository = {
+    repository_id: "repo:other-web",
+    canonical_key: "hfe/other-web",
+    standard_domain: "frontend",
+  };
+  await assert.rejects(
+    syncEffectiveRuleBundle({
+      token: "token", repositoryLocator: "other-web", cwd: outputRoot,
+      fetchImpl: async () => response(bundleBody({ version: 2, repositoryIdentity: otherRepository })),
+    }),
+    (error) => error.code === "RULE_BUNDLE_REPOSITORY_CONFLICT",
+  );
+  assert.equal(await readFile(path.join(outputRoot, ".mdp/rules/company/frontend-l1.md"), "utf8"), original);
 });
 
 test("preserves unrelated local files outside the managed company and team paths", async () => {
@@ -571,8 +806,8 @@ test("reports actionable not-registered and ambiguous repository errors", async 
       repoRoot: root,
       fetchImpl: async () => response({ error: { code: "repository_not_registered" } }, 404),
     }),
-    (error) => error.code === "RULE_BUNDLE_BOOTSTRAP_CANONICAL_REQUIRED"
-      && error.message.includes("namespace/repository"),
+    (error) => error.code === "repository_not_registered"
+      && error.message.includes("没有找到已登记的仓库"),
   );
 });
 
@@ -584,6 +819,7 @@ test("bootstraps published frontend L1 only after the server proves an exact rep
     token: "token",
     repositoryLocator: "hfe/new-web",
     repoRoot: root,
+    bootstrap: true,
     fetchImpl: async (url, init) => {
       calls.push({ url, body: JSON.parse(init.body) });
       if (url.endsWith("/v1/effective-rule-bundles/resolve")) {
@@ -605,13 +841,14 @@ test("bootstraps published frontend L1 only after the server proves an exact rep
   assert.equal(receipt.domain_source, "git_tracked_evidence");
   assert.equal(await readFile(path.join(root, ".mdp/rules/company/async.md"), "utf8"), "# L1\n");
   const manifest = JSON.parse(await readFile(path.join(root, ".mdp/rules/.mt-l1-bootstrap.json"), "utf8"));
-  assert.equal(manifest.schema_version, "mt-l1-bootstrap-manifest/v1");
+  assert.equal(manifest.schema_version, "mt-l1-bootstrap-manifest/v2");
   await assert.rejects(readFile(path.join(root, ".mdp/rules/.mt-effective-rule-bundle.json")));
   let replayRequest;
   const replay = await syncEffectiveRuleBundle({
     token: "token",
     repositoryLocator: "hfe/new-web",
     repoRoot: root,
+    bootstrap: true,
     fetchImpl: async (url, init) => {
       if (url.endsWith("/v1/effective-rule-bundles/resolve")) {
         return response({ error: { code: "repository_not_registered" } }, 404);
@@ -624,6 +861,33 @@ test("bootstraps published frontend L1 only after the server proves an exact rep
   assert.equal(replayRequest.known_snapshot_id, manifest.snapshot_id);
 });
 
+test("forwards stage to bootstrap and requires a matching v2 bootstrap response", async () => {
+  const root = await createTrackedRepository({ "pom.xml": "<project />\n", "src/App.java": "class App {}\n" });
+  const requests = [];
+  const body = bootstrapBody({ domain: "backend", stage: "design" });
+  const receipt = await syncEffectiveRuleBundle({
+    token: "token",
+    repositoryLocator: "hfe/new-java",
+    repoRoot: root,
+    bootstrap: true,
+    stage: "design",
+    fetchImpl: async (url, init) => {
+      requests.push(JSON.parse(init.body));
+      return url.endsWith("/v1/effective-rule-bundles/resolve")
+        ? response({ error: { code: "repository_not_registered" } }, 404)
+        : response(body);
+    },
+  });
+  assert.equal(requests[0].stage, "design");
+  assert.equal(requests[1].stage, "design");
+  assert.equal(receipt.stage, "design");
+  const manifest = JSON.parse(await readFile(path.join(root, ".mdp/rules/.mt-l1-bootstrap.json"), "utf8"));
+  assert.equal(manifest.schema_version, "mt-l1-bootstrap-manifest/v2");
+  assert.equal(manifest.bundle_schema, "l1-bootstrap-bundle/v2");
+  assert.equal(manifest.stage, "design");
+  assert.equal(manifest.dependency_hash, body.snapshot.dependency_hash);
+});
+
 test("does not bootstrap a registered, hidden or unavailable repository", async () => {
   const root = await createTrackedRepository({ "src/App.jsx": "export default null;\n" });
   let calls = 0;
@@ -632,6 +896,7 @@ test("does not bootstrap a registered, hidden or unavailable repository", async 
       token: "token",
       repositoryLocator: "hfe/hidden-web",
       repoRoot: root,
+      bootstrap: true,
       fetchImpl: async (url) => {
         calls += 1;
         return url.endsWith("/v1/effective-rule-bundles/resolve")
@@ -649,7 +914,7 @@ test("does not bootstrap a registered, hidden or unavailable repository", async 
 test("a formal effective bundle atomically replaces the isolated bootstrap manifest", async () => {
   const root = await createTrackedRepository({ "src/App.tsx": "export default null;\n" });
   await syncEffectiveRuleBundle({
-    token: "token", repositoryLocator: "hfe/new-web", repoRoot: root,
+    token: "token", repositoryLocator: "hfe/new-web", repoRoot: root, bootstrap: true,
     fetchImpl: async (url) => url.endsWith("/v1/effective-rule-bundles/resolve")
       ? response({ error: { code: "repository_not_registered" } }, 404)
       : response(bootstrapBody()),
@@ -666,7 +931,7 @@ test("a formal effective bundle atomically replaces the isolated bootstrap manif
   assert.equal(await readFile(path.join(root, ".mdp/rules/company/current.md"), "utf8"), "# Current\n");
   assert.equal(JSON.parse(await readFile(
     path.join(root, ".mdp/rules/.mt-effective-rule-bundle.json"), "utf8",
-  )).schema_version, "mt-effective-rule-bundle-manifest/v3");
+  )).schema_version, "mt-effective-rule-bundle-manifest/v4");
 });
 
 test("a dual-domain formal bundle replaces a backend bootstrap even when its primary domain is frontend", async () => {
@@ -675,7 +940,7 @@ test("a dual-domain formal bundle replaces a backend bootstrap even when its pri
     "src/main/java/Test.java": "class Test {}\n",
   });
   await syncEffectiveRuleBundle({
-    token: "token", repositoryLocator: "hfe/new-mixed", repoRoot: root,
+    token: "token", repositoryLocator: "hfe/new-mixed", repoRoot: root, bootstrap: true,
     fetchImpl: async (url) => url.endsWith("/v1/effective-rule-bundles/resolve")
       ? response({ error: { code: "repository_not_registered" } }, 404)
       : response(bootstrapBody({
@@ -723,7 +988,7 @@ test("mixed and unknown evidence require user confirmation while --domain is exp
     }] }));
   await assert.rejects(
     syncEffectiveRuleBundle({
-      token: "token", repositoryLocator: "team/mixed", repoRoot: mixed, fetchImpl: notRegistered,
+      token: "token", repositoryLocator: "team/mixed", repoRoot: mixed, bootstrap: true, fetchImpl: notRegistered,
     }),
     (error) => error.code === "RULE_BUNDLE_DOMAIN_CONFIRMATION_REQUIRED"
       && error.message.includes('"classification"') === false
@@ -731,7 +996,7 @@ test("mixed and unknown evidence require user confirmation while --domain is exp
   );
   const receipt = await syncEffectiveRuleBundle({
     token: "token", repositoryLocator: "team/mixed", repoRoot: mixed,
-    domain: "backend", fetchImpl: notRegistered,
+    domain: "backend", bootstrap: true, fetchImpl: notRegistered,
   });
   assert.equal(receipt.standard_domain, "backend");
   assert.equal(receipt.domain_source, "user_explicit");
@@ -764,6 +1029,44 @@ test("never sends the user token to an alternate gateway", async () => {
   assert.equal(called, false);
 });
 
+test("keeps the legacy distribution gateway during migration and rejects wrong-domain URLs", async () => {
+  const root = await createRepository();
+  const legacyCalls = [];
+  await syncEffectiveRuleBundle({
+    gatewayUrl: "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-observability",
+    token: "token",
+    repositoryLocator: "hfe/hotel-web",
+    repoRoot: root,
+    fetchImpl: async (url) => {
+      legacyCalls.push(url);
+      return response(bundleBody());
+    },
+  });
+  assert.equal(legacyCalls.length, 1);
+  assert.ok(legacyCalls[0].includes("/functions/v1/rule-observability/v1/"));
+
+  for (const gatewayUrl of [
+    "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-intake",
+    "https://other.database.sankuai.com/functions/v1/rule-distribution",
+    "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-distribution?redirect=rule-observability",
+    "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-distribution#rule-observability",
+    "https://db0y7dgg85gphojyva.database.sankuai.com:4444/functions/v1/rule-distribution",
+  ]) {
+    let called = false;
+    await assert.rejects(syncEffectiveRuleBundle({
+      gatewayUrl,
+      token: "token",
+      repositoryLocator: "hfe/hotel-web",
+      repoRoot: await createRepository(),
+      fetchImpl: async () => {
+        called = true;
+        return response(bundleBody());
+      },
+    }), (error) => error.code === "RULE_BUNDLE_GATEWAY_INVALID");
+    assert.equal(called, false);
+  }
+});
+
 test("upgrades v1 ASCII files to v2 Chinese filenames and preserves user files", async () => {
   const root = await createRepository();
   const oldPath = "l1/frontend-l1/coding-standards/rules/async--.md";
@@ -787,7 +1090,7 @@ test("upgrades v1 ASCII files to v2 Chinese filenames and preserves user files",
   assert.equal(await readFile(userFile, "utf8"), "user notes\n");
   const manifestPath = path.join(root, ".mdp/rules/.mt-effective-rule-bundle.json");
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
-  assert.equal(manifest.schema_version, "mt-effective-rule-bundle-manifest/v3");
+  assert.equal(manifest.schema_version, "mt-effective-rule-bundle-manifest/v4");
   assert.equal(manifest.resolver_version, "effective-rule-bundle/v2");
   assert.deepEqual(manifest.managed_files, ["company/ASYNC-异步与异常处理.MD"]);
   const replay = await syncEffectiveRuleBundle({ ...options, fetchImpl: async (_url, init) => {

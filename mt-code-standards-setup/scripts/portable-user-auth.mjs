@@ -4,6 +4,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { realpathSync } from "node:fs";
 import { access, chmod, mkdtemp, readFile, rm } from "node:fs/promises";
+import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -22,6 +23,7 @@ class PortableAuthError extends Error {
 
 const text = (value) => String(value ?? "").trim();
 const versionParts = (value) => text(value).split("-", 1)[0].split(".").map((part) => Number(part));
+const localRequire = createRequire(import.meta.url);
 
 export const minimumVersionSatisfied = (actual, minimum = MINIMUM_SHARED_VERSION) => {
   const left = versionParts(actual);
@@ -58,7 +60,55 @@ export const resolveCurrentNodeNpmRoot = async (environment = process.env) => {
   return text(stdout);
 };
 
-const loadSharedAuth = async ({ environment, npmRootResolver, moduleLoader }) => {
+export const resolveLocalSharedAuth = async () => {
+  let entry;
+  try {
+    entry = localRequire.resolve("@it/oa-skills-shared/auth");
+  } catch (cause) {
+    if (cause?.code === "MODULE_NOT_FOUND") return null;
+    throw new PortableAuthError(
+      "PORTABLE_AUTH_PROVIDER_REQUIRED",
+      "无法解析本地 @it/oa-skills-shared/auth 入口。",
+    );
+  }
+  let cursor = path.dirname(entry);
+  while (true) {
+    try {
+      const packageJson = JSON.parse(await readFile(path.join(cursor, "package.json"), "utf8"));
+      if (packageJson?.name === "@it/oa-skills-shared") {
+        return { specifier: "@it/oa-skills-shared/auth", version: text(packageJson.version) };
+      }
+    } catch {}
+    const parent = path.dirname(cursor);
+    if (parent === cursor) break;
+    cursor = parent;
+  }
+  throw new PortableAuthError(
+    "PORTABLE_AUTH_PROVIDER_REQUIRED",
+    "本地 @it/oa-skills-shared 缺少可验证的 package.json。",
+  );
+};
+
+const loadSharedAuth = async ({ environment, npmRootResolver, moduleLoader, localSharedResolver }) => {
+  const localShared = await localSharedResolver();
+  if (localShared) {
+    if (!minimumVersionSatisfied(localShared.version)) {
+      throw new PortableAuthError(
+        "PORTABLE_AUTH_PROVIDER_REQUIRED",
+        `本地 @it/oa-skills-shared 版本过低（当前 ${localShared.version || "unknown"}，要求 >= ${MINIMUM_SHARED_VERSION}）。`,
+      );
+    }
+    try {
+      const authModule = await moduleLoader(localShared.specifier);
+      if (typeof authModule?.initSsoAuth !== "function") throw new Error("initSsoAuth unavailable");
+      return authModule.initSsoAuth;
+    } catch {
+      throw new PortableAuthError(
+        "PORTABLE_AUTH_PROVIDER_REQUIRED",
+        "本地 @it/oa-skills-shared 未提供可用的 initSsoAuth。",
+      );
+    }
+  }
   let globalRoot;
   try {
     globalRoot = await npmRootResolver(environment);
@@ -142,6 +192,7 @@ export const getPortableUserToken = async ({
   environment = process.env,
   npmRootResolver = resolveCurrentNodeNpmRoot,
   moduleLoader = (specifier) => import(specifier),
+  localSharedResolver = resolveLocalSharedAuth,
   makeTemporaryDirectory = () => mkdtemp(path.join(os.tmpdir(), "mt-code-standards-auth-")),
   removeTemporaryDirectory = (directory) => rm(directory, { recursive: true, force: true }),
 } = {}) => {
@@ -156,7 +207,9 @@ export const getPortableUserToken = async ({
     throw new PortableAuthError("PORTABLE_AUTH_NODE_REQUIRED", "便携 SSO CIBA 要求 Node.js >= 18。");
   }
 
-  const initSsoAuth = await loadSharedAuth({ environment, npmRootResolver, moduleLoader });
+  const initSsoAuth = await loadSharedAuth({
+    environment, npmRootResolver, moduleLoader, localSharedResolver,
+  });
   const temporaryDirectory = await makeTemporaryDirectory();
   let provider;
   try {

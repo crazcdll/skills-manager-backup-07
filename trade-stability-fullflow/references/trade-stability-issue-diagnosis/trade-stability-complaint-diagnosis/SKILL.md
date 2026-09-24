@@ -1,6 +1,6 @@
 ---
 name: trade-stability-complaint-diagnosis
-description: 交易前端问题诊断专家。作为稳定性全流程第四步「问题诊断路径（路径 B）」的子流程，由 trade-stability-issue-diagnosis 分发调用。适用于 TT工单、客诉、用户反馈等信号。
+description: 交易前端问题诊断专家。作为稳定性全流程第四步「问题诊断路径（路径 B）」的子流程，由 trade-stability-issue-diagnosis 分发调用。适用于 TT工单、反馈（用户投诉、客诉、C端反馈、产研反馈、测试反馈、用户反馈等统一归为「反馈」）等信号。
   覆盖业务线：餐（meishi）、综（gc）、酒（hotel）、景（travel），支持美团/点评 APP、美小/点小程序、H5/i版全端。
   排查流程：读取前序步骤结果 → 匹配页面 → 查日志 → 结合第二步变更分析 → 输出结构化结论。
   技术栈覆盖：DUO、MRN、MAX、小程序、H5；支持 iOS / Android / Harmony。
@@ -8,12 +8,12 @@ description: 交易前端问题诊断专家。作为稳定性全流程第四步�
   查询能力：万能钥匙查 UUID、Raptor 前端异常、Logan 端侧日志回捞、后端日志（topic）、git diff 代码分析。
   输入：第一步信息提取结果 + 第二步变更扫描结果。
   输出：结构化排查结论（结论定性、根因日志、关联变更版本、修复建议、负责人）。
-  触发词：交易问题排查、线上问题、TT工单、用户反馈、餐综酒景、提单异常、提单失败、支付失败、支付异常、退款问题、页面白屏、功能不可用、userId排查、traceId排查、订单号排查、查UUID、查日志、前端异常排查、bundle问题。
+  触发词：交易问题排查、线上问题、TT工单、反馈、客诉、用户反馈、餐综酒景、提单异常、提单失败、支付失败、支付异常、退款问题、页面白屏、功能不可用、userId排查、traceId排查、订单号排查、查UUID、查日志、前端异常排查、bundle问题。
 ---
 
 # 交易前端问题诊断
 
-**定位**：作为全流程第四步「问题诊断路径（路径 B）」子流程，由 [trade-stability-issue-diagnosis](../SKILL.md) 分发调用。适用于 TT 工单、客诉、用户反馈等信号。
+**定位**：作为全流程第四步「问题诊断路径（路径 B）」子流程，由 [trade-stability-issue-diagnosis](../SKILL.md) 分发调用。适用于 TT 工单、反馈（用户投诉、客诉、C端反馈、产研反馈、测试反馈、用户反馈等）等信号。
 
 **排查流程**：读取前序步骤结果 → 匹配页面 → 查日志 → 结合第二步变更分析 → 输出结论
 
@@ -38,8 +38,10 @@ description: 交易前端问题诊断专家。作为稳定性全流程第四步�
 > ⚠️ 排查流程中会自动校验并安装/更新 CLI，通常无需手动执行以下命令。仅在自动安装失败时参考。
 
 ```bash
-# 确保 mtskills 可用
+# 确保 mtskills 可用（trade-fe-stability-kb skill 的安装载体）
 mtskills --version 2>/dev/null || npm i -g @mtfe/mtskills --registry=aHR0cDovL3IubnBtLnNhbmt1YWkuY29t
+# 确保 trade-fe-stability-kb skill 已安装（资产查询入口）
+mtskills list 2>/dev/null | grep -q "trade-fe-stability-kb" || mtskills i trade-fe-stability-kb
 ```
 
 各 CLI 工具的详细安装步骤，参见对应排查流程文档中的「环境检查」章节。
@@ -55,22 +57,39 @@ mtskills --version 2>/dev/null || npm i -g @mtfe/mtskills --registry=aHR0cDovL3I
 
 ### 第一步：匹配问题页面
 
-根据**第一步信息提取结果**中的截图或描述，在研发资产映射表中匹配对应页面。
+根据**第一步信息提取结果**中的截图或描述，**通过 Skill [trade-fe-stability-kb](https://friday.sankuai.com/skills/skill-detail?activeTab=overview&activeTestTab=cases&id=132756) 查询知识库 `~/.trade-fe-stability-knowledge` 匹配对应页面**（不再读取本地 assets/ 文件）：
 
-统一从 trade-stability-fullflow/assets/ 读取：
+| 业务线 | 知识库资产文件 |
+|--------|---------------|
+| 餐 | `~/.trade-fe-stability-knowledge/assets/food-assets.md` |
+| 综 | `~/.trade-fe-stability-knowledge/assets/gc-assets.md` |
+| 酒 | `~/.trade-fe-stability-knowledge/assets/hotel-assets.md` |
+| 景 | `~/.trade-fe-stability-knowledge/assets/travel-assets.md` |
 
-- 餐读取 [assets/food-dev-assets.md](../../assets/food-dev-assets.md) 获取完整映射数据。
-- 综读取 [assets/gc-dev-assets.md](../../assets/gc-dev-assets.md) 获取完整映射数据。
-- 酒读取 [assets/hotel-dev-assets.md](../../assets/hotel-dev-assets.md) 获取完整映射数据。
-- 景读取 [assets/travel-dev-assets.md](../../assets/travel-dev-assets.md) 获取完整映射数据。
+**查询步骤（遵循 trade-fe-stability-kb 查询模式）**：
+
+```bash
+# 1. 同步知识库（不存在则自动 clone，存在则 fetch）
+KB_DIR="$HOME/.trade-fe-stability-knowledge"
+[ -d "$KB_DIR/.git" ] || git clone ssh://git@git.sankuai.com/nibfe/trade-fe-stability-knowledge.git "$KB_DIR"
+git -C "$KB_DIR" fetch origin --quiet
+
+# 2. 按业务线 Grep 精确匹配页面名/Bundle名/关键词（禁止整读）
+grep -n "<页面名 或 Bundle名 或 关键词>" ~/.trade-fe-stability-knowledge/assets/<domain>-assets.md
+# domain 取值：餐=food 综=gc 酒=hotel 景=travel
+```
+
+3. 命中后读取该条目 YAML 块上下文（条目标题 + 块内容），不读无关条目
 
 **匹配策略**：
-1. 优先根据截图特征（标题、按钮、布局）匹配
+1. 优先根据截图特征（标题、按钮、布局）匹配 `names`/`keywords`
 2. 其次根据关键词匹配（提单→团购提单，支付结果→支付结果页，订单详情→订单详情页，退款→申请退款）
-3. 注意区分技术栈版本（DUO/MRN/MAX/小程序/H5），根据客户端信息判断
+3. 注意区分技术栈版本（`stack`：DUO/MRN/MAX/小程序/H5），根据客户端信息判断
 4. 无法确定时，列出候选页面让用户确认
 
-**获取信息**：页面名称、技术栈、bundle名、仓库链接、diva发布链接、projectId、前端raptor异常链接、后端日志 topic（可能有多个）
+**获取信息（来自命中条目的字段）**：页面名称（`names`）、技术栈（`stack`）、bundle名（`bundles`）、仓库链接（`repository_ssh_url`）、diva发布链接（`diva_url`）、projectId（`project_id`）、前端raptor异常链接（`raptor_error_url`）、后端日志 Appkey（`server_log_appkey`，可能有多个，见 `notes`）
+
+> ⚠️ **查询约束**：禁止整读资产文件、禁止跨业务线文件猜测资产归属；未命中时按 trade-fe-stability-kb 未命中模板输出，不得编造参数。
 
 ---
 
@@ -172,11 +191,11 @@ mtskills --version 2>/dev/null || npm i -g @mtfe/mtskills --registry=aHR0cDovL3I
 endTime=$(date "+%Y-%m-%d %H:%M:%S") && echo $endTime
 ```
 
-> ⚠️ 严禁使用估算时间，完成时间必须来自上方 `date` 命令的真实输出。
+> ⚠️ 严禁使用估算时间，开始时间必须来自流程开始时记录的 startTime，耗时必须来自 endTime 与 startTime 的真实差值。
 >
 > 💡 **耗时计算**：用上方得到的 endTime 减去排查流程开始时记录的 startTime，精确到分钟，格式如「约 X 分钟」。
 
-🔎 **第四步【路径B】：排查结论**（完成时间：{endTime}  耗时：{约 X 分钟}）
+🔎 **第四步【路径B】：排查结论**（开始时间：{startTime}  耗时：{约 X 分钟}）
 
 **结论定性**：✅ 有效问题 / ❌ 无效问题（误报）/ ⚠️ 待进一步确认
 
@@ -206,4 +225,4 @@ endTime=$(date "+%Y-%m-%d %H:%M:%S") && echo $endTime
 
 - 移动端 APP 日志查询完成后，直接结合第二步变更扫描结果综合分析，**不再重复查询 Diva 发布记录**
 - 所有代码分析均以 `code-analysis.md` 为准：不区分技术栈，统一分析关联 commit 的完整 diff；不得仅分析某类配置或页面入口文件。
-- 代码分析仓库使用 `/Users/All_deal_project/` 下的只读副本；不得改动已有工作区。
+- 代码分析仓库使用 `$HOME/stability-code-analysis/` 下的只读副本（跨环境通用目录，CatX 云端沙箱与本地均可直接使用）；不得改动已有工作区。

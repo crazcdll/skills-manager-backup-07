@@ -1,6 +1,6 @@
 # 代码分析公共流程
 
-供 `trade-stability-complaint-diagnosis`（客诉/反馈排查）和 `trade-stability-alert-diagnosis`（告警排查）共同使用。
+供 `trade-stability-complaint-diagnosis`（反馈/TT排查）和 `trade-stability-alert-diagnosis`（告警排查）共同使用。
 
 **包含两条线路**：
 - **线路 B**：有 Diva 变更时，基于前序步骤提供的 `commitUrl` 获取并分析该 commit 的完整 diff。
@@ -18,15 +18,15 @@
 
 **输入**（来自第二步变更扫描结果 + 第一步信息提取结果）：
 - 最可疑变更的 commitUrl（格式：`aHR0cHM6Ly9kZXYuc2Fua3VhaS5jb20vY29kZS9yZXBvLWRldGFpbC97b3JnfS97cmVwb30vY29tbWl0L3toYXNofWA=）
-- bundle 名 + 仓库 SSH 地址（来自 dev-assets.md）
+- bundle 名 + 仓库 SSH 地址（来自 trade-fe-stability-kb 知识库资产条目 `bundles` / `repository_ssh_url`，由前序步骤提供）
 - 问题描述与告警/日志定位信息（如异常堆栈、文件路径、函数名）
 
 ### B1. 准备只读分析副本
 
-所有业务线仓库统一放在 `/Users/All_deal_project`。已有仓库仅拉取远端对象，**不得执行 `git stash`、`git pull`、切换分支或修改用户工作区**。
+所有业务线仓库统一放在 `$HOME/stability-code-analysis`（跨环境通用目录，CatX 云端沙箱与本地均可直接使用，无需预先准备）。已有仓库仅拉取远端对象，**不得执行 `git stash`、`git pull`、切换分支或修改用户工作区**。
 
 ```bash
-BASE_DIR="/Users/All_deal_project"
+BASE_DIR="$HOME/stability-code-analysis"
 REPO_DIR="$BASE_DIR/{仓库名}"
 mkdir -p "$BASE_DIR"
 
@@ -97,7 +97,7 @@ git -C "$REPO_DIR" show -m --format=fuller --find-renames --find-copies {current
 - 问题无后端接口报错嫌疑（纯前端交互/展示问题）
 
 **输入**（来自第一步信息提取结果）：
-- 仓库 SSH 地址（从 dev-assets.md 获取）
+- 仓库 SSH 地址（来自 trade-fe-stability-kb 知识库资产条目 `repository_ssh_url`，由第一步信息提取提供）
 - bundle 名称
 - 问题描述
 

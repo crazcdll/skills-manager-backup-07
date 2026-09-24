@@ -67,12 +67,20 @@ mcm plan calendar \
 
 ### Diva Bundle 发布
 
-> ⚠️ **鉴权预检（CatPaw 沙箱必做）**：Diva CLI 在 CatPaw 沙箱中可能因透明代理（catx-proxy）尚未完成 SSO 认证，导致请求带着无效的占位符 token 到达 diva.sankuai.com，**返回空 `[]` 而非报错**。执行查询前先预热认证：
+> ⚠️ **鉴权预检（CatPaw 沙箱必做，两条命令完成）**：Diva CLI 内置鉴权链（MOA 换票 → 应用身份 → CIBA）在沙箱内全部不可用，且鉴权失败时**返回空 `[]` 而非报错**。因此**不要依赖 CLI 自动鉴权**，必须显式注入 token：diva CLI 原生支持 `DIVA_ACCESS_TOKEN` 环境变量（见其 `lib/auth.js` 预换票 Layer），`sso-auth-cli` 输出的 **stdout 末行**即最新 ssoid：
 > ```bash
-> sso-auth-cli e5be990c83 --force-ciba 2>/dev/null
-> export DIVA_ACCESS_TOKEN=$(cat ~/.config/sso-auth-cli/cache.json 2>/dev/null | python3 -c "import sys,json; print(json.load(sys.stdin).get('access_token',''))" 2>/dev/null)
+> # 1. 获取 token（末行即最新 ssoid）
+> TOKEN=$(sso-auth-cli e5be990c83 --force-ciba 2>/dev/null | tail -1)
+> # 2. 所有 diva 命令均通过 DIVA_ACCESS_TOKEN 注入，一劳永逸
+> export DIVA_ACCESS_TOKEN="$TOKEN"
 > ```
-> 预检后若首次查询仍返回 `[]`，等待 15 秒重试，不得直接判定「无变更」。
+>
+> **踩坑记录（2026-09-16 实测验证，勿再重复踩）**：
+> 1. **不要从 `~/.config/sso-auth-cli/cache.json` 取 `access_token`**——该文件实际结构是 `exchangedTokens.<clientId>.ssoid`，无顶层 `access_token` 字段，取到空值会静默失败
+> 2. **不要设置 `DUMBO_USER_SSO_TOKEN` 等 dumbo 环境变量**——diva CLI 仍会优先走内部 MOA 换票链（沙箱内必失败），不会生效
+> 3. token 注入成功的标志：stderr 输出 `↳ 使用 Diva 预换票 token`；若输出 `🔐 Diva SSO 认证中...` 说明 token 为空，检查提取命令
+> 4. token 有效期较短（约 10 分钟），多次查询间隔较长时需重新执行 `sso-auth-cli` 获取
+> 5. 若 token 正确仍返回 `[]` 且该 Bundle 确有线上版本，等待 15 秒重试，不得直接判定「无变更」
 
 ```bash
 diva bundle tasks --name {bundle_name} --days 2 --env prod -o json 2>/dev/null
@@ -128,6 +136,8 @@ diva bundle tasks --name {bundle_name} --days 2 --env prod -o json 2>/dev/null
 diva bundle versions {bundle_name} 2>/dev/null
 ```
 
+> ⚠️ 同样需要 `DIVA_ACCESS_TOKEN` 注入（沿用上方预检导出的环境变量）。
+
 返回格式化文本（非 JSON），每条版本记录包含：
 - 版本号、在线状态（🟢在线 / ⚪未在线）
 - 打包时间、发布时间、上线时间
@@ -167,7 +177,7 @@ diva bundle versions {bundle_name} 2>/dev/null
 endTime=$(date "+%Y-%m-%d %H:%M:%S") && echo $endTime
 ```
 
-✅ **第二步：变更查询报告**（完成时间：{endTime}  耗时：{约 X 分钟}）
+✅ **第二步：变更查询报告**（开始时间：{startTime}  耗时：{约 X 分钟}）
 
 | 系统 | 变更内容 | 发布时间 | 发布人 | 相关度 |
 |------|---------|---------|-------|-------|

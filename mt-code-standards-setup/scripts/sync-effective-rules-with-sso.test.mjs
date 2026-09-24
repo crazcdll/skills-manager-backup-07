@@ -16,13 +16,15 @@ import {
   tokenFromOfficialExchange,
 } from "./sync-effective-rules-with-sso.mjs";
 
-const bundle = () => {
+const bundle = (stage) => {
   const files = [{ relative_path: "l1/frontend-l1.md", content: "# L1\n" }];
   const projection = files.map((file) => ({ ...file, sha256: sha256Hex(file.content), byte_size: Buffer.byteLength(file.content) }));
   const manifestHash = sha256Hex(canonicalJson(projection.map(({ relative_path, sha256, byte_size }) => ({ relative_path, sha256, byte_size }))));
   const refs = [{ rule_set_id: "frontend-l1", release_id: "frontend-l1@test", scope_level: "L1" }];
-  const snapshotId = sha256Hex(canonicalJson({ resolver_version: "effective-rule-bundle/v2", repository_id: "repo:test", canonical_key: "hfe/test", standard_domain: "frontend", manifest_hash: manifestHash, release_refs: refs }));
-  return { schema_version: "effective-rule-bundle/v2", status: "ready", snapshot: { resolver_version: "effective-rule-bundle/v2", snapshot_id: snapshotId, repository: { repository_id: "repo:test", canonical_key: "hfe/test", standard_domain: "frontend" }, release_refs: refs, manifest_hash: manifestHash, total_bytes: projection[0].byte_size }, files: projection };
+  const resolverVersion = stage ? "effective-rule-bundle/v3" : "effective-rule-bundle/v2";
+  const dependencyHash = sha256Hex("delivery-dependency");
+  const snapshotId = sha256Hex(canonicalJson({ resolver_version: resolverVersion, repository_id: "repo:test", canonical_key: "hfe/test", standard_domain: "frontend", manifest_hash: manifestHash, release_refs: refs, ...(stage ? { stage, dependency_hash: dependencyHash } : {}) }));
+  return { schema_version: resolverVersion, status: "ready", snapshot: { resolver_version: resolverVersion, snapshot_id: snapshotId, repository: { repository_id: "repo:test", canonical_key: "hfe/test", standard_domain: "frontend" }, release_refs: refs, manifest_hash: manifestHash, total_bytes: projection[0].byte_size, ...(stage ? { stage, dependency_hash: dependencyHash } : {}) }, files: projection };
 };
 const response = (body) => ({ ok: true, status: 200, text: async () => JSON.stringify(body) });
 const errorResponse = (code, status) => ({
@@ -53,6 +55,58 @@ test("uses the injected official token first and records the detected Codex agen
   assert.equal(JSON.stringify(request).includes("official-token"), false);
   assert.equal(Object.hasOwn(request.execution, "auth_agent"), false);
   assert.equal(Object.hasOwn(request.execution, "authentication_route_reason"), false);
+});
+
+test("standalone CLI keeps an injected user token first and records cli", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "setup-cli-injected-"));
+  let request;
+  const receipt = await syncWithOfficialSso({
+    environment: { RULE_OBSERVABILITY_USER_TOKEN: "injected-cli-token" },
+    options: {
+      standaloneCli: true,
+      agent: "cli",
+      repositoryLocator: "hotel-web",
+      outputDir: root,
+    },
+    fetchImpl: async (_url, init) => {
+      request = JSON.parse(init.body);
+      return response(bundle());
+    },
+  });
+  assert.equal(request.execution.execution_agent, "cli");
+  assert.equal(receipt.authentication_mode, "injected_user_token");
+  assert.equal(JSON.stringify(receipt).includes("injected-cli-token"), false);
+});
+
+test("forwards an explicit delivery stage through the SSO wrapper", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "setup-stage-forward-"));
+  await mkdir(path.join(root, ".git"));
+  let request;
+  const receipt = await syncWithOfficialSso({
+    environment: { RULE_OBSERVABILITY_USER_TOKEN: "official-token" },
+    options: { repoRoot: root, repositoryLocator: "hfe/test", stage: "coding" },
+    fetchImpl: async (_url, init) => {
+      request = JSON.parse(init.body);
+      return response(bundle("coding"));
+    },
+  });
+  assert.equal(request.stage, "coding");
+  assert.equal(receipt.stage, "coding");
+});
+
+test("rejects an explicit empty delivery stage before the SSO wrapper calls Edge", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "setup-empty-stage-"));
+  await mkdir(path.join(root, ".git"));
+  let calls = 0;
+  await assert.rejects(
+    syncWithOfficialSso({
+      environment: { RULE_OBSERVABILITY_USER_TOKEN: "official-token" },
+      options: { repoRoot: root, repositoryLocator: "hfe/test", stage: "" },
+      fetchImpl: async () => { calls += 1; return response(bundle()); },
+    }),
+    (error) => error.code === "RULE_BUNDLE_STAGE_INVALID",
+  );
+  assert.equal(calls, 0);
 });
 
 test("routes all supported explicit external auth agents directly to portable CIBA", async () => {
@@ -168,7 +222,7 @@ test("forwards an explicit bootstrap domain through the SSO wrapper", async () =
   const requests = [];
   const receipt = await syncWithOfficialSso({
     environment: { RULE_OBSERVABILITY_USER_TOKEN: "official-token" },
-    options: { repoRoot: root, repositoryLocator: "team/new-java", domain: "backend" },
+    options: { repoRoot: root, repositoryLocator: "team/new-java", domain: "backend", bootstrap: true },
     fetchImpl: async (url, init) => {
       requests.push(JSON.parse(init.body));
       return url.endsWith("/v1/effective-rule-bundles/resolve")
@@ -412,6 +466,37 @@ test("keeps the external portable route when an injected ticket is rejected", as
     receipt.authentication_route_reason,
     "detected_external_auth_agent_after_injected_token_rejected",
   );
+});
+
+test("standalone CLI refreshes a rejected injected token with its explicit MIS", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "setup-cli-ciba-retry-"));
+  const authorizations = [];
+  let helperArgs;
+  const receipt = await syncWithOfficialSso({
+    environment: { RULE_OBSERVABILITY_USER_TOKEN: "expired-cli-ticket" },
+    options: {
+      standaloneCli: true,
+      agent: "cli",
+      mis: "current-user",
+      repositoryLocator: "hotel-web",
+      outputDir: root,
+    },
+    execute: async (_command, args) => {
+      helperArgs = args;
+      return { stdout: JSON.stringify({ token: "portable-cli-ticket" }) };
+    },
+    fetchImpl: async (_url, init) => {
+      authorizations.push(init.headers.Authorization);
+      if (init.headers.Authorization === "Bearer expired-cli-ticket") {
+        return errorResponse("unauthorized", 401);
+      }
+      return response(bundle());
+    },
+  });
+  assert.deepEqual(helperArgs.slice(-2), ["--mis", "current-user"]);
+  assert.deepEqual(authorizations, ["Bearer expired-cli-ticket", "Bearer portable-cli-ticket"]);
+  assert.equal(receipt.authentication_route_reason, "standalone_cli_after_injected_token_rejected");
+  assert.equal(receipt.execution_agent, "cli");
 });
 
 test("does not refresh an injected ticket after another business rejection", async () => {

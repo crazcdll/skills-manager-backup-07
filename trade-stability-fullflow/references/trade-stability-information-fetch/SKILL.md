@@ -1,9 +1,9 @@
 ---
 name: trade-stability-information-fetch
-description: 交易前端稳定性信号识别与信息提取专家。作为稳定性全流程第一步，负责从原始信号中提取结构化关键信息，并从资产文件中补全页面技术档案。
-  支持四类信号：告警（Raptor/CIA/成功率/48h首现）、TT工单、客诉、用户反馈。
-  核心能力：识别信号类型 → 匹配业务线（餐/综/酒/景）→ 提取 Bundle/页面/时间/用户标识 → 从资产文件补全 projectId/raptor链接/diva链接/Appkey → 指定后续排查路径。
-  输入：用户原始信号文本（告警推送/工单内容/客诉描述/截图）。
+description: 交易前端稳定性信号识别与信息提取专家。作为稳定性全流程第一步，负责从原始信号中提取结构化关键信息，并通过 trade-fe-stability-kb 知识库补全页面技术档案。
+  支持三类信号：告警（Raptor/CIA/成功率/48h首现）、TT工单、反馈（用户投诉、客诉、C端反馈、产研反馈、测试反馈、用户反馈等统一归为「反馈」）。
+  核心能力：识别信号类型 → 匹配业务线（餐/综/酒/景）→ 提取 Bundle/页面/时间/用户标识 → 通过 trade-fe-stability-kb 知识库查询补全 projectId/raptor链接/diva链接/Appkey → 指定后续排查路径。
+  输入：用户原始信号文本（告警推送/TT工单内容/反馈描述/截图）。
   输出：结构化信息提取结果（信号类型、业务线、用户标识、问题时间、Bundle/页面名、projectId、raptor链接、diva链接、Appkey、排查路径指向）。
   触发词：信息提取、信号识别、提取告警信息、提取工单信息、识别业务线。
 ---
@@ -16,20 +16,40 @@ description: 交易前端稳定性信号识别与信息提取专家。作为稳�
 
 | 输入项 | 来源 | 说明 |
 |--------|------|------|
-| 原始信号文本 | 用户输入 | 告警推送内容 / TT工单详情 / 客诉描述 / 用户反馈截图 |
+| 原始信号文本 | 用户输入 | 告警推送内容 / TT工单详情 / 反馈描述 / 反馈截图 |
 
 > ⚠️ 信息提取必须在 **1 分钟内**完成，保证真实性，不得推断或捏造字段。
 
 ---
 
-## 餐、综、酒、景的资产
+## 餐、综、酒、景的资产（通过 trade-fe-stability-kb 知识库查询）
 
-统一从 trade-stability-fullflow/assets/ 读取：
+**资产不再从本地 assets/ 文件读取，统一通过 Skill [trade-fe-stability-kb](https://friday.sankuai.com/skills/skill-detail?activeTab=overview&activeTestTab=cases&id=132756) 查询知识库 `~/.trade-fe-stability-knowledge` 获取。**
 
-- 餐读取 [assets/food-dev-assets.md](../../assets/food-dev-assets.md) 获取完整资产数据。
-- 综读取 [assets/gc-dev-assets.md](../../assets/gc-dev-assets.md) 获取完整资产数据。
-- 酒读取 [assets/hotel-dev-assets.md](../../assets/hotel-dev-assets.md) 获取完整资产数据。
-- 景读取 [assets/travel-dev-assets.md](../../assets/travel-dev-assets.md) 获取完整资产数据。
+| 业务线 | 知识库资产文件 |
+|--------|---------------|
+| 餐 | `~/.trade-fe-stability-knowledge/assets/food-assets.md` |
+| 综 | `~/.trade-fe-stability-knowledge/assets/gc-assets.md` |
+| 酒 | `~/.trade-fe-stability-knowledge/assets/hotel-assets.md` |
+| 景 | `~/.trade-fe-stability-knowledge/assets/travel-assets.md` |
+
+**查询步骤（遵循 trade-fe-stability-kb 查询模式）**：
+
+```bash
+# 1. 同步知识库（不存在则自动 clone，存在则 fetch）
+KB_DIR="$HOME/.trade-fe-stability-knowledge"
+[ -d "$KB_DIR/.git" ] || git clone ssh://git@git.sankuai.com/nibfe/trade-fe-stability-knowledge.git "$KB_DIR"
+git -C "$KB_DIR" fetch origin --quiet
+
+# 2. 按业务线 Grep 精确匹配页面名/Bundle名/关键词（禁止整读）
+grep -n "<页面名 或 Bundle名 或 关键词>" ~/.trade-fe-stability-knowledge/assets/<domain>-assets.md
+# domain 取值：餐=food 综=gc 酒=hotel 景=travel
+```
+
+3. 命中后读取该条目 YAML 块上下文（条目标题 + 块内容），获取 `project_id`、`bundles`、`raptor_error_url`、`diva_url`、`server_log_appkey`、`repository_ssh_url` 等字段
+4. 若未安装 trade-fe-stability-kb skill，先执行 `mtskills i trade-fe-stability-kb`
+
+> ⚠️ **查询约束**：禁止整读资产文件、禁止跨业务线文件猜测资产归属；未命中时按 trade-fe-stability-kb 未命中模板输出，不得编造参数。知识库同步失败（SSH Key 未配置 / 不在内网）时输出诊断提示后停止。
 
 ---
 
@@ -46,7 +66,7 @@ description: 交易前端稳定性信号识别与信息提取专家。作为稳�
 
 **判断步骤**：
 1. 直接从用户输入（页面名、Bundle名、问题描述关键词）与上表关键词匹配，判断业务线
-2. 能明确匹配 → 确认业务线，继续读取对应资产文件补全技术档案
+2. 能明确匹配 → 确认业务线，继续通过 trade-fe-stability-kb 知识库查询对应资产补全技术档案
 3. 无法从用户输入判断 → **立即提问，禁止继续流程**
 
 > 🛑 **强制卡点：业务线不明确时必须提问，禁止继续流程**
@@ -68,7 +88,7 @@ description: 交易前端稳定性信号识别与信息提取专家。作为稳�
 - 保证信息提取清单的真实性
 - 保证信息提取的速度，1分钟内必须完成
 - **提取完后必须按照下方「输出格式」输出结果**，用于下一步的指示
-- TT工单信号、客诉信号、用户反馈信号中的页面或者Bundle信息可以匹配餐综酒景的资产获得
+- TT工单信号、反馈信号中的页面或者Bundle信息可以匹配餐综酒景的资产获得（通过 trade-fe-stability-kb 知识库查询，见上方「餐、综、酒、景的资产」章节）
 
 ---
 开始执行第一步前，**必须**先执行以下命令，记录开始时间：
@@ -114,26 +134,14 @@ startTime=$(date "+%Y-%m-%d %H:%M:%S") && echo $startTime
 
 ---
 
-### 客诉信号
+### 反馈信号
+
+用户投诉、客诉、C端反馈、产研反馈、测试反馈、用户反馈等统一归为「反馈」类型。
 
 **识别特征**（满足任一）：
-- 含「客诉」「用户投诉」「C端反馈」
+- 含「客诉」「用户投诉」「C端反馈」「用户反馈」「有用户说」「同学反馈」「测试反馈」「产研反馈」
 - 附有用户截图 + userId/手机号/订单号（必须有一个）
-- 来自客服系统转发
-
-**信息提取清单**：
-- userId / 手机号/ 订单号（必须有一个）
-- 截图描述（推断问题页面）
-- 发生时间
-- 问题描述文字
-
----
-
-### 用户反馈信号
-
-**识别特征**（满足任一）：
-- 含「用户反馈」「有用户说」「同学反馈」「测试反馈」
-- 开发同学直接描述线上问题
+- 来自客服系统转发，或开发同学直接描述线上问题
 - 含问题截图但没有 TT 编号
 
 **信息提取清单**：
@@ -144,22 +152,24 @@ startTime=$(date "+%Y-%m-%d %H:%M:%S") && echo $startTime
 
 ---
 
-## 第二步：从资产文件补全技术档案
+## 第二步：通过 trade-fe-stability-kb 知识库补全技术档案
 
-完成信号提取、确认业务线和页面/Bundle后，**必须**从对应资产文件中查找匹配条目，补全以下字段：
+完成信号提取、确认业务线和页面/Bundle后，**必须**按上方「餐、综、酒、景的资产」章节查询知识库对应资产条目，补全以下字段：
 
-| 字段 | 资产文件中的属性名 | 说明 |
-|------|-----------------|------|
-| projectId | `projectId` | Raptor 项目 ID，用于构造异常链接 |
-| raptor链接 | `raptor 异常链接` / `raptor 异常` | 前端异常查询直链 |
-| diva链接 | `diva链接` | Bundle 发布记录直链（小程序/i版无此字段则填「无」） |
-| Appkey | `后端日志（xxx）Appkey` / `后端日志Appkey` | 后端日志查询所用 Appkey，可能有多个 |
+| 字段 | 知识库资产条目中的字段名 | 说明 |
+|------|------------------------|------|
+| 技术栈 | `stack` | DUO / MRN / MAX / 小程序 / i版 / H5 |
+| projectId | `project_id` | Raptor 项目 ID，用于构造异常链接 |
+| SSH链接 | `repository_ssh_url` | 页面对应代码仓库 SSH 地址 |
+| raptor链接 | `raptor_error_url` | 前端异常查询直链 |
+| diva链接 | `diva_url` | Bundle 发布记录直链（小程序/i版无此字段则填「无」） |
+| Appkey | `server_log_appkey` | 后端日志查询所用 Appkey，可能有多个 |
 
 > ⚠️ **补全规则**：
-> - 若资产文件中存在多个 Appkey（如 precreate + query），**全部列出**，用 `/` 分隔
+> - 若条目存在多个 Appkey（如 `server_log_appkey` 加 `notes` 中注明的 query Appkey，如 precreate + query），**全部列出**，用 `/` 分隔
 > - 小程序、i版页面无 bundle 和 diva链接，对应字段填「无」
-> - 若 projectId 不存在（如部分 i版页面），填「无」
-> - **不得凭猜测填写，字段值必须来自资产文件**
+> - 若 project_id 不存在（如部分 i版页面），填「无」
+> - **不得凭猜测填写，字段值必须来自知识库资产条目（引用带 `文件:行号`），不得从其他来源拼接**
 
 ---
 
@@ -172,11 +182,11 @@ endTime=$(date "+%Y-%m-%d %H:%M:%S") && echo $endTime
 ```
 > 💡 **耗时计算**：用 endTime 减去开始时记录的 startTime，精确到分钟，格式如「约 X 分钟」。
 
-✅ **第一步：信息提取报告**（完成时间：{endTime}  耗时：{约 X 分钟}）
+✅ **第一步：信息提取报告**（开始时间：{startTime}  耗时：{约 X 分钟}）
 
 | 字段 | 内容 |
 |------|------|
-| 信号类型 | 告警 / TT工单 / 客诉 / 用户反馈 |
+| 信号类型 | 告警 / TT工单 / 反馈 |
 | 业务线 | 餐 / 综 / 酒 / 景（匹配依据：{Bundle名 或 关键词}） |
 | 用户标识 | userId={xxx} / 手机号={xxx} / 订单号={xxx} / 无 |
 | 问题时间 | YYYY-MM-DD HH:mm |

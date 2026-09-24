@@ -17,8 +17,8 @@
 ## 运行依赖与发布前置
 
 - Node.js `>= 18`。
-- `oa-skills` 必须可用，且其内置 `@it/oa-skills-shared >= 1.2.0`。运行前先执行 Skill 正文中的检查；
-  缺失时才从内网 registry 安装 `@it/oa-skills`，Runner 自身不自动安装全局包。
+- npm CLI 固定依赖 `@it/oa-skills-shared 1.2.1`。Skill Runner 优先加载本地依赖；本地没有时，`oa-skills`
+  必须可用且其内置 shared 版本至少为 `1.2.0`。缺失时才从内网 registry 安装 `@it/oa-skills`。
 - 便携 provider 固定面向 `923a237244`，办公官方 Skills 默认调用方必须在 UAC 中具备对该 audience 的
   代理授权。这是发布前置，不是源码默认拥有的能力。
 - Codex 真实会话已完成一次便携 CIBA 和规则安装验收；该结果不代表其余 19 个外部宿主、所有用户权限或
@@ -72,8 +72,9 @@ tongyi-lingma, tencent-codebuddy, baidu-comate, codegeex
 Skill 对上述独立外部编码 Agent 采用直接便携 CIBA，是为了避免一次已知无宿主 `client_id` 的失败尝试；
 该专项路由不应被描述为官方 CLI 路径，也不改变官方错误分类和 UAC 约束。
 
-便携 provider 不复用 Citadel 或其他 Skill 的 token/cache。它从当前 Node 的 `npm root -g` 下解析
-`@it/oa-skills/node_modules/@it/oa-skills-shared`，把 `cacheFile` 指向单次创建的 `0700` 临时目录，并在
+便携 provider 不复用 Citadel 或其他 Skill 的 token/cache。它先加载 CLI/Skill 本地声明的
+`@it/oa-skills-shared/auth`；本地没有时从当前 Node 的 `npm root -g` 下解析
+`@it/oa-skills/node_modules/@it/oa-skills-shared`。它把 `cacheFile` 指向单次创建的 `0700` 临时目录，并在
 `finally` 删除整个目录。provider 内部即使写盘也只能写入该目录；父 Runner 捕获 helper 的内部 stdout
 作为受控进程通信且不向用户转发，不把 token 写入用户可见 stdout、receipt、manifest 或回复，也不读取、
 复制或输出任何 `client_secret`。helper 不是独立命令，不应被直接执行或重定向输出。

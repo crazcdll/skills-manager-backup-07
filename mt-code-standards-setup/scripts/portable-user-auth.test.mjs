@@ -23,6 +23,46 @@ test("requires oa-skills-shared 1.2.0 or newer", () => {
   assert.equal(minimumVersionSatisfied("2.0.0"), true);
 });
 
+test("rejects an outdated local shared package without falling back globally", async () => {
+  let globalResolutionCalls = 0;
+  await assert.rejects(
+    getPortableUserToken({
+      mis: "zhangce07",
+      localSharedResolver: async () => ({
+        specifier: "@it/oa-skills-shared/auth",
+        version: "1.1.14",
+      }),
+      npmRootResolver: async () => { globalResolutionCalls += 1; return "unused"; },
+    }),
+    (error) => error.code === "PORTABLE_AUTH_PROVIDER_REQUIRED"
+      && error.message.includes("本地")
+      && error.message.includes("1.1.14"),
+  );
+  assert.equal(globalResolutionCalls, 0);
+});
+
+test("uses a compatible local shared package before the global fallback", async () => {
+  let globalResolutionCalls = 0;
+  let loadedSpecifier;
+  const token = await getPortableUserToken({
+    mis: "zhangce07",
+    localSharedResolver: async () => ({
+      specifier: "@it/oa-skills-shared/auth",
+      version: "1.2.1",
+    }),
+    npmRootResolver: async () => { globalResolutionCalls += 1; return "unused"; },
+    moduleLoader: async (specifier) => {
+      loadedSpecifier = specifier;
+      return {
+        initSsoAuth: async () => ({ authenticate: async () => ({ token: "local-token" }) }),
+      };
+    },
+  });
+  assert.equal(token, "local-token");
+  assert.equal(loadedSpecifier, "@it/oa-skills-shared/auth");
+  assert.equal(globalResolutionCalls, 0);
+});
+
 test("resolves npm root through the npm CLI belonging to the current Node", async () => {
   const globalRoot = await resolveCurrentNodeNpmRoot(process.env);
   assert.equal(path.isAbsolute(globalRoot), true);
@@ -35,6 +75,7 @@ test("uses fixed portable CIBA options and removes its isolated cache directory"
   let initialization;
   const token = await getPortableUserToken({
     mis: "zhangce07", environment: {}, npmRootResolver: async () => root,
+    localSharedResolver: async () => null,
     moduleLoader: async () => ({
       initSsoAuth: async (...args) => {
         initialization = args;
@@ -60,6 +101,7 @@ test("sets the temporary auth directory to mode 0700 before authentication", asy
   const temporaryDirectory = await mkdtemp(path.join(os.tmpdir(), "setup-portable-mode-"));
   await getPortableUserToken({
     mis: "zhangce07", npmRootResolver: async () => root,
+    localSharedResolver: async () => null,
     moduleLoader: async () => ({
       initSsoAuth: async (_skill, _mis, options) => ({
         authenticate: async () => {
@@ -75,7 +117,11 @@ test("sets the temporary auth directory to mode 0700 before authentication", asy
 test("returns a structured provider requirement for an old shared package", async () => {
   const root = await fakeProviderRoot("1.1.14");
   await assert.rejects(
-    getPortableUserToken({ mis: "zhangce07", npmRootResolver: async () => root }),
+    getPortableUserToken({
+      mis: "zhangce07",
+      npmRootResolver: async () => root,
+      localSharedResolver: async () => null,
+    }),
     (error) => error.code === "PORTABLE_AUTH_PROVIDER_REQUIRED" && error.message.includes("1.1.14"),
   );
 });
@@ -87,6 +133,7 @@ test("invalidates a token when the isolated cache directory cannot be removed", 
     getPortableUserToken({
       mis: "zhangce07",
       npmRootResolver: async () => root,
+      localSharedResolver: async () => null,
       moduleLoader: async () => ({
         initSsoAuth: async () => ({ authenticate: async () => ({ token: "must-not-escape" }) }),
       }),

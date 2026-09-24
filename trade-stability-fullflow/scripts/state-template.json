@@ -4,6 +4,7 @@
   "updated_at": "",
   "current_state": "S0_INIT",
   "signal_raw": "",
+  "signal_fingerprint": "",
   "steps": {
     "S1_INFO_FETCH": {
       "status": "pending",
@@ -99,9 +100,8 @@
       "completed_at": null,
       "guard_passed": false,
       "output": {
-        "report_generated": false,
-        "memory_written": false,
-        "feedback": ""
+        "report_uploaded": false,
+        "detail_url": ""
       }
     }
   }

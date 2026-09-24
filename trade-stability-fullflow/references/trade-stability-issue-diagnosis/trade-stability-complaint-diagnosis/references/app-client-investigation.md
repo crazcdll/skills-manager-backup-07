@@ -69,7 +69,7 @@ raptorfe --version 2>/dev/null && echo "ok" || echo "missing"
 
 **Step 2：确定查询参数**
 
-- `--project-id`：从 dev-assets.md 获取对应页面的 `projectId`
+- `--project-id`：从 trade-fe-stability-kb 知识库资产条目获取对应页面的 `project_id`
 - `--start-long` / `--end-long`：**毫秒级时间戳（13位）**，按以下规则确定范围：
   - 提供了具体时间（如 4月5号19点11分）→ 查询前后3小时，即 `[16:11, 22:11]`
   - 仅提供日期（如 4月5号）→ 查询当天全天 `[00:00, 23:59]`

@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import {
   RuleBundleError,
   EXECUTION_AGENTS,
+  prepareSyncRequest,
   syncEffectiveRuleBundle,
 } from "./resolve-effective-rules.mjs";
 
@@ -49,17 +50,22 @@ const text = (value) => String(value ?? "").trim();
 const parseArgs = (argv) => {
   const result = {};
   const valued = new Set([
-    "--repository", "--repo-root", "--gateway-url", "--execution-agent", "--auth-agent", "--skill-version",
-    "--pull-id", "--mis", "--domain",
+    "--repository", "--repo-root", "--output-dir", "--gateway-url", "--execution-agent", "--auth-agent", "--skill-version",
+    "--pull-id", "--mis", "--domain", "--stage",
   ]);
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index];
+    if (key === "--bootstrap") {
+      result.bootstrap = true;
+      continue;
+    }
     if (!valued.has(key) || index + 1 >= argv.length) {
       throw new RuleBundleError("RULE_BUNDLE_ARGUMENT_INVALID", `未知或缺值参数：${key}`);
     }
     const value = argv[index + 1];
     if (key === "--repository") result.repositoryLocator = value;
     else if (key === "--repo-root") result.repoRoot = value;
+    else if (key === "--output-dir") result.outputDir = value;
     else if (key === "--gateway-url") result.gatewayUrl = value;
     else if (key === "--execution-agent") result.agent = value;
     else if (key === "--auth-agent") result.authAgent = value;
@@ -67,6 +73,7 @@ const parseArgs = (argv) => {
     else if (key === "--pull-id") result.pullId = value;
     else if (key === "--mis") result.mis = value;
     else if (key === "--domain") result.domain = value;
+    else if (key === "--stage") result.stage = value;
     index += 1;
   }
   return result;
@@ -301,6 +308,17 @@ const tokenFromSelectedRoute = async ({
   return tokenFromOfficialExchange({ environment, execute, mis });
 };
 
+const selectRunnerAuthenticationRoute = ({ environment, options, executionAgent }) => {
+  if (text(environment.RULE_OBSERVABILITY_USER_TOKEN) || !options.standaloneCli || options.authAgent) {
+    return selectAuthenticationRoute({
+      environment,
+      authAgent: options.authAgent,
+      executionAgent,
+    });
+  }
+  return { route: "portable", reason: "standalone_cli", authAgent: "standalone-cli" };
+};
+
 export const syncWithOfficialSso = async ({
   options = {}, environment = process.env, execute, fetchImpl,
 } = {}) => {
@@ -309,9 +327,25 @@ export const syncWithOfficialSso = async ({
   if (explicitAgent && !EXECUTION_AGENTS.has(explicitAgent)) {
     throw new RuleBundleError("RULE_BUNDLE_EXECUTION_INVALID", "执行 Agent 必须是受支持的平台标识。");
   }
-  let selection = selectAuthenticationRoute({
+  await prepareSyncRequest({
+    gatewayUrl: options.gatewayUrl,
+    repositoryLocator: options.repositoryLocator,
+    repoRoot: options.repoRoot,
+    outputDir: options.outputDir,
+    cwd: options.cwd,
+    domain: options.domain,
+    bootstrap: options.bootstrap,
+    stage: options.stage,
+    execution: {
+      pullId: options.pullId,
+      agent: explicitAgent || detected.agent,
+      source: explicitAgent ? "runner_explicit_v1" : detected.source,
+      skillVersion: options.skillVersion,
+    },
+  });
+  let selection = selectRunnerAuthenticationRoute({
     environment,
-    authAgent: options.authAgent,
+    options,
     executionAgent: explicitAgent,
   });
   const pullId = options.pullId || randomUUID();
@@ -320,7 +354,11 @@ export const syncWithOfficialSso = async ({
     token: credential.token,
     repositoryLocator: options.repositoryLocator,
     repoRoot: options.repoRoot,
+    outputDir: options.outputDir,
+    cwd: options.cwd,
     domain: options.domain,
+    bootstrap: options.bootstrap,
+    stage: options.stage,
     fetchImpl,
     execution: {
       pullId,
@@ -342,9 +380,9 @@ export const syncWithOfficialSso = async ({
   } catch (error) {
     if (credential.mode !== "injected_user_token" || error?.code !== "unauthorized") throw error;
     const retryEnvironment = { ...environment, RULE_OBSERVABILITY_USER_TOKEN: "" };
-    selection = selectAuthenticationRoute({
+    selection = selectRunnerAuthenticationRoute({
       environment: retryEnvironment,
-      authAgent: options.authAgent,
+      options,
       executionAgent: explicitAgent,
     });
     credential = await tokenFromSelectedRoute({

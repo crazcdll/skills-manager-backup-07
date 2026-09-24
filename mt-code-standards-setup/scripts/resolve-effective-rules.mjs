@@ -21,19 +21,24 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const DEFAULT_GATEWAY =
-  "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-observability";
+  "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-distribution";
 const GATEWAY_HOSTNAME = "db0y7dgg85gphojyva.database.sankuai.com";
-const GATEWAY_PATHNAME = "/functions/v1/rule-observability";
+const GATEWAY_PATHNAME = "/functions/v1/rule-distribution";
+const LEGACY_GATEWAY_PATHNAME = "/functions/v1/rule-observability";
 const LEGACY_BUNDLE_SCHEMA = "effective-rule-bundle/v1";
 const BUNDLE_SCHEMA = "effective-rule-bundle/v2";
+const STAGED_BUNDLE_SCHEMA = "effective-rule-bundle/v3";
 const LEGACY_LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v1";
 const LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v2";
-const FLAT_LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v3";
+const LEGACY_FLAT_LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v3";
+const FLAT_LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v4";
 const FLAT_LOCAL_LAYOUT = "company-team/v1";
 const RECEIPT_SCHEMA = "mt-effective-rule-bundle-install/v1";
 const MANIFEST_NAME = ".mt-effective-rule-bundle.json";
 const BOOTSTRAP_BUNDLE_SCHEMA = "l1-bootstrap-bundle/v1";
-const BOOTSTRAP_LOCAL_MANIFEST_SCHEMA = "mt-l1-bootstrap-manifest/v1";
+const STAGED_BOOTSTRAP_BUNDLE_SCHEMA = "l1-bootstrap-bundle/v2";
+const LEGACY_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA = "mt-l1-bootstrap-manifest/v1";
+const BOOTSTRAP_LOCAL_MANIFEST_SCHEMA = "mt-l1-bootstrap-manifest/v2";
 const BOOTSTRAP_RECEIPT_SCHEMA = "mt-l1-bootstrap-install/v1";
 const BOOTSTRAP_MANIFEST_NAME = ".mt-l1-bootstrap.json";
 const MAX_LOCATOR_BYTES = 8 * 1024;
@@ -41,8 +46,9 @@ const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
 const MAX_FILE_BYTES = 512 * 1024;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const DOMAINS = new Set(["frontend", "backend"]);
+const DELIVERY_STAGES = new Set(["design", "coding", "cr"]);
 export const EXECUTION_AGENTS = new Set([
-  "catdesk", "catpaw", "claude", "codex", "agent_1024", "sandbox", "catx", "unknown",
+  "catdesk", "catpaw", "claude", "codex", "agent_1024", "sandbox", "catx", "cli", "unknown",
 ]);
 const EXECUTION_AGENT_SOURCES = new Set([
   "runner_explicit_v1", "runner_heuristic_v1", "legacy_unknown_v1",
@@ -75,6 +81,18 @@ export const canonicalJson = (value) => {
 
 const fail = (code, message) => {
   throw new RuleBundleError(code, message);
+};
+
+const normalizeDeliveryStage = (value) => {
+  if (value == null) return "";
+  const stage = text(value);
+  if (!stage) {
+    fail("RULE_BUNDLE_STAGE_INVALID", "--stage 仅支持 design、coding 或 cr");
+  }
+  if (!DELIVERY_STAGES.has(stage)) {
+    fail("RULE_BUNDLE_STAGE_INVALID", "--stage 仅支持 design、coding 或 cr");
+  }
+  return stage;
 };
 
 const exists = async (target) => {
@@ -237,6 +255,18 @@ export const repositoryLocatorFromGit = (repoRoot = process.cwd()) => {
   }
 };
 
+export const repositoryRootFromGit = (sourceDirectory = process.cwd()) => {
+  try {
+    return execFileSync("git", ["rev-parse", "--show-toplevel"], {
+      cwd: sourceDirectory,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+  } catch {
+    return "";
+  }
+};
+
 const friendlyServiceError = (code, message) => {
   const normalized = text(code).toLowerCase();
   if (normalized.includes("ambiguous") || normalized === "42702") {
@@ -258,17 +288,19 @@ const friendlyServiceError = (code, message) => {
   return text(message) || "规则包服务调用失败";
 };
 
-const validateGatewayUrl = (value) => {
+export const validateGatewayUrl = (value) => {
   let url;
   try {
     url = new URL(value);
   } catch {
     fail("RULE_BUNDLE_GATEWAY_INVALID", "规则包网关地址非法");
   }
+  const pathname = url.pathname.replace(/\/$/, "");
   if (
     url.protocol !== "https:"
     || url.hostname !== GATEWAY_HOSTNAME
-    || url.pathname.replace(/\/$/, "") !== GATEWAY_PATHNAME
+    || !new Set([GATEWAY_PATHNAME, LEGACY_GATEWAY_PATHNAME]).has(pathname)
+    || (url.port && url.port !== "443")
     || url.username
     || url.password
     || url.search
@@ -276,7 +308,88 @@ const validateGatewayUrl = (value) => {
   ) {
     fail("RULE_BUNDLE_GATEWAY_INVALID", "规则包只允许调用受信任的业务研发平台网关");
   }
-  return `${url.origin}${GATEWAY_PATHNAME}`;
+  return `${url.origin}${pathname}`;
+};
+
+const canonicalizeOutputRoot = async (target) => {
+  let cursor = path.resolve(target);
+  const missing = [];
+  while (!await exists(cursor)) {
+    missing.unshift(path.basename(cursor));
+    const parent = path.dirname(cursor);
+    if (parent === cursor) fail("RULE_BUNDLE_OUTPUT_INVALID", "无法定位输出目录的现有父目录");
+    cursor = parent;
+  }
+  const canonicalParent = realpathSync(cursor);
+  return path.join(canonicalParent, ...missing);
+};
+
+export const prepareSyncRequest = async ({
+  gatewayUrl = DEFAULT_GATEWAY,
+  repositoryLocator = "",
+  repoRoot = "",
+  outputDir = "",
+  cwd = process.cwd(),
+  domain = "",
+  bootstrap = false,
+  stage,
+  execution,
+} = {}) => {
+  const workingDirectory = path.resolve(cwd);
+  const explicitRepoRoot = text(repoRoot);
+  const explicitOutputDir = text(outputDir);
+  const sourceDirectory = explicitRepoRoot
+    ? path.resolve(workingDirectory, explicitRepoRoot)
+    : workingDirectory;
+  const targetRoot = await canonicalizeOutputRoot(
+    explicitOutputDir
+      ? path.resolve(workingDirectory, explicitOutputDir)
+      : sourceDirectory,
+  );
+  const explicitLocator = text(repositoryLocator);
+  let gitRoot = "";
+  let locator = explicitLocator;
+  if (!locator || bootstrap) gitRoot = repositoryRootFromGit(sourceDirectory);
+  if (!locator) {
+    if (!gitRoot) {
+      fail(
+        "RULE_BUNDLE_REPOSITORY_REQUIRED",
+        "当前目录不在 Git 仓库中，请使用 --repository 提供唯一仓库名、namespace/repository 或仓库地址",
+      );
+    }
+    locator = repositoryLocatorFromGit(gitRoot);
+    if (!locator) {
+      fail("RULE_BUNDLE_REPOSITORY_REQUIRED", "Git 仓库没有 origin，请使用 --repository 明确指定仓库");
+    }
+  }
+  const normalizedLocator = validateRepositoryLocator(locator);
+  const normalizedDomain = text(domain);
+  if (normalizedDomain && !DOMAINS.has(normalizedDomain)) {
+    fail("RULE_BUNDLE_DOMAIN_INVALID", "--domain 仅支持 frontend 或 backend");
+  }
+  const normalizedStage = normalizeDeliveryStage(stage);
+  if (bootstrap && !canonicalRepositoryKey(normalizedLocator)) {
+    fail(
+      "RULE_BUNDLE_BOOTSTRAP_CANONICAL_REQUIRED",
+      "L1 bootstrap 必须提供精确 namespace/repository 或可归一化为该形式的 Git URL，不能使用裸仓库名",
+    );
+  }
+  if (bootstrap && !normalizedDomain && !gitRoot) {
+    fail(
+      "RULE_BUNDLE_DOMAIN_CONFIRMATION_REQUIRED",
+      "非 Git 目录执行 L1 bootstrap 时必须使用 --domain frontend|backend 明确仓库领域",
+    );
+  }
+  return Object.freeze({
+    gatewayUrl: validateGatewayUrl(gatewayUrl),
+    repositoryLocator: normalizedLocator,
+    sourceRoot: gitRoot || sourceDirectory,
+    targetRoot,
+    domain: normalizedDomain,
+    stage: normalizedStage,
+    bootstrap: Boolean(bootstrap),
+    execution: normalizePullExecution(execution),
+  });
 };
 
 export const normalizePullExecution = (value = {}) => {
@@ -293,7 +406,7 @@ export const normalizePullExecution = (value = {}) => {
   return Object.freeze({ pullId, agent, source, skillName, skillVersion });
 };
 
-const requestBundle = async ({ gatewayUrl, token, repositoryLocator, knownSnapshotId, execution, fetchImpl }) => {
+const requestBundle = async ({ gatewayUrl, token, repositoryLocator, knownSnapshotId, stage, execution, fetchImpl }) => {
   const trustedGateway = validateGatewayUrl(gatewayUrl);
   let response;
   try {
@@ -308,6 +421,7 @@ const requestBundle = async ({ gatewayUrl, token, repositoryLocator, knownSnapsh
       },
       body: JSON.stringify({
         repository_locator: repositoryLocator,
+        ...(stage ? { stage } : {}),
         ...(knownSnapshotId ? { known_snapshot_id: knownSnapshotId } : {}),
         execution: {
           pull_id: execution.pullId,
@@ -339,7 +453,7 @@ const requestBundle = async ({ gatewayUrl, token, repositoryLocator, knownSnapsh
 };
 
 const requestBootstrapBundle = async ({
-  gatewayUrl, token, canonicalKey, standardDomain, knownSnapshotId, fetchImpl,
+  gatewayUrl, token, canonicalKey, standardDomain, knownSnapshotId, stage, fetchImpl,
 }) => {
   const trustedGateway = validateGatewayUrl(gatewayUrl);
   let response;
@@ -356,6 +470,7 @@ const requestBootstrapBundle = async ({
       body: JSON.stringify({
         repository_locator: canonicalKey,
         standard_domain: standardDomain,
+        ...(stage ? { stage } : {}),
         ...(knownSnapshotId ? { known_snapshot_id: knownSnapshotId } : {}),
       }),
     });
@@ -439,19 +554,30 @@ const normalizeReleaseRefs = (releaseRefs) => {
   ));
 };
 
-const validateBundle = (body, knownSnapshotId) => {
-  if (!isObject(body) || ![LEGACY_BUNDLE_SCHEMA, BUNDLE_SCHEMA].includes(body.schema_version)) {
-    fail("RULE_BUNDLE_RESPONSE_INVALID", `规则包响应必须为 ${BUNDLE_SCHEMA}`);
+const validateBundle = (body, knownSnapshotId, expectedStage = "") => {
+  const expectedSchema = expectedStage ? STAGED_BUNDLE_SCHEMA : BUNDLE_SCHEMA;
+  const acceptedSchemas = expectedStage
+    ? [STAGED_BUNDLE_SCHEMA]
+    : [LEGACY_BUNDLE_SCHEMA, BUNDLE_SCHEMA];
+  if (!isObject(body) || !acceptedSchemas.includes(body.schema_version)) {
+    fail("RULE_BUNDLE_RESPONSE_INVALID", `规则包响应必须为 ${expectedSchema}`);
   }
   if (!new Set(["ready", "not_modified"]).has(body.status) || !isObject(body.snapshot)) {
     fail("RULE_BUNDLE_RESPONSE_INVALID", "规则包缺少有效 status 或 snapshot");
   }
   const snapshot = body.snapshot;
-  const versionTwo = body.schema_version === BUNDLE_SCHEMA;
-  if (versionTwo ? snapshot.resolver_version !== BUNDLE_SCHEMA : snapshot.resolver_version != null) {
+  const currentVersion = body.schema_version !== LEGACY_BUNDLE_SCHEMA;
+  if (currentVersion ? snapshot.resolver_version !== body.schema_version : snapshot.resolver_version != null) {
     fail("RULE_BUNDLE_RESPONSE_INVALID", "规则包生成版本与响应协议不一致");
   }
-  const pathOrder = versionTwo ? binaryPathOrder : (left, right) => left.localeCompare(right, "en");
+  if (expectedStage) {
+    if (snapshot.stage !== expectedStage || !SHA256_PATTERN.test(text(snapshot.dependency_hash))) {
+      fail("RULE_BUNDLE_STAGE_MISMATCH", "规则包阶段或依赖哈希与请求不一致");
+    }
+  } else if (snapshot.stage != null || snapshot.dependency_hash != null) {
+    fail("RULE_BUNDLE_RESPONSE_INVALID", "旧版规则包响应不得携带阶段上下文");
+  }
+  const pathOrder = currentVersion ? binaryPathOrder : (left, right) => left.localeCompare(right, "en");
   const repository = snapshot.repository;
   if (
     !isObject(repository)
@@ -469,12 +595,16 @@ const validateBundle = (body, knownSnapshotId) => {
     fail("RULE_BUNDLE_TOTAL_BYTES_INVALID", "规则包总字节数非法");
   }
   const snapshotProjection = {
-    ...(versionTwo ? { resolver_version: BUNDLE_SCHEMA } : {}),
+    ...(currentVersion ? { resolver_version: body.schema_version } : {}),
     repository_id: repository.repository_id,
     canonical_key: repository.canonical_key,
     standard_domain: repository.standard_domain,
     manifest_hash: snapshot.manifest_hash,
     release_refs: releaseRefs,
+    ...(expectedStage ? {
+      stage: expectedStage,
+      dependency_hash: snapshot.dependency_hash,
+    } : {}),
   };
   if (sha256Hex(canonicalJson(snapshotProjection)) !== snapshot.snapshot_id) {
     fail("RULE_BUNDLE_SNAPSHOT_HASH_MISMATCH", "规则包 snapshot_id 校验失败");
@@ -492,7 +622,7 @@ const validateBundle = (body, knownSnapshotId) => {
   const directories = new Map();
   const normalizedFiles = files.map((file) => {
     if (!isObject(file)) fail("RULE_BUNDLE_FILE_INVALID", "规则文件格式错误");
-    const relativePath = normalizeRelativePath(file.relative_path, versionTwo);
+    const relativePath = normalizeRelativePath(file.relative_path, currentVersion);
     const collisionKey = pathKey(relativePath);
     if (seenPaths.has(collisionKey)) fail("RULE_BUNDLE_FILE_DUPLICATE", `规则文件路径重复：${relativePath}`);
     seenPaths.add(collisionKey);
@@ -536,27 +666,39 @@ const validateBundle = (body, knownSnapshotId) => {
   };
 };
 
-const validateBootstrapBundle = (body, knownSnapshotId) => {
-  if (!isObject(body) || body.schema_version !== BOOTSTRAP_BUNDLE_SCHEMA
+const validateBootstrapBundle = (body, knownSnapshotId, expectedStage = "") => {
+  const expectedSchema = expectedStage ? STAGED_BOOTSTRAP_BUNDLE_SCHEMA : BOOTSTRAP_BUNDLE_SCHEMA;
+  if (!isObject(body) || body.schema_version !== expectedSchema
     || !new Set(["ready", "not_modified"]).has(body.status) || !isObject(body.snapshot)) {
-    fail("RULE_BUNDLE_BOOTSTRAP_RESPONSE_INVALID", `L1 bootstrap 响应必须为 ${BOOTSTRAP_BUNDLE_SCHEMA}`);
+    fail("RULE_BUNDLE_BOOTSTRAP_RESPONSE_INVALID", `L1 bootstrap 响应必须为 ${expectedSchema}`);
   }
   const snapshot = body.snapshot;
-  if (snapshot.bootstrap_version !== BOOTSTRAP_BUNDLE_SCHEMA
+  if (snapshot.bootstrap_version !== expectedSchema
     || !DOMAINS.has(snapshot.standard_domain)
     || !SHA256_PATTERN.test(text(snapshot.snapshot_id))
     || !SHA256_PATTERN.test(text(snapshot.manifest_hash))) {
     fail("RULE_BUNDLE_BOOTSTRAP_RESPONSE_INVALID", "L1 bootstrap 快照字段非法");
+  }
+  if (expectedStage) {
+    if (snapshot.stage !== expectedStage || !SHA256_PATTERN.test(text(snapshot.dependency_hash))) {
+      fail("RULE_BUNDLE_STAGE_MISMATCH", "L1 bootstrap 阶段或依赖哈希与请求不一致");
+    }
+  } else if (snapshot.stage != null || snapshot.dependency_hash != null) {
+    fail("RULE_BUNDLE_BOOTSTRAP_RESPONSE_INVALID", "旧版 L1 bootstrap 响应不得携带阶段上下文");
   }
   const releaseRefs = normalizeReleaseRefs(snapshot.release_refs);
   if (releaseRefs.some((release) => release.scope_level !== "L1")) {
     fail("RULE_BUNDLE_BOOTSTRAP_RESPONSE_INVALID", "L1 bootstrap 响应包含非 L1 release");
   }
   const snapshotProjection = {
-    bootstrap_version: BOOTSTRAP_BUNDLE_SCHEMA,
+    bootstrap_version: expectedSchema,
     standard_domain: snapshot.standard_domain,
     manifest_hash: snapshot.manifest_hash,
     release_refs: releaseRefs,
+    ...(expectedStage ? {
+      stage: expectedStage,
+      dependency_hash: snapshot.dependency_hash,
+    } : {}),
   };
   if (sha256Hex(canonicalJson(snapshotProjection)) !== snapshot.snapshot_id) {
     fail("RULE_BUNDLE_SNAPSHOT_HASH_MISMATCH", "L1 bootstrap snapshot_id 校验失败");
@@ -577,27 +719,36 @@ const validateBootstrapBundle = (body, knownSnapshotId) => {
     canonical_key: `l1-bootstrap/${snapshot.standard_domain}`,
     standard_domain: snapshot.standard_domain,
   };
+  const syntheticBundleSchema = expectedStage ? STAGED_BUNDLE_SCHEMA : BUNDLE_SCHEMA;
   const syntheticProjection = {
-    resolver_version: BUNDLE_SCHEMA,
+    resolver_version: syntheticBundleSchema,
     repository_id: syntheticRepository.repository_id,
     canonical_key: syntheticRepository.canonical_key,
     standard_domain: syntheticRepository.standard_domain,
     manifest_hash: snapshot.manifest_hash,
     release_refs: releaseRefs,
+    ...(expectedStage ? {
+      stage: expectedStage,
+      dependency_hash: snapshot.dependency_hash,
+    } : {}),
   };
   const validated = validateBundle({
-    schema_version: BUNDLE_SCHEMA,
+    schema_version: syntheticBundleSchema,
     status: "ready",
     snapshot: {
-      resolver_version: BUNDLE_SCHEMA,
+      resolver_version: syntheticBundleSchema,
       snapshot_id: sha256Hex(canonicalJson(syntheticProjection)),
       repository: syntheticRepository,
       release_refs: releaseRefs,
       manifest_hash: snapshot.manifest_hash,
       total_bytes: snapshot.total_bytes,
+      ...(expectedStage ? {
+        stage: expectedStage,
+        dependency_hash: snapshot.dependency_hash,
+      } : {}),
     },
     files: body.files,
-  }, "");
+  }, "", expectedStage);
   if (validated.files.some((file) => !file.relative_path.startsWith("l1/"))) {
     fail("RULE_BUNDLE_BOOTSTRAP_RESPONSE_INVALID", "L1 bootstrap 响应包含非 L1 文件");
   }
@@ -647,7 +798,10 @@ const readBootstrapManifest = async (repoRoot) => {
   }
 };
 
-const isFlatLocalManifest = (manifest) => manifest?.schema_version === FLAT_LOCAL_MANIFEST_SCHEMA;
+const isFlatLocalManifest = (manifest) => [
+  LEGACY_FLAT_LOCAL_MANIFEST_SCHEMA,
+  FLAT_LOCAL_MANIFEST_SCHEMA,
+].includes(manifest?.schema_version);
 
 const manifestBundleSchema = (manifest) => {
   if (isFlatLocalManifest(manifest)) return manifest.resolver_version;
@@ -658,7 +812,7 @@ const manifestBundleSchema = (manifest) => {
 
 const manifestPhysicalPath = (manifest, managedPath) => {
   const bundleSchema = manifestBundleSchema(manifest);
-  return normalizeRelativePath(managedPath, bundleSchema === BUNDLE_SCHEMA);
+  return normalizeRelativePath(managedPath, bundleSchema !== LEGACY_BUNDLE_SCHEMA);
 };
 
 const manifestSourcePath = (manifest, managedPath) => {
@@ -666,15 +820,18 @@ const manifestSourcePath = (manifest, managedPath) => {
   if (isFlatLocalManifest(manifest)) {
     return normalizeRelativePath(
       manifest.managed_file_sources[managedPath],
-      bundleSchema === BUNDLE_SCHEMA,
+      bundleSchema !== LEGACY_BUNDLE_SCHEMA,
     );
   }
   const prefix = `${manifest.standard_domain}/`;
-  return normalizeRelativePath(managedPath.slice(prefix.length), bundleSchema === BUNDLE_SCHEMA);
+  return normalizeRelativePath(managedPath.slice(prefix.length), bundleSchema !== LEGACY_BUNDLE_SCHEMA);
 };
 
 const isFlatManagedPath = (value, bundleSchema) => {
-  const pathValue = normalizeRelativePath(value, bundleSchema === BUNDLE_SCHEMA);
+  const currentVersion = typeof bundleSchema === "boolean"
+    ? bundleSchema
+    : bundleSchema !== LEGACY_BUNDLE_SCHEMA;
+  const pathValue = normalizeRelativePath(value, currentVersion);
   const parts = pathValue.split("/");
   return (parts[0] === "company" && parts.length === 2)
     || (parts[0] === "team" && parts.length === 3);
@@ -688,7 +845,7 @@ const suffixFileName = (fileName, sourcePath, attempt = 0) => {
 };
 
 const localFilesForBundle = (bundle) => {
-  const versionTwo = bundle.snapshot.resolver_version === BUNDLE_SCHEMA;
+  const versionTwo = [BUNDLE_SCHEMA, STAGED_BUNDLE_SCHEMA].includes(bundle.snapshot.resolver_version);
   const candidates = bundle.files.map((file) => {
     const sourcePath = normalizeRelativePath(file.relative_path, versionTwo);
     const parts = sourcePath.split("/");
@@ -725,7 +882,12 @@ const localFilesForBundle = (bundle) => {
 const validateLocalManifestStructure = (manifest) => {
   if (
     !manifest
-    || ![LEGACY_LOCAL_MANIFEST_SCHEMA, LOCAL_MANIFEST_SCHEMA, FLAT_LOCAL_MANIFEST_SCHEMA].includes(manifest.schema_version)
+    || ![
+      LEGACY_LOCAL_MANIFEST_SCHEMA,
+      LOCAL_MANIFEST_SCHEMA,
+      LEGACY_FLAT_LOCAL_MANIFEST_SCHEMA,
+      FLAT_LOCAL_MANIFEST_SCHEMA,
+    ].includes(manifest.schema_version)
     || !SHA256_PATTERN.test(text(manifest.snapshot_id))
     || !SHA256_PATTERN.test(text(manifest.manifest_hash))
     || !DOMAINS.has(manifest.standard_domain)
@@ -739,7 +901,7 @@ const validateLocalManifestStructure = (manifest) => {
   ) return false;
   const flat = isFlatLocalManifest(manifest);
   const bundleSchema = manifestBundleSchema(manifest);
-  if (![LEGACY_BUNDLE_SCHEMA, BUNDLE_SCHEMA].includes(bundleSchema)) return false;
+  if (![LEGACY_BUNDLE_SCHEMA, BUNDLE_SCHEMA, STAGED_BUNDLE_SCHEMA].includes(bundleSchema)) return false;
   if (!flat && (manifest.schema_version === LOCAL_MANIFEST_SCHEMA
     ? manifest.resolver_version !== BUNDLE_SCHEMA
     : manifest.resolver_version != null)) return false;
@@ -747,7 +909,15 @@ const validateLocalManifestStructure = (manifest) => {
     manifest.local_layout !== FLAT_LOCAL_LAYOUT
     || !isObject(manifest.managed_file_sources)
   )) return false;
-  const versionTwo = bundleSchema === BUNDLE_SCHEMA;
+  const stage = manifest.schema_version === FLAT_LOCAL_MANIFEST_SCHEMA
+    ? normalizeDeliveryStage(manifest.stage)
+    : "";
+  if (bundleSchema === STAGED_BUNDLE_SCHEMA) {
+    if (!stage || !SHA256_PATTERN.test(text(manifest.dependency_hash))) return false;
+  } else if (stage || manifest.dependency_hash != null) return false;
+  if (manifest.schema_version === LEGACY_FLAT_LOCAL_MANIFEST_SCHEMA
+    && bundleSchema === STAGED_BUNDLE_SCHEMA) return false;
+  const versionTwo = bundleSchema !== LEGACY_BUNDLE_SCHEMA;
   const pathOrder = versionTwo ? binaryPathOrder : (left, right) => left.localeCompare(right, "en");
   const uniquePaths = new Set(manifest.managed_files);
   if (uniquePaths.size !== manifest.managed_files.length || !uniquePaths.size) return false;
@@ -771,12 +941,13 @@ const validateLocalManifestStructure = (manifest) => {
   if (projection.reduce((sum, file) => sum + file.byte_size, 0) !== manifest.total_bytes) return false;
   const releaseRefs = normalizeReleaseRefs(manifest.release_refs);
   const snapshotProjection = {
-    ...(bundleSchema === BUNDLE_SCHEMA ? { resolver_version: BUNDLE_SCHEMA } : {}),
+    ...(bundleSchema !== LEGACY_BUNDLE_SCHEMA ? { resolver_version: bundleSchema } : {}),
     repository_id: manifest.repository.repository_id,
     canonical_key: manifest.repository.canonical_key,
     standard_domain: manifest.repository.standard_domain,
     manifest_hash: manifest.manifest_hash,
     release_refs: releaseRefs,
+    ...(stage ? { stage, dependency_hash: manifest.dependency_hash } : {}),
   };
   return sha256Hex(canonicalJson(snapshotProjection)) === manifest.snapshot_id;
 };
@@ -799,8 +970,11 @@ const validateLocalManifestFiles = async (repoRoot, manifest) => {
 };
 
 const validateBootstrapManifestStructure = (manifest) => {
-  if (!manifest || manifest.schema_version !== BOOTSTRAP_LOCAL_MANIFEST_SCHEMA
-    || manifest.bundle_schema !== BOOTSTRAP_BUNDLE_SCHEMA
+  if (!manifest || ![
+    LEGACY_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA,
+    BOOTSTRAP_LOCAL_MANIFEST_SCHEMA,
+  ].includes(manifest.schema_version)
+    || ![BOOTSTRAP_BUNDLE_SCHEMA, STAGED_BOOTSTRAP_BUNDLE_SCHEMA].includes(manifest.bundle_schema)
     || manifest.local_layout !== FLAT_LOCAL_LAYOUT
     || !SHA256_PATTERN.test(text(manifest.snapshot_id))
     || !SHA256_PATTERN.test(text(manifest.manifest_hash))
@@ -810,6 +984,14 @@ const validateBootstrapManifestStructure = (manifest) => {
     || !isObject(manifest.managed_file_sources)
     || !isObject(manifest.managed_file_hashes)
     || !isObject(manifest.managed_file_sizes)) return false;
+  const stage = manifest.schema_version === BOOTSTRAP_LOCAL_MANIFEST_SCHEMA
+    ? normalizeDeliveryStage(manifest.stage)
+    : "";
+  if (manifest.bundle_schema === STAGED_BOOTSTRAP_BUNDLE_SCHEMA) {
+    if (!stage || !SHA256_PATTERN.test(text(manifest.dependency_hash))) return false;
+  } else if (stage || manifest.dependency_hash != null) return false;
+  if (manifest.schema_version === LEGACY_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA
+    && manifest.bundle_schema !== BOOTSTRAP_BUNDLE_SCHEMA) return false;
   const uniquePaths = new Set(manifest.managed_files);
   if (uniquePaths.size !== manifest.managed_files.length
     || Object.keys(manifest.managed_file_sources).length !== uniquePaths.size) return false;
@@ -831,10 +1013,11 @@ const validateBootstrapManifestStructure = (manifest) => {
   const releaseRefs = normalizeReleaseRefs(manifest.release_refs);
   if (releaseRefs.some((release) => release.scope_level !== "L1")) return false;
   return sha256Hex(canonicalJson({
-    bootstrap_version: BOOTSTRAP_BUNDLE_SCHEMA,
+    bootstrap_version: manifest.bundle_schema,
     standard_domain: manifest.standard_domain,
     manifest_hash: manifest.manifest_hash,
     release_refs: releaseRefs,
+    ...(stage ? { stage, dependency_hash: manifest.dependency_hash } : {}),
   })) === manifest.snapshot_id;
 };
 
@@ -868,6 +1051,10 @@ const buildLocalManifest = (bundle) => {
       standard_domain: domain,
     },
     standard_domain: domain,
+    stage: bundle.snapshot.stage || null,
+    ...(bundle.snapshot.dependency_hash
+      ? { dependency_hash: bundle.snapshot.dependency_hash }
+      : {}),
     release_refs: bundle.snapshot.release_refs,
     total_bytes: bundle.snapshot.total_bytes,
     managed_files: managedFiles,
@@ -892,18 +1079,22 @@ const buildBootstrapManifest = (bundle, domainSource, domainEvidence) => {
     ...bundle,
     snapshot: {
       ...bundle.snapshot,
-      resolver_version: BUNDLE_SCHEMA,
+      resolver_version: bundle.snapshot.stage ? STAGED_BUNDLE_SCHEMA : BUNDLE_SCHEMA,
       repository: { standard_domain: bundle.snapshot.standard_domain },
     },
   });
   const managedFiles = localFiles.map((file) => file.local_relative_path);
   return {
     schema_version: BOOTSTRAP_LOCAL_MANIFEST_SCHEMA,
-    bundle_schema: BOOTSTRAP_BUNDLE_SCHEMA,
+    bundle_schema: bundle.snapshot.bootstrap_version,
     local_layout: FLAT_LOCAL_LAYOUT,
     snapshot_id: bundle.snapshot.snapshot_id,
     manifest_hash: bundle.snapshot.manifest_hash,
     standard_domain: bundle.snapshot.standard_domain,
+    stage: bundle.snapshot.stage || null,
+    ...(bundle.snapshot.dependency_hash
+      ? { dependency_hash: bundle.snapshot.dependency_hash }
+      : {}),
     domain_source: domainSource,
     domain_evidence: domainEvidence,
     release_refs: bundle.snapshot.release_refs,
@@ -1092,7 +1283,7 @@ const installBootstrapBundle = async ({
     ...bundle,
     snapshot: {
       ...bundle.snapshot,
-      resolver_version: BUNDLE_SCHEMA,
+      resolver_version: bundle.snapshot.stage ? STAGED_BUNDLE_SCHEMA : BUNDLE_SCHEMA,
       repository: { standard_domain: bundle.snapshot.standard_domain },
     },
   });
@@ -1163,31 +1354,32 @@ const installBootstrapBundle = async ({
   }
 };
 
-const assertGitRepository = async (repoRoot) => {
-  if (!await exists(path.join(repoRoot, ".git"))) {
-    fail("RULE_BUNDLE_GIT_REQUIRED", "当前目录不是 Git 仓库根目录，请使用 --repo-root 指定目标仓库");
-  }
-};
-
 export const syncEffectiveRuleBundle = async ({
   gatewayUrl = DEFAULT_GATEWAY,
   token,
   repositoryLocator = "",
-  repoRoot = process.cwd(),
+  repoRoot = "",
+  outputDir = "",
+  cwd = process.cwd(),
   domain = "",
+  bootstrap = false,
+  stage,
   execution,
   fetchImpl = globalThis.fetch,
 } = {}) => {
+  const prepared = await prepareSyncRequest({
+    gatewayUrl, repositoryLocator, repoRoot, outputDir, cwd, domain, bootstrap, stage, execution,
+  });
   if (!token) {
     fail(
       "RULE_BUNDLE_AUTH_REQUIRED",
       "缺少 MTSSO 官方短期用户票据；禁止使用 Cookie、Git 作者、系统账号或把令牌写入文件",
     );
   }
-  const absoluteRoot = path.resolve(repoRoot);
-  const normalizedExecution = normalizePullExecution(execution);
-  await assertGitRepository(absoluteRoot);
-  const locator = validateRepositoryLocator(repositoryLocator || repositoryLocatorFromGit(absoluteRoot));
+  const absoluteRoot = prepared.targetRoot;
+  const deliveryStage = prepared.stage;
+  const normalizedExecution = prepared.execution;
+  const locator = prepared.repositoryLocator;
   const previousManifest = await readLocalManifest(absoluteRoot);
   const bootstrapState = await readBootstrapManifest(absoluteRoot);
   let bootstrapManifest = null;
@@ -1216,7 +1408,11 @@ export const syncEffectiveRuleBundle = async ({
   // A verified legacy tree must be fetched once more so it can be migrated to
   // the flat company/team layout; only the current layout may receive a
   // not_modified response without rewriting local files.
+  const previousStage = previousManifest?.schema_version === FLAT_LOCAL_MANIFEST_SCHEMA
+    ? text(previousManifest.stage)
+    : "";
   const knownSnapshotId = previousCurrent && isFlatLocalManifest(previousManifest)
+    && previousStage === deliveryStage
     ? previousManifest.snapshot_id
     : "";
   let body;
@@ -1226,11 +1422,12 @@ export const syncEffectiveRuleBundle = async ({
       token,
       repositoryLocator: locator,
       knownSnapshotId,
+      stage: deliveryStage,
       execution: normalizedExecution,
       fetchImpl,
     });
   } catch (error) {
-    if (!(error instanceof RuleBundleError) || error.code !== "repository_not_registered") throw error;
+    if (!(error instanceof RuleBundleError) || error.code !== "repository_not_registered" || !prepared.bootstrap) throw error;
     const canonicalKey = canonicalRepositoryKey(locator);
     if (!canonicalKey) {
       fail(
@@ -1244,13 +1441,10 @@ export const syncEffectiveRuleBundle = async ({
         "本地已有正式规则包 manifest，禁止以 L1 bootstrap 静默覆盖；请先处理仓库登记或关联状态",
       );
     }
-    const explicitDomain = text(domain);
-    if (explicitDomain && !DOMAINS.has(explicitDomain)) {
-      fail("RULE_BUNDLE_DOMAIN_INVALID", "--domain 仅支持 frontend 或 backend");
-    }
+    const explicitDomain = prepared.domain;
     const detected = explicitDomain
       ? { classification: explicitDomain, evidence: { explicit_domain: explicitDomain } }
-      : await detectRepositoryDomain(absoluteRoot);
+      : await detectRepositoryDomain(prepared.sourceRoot);
     if (!DOMAINS.has(detected.classification)) {
       fail(
         "RULE_BUNDLE_DOMAIN_CONFIRMATION_REQUIRED",
@@ -1260,17 +1454,25 @@ export const syncEffectiveRuleBundle = async ({
     const bootstrapCurrent = bootstrapManifest
       ? await validateBootstrapManifestFiles(absoluteRoot, bootstrapManifest).catch(() => false)
       : false;
+    const bootstrapStage = bootstrapManifest?.schema_version === BOOTSTRAP_LOCAL_MANIFEST_SCHEMA
+      ? text(bootstrapManifest.stage)
+      : "";
+    const bootstrapKnownSnapshotId = bootstrapCurrent && bootstrapStage === deliveryStage
+      ? bootstrapManifest.snapshot_id
+      : "";
     const bootstrapBody = await requestBootstrapBundle({
       gatewayUrl,
       token,
       canonicalKey,
       standardDomain: detected.classification,
-      knownSnapshotId: bootstrapCurrent ? bootstrapManifest.snapshot_id : "",
+      knownSnapshotId: bootstrapKnownSnapshotId,
+      stage: deliveryStage,
       fetchImpl,
     });
     const bootstrapBundle = validateBootstrapBundle(
       bootstrapBody,
-      bootstrapCurrent ? bootstrapManifest.snapshot_id : "",
+      bootstrapKnownSnapshotId,
+      deliveryStage,
     );
     const installedManifest = bootstrapBundle.status === "ready"
       ? await installBootstrapBundle({
@@ -1293,9 +1495,19 @@ export const syncEffectiveRuleBundle = async ({
       total_bytes: installedManifest.total_bytes,
       pull_id: normalizedExecution.pullId,
       execution_agent: normalizedExecution.agent,
+      ...(deliveryStage ? { stage: deliveryStage } : {}),
     });
   }
-  const bundle = validateBundle(body, knownSnapshotId);
+  const bundle = validateBundle(body, knownSnapshotId, deliveryStage);
+  if (previousTrusted && (
+    previousManifest.repository.repository_id !== bundle.snapshot.repository.repository_id
+    || previousManifest.repository.canonical_key !== bundle.snapshot.repository.canonical_key
+  )) {
+    fail(
+      "RULE_BUNDLE_REPOSITORY_CONFLICT",
+      `输出目录已有仓库 ${previousManifest.repository.canonical_key} 的规则包，不能由 ${bundle.snapshot.repository.canonical_key} 覆盖`,
+    );
+  }
   const manifest = bundle.status === "ready"
     ? await installReadyBundle(
       absoluteRoot,
@@ -1314,23 +1526,29 @@ export const syncEffectiveRuleBundle = async ({
     total_bytes: manifest.total_bytes,
     pull_id: normalizedExecution.pullId,
     execution_agent: normalizedExecution.agent,
+    ...(deliveryStage ? { stage: deliveryStage } : {}),
   });
 };
 
 const parseArgs = (argv) => {
   const result = {};
   const valued = new Set([
-    "--repository", "--repo-root", "--gateway-url", "--token-env", "--pull-id",
-    "--execution-agent", "--execution-agent-source", "--skill-version", "--domain",
+    "--repository", "--repo-root", "--output-dir", "--gateway-url", "--token-env", "--pull-id",
+    "--execution-agent", "--execution-agent-source", "--skill-version", "--domain", "--stage",
   ]);
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index];
+    if (key === "--bootstrap") {
+      result.bootstrap = true;
+      continue;
+    }
     if (!valued.has(key) || index + 1 >= argv.length) {
       fail("RULE_BUNDLE_ARGUMENT_INVALID", `未知或缺值参数：${key}`);
     }
     const value = argv[index + 1];
     if (key === "--repository") result.repositoryLocator = value;
     else if (key === "--repo-root") result.repoRoot = value;
+    else if (key === "--output-dir") result.outputDir = value;
     else if (key === "--gateway-url") result.gatewayUrl = value;
     else if (key === "--token-env") result.tokenEnv = value;
     else if (key === "--pull-id") result.pullId = value;
@@ -1338,6 +1556,7 @@ const parseArgs = (argv) => {
     else if (key === "--execution-agent-source") result.executionAgentSource = value;
     else if (key === "--skill-version") result.skillVersion = value;
     else if (key === "--domain") result.domain = value;
+    else if (key === "--stage") result.stage = value;
     index += 1;
   }
   return result;
@@ -1351,7 +1570,10 @@ const main = async () => {
     token: process.env[tokenEnv],
     repositoryLocator: args.repositoryLocator,
     repoRoot: args.repoRoot,
+    outputDir: args.outputDir,
     domain: args.domain,
+    bootstrap: args.bootstrap,
+    stage: args.stage,
     execution: {
       pullId: args.pullId,
       agent: args.executionAgent,

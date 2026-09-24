@@ -65,7 +65,7 @@ raptorfe --version 2>/dev/null && echo "ok" || echo "missing"
 
 ### A0. 查询 Raptor H5 前端异常（⚠️ 与后端日志查询并行）
 
-H5 有前端异常上报，**应与后端日志查询并行进行**，从 dev-assets.md 获取对应的 `projectId`。
+H5 有前端异常上报，**应与后端日志查询并行进行**，从 trade-fe-stability-kb 知识库资产条目获取对应的 `project_id`（见 [trade-stability-complaint-diagnosis](../SKILL.md) 第一步「匹配问题页面」）。
 
 **Step 1：用 raptorfe CLI 查异常汇总**
 
@@ -133,7 +133,7 @@ raptorfe web error get-log-detail \
 | `baseInfo.上报时间` | 精确上报时间 |
 | `baseInfo.User Agent` | 客户端信息（浏览器/App版本、系统版本） |
 
-**备用方案（raptorfe CLI 不可用时）**：从 dev-assets.md 获取 `raptor 异常链接`，提供链接供用户手动查看：
+**备用方案（raptorfe CLI 不可用时）**：从 trade-fe-stability-kb 知识库资产条目获取 `raptor_error_url`，提供链接供用户手动查看：
 
 ```
 aHR0cHM6Ly9yYXB0b3IubXdzLnNhbmt1YWkuY29tL2Zyb250ZW5kL2Vycm9yL2xpc3Q/cHJvamVjdElkPXtwcm9qZWN0SWR9JnN0YXJ0RGF0ZT17WVlZWU1NRERISG1tc3N9JmVuZERhdGU9e1lZWVlNTURESEhtbXNzfQ==

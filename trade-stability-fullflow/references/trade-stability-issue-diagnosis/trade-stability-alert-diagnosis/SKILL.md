@@ -61,22 +61,40 @@ startTime=$(date "+%Y-%m-%d %H:%M:%S") && echo $startTime
 | **成功率** | 告警名含「成功率」「success rate」「请求成功率」 | `[成功率] xxx 接口成功率下降` |
 | **其他** | 不属于以上类型 | 自定义规则触发的告警 |
 
-### 1.2 加载业务线资产
+### 1.2 通过 trade-fe-stability-kb 知识库查询业务线资产
 
-根据 Bundle 前缀匹配业务线，加载对应资产文件（统一从 trade-stability-fullflow/assets/ 读取）：
+根据 Bundle 前缀匹配业务线，**通过 Skill [trade-fe-stability-kb](https://friday.sankuai.com/skills/skill-detail?activeTab=overview&activeTestTab=cases&id=132756) 查询知识库 `~/.trade-fe-stability-knowledge` 获取资产**（不再读取本地 assets/ 文件）：
 
-- 餐读取 [assets/food-dev-assets.md](../../assets/food-dev-assets.md)
-- 综读取 [assets/gc-dev-assets.md](../../assets/gc-dev-assets.md)
-- 酒读取 [assets/hotel-dev-assets.md](../../assets/hotel-dev-assets.md)
-- 景读取 [assets/travel-dev-assets.md](../../assets/travel-dev-assets.md)
+| 业务线 | 知识库资产文件 |
+|--------|---------------|
+| 餐 | `~/.trade-fe-stability-knowledge/assets/food-assets.md` |
+| 综 | `~/.trade-fe-stability-knowledge/assets/gc-assets.md` |
+| 酒 | `~/.trade-fe-stability-knowledge/assets/hotel-assets.md` |
+| 景 | `~/.trade-fe-stability-knowledge/assets/travel-assets.md` |
 
-从资产文件获取：**仓库 SSH 地址**、**projectId**（用于校验，以告警链接中的 projectId 为准）、**Diva bundleId**
+**查询步骤**：
+
+```bash
+# 1. 同步知识库（不存在则自动 clone，存在则 fetch）
+KB_DIR="$HOME/.trade-fe-stability-knowledge"
+[ -d "$KB_DIR/.git" ] || git clone ssh://git@git.sankuai.com/nibfe/trade-fe-stability-knowledge.git "$KB_DIR"
+git -C "$KB_DIR" fetch origin --quiet
+
+# 2. 按 Bundle名 Grep 精确匹配（禁止整读）
+grep -n "<Bundle名>" ~/.trade-fe-stability-knowledge/assets/<domain>-assets.md
+# domain 取值：餐=food 综=gc 酒=hotel 景=travel
+```
+
+3. 命中后读取该条目 YAML 块上下文，获取：**仓库 SSH 地址（`repository_ssh_url`）**、**projectId（`project_id`，仅用于交叉校验，以告警链接中的 projectId 为准）**、**Diva bundleId（`bundles`）**
+4. 若未安装 trade-fe-stability-kb skill，先执行 `mtskills i trade-fe-stability-kb`
+
+> ⚠️ **查询约束**：禁止整读资产文件、禁止跨业务线文件猜测；未命中时按 trade-fe-stability-kb 未命中模板输出，不得编造参数。
 
 ### 1.3 解析告警链接 → 提取 CLI 命令参数（⚠️ 核心步骤）
 
 告警文本中的「点击查看数据」链接是 Raptor 网页上筛选查看异常列表的等效入口。**必须从链接中完整提取每个参数，精确映射为 raptorfe CLI 命令参数，确保 CLI 查出的数据与打开链接看到的数据完全一致。**
 
-> ⚠️ **链接是唯一数据源**：projectId、时间窗口、webVersion 等全部从链接提取，不得从资产文件或其他来源猜测。资产文件中的 projectId 仅用于交叉校验。
+> ⚠️ **链接是唯一数据源**：projectId、时间窗口、webVersion 等全部从链接提取，不得从知识库资产或其他来源猜测。知识库资产中的 project_id 仅用于交叉校验。
 
 #### 1.3.1 提取链接
 
@@ -203,26 +221,34 @@ raptorfe web error get-summary-table --project-id {projectId} --start-long {star
 
 **分析要点**：
 - 过滤后 COUNT 最高的异常即为**告警主因**，重点排查
-- **所有未被忽略的异常都需要排查**，无论 LEVEL 是 error/warn/info，也无论 CATEGORY 是什么类型：
+- **48h首现告警的分析范围**：只分析告警文本「新增异常:[...]」中列出的异常（它们才是"首现"对象），其余 Top 异常属历史存量，不需要排查；告警文本中的异常名可能被截断，用前缀/子串匹配 A1 的 `main` 字段确认
+- **其他告警类型**：所有未被忽略的异常都需要排查，无论 LEVEL 是 error/warn/info，也无论 CATEGORY 是什么类型：
   - `LEVEL=error` → 高优先级，必须全部排查
   - `LEVEL=warn` → 中优先级，COUNT 较高（≥10）的也需排查（如「渠道：查询支付宝优惠信息异常」这类容器渠道异常）
   - `LEVEL=info` → 低优先级，COUNT 极高时关注
   - `CATEGORY=jsError` → JS 代码异常（TypeError、unhandledrejection 等），需查堆栈
-  - `CATEGORY=ajaxError` 且 `main` 为 URL（如 `https://apihotel.meituan.com/...`）→ **后端接口异常**
+  - `CATEGORY=ajaxError` 且 `main` 为 URL → **后端接口异常**
   - `CATEGORY=ajaxError` 且 `main` 为业务名（如 `preview: 网络异常`）→ 前端接口请求异常
   - `CATEGORY=resourceError` 且 `main` 为 `script` → **JS 资源加载失败**
   - `CATEGORY=resourceError` 且 `main` 为 `img` → 图片资源加载失败
 - **48小时首现告警**：若过滤后无任何级别异常，大概率误告
 
-### A2. 查询异常明细 & 堆栈（对所有未忽略异常全部执行）
+### A2. 查询异常明细 & 堆栈（分析范围按告警类型确定）
 
-> ⚠️ **必须对 A1 过滤后的 Top 5 异常全部执行**，不能只查第一个。不同异常可能有不同根因。
+> ⚠️ **分析范围必须与告警类型匹配，禁止一刀切 Top 5**：
 >
-> ⚠️ **不能只关注 `LEVEL=error`**：`warn` 级别异常（如容器渠道异常、第三方 SDK 异常）和 `info` 级别异常也可能是告警主因或重要线索，必须一并排查。
+> | 告警类型 | 分析范围 |
+> |---------|---------|
+> | **48h首现** | **仅告警文本「新增异常:[...]」中列出的异常**。这些才是"首现"对象；A1 汇总表中其余 Top 异常属历史存量，**不需要排查**，仅在报告中标注"历史存量"即可 |
+> | 其他类型（JS异常 / CIA / 成功率 / 自定义） | A1 过滤后按 COUNT 降序取 **Top 5**，不能只查第一个，不同异常可能有不同根因 |
+>
+> ⚠️ **48h首现的异常名匹配**：告警文本中的异常名可能被截断（如长 JSON 错误体），用前缀/子串匹配 A1 的 `main` 字段；若某新增异常在 A1 中完全未命中，可能已被标记忽略（STATUS=3/4/5）或上报延迟，在报告中如实标注。
+>
+> ⚠️ **不能只关注 `LEVEL=error`**：`warn` 级别异常（如容器渠道异常、第三方 SDK 异常）和 `info` 级别异常也可能是告警主因或重要线索，分析范围内的所有级别均需排查。
 >
 > ⚠️ **CLI 参数（projectId、时间窗口）必须来自告警链接解析结果**（见 1.3.4），不得自行修改。
 
-对 A1 过滤后的每个 Top 异常（按 COUNT 降序取前 5，覆盖 error/warn/info 所有级别），按以下 **三步链路** 依次执行：
+对分析范围内的每个异常（48h首现 → 告警文本新增异常清单；其他类型 → Top 5，均覆盖 error/warn/info 所有级别），按以下 **三步链路** 依次执行：
 
 #### A2a. 查询异常明细，获取 errorLogId
 
@@ -308,7 +334,7 @@ raptorfe web error sourcemap \
 
 ### A2 汇总输出
 
-对 Top 5 异常全部查询完成后，输出汇总表格：
+对分析范围内的全部异常（48h首现 → 告警文本新增异常清单；其他类型 → Top 5）查询完成后，输出汇总表格：
 
 ```
 【异常明细汇总】
@@ -318,8 +344,6 @@ raptorfe web error sourcemap \
 | 1 | {main} | {CATEGORY} | {LEVEL} | {COUNT} | {USER_COUNT} | {堆栈摘要或错误内容} | {容器} | {OS} | {traceId或无} |
 | 2 | ... | | | | | | | | |
 | 3 | ... | | | | | | | | |
-| 4 | ... | | | | | | | | |
-| 5 | ... | | | | | | | | |
 ```
 
 **结论判断**：
@@ -345,7 +369,7 @@ endTime=$(date "+%Y-%m-%d %H:%M:%S") && echo $endTime
 ```
 > 💡 **耗时计算**：用 endTime 减去前置步骤记录的 startTime，精确到分钟，格式如「约 X 分钟」。
 
-✅ **第四步【路径A】：告警排查结论**（完成时间：{endTime 命令输出}  耗时：{约 X 分钟}）
+✅ **第四步【路径A】：告警排查结论**（开始时间：{startTime 命令输出}  耗时：{约 X 分钟}）
 
 | 字段 | 内容 |
 |------|------|
@@ -359,7 +383,7 @@ endTime=$(date "+%Y-%m-%d %H:%M:%S") && echo $endTime
 | 影响范围 | {用户数 / 设备数 / 请求量 / 影响页面} |
 | 代码定位 | {文件路径:行号 + 函数名 或「未定位到具体代码」} |
 | 堆栈详情 | {sourcemap 还原后的原始代码位置（文件路径:行号:函数名）或错误内容摘要} |
-| 异常明细汇总 | {Top 5 异常的名称、类型、级别、COUNT、用户数、容器、堆栈摘要、traceId，详见 A2 汇总表格} |
+| 异常明细汇总 | {分析范围内异常的名称、类型、级别、COUNT、用户数、容器、堆栈摘要、traceId；48h首现为告警文本新增异常清单，其他类型为 Top 5，详见 A2 汇总表格} |
 | 关联变更 | {变更来源} {版本号} {发布时间} @{mis_id}（相关度：高/中/低）/ 无变更 |
 | 有效性判断 | ✅ 有效告警（需处理）/ ❌ 无效告警（可忽略）/ ⚠️ 待观察 |
 | 根因结论 | {根因说明} |

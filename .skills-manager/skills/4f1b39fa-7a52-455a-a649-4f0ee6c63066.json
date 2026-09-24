@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "4f1b39fa-7a52-455a-a649-4f0ee6c63066",
+  "path": "trade-hotel-codex-session-review",
+  "path_key": "trade-hotel-codex-session-review",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

@@ -1,6 +1,14 @@
 ---
 name: trade-sort-out-logic
 description: 梳理前端代码中的业务逻辑，输出结构化报告并保存到学城文档。当用户说梳理逻辑、整理逻辑、sort out logic、梳理 XX 逻辑、分析逻辑 时触发。需要提供：梳理描述和学城文档 URL（结果将保存为该文档的子文档）。
+
+metadata:
+  skillhub.creator: "zhangce07"
+  skillhub.updater: "zhangce07"
+  skillhub.version: "V5"
+  skillhub.source: "FRIDAY Skillhub"
+  skillhub.skill_id: "68159"
+  skillhub.high_sensitive: "false"
 ---
 
 # 交易前端逻辑梳理 Skill

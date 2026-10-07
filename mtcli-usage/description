@@ -1,0 +1,1 @@
+当用户希望 AI 使用 mtcli 本身时触发：发现内部 API 服务、查看 schema、规划或执行 mtcli 调用、使用 tools call、处理 mtcli 鉴权/缓存/调试、解释 --params/--json/--dry-run/--no-cache/--mtcli-target-env/--mtcli-schema-env 等语义。使用占位符展示命令，除非用户已经提供具体服务、方法或参数。跳过：修改 mtcli 源码、Go 实现、npm 打包、发布二进制、或非 mtcli 的 API 客户端。

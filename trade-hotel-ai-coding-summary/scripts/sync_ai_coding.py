@@ -19,6 +19,7 @@
 """
 
 import argparse
+import html
 import json
 import re
 import sys
@@ -137,8 +138,31 @@ def parse_requirement_md(md_text: str) -> list[dict]:
                 prd_url = f'https://km.sankuai.com/collabpage/{prd_km_id}'
         
         # 解析研发同学
-        assignee_matches = re.findall(r'@(\S+)', assignee_cell)
-        assignees = assignee_matches if assignee_matches else []
+        # 支持三种格式（按优先级）：
+        #   [mention]{name="姓名" uid="mis" empId="empId"} —— 学城原生 mention markdown，extract 默认输出此格式
+        #   @mis(empId) —— 旧/手写格式，携带 empId
+        #   @mis / @姓名 —— 兜底
+        assignees = []
+        assignee_meta = {}  # mis -> {'empId': ..., 'name': ...}
+        mention_matches = re.findall(
+            r'\[mention\]\{name="([^"]*)"\s+uid="([^"]+)"\s+empId="([^"]+)"\}',
+            assignee_cell,
+        )
+        if mention_matches:
+            for m_name, m_uid, m_empid in mention_matches:
+                assignees.append(m_uid)
+                assignee_meta[m_uid] = {'empId': m_empid, 'name': m_name}
+        else:
+            for raw in re.findall(r'@(\S+)', assignee_cell):
+                # 剥离可能附带的 (empId)
+                emp_paren_match = re.match(r'^([^(]+)\((\d+)\)$', raw)
+                if emp_paren_match:
+                    mis = emp_paren_match.group(1)
+                    emp_id = emp_paren_match.group(2)
+                    assignees.append(mis)
+                    assignee_meta[mis] = {'empId': emp_id, 'name': ''}
+                else:
+                    assignees.append(raw)
         
         # 提取完整的 ONES URL（保留原始 product ID）
         ones_url_match = re.search(r'(https?://ones\.sankuai\.com[^\s)]+)', ones_cell)
@@ -152,13 +176,22 @@ def parse_requirement_md(md_text: str) -> list[dict]:
             'prd_title': prd_title,
             'prd_url': prd_url,
             'assignees': assignees,
+            'assignee_meta': assignee_meta,
         })
     
     return items
 
 
 def extract_empid_map(xml_text: str) -> dict[str, dict]:
-    """从 XML 中提取 name → {uid, empId} 映射"""
+    """
+    从 XML 中提取人员 → {uid, empId, full_name} 映射。
+
+    支持三种 key 查询：
+    - 姓名（name，如 "王宇"）
+    - 短姓名（去掉括号注释，如 "鲍立磊(Andrew Bao)" -> "鲍立磊"）
+    - mis 账号（uid，如 "wangyu193"）：需求列表的研发同学通常是 @mis 格式，
+      必须支持用 mis 反查，否则会降级为纯文本而非蓝色 @。
+    """
     empid_map = {}
     for match in re.finditer(r'<km-mention name="([^"]+)" uid="([^"]+)" empId="([^"]+)"', xml_text):
         name, uid, emp_id = match.group(1), match.group(2), match.group(3)
@@ -167,20 +200,40 @@ def extract_empid_map(xml_text: str) -> dict[str, dict]:
             empid_map[short_name] = {'uid': uid, 'empId': emp_id, 'full_name': name}
         if name not in empid_map:
             empid_map[name] = {'uid': uid, 'empId': emp_id, 'full_name': name}
+        # 以 mis 账号 uid 作为 key，便于从需求列表的 @mis 直接命中
+        if uid and uid not in empid_map:
+            empid_map[uid] = {'uid': uid, 'empId': emp_id, 'full_name': name}
     return empid_map
 
 
 def find_table_bounds(xml_lines: list[str]) -> tuple[Optional[int], Optional[int]]:
-    """找到主统计表的起止行"""
-    table_start = None
-    table_end = None
+    """定位 AI-Coding 的主统计表。
+
+    旧版模板使用固定 nodeId，但复制文档或调整表格后 nodeId 会变化。优先保留
+    固定 nodeId 的快速路径；找不到时，按表头中的统计字段识别主表，避免模板调整
+    后同步脚本直接失效。
+    """
+    legacy_node_id = 'nodeId="1e95d1029cfa4938940398159f4d2bac"'
     for i, line in enumerate(xml_lines):
-        if 'nodeId="1e95d1029cfa4938940398159f4d2bac"' in line:
+        if legacy_node_id in line:
+            for j in range(i + 1, len(xml_lines)):
+                if '</table>' in xml_lines[j]:
+                    return i, j
+
+    table_start = None
+    for i, line in enumerate(xml_lines):
+        if '<table' in line:
             table_start = i
-        if table_start is not None and i > table_start and '</table>' in line:
-            table_end = i
-            break
-    return table_start, table_end
+        if table_start is None or '</table>' not in line:
+            continue
+
+        table_text = '\n'.join(xml_lines[table_start:i + 1])
+        # 主统计表应同时包含需求、AI 成熟度、one-shot 三个表头特征。
+        if all(marker in table_text for marker in ('需求', 'AI成熟度', 'one-shot')):
+            return table_start, i
+        table_start = None
+
+    return None, None
 
 
 def find_hotel_section(xml_lines: list[str], table_start: int, table_end: int):
@@ -310,138 +363,137 @@ def remove_rowspan_cell(row_lines: list[str]) -> list[str]:
     return output
 
 
-def make_standard_hotel_row(ones_url: str, title: str, 
-                             prd_url: Optional[str] = None, prd_title: Optional[str] = None,
-                             person_name: str = '', person_uid: str = '',
-                             person_empid: str = '') -> str:
-    """创建标准 16 列酒店数据行"""
+def _escape_xml_text(value: str, quote: bool = False) -> str:
+    """转义写入 XML 文本或属性的值，避免标题中的 & 等字符破坏 XML。"""
+    escaped = (value or '').replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+    if quote:
+        escaped = escaped.replace('"', '&quot;').replace("'", '&apos;')
+    return escaped
+
+
+def _replace_td_content(row_text: str, cell_index: int, content: str) -> str:
+    """保留第 cell_index 个 td 的属性，仅替换其中内容。"""
+    cells = list(re.finditer(r'<td\b[^>]*>.*?</td>', row_text, re.S))
+    if cell_index >= len(cells):
+        raise ValueError(f'酒店续行模板缺少第 {cell_index + 1} 个 td，实际只有 {len(cells)} 个')
+
+    target = cells[cell_index]
+    opening = re.match(r'<td\b[^>]*>', target.group(0))
+    if not opening:
+        raise ValueError(f'无法解析第 {cell_index + 1} 个 td')
+    replacement = f'{opening.group(0)}\n{content}\n</td>'
+    return row_text[:target.start()] + replacement + row_text[target.end():]
+
+
+def make_hotel_row_from_template(template_row_text: str, ones_url: str, title: str,
+                                  prd_url: Optional[str] = None, prd_title: Optional[str] = None,
+                                  person_name: str = '', person_uid: str = '',
+                                  person_empid: str = '') -> str:
+    """从现有酒店续行模板克隆一条新增行。
+
+    统计表可新增、删除或重排序列，不能再写死 td 数量。模板已移除方向 rowspan
+    单元格，因此其显式 td 数和当前酒店续行一致。仅填充“需求”和“研发同学”，
+    并清空其他字段，防止继承模板行的开发状态、提效或成熟度数据。
+    """
     link_url = prd_url if prd_url else ones_url
     link_text = prd_title if prd_title else title
-    
-    mention = ''
+    link_html = (
+        f'<p><a href="{_escape_xml_text(link_url, quote=True)}" '
+        f'title="{_escape_xml_text(link_text, quote=True)}">'
+        f'{_escape_xml_text(link_text)}</a></p>'
+    )
+
+    mention_html = '<p />'
     if person_name:
         if person_uid and person_empid:
-            mention = f'<p><km-mention name="{person_name}" uid="{person_uid}" empId="{person_empid}" /></p>'
+            mention_html = (
+                f'<p><km-mention name="{_escape_xml_text(person_name, quote=True)}" '
+                f'uid="{_escape_xml_text(person_uid, quote=True)}" '
+                f'empId="{_escape_xml_text(person_empid, quote=True)}" /></p>'
+            )
         else:
-            mention = f'<p>@{person_name}</p>'
-    
-    return f'''<tr>
-<td colwidth="[50]" numCell="true">
-<p />
-</td>
-<td colwidth="[401]">
-<p><a href="{link_url}" title="{link_text}">{link_text}</a></p>
-</td>
-<td colwidth="[123]">
-{mention}
-</td>
-<td colwidth="[94]">
-<p />
-</td>
-<td colwidth="[114]">
-<p align="center" />
-</td>
-<td colwidth="[395]">
-<p />
-</td>
-<td colwidth="[243]">
-<p />
-</td>
-<td colwidth="[343]">
-<p />
-</td>
-<td colwidth="[189]">
-<p />
-</td>
-<td colwidth="[112]">
-<p />
-</td>
-<td colwidth="[150]">
-<p />
-</td>
-<td colwidth="[119]">
-<p />
-</td>
-<td colwidth="[152]">
-<p />
-</td>
-<td colwidth="[152]">
-<p />
-</td>
-<td colwidth="[258]">
-<p />
-</td>
-<td colwidth="[XXX]">
-<p />
-</td>
-</tr>'''
+            mention_html = f'<p>@{_escape_xml_text(person_name)}</p>'
+
+    # 复制 nodeId 会产生重复节点标识；上传后学城会为新节点生成标识。
+    cloned = re.sub(r'\snodeId="[^"]*"', '', template_row_text)
+
+    # 倒序清空普通数据列，避免前面单元格长度变化影响后续索引。
+    cells = list(re.finditer(r'<td\b[^>]*>.*?</td>', cloned, re.S))
+    for cell_index in range(len(cells) - 1, 2, -1):
+        cloned = _replace_td_content(cloned, cell_index, '<p />')
+
+    cloned = _replace_td_content(cloned, 1, link_html)
+    cloned = _replace_td_content(cloned, 2, mention_html)
+    return cloned
 
 
-def make_first_hotel_row(rowspan: int, ones_url: str, title: str,
-                          prd_url: Optional[str] = None, prd_title: Optional[str] = None,
-                          mentions_xml: str = '') -> str:
-    """创建酒店首行（17 逻辑列含 rowspan 方向列）"""
-    link_url = prd_url if prd_url else ones_url
-    link_text = prd_title if prd_title else title
-    
-    return f'''<tr>
-<td colwidth="[50]" numCell="true">
-<p />
-</td>
-<td rowspan="{rowspan}" colwidth="[184]" verticalAlign="middle">
-<p>酒店<km-mention name="鲍立磊(Andrew Bao)" uid="baolilei" empId="22624690" /></p>
-</td>
-<td colwidth="[401]">
-<p><a href="{link_url}" title="{link_text}">{link_text}</a></p>
-</td>
-<td colwidth="[123]">
-{mentions_xml}
-</td>
-<td colwidth="[94]">
-<p />
-</td>
-<td colwidth="[114]">
-<p align="center" />
-</td>
-<td colwidth="[395]">
-<p />
-</td>
-<td colwidth="[243]">
-<p />
-</td>
-<td colwidth="[343]">
-<p />
-</td>
-<td colwidth="[189]">
-<p />
-</td>
-<td colwidth="[112]">
-<p />
-</td>
-<td colwidth="[150]">
-<p />
-</td>
-<td colwidth="[119]">
-<p />
-</td>
-<td colwidth="[152]">
-<p />
-</td>
-<td colwidth="[152]">
-<p />
-</td>
-<td colwidth="[258]">
-<p />
-</td>
-<td colwidth="[XXX]">
-<p />
-</td>
-</tr>'''
+def extract_direction_cell(row_text: str) -> str:
+    """提取酒店方向 rowspan 单元格，供输出首行复用当前模板样式。"""
+    for match in re.finditer(r'<td\b[^>]*rowspan="\d+"[^>]*>.*?</td>', row_text, re.S):
+        cell = match.group(0)
+        if '酒店' in cell or '鲍立磊' in cell:
+            return cell
+    raise ValueError('未在酒店首行找到方向 rowspan 单元格')
+
+
+def add_direction_cell(row_text: str, direction_cell: str, rowspan: int) -> str:
+    """在续行编号列之后插入方向 rowspan 单元格，生成酒店区首行。"""
+    direction_cell = re.sub(r'\snodeId="[^"]*"', '', direction_cell)
+    direction_cell = re.sub(r'rowspan="\d+"', f'rowspan="{rowspan}"', direction_cell, count=1)
+    number_cell = re.search(r'<td\b[^>]*numCell="true"[^>]*>.*?</td>', row_text, re.S)
+    if not number_cell:
+        raise ValueError('酒店续行模板缺少编号 numCell 单元格')
+    return row_text[:number_cell.end()] + '\n' + direction_cell + row_text[number_cell.end():]
+
+
+def validate_table_logical_columns(xml_lines: list[str], table_start: int, table_end: int) -> None:
+    """校验统计表每行展开 rowspan/colspan 后的逻辑列数一致。"""
+    row_blocks = []
+    row_start = None
+    for index in range(table_start, table_end + 1):
+        line = xml_lines[index]
+        if row_start is None and line.strip().startswith('<tr'):
+            row_start = index
+        if row_start is not None and line.strip() == '</tr>':
+            row_blocks.append('\n'.join(xml_lines[row_start:index + 1]))
+            row_start = None
+
+    if not row_blocks:
+        raise ValueError('主统计表没有可校验的表格行')
+
+    expected_width = None
+    active_rowspans: list[int] = []
+    for row_index, row_text in enumerate(row_blocks):
+        cell_attrs = re.findall(r'<t[dh]\b([^>]*)>', row_text)
+        explicit_width = 0
+        new_rowspans = []
+        for attrs in cell_attrs:
+            colspan_match = re.search(r'colspan="(\d+)"', attrs)
+            explicit_width += int(colspan_match.group(1)) if colspan_match else 1
+            rowspan_match = re.search(r'rowspan="(\d+)"', attrs)
+            if rowspan_match and int(rowspan_match.group(1)) > 1:
+                new_rowspans.append(int(rowspan_match.group(1)) - 1)
+
+        logical_width = explicit_width + len(active_rowspans)
+        if expected_width is None:
+            expected_width = logical_width
+        elif logical_width != expected_width:
+            raise ValueError(
+                f'主统计表第 {row_index + 1} 行逻辑列数为 {logical_width}，'
+                f'与表头列数 {expected_width} 不一致'
+            )
+
+        active_rowspans = [span - 1 for span in active_rowspans if span - 1 > 0]
+        active_rowspans.extend(new_rowspans)
 
 
 def normalize_title(title: str) -> str:
-    """标准化标题用于模糊比较"""
-    t = title.lower()
+    """标准化标题用于模糊比较。
+
+    XML 属性中的 & 会以 &amp; 保存；先反转义，避免同一标题仅因实体编码差异
+    被错误判定为“删除旧行 + 新增新行”。
+    """
+    t = html.unescape(title or '').lower()
     t = re.sub(r'^【[^】]*】', '', t)
     t = re.sub(r'^(prd|已上线|待评审|需求)', '', t)
     t = re.sub(r'[\s\-_—–·。,，、！!？?（）()【】\[\]{}「」\'\'\"\″«»<>《》~@#$%^&*+=|/\\。，；：]', '', t)
@@ -490,15 +542,17 @@ def match_score(req_item: dict, xml_km_id: Optional[str], xml_ones_id: Optional[
     return max(min(score, 1.0), 0.0)
 
 
-def get_person_info(name: str, empid_map: dict) -> tuple[str, str]:
-    """获取人员的 uid 和 empId"""
+def get_person_info(name: str, empid_map: dict) -> tuple[str, str, str]:
+    """获取人员的 uid、empId、full_name。返回 (uid, empId, full_name)，找不到返回 ('', '', '')"""
     clean_name = name.strip('@').strip()
     if clean_name in empid_map:
-        return empid_map[clean_name]['uid'], empid_map[clean_name]['empId']
+        info = empid_map[clean_name]
+        return info['uid'], info['empId'], info.get('full_name', '')
     short = re.sub(r'[（(].*?[）)]', '', clean_name).strip()
     if short in empid_map:
-        return empid_map[short]['uid'], empid_map[short]['empId']
-    return '', ''
+        info = empid_map[short]
+        return info['uid'], info['empId'], info.get('full_name', '')
+    return '', '', ''
 
 
 def main():
@@ -660,15 +714,34 @@ def main():
         row_lines = remove_rowspan_cell(row_lines)
         kept_rows_by_idx[ci] = '\n'.join(row_lines)
     
+    # 以当前酒店首行去除方向 rowspan 后的结构作为新增续行模板。
+    # 这样列数、列宽和业务字段均随文档模板自动适配。
+    first_hotel_source_lines = xml_lines[
+        current_hotel_rows[0]['tr_start']:current_hotel_rows[0]['tr_end'] + 1
+    ]
+    first_hotel_source_text = '\n'.join(first_hotel_source_lines)
+    direction_cell = extract_direction_cell(first_hotel_source_text)
+    continuation_template = '\n'.join(remove_rowspan_cell(first_hotel_source_lines))
+
     # 准备新增行
     new_rows_text = []
     added_details = []
     for ri in reqs_to_add:
         req = req_items[ri]
-        person_name = req['assignees'][0] if req['assignees'] else ''
-        person_uid, person_empid = get_person_info(person_name, empid_map)
-        
-        row_text = make_standard_hotel_row(
+        person_mis = req['assignees'][0] if req['assignees'] else ''
+        # 从 empid_map 反查 uid/empId/full_name（支持 mis、姓名两种 key）
+        map_uid, map_empid, map_fullname = get_person_info(person_mis, empid_map)
+        meta = req.get('assignee_meta', {}).get(person_mis, {})
+        # empId 优先用排期文档携带的，其次 empid_map 反查
+        person_empid = meta.get('empId') or map_empid
+        # uid 就是 mis 账号；若 empid_map 有则保持一致
+        person_uid = map_uid or person_mis
+        # name 优先级：排期文档携带的姓名 -> empid_map 的姓名 -> mis 兜底
+        # （有 empId 时即使 name 是 mis，学城也能按 empId 正确解析出姓名）
+        person_name = meta.get('name') or map_fullname or person_mis
+
+        row_text = make_hotel_row_from_template(
+            template_row_text=continuation_template,
             ones_url=req['ones_url'],
             title=req['ones_title'],
             prd_url=req.get('prd_url'),
@@ -680,7 +753,7 @@ def main():
         new_rows_text.append(row_text)
         added_details.append({
             'title': req.get('prd_title') or req['ones_title'],
-            'assignee': person_name,
+            'assignee': person_mis,
             'has_prd': bool(req.get('prd_km_id')),
         })
     
@@ -691,51 +764,20 @@ def main():
     first_hotel_tr_line = data_tr_starts[first_hotel_data_idx]
     output_lines.extend(xml_lines[table_start:first_hotel_tr_line])
     
-    # 找到第一个保留行（最小行索引），用于构建 rowspan 首行
+    # 第一条输出行必须有方向 rowspan。优先复用最早的保留行；若没有保留行，
+    # 使用第一条新增行。方向单元格来自当前模板，避免写死负责人、列宽或样式。
+    output_hotel_rows = []
     if kept_rows_by_idx:
-        first_kept_ci = min(kept_rows_by_idx.keys())
-        first_kept_row_text = kept_rows_by_idx[first_kept_ci]
-        
-        # 为首行添加 rowspan 方向单元格
-        # 在第一个 td (numCell) 之后插入 rowspan 单元格
-        first_row_lines = first_kept_row_text.split('\n')
-        # 找到 numCell td 的结束位置
-        num_cell_end = -1
-        for i, l in enumerate(first_row_lines):
-            if 'numCell="true"' in l:
-                # 找到这个 td 的下面几行
-                for j in range(i+1, min(i+5, len(first_row_lines))):
-                    if '</td' in first_row_lines[j]:
-                        num_cell_end = j
-                        break
-                break
-        
-        if num_cell_end >= 0:
-            rowspan_cell = [
-                f'<td rowspan="{new_hotel_row_count}" colwidth="[184]" verticalAlign="middle">',
-                '<p>酒店<km-mention name="鲍立磊(Andrew Bao)" uid="baolilei" empId="22624690" /></p>',
-                '</td>',
-            ]
-            first_row_lines = first_row_lines[:num_cell_end+1] + rowspan_cell + first_row_lines[num_cell_end+1:]
-        
-        # 按原始行索引顺序输出保留行
-        for ci in sorted(kept_rows_by_idx.keys()):
-            output_lines.extend(first_row_lines if ci == first_kept_ci else kept_rows_by_idx[ci].split('\n'))
+        ordered_kept = [kept_rows_by_idx[ci] for ci in sorted(kept_rows_by_idx)]
+        output_hotel_rows.append(add_direction_cell(ordered_kept[0], direction_cell, new_hotel_row_count))
+        output_hotel_rows.extend(ordered_kept[1:])
+        output_hotel_rows.extend(new_rows_text)
     elif new_rows_text:
-        first_new = new_rows_text[0]
-        first_new = re.sub(
-            r'(<td colwidth="\[50\]" numCell="true">\s*<p />\s*</td>)',
-            r'\1\n<td rowspan="' + str(new_hotel_row_count) + r'" colwidth="[184]" verticalAlign="middle">\n<p>酒店<km-mention name="鲍立磊(Andrew Bao)" uid="baolilei" empId="22624690" /></p>\n</td>',
-            first_new,
-            count=1
-        )
-        output_lines.extend(first_new.split('\n'))
-        for new_text in new_rows_text[1:]:
-            output_lines.extend(new_text.split('\n'))
-    
-    # 新增行（追加在保留行之后）
-    for new_text in new_rows_text:
-        output_lines.extend(new_text.split('\n'))
+        output_hotel_rows.append(add_direction_cell(new_rows_text[0], direction_cell, new_hotel_row_count))
+        output_hotel_rows.extend(new_rows_text[1:])
+
+    for row_text in output_hotel_rows:
+        output_lines.extend(row_text.split('\n'))
     
     # 末尾内容
     last_hotel_line = data_tr_ends[first_hotel_data_idx + rowspan - 1]
@@ -761,6 +803,20 @@ def main():
     result = '\n'.join(fixed_lines)
     if footnote_fixed_count > 0:
         print(f"[INFO] 已修复 {footnote_fixed_count} 处脚注 <del> 标签")
+
+    # 上传前硬性校验表格网格。校验不通过时不写出 output，避免下游把必然失败的
+    # XML 上传到学城。
+    result_lines = result.split('\n')
+    result_table_start, result_table_end = find_table_bounds(result_lines)
+    if result_table_start is None or result_table_end is None:
+        print('[ERROR] 输出 XML 中未找到主统计表，取消写入', file=sys.stderr)
+        sys.exit(1)
+    try:
+        validate_table_logical_columns(result_lines, result_table_start, result_table_end)
+    except ValueError as error:
+        print(f'[ERROR] 表格结构预检失败，取消写入: {error}', file=sys.stderr)
+        sys.exit(1)
+    print('[INFO] 表格结构预检通过：所有行逻辑列数一致')
     
     with open(args.output, 'w', encoding='utf-8') as f:
         f.write(result)

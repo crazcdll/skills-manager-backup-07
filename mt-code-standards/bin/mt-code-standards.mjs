@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import {
   RuleBundleError,
   prepareSyncRequest,
+  readLocalGitMis,
   syncEffectiveRuleBundle,
 } from "../scripts/resolve-effective-rules.mjs";
 import {
@@ -33,20 +34,20 @@ pull 选项：
   --output-dir <目录>        输出基目录；规则写入 <目录>/.mdp/rules（默认当前目录）
   --repo-root <目录>         兼容参数：Git 探测目录；未提供 --output-dir 时也作为输出基目录
   --mis <MIS>               direct 模式登录提示；也可使用 SSO_USER_ID
-  --transport <方式>        远端调用方式：direct（默认）或 mtcli
+  --transport <方式>        远端调用方式：public（默认）、direct 或 mtcli
   --mtcli-service <名称>    mtcli 服务名（默认 ${DEFAULT_MTCLI_SERVICE}）
   --gateway-url <URL>       受信任的规则分发网关（高级选项）
   --pull-id <UUID>          本次拉取幂等 ID（高级选项）
   --auth-agent <标识>       direct 模式的认证宿主提示
   --skill-version <版本>    覆盖审计中的 Skill 版本（高级选项）
-  --bootstrap               未登记仓库显式拉取公开 L1（需精确仓库地址）
+  --bootstrap               未登记仓库显式拉取公开 L1（仅 direct/mtcli，需精确仓库地址）
   --domain <领域>            bootstrap 领域：frontend 或 backend
   --stage <阶段>             规则阶段：design、coding 或 cr
   --non-interactive         禁止 MIS 交互提示
   --json                     输出机器可读 JSON
   --help                     显示帮助
 
-direct 使用用户 CIBA 票据；mtcli 使用官方 SSO 登录。服务端记录可信用户 MIS、仓库、规则和“独立 CLI”执行环境。
+public 仅访问显式开放的仓库规则，不发送用户身份；direct 使用用户 CIBA 票据；mtcli 使用官方 SSO 登录。
 `;
 
 const argumentError = (message) => new RuleBundleError("RULE_BUNDLE_ARGUMENT_INVALID", message);
@@ -59,7 +60,8 @@ export const parseCliArgs = (argv) => {
     json: false,
     bootstrap: false,
     nonInteractive: false,
-    transport: "direct",
+    transport: "public",
+    transportExplicit: false,
     mtcliService: DEFAULT_MTCLI_SERVICE,
   };
   const valued = new Set([
@@ -84,8 +86,9 @@ export const parseCliArgs = (argv) => {
     else if (key === "--domain") options.domain = value;
     else if (key === "--stage") options.stage = value;
     else if (key === "--transport") {
-      if (!["direct", "mtcli"].includes(value)) throw argumentError("--transport 仅支持 direct 或 mtcli");
+      if (!["direct", "mtcli", "public"].includes(value)) throw argumentError("--transport 仅支持 direct、mtcli 或 public");
       options.transport = value;
+      options.transportExplicit = true;
     }
     else if (key === "--mtcli-service") {
       options.mtcliService = validateMtcliService(value);
@@ -104,10 +107,13 @@ export const parseCliArgs = (argv) => {
     }
     index += 1;
   }
-  if (options.transport === "mtcli" && (options.mis || options.authAgent)) {
-    throw argumentError("mtcli 模式由 mtcli 管理当前用户身份，不能使用 --mis 或 --auth-agent");
+  if (options.transport !== "direct" && (options.mis || options.authAgent)) {
+    throw argumentError("mtcli/public 模式不接受 --mis 或 --auth-agent");
   }
-  if (options.transport === "direct" && mtcliServiceProvided) {
+  if (options.transport === "public" && options.bootstrap) {
+    throw argumentError("public 模式不接受 --bootstrap");
+  }
+  if (options.transport !== "mtcli" && mtcliServiceProvided) {
     throw argumentError("--mtcli-service 仅能与 --transport mtcli 一起使用");
   }
   return { action: "pull", options };
@@ -148,6 +154,7 @@ export const runCli = async ({
   sync = syncWithOfficialSso,
   syncBundle = syncEffectiveRuleBundle,
   createTransport = createMtcliTransport,
+  fetchImpl = globalThis.fetch,
   cwd = process.cwd(),
 } = {}) => {
   let parsed;
@@ -158,7 +165,7 @@ export const runCli = async ({
     const options = parsed.options;
     const skillVersion = options.skillVersion || packageInfo.version;
     const pullId = options.pullId || randomUUID();
-    await prepare({
+    const prepared = await prepare({
       gatewayUrl: options.gatewayUrl,
       repositoryLocator: options.repositoryLocator,
       repoRoot: options.repoRoot,
@@ -169,6 +176,35 @@ export const runCli = async ({
       bootstrap: options.bootstrap,
       execution: { pullId, agent: "cli", source: "runner_explicit_v1", skillVersion },
     });
+    if (options.transport === "public") {
+      const receipt = await syncBundle({
+        gatewayUrl: options.gatewayUrl,
+        repositoryLocator: options.repositoryLocator,
+        repoRoot: options.repoRoot,
+        outputDir: options.outputDir,
+        cwd,
+        domain: options.domain,
+        bootstrap: false,
+        stage: options.stage,
+        publicPull: true,
+        fetchImpl,
+        execution: {
+          pullId,
+          agent: "cli",
+          source: "runner_explicit_v1",
+          skillVersion,
+        },
+      });
+      const result = { ok: true, receipt: {
+        ...receipt,
+        authentication_mode: "public_repository",
+        authentication_route_reason: options.transportExplicit
+          ? "explicit_public_transport"
+          : "default_public_transport",
+      } };
+      process.stdout.write(`${JSON.stringify(options.json ? result : result.receipt, null, options.json ? 0 : 2)}\n`);
+      return 0;
+    }
     if (options.transport === "mtcli") {
       const receipt = await syncBundle({
         gatewayUrl: options.gatewayUrl,
@@ -200,7 +236,9 @@ export const runCli = async ({
       return 0;
     }
     const injectedToken = String(environment.RULE_OBSERVABILITY_USER_TOKEN || "").trim();
-    const configuredMis = String(options.mis || environment.SSO_USER_ID || "").trim();
+    const configuredMis = String(
+      options.mis || environment.SSO_USER_ID || readLocalGitMis(prepared?.sourceRoot || options.repoRoot || cwd) || "",
+    ).trim();
     const mis = configuredMis || (injectedToken
       ? ""
       : await promptForMis(environment, options.nonInteractive));

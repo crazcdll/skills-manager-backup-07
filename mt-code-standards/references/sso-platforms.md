@@ -1,15 +1,15 @@
-# Setup Skill 的跨平台 SSO 接入
+# 显式 direct 模式的跨平台 SSO 接入
 
 依据官方[业务 Skill 接入 SSO 身份体系 — 开发者指南](https://km.sankuai.com/collabpage/2751640363)
 的「方式一：Prompt 标准注入」，2026-09-07 核对。仅使用当前用户票据，目标 audience 为 `923a237244`。
 
 ## 用户使用方式
 
-在目标业务仓库中安装或启用 `mt-code-standards` 和 `mtsso-skills-official`，然后告诉 Agent：
+默认 public 拉取不使用本参考，也不需要安装或加载 SSO Skill。只有用户显式要求 `--transport direct` 时，才在目标业务仓库中启用 `mtsso-skills-official`：
 
-> 使用 mt-code-standards，为当前仓库下载并同步有效编码规范。
+> 使用 mt-code-standards 的 direct 模式，为当前仓库下载并同步有效编码规范。
 
-执行 Agent 按依赖声明读取官方 SSO Skill；统一 SSO Runner 始终优先使用已注入用户票据。票据缺失时，
+执行 Agent 在 direct 条件分支读取官方 SSO Skill；统一 SSO Runner 始终优先使用已注入用户票据。票据缺失时，
 已知外部编码 Agent 直接使用办公官方 Skills 的便携 CIBA provider，公司内部宿主和未知宿主调用官方
 `mtsso-moa-local-exchange`。同一个 Runner 调用规则包接口，校验并安装 `.mdp/rules/`。用户不需要配置 Token。
 便携路径仍是公司用户认证，需要当前用户 MIS 和目标权限，不支持公司外人员或共享身份。
@@ -82,10 +82,6 @@ Skill 对上述独立外部编码 Agent 采用直接便携 CIBA，是为了避�
 ## 认证失败时
 
 - 缺少官方 Skill 或 CLI：先在当前执行环境安装/更新官方依赖，不改业务仓库来补认证配置。
-- 官方换票命令 `mtsso-moa-local-exchange` 报 `npm 404`（向 `registry.npmjs.com` 查找同名包失败）：该命令
-  是 `@mtfe/mtsso-auth-official` 的内置 bin，本机未安装时 npx 会错误地请求公网 registry。从内网
-  registry 安装 `npm install -g @mtfe/mtsso-auth-official --registry=http://r.npm.sankuai.com` 后重试；
-  这是补齐官方依赖，不切换认证路径，也不触发便携回退。
 - 未识别宿主走官方路径后缺少 Agent `client_id`、probe 明确无能力或本地换票能力不可用：有当前公司用户 MIS 时允许便携 CIBA；
   缺少 MIS 则停止并提示 `--mis` / `SSO_USER_ID`。`923a237244` 只填写在 audience 中；不要让普通用户
   提供调用方 `client_secret`。

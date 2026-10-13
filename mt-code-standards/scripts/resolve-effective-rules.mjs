@@ -272,6 +272,28 @@ export const repositoryRootFromGit = (sourceDirectory = process.cwd()) => {
   }
 };
 
+const MIS_PATTERN = /^[a-z][a-z0-9._-]{0,63}$/iu;
+
+/**
+ * Read only the repository-local Git MIS hint. This is never an identity or
+ * authorization fact; the server still derives the actor from the SSO ticket.
+ */
+export const readLocalGitMis = (repoRoot = "") => {
+  const sourceDirectory = text(repoRoot) || process.cwd();
+  const gitRoot = repositoryRootFromGit(sourceDirectory);
+  if (!gitRoot) return "";
+  try {
+    const value = execFileSync("git", ["config", "--local", "--get", "user.mis"], {
+      cwd: gitRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim().toLowerCase();
+    return MIS_PATTERN.test(value) ? value : "";
+  } catch {
+    return "";
+  }
+};
+
 const friendlyServiceError = (code, message) => {
   const normalized = text(code).toLowerCase();
   if (normalized.includes("ambiguous") || normalized === "42702") {
@@ -420,6 +442,7 @@ const serviceRequest = async ({
   fetchImpl,
   requestTransport,
   serviceLabel,
+  publicRequest = false,
 }) => {
   const trustedGateway = validateGatewayUrl(gatewayUrl);
   const request = Object.freeze({
@@ -429,7 +452,7 @@ const serviceRequest = async ({
     method: "POST",
     headers: Object.freeze({
       "Content-Type": "application/json",
-      "X-Rule-Auth-Source": "nocode-agent-sso",
+      ...(publicRequest ? {} : { "X-Rule-Auth-Source": "nocode-agent-sso" }),
       "X-Rule-Protocol-Version": "1.0",
     }),
     body,
@@ -463,7 +486,7 @@ const serviceRequest = async ({
     response = await fetchImpl(request.url, {
       method: request.method,
       redirect: "error",
-      headers: {
+      headers: publicRequest ? request.headers : {
         ...request.headers,
         "Authorization": `Bearer ${token}`,
       },
@@ -487,11 +510,14 @@ const serviceRequest = async ({
 
 const requestBundle = async ({
   gatewayUrl, token, repositoryLocator, knownSnapshotId, stage, execution, fetchImpl, requestTransport,
+  publicRequest = false,
 }) => {
   const result = await serviceRequest({
     gatewayUrl,
     token,
-    resourcePath: "/v1/effective-rule-bundles/resolve",
+    resourcePath: publicRequest
+      ? "/v1/public/effective-rule-bundles/resolve"
+      : "/v1/effective-rule-bundles/resolve",
     body: {
       repository_locator: repositoryLocator,
       ...(stage ? { stage } : {}),
@@ -507,6 +533,7 @@ const requestBundle = async ({
     fetchImpl,
     requestTransport,
     serviceLabel: "规则包服务",
+    publicRequest,
   });
   if (!result.ok) {
     const code = result.body?.error?.code || `RULE_BUNDLE_HTTP_${result.status}`;
@@ -1491,20 +1518,31 @@ export const syncEffectiveRuleBundle = async ({
   execution,
   fetchImpl = globalThis.fetch,
   requestTransport,
+  publicPull = false,
 } = {}) => {
+  if (publicPull && bootstrap) {
+    fail("RULE_BUNDLE_PUBLIC_BOOTSTRAP_UNSUPPORTED", "public 模式不支持未登记仓库 bootstrap");
+  }
   const prepared = await prepareSyncRequest({
     gatewayUrl, repositoryLocator, repoRoot, outputDir, cwd, domain, bootstrap, stage, execution,
   });
-  if (!token && !requestTransport) {
+  if (!publicPull && !token && !requestTransport) {
     fail(
       "RULE_BUNDLE_AUTH_REQUIRED",
       "缺少 MTSSO 官方短期用户票据；禁止使用 Cookie、Git 作者、系统账号或把令牌写入文件",
     );
   }
+  const publicCanonicalKey = publicPull ? canonicalRepositoryKey(prepared.repositoryLocator) : "";
+  if (publicPull && !publicCanonicalKey) {
+    fail(
+      "RULE_BUNDLE_PUBLIC_CANONICAL_REQUIRED",
+      "public 模式必须提供精确 namespace/repository 或可归一化为该形式的线上 MCode Git 地址，不能使用裸仓库名",
+    );
+  }
   const absoluteRoot = prepared.targetRoot;
   const deliveryStage = prepared.stage;
   const normalizedExecution = prepared.execution;
-  const locator = prepared.repositoryLocator;
+  const locator = publicPull ? publicCanonicalKey : prepared.repositoryLocator;
   const previousManifest = await readLocalManifest(absoluteRoot);
   const bootstrapState = await readBootstrapManifest(absoluteRoot);
   let bootstrapManifest = null;
@@ -1563,6 +1601,7 @@ export const syncEffectiveRuleBundle = async ({
       execution: normalizedExecution,
       fetchImpl,
       requestTransport,
+      publicRequest: publicPull,
     });
   } catch (error) {
     if (!(error instanceof RuleBundleError) || error.code !== "repository_not_registered" || !prepared.bootstrap) throw error;

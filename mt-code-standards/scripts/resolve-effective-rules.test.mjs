@@ -13,6 +13,7 @@ import {
   RuleBundleError,
   canonicalRepositoryKey,
   detectRepositoryDomain,
+  readLocalGitMis,
   sha256Hex,
   syncEffectiveRuleBundle,
   normalizePullExecution,
@@ -152,6 +153,17 @@ const createTrackedRepository = async (files) => {
   return root;
 };
 
+test("reads only a valid MIS from the repository-local Git config", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "mt-rule-git-mis-"));
+  execFileSync("git", ["init", "-q"], { cwd: root, stdio: "ignore" });
+  assert.equal(readLocalGitMis(root), "");
+  execFileSync("git", ["config", "--local", "user.mis", "ZhangCe07"], { cwd: root });
+  assert.equal(readLocalGitMis(root), "zhangce07");
+  execFileSync("git", ["config", "--local", "user.mis", "not a mis"], { cwd: root });
+  assert.equal(readLocalGitMis(root), "");
+  assert.equal(readLocalGitMis(path.join(root, "missing")), "");
+});
+
 test("accepts every supported locator and preserves query/hash suffixes", () => {
   const locators = [
     "https://dev.sankuai.com/code/repo-detail/hfe/hotel-web/file/list?branch=master#readme",
@@ -170,6 +182,59 @@ test("accepts every supported locator and preserves query/hash suffixes", () => 
     "hotel-web?ref=master",
   ];
   for (const locator of locators) assert.equal(validateRepositoryLocator(locator), locator);
+});
+
+test("public pull uses the anonymous repository route without an Authorization header", async () => {
+  const root = await createRepository();
+  let request;
+  const receipt = await syncEffectiveRuleBundle({
+    publicPull: true,
+    repositoryLocator: "hfe/hotel-web",
+    repoRoot: root,
+    fetchImpl: async (url, init) => {
+      request = { url, init };
+      return response(bundleBody());
+    },
+  });
+  assert.match(request.url, /\/v1\/public\/effective-rule-bundles\/resolve$/u);
+  assert.equal(request.init.headers.Authorization, undefined);
+  assert.equal(receipt.status, "installed");
+  await assert.rejects(
+    syncEffectiveRuleBundle({
+      publicPull: true,
+      bootstrap: true,
+      repositoryLocator: "hfe/new-web",
+      repoRoot: root,
+      fetchImpl: async () => response(bundleBody()),
+    }),
+    (error) => error.code === "RULE_BUNDLE_PUBLIC_BOOTSTRAP_UNSUPPORTED",
+  );
+});
+
+test("public pull normalizes a Git origin and rejects non-canonical locators before network access", async () => {
+  const root = await createRepository();
+  let requestBody;
+  await syncEffectiveRuleBundle({
+    publicPull: true,
+    repositoryLocator: "git@git.sankuai.com:HFE/Hotel-Web.git#main",
+    repoRoot: root,
+    fetchImpl: async (_url, init) => {
+      requestBody = JSON.parse(init.body);
+      return response(bundleBody());
+    },
+  });
+  assert.equal(requestBody.repository_locator, "hfe/hotel-web");
+  let calls = 0;
+  await assert.rejects(
+    syncEffectiveRuleBundle({
+      publicPull: true,
+      repositoryLocator: "hotel-web",
+      repoRoot: root,
+      fetchImpl: async () => { calls += 1; return response(bundleBody()); },
+    }),
+    (error) => error.code === "RULE_BUNDLE_PUBLIC_CANONICAL_REQUIRED",
+  );
+  assert.equal(calls, 0);
 });
 
 test("derives an exact canonical key only from namespace-qualified locators", () => {
@@ -206,7 +271,7 @@ test("declares the NoCode production audience without retaining the obsolete aud
   const skillSource = await readFile(new URL("../SKILL.md", import.meta.url), "utf8");
   const runnerSource = await readFile(new URL("./resolve-effective-rules.mjs", import.meta.url), "utf8");
   const obsoleteAudience = ["f32a", "546874"].join("");
-  assert.match(skillSource, /audience:\s*\n\s*- 923a237244/);
+  assert.match(skillSource, /923a237244/);
   assert.equal(`${skillSource}\n${runnerSource}`.includes(obsoleteAudience), false);
 });
 

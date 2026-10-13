@@ -1,0 +1,246 @@
+{
+  "id": 3469,
+  "name": "mt-code-standards",
+  "version": "1",
+  "serviceGroup": "CLI",
+  "title": "业务研发平台编码规范",
+  "description": "解析仓库有效编码规范，保留真实用户身份和 CLI 拉取审计",
+  "serverAppKey": "",
+  "resources": {
+    "bundles": {
+      "description": "编码规范规则包",
+      "methods": {
+        "resolve": {
+          "id": "resolve",
+          "description": "解析已登记仓库当前有效规则包",
+          "httpMethod": "POST",
+          "path": "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-distribution/v1/effective-rule-bundles/resolve",
+          "relativePath": "/v1/effective-rule-bundles/resolve",
+          "parameters": {
+            "X-Rule-Auth-Source": {
+              "type": "string",
+              "description": "规则分发认证来源",
+              "location": "header",
+              "required": true,
+              "enum": [
+                "mtcli-sso"
+              ]
+            },
+            "X-Rule-Protocol-Version": {
+              "type": "string",
+              "description": "规则分发协议版本",
+              "location": "header",
+              "required": true
+            },
+            "body": {
+              "type": "object",
+              "description": "规则包解析请求",
+              "location": "body",
+              "required": true,
+              "schema": {
+                "$ref": "resolve_request"
+              }
+            }
+          },
+          "authType": "SSO",
+          "serverAppKey": "",
+          "clientId": "923a237244",
+          "clientIds": [
+            "923a237244"
+          ],
+          "timeout": 30000,
+          "contentType": "application/json",
+          "request": {
+            "$ref": "resolve_request"
+          },
+          "response": {
+            "$ref": "rule_bundle_response"
+          },
+          "serviceConfig": {
+            "prod": {
+              "address": "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-distribution",
+              "authType": "SSO",
+              "clientId": "923a237244",
+              "clientIds": [
+                "923a237244"
+              ]
+            },
+            "default": {
+              "address": "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-distribution",
+              "authType": "SSO",
+              "clientId": "923a237244",
+              "clientIds": [
+                "923a237244"
+              ]
+            }
+          },
+          "authorization_details": null
+        },
+        "bootstrap": {
+          "id": "bootstrap",
+          "description": "为服务端确认未登记的单领域仓库解析公开 L1 规则包",
+          "httpMethod": "POST",
+          "path": "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-distribution/v1/l1-rule-bundles/bootstrap",
+          "relativePath": "/v1/l1-rule-bundles/bootstrap",
+          "parameters": {
+            "X-Rule-Auth-Source": {
+              "type": "string",
+              "description": "规则分发认证来源",
+              "location": "header",
+              "required": true,
+              "enum": [
+                "mtcli-sso"
+              ]
+            },
+            "X-Rule-Protocol-Version": {
+              "type": "string",
+              "description": "规则分发协议版本",
+              "location": "header",
+              "required": true
+            },
+            "body": {
+              "type": "object",
+              "description": "公开 L1 引导请求",
+              "location": "body",
+              "required": true,
+              "schema": {
+                "$ref": "bootstrap_request"
+              }
+            }
+          },
+          "authType": "SSO",
+          "serverAppKey": "",
+          "clientId": "923a237244",
+          "clientIds": [
+            "923a237244"
+          ],
+          "timeout": 30000,
+          "contentType": "application/json",
+          "request": {
+            "$ref": "bootstrap_request"
+          },
+          "response": {
+            "$ref": "rule_bundle_response"
+          },
+          "serviceConfig": {
+            "prod": {
+              "address": "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-distribution",
+              "authType": "SSO",
+              "clientId": "923a237244",
+              "clientIds": [
+                "923a237244"
+              ]
+            },
+            "default": {
+              "address": "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-distribution",
+              "authType": "SSO",
+              "clientId": "923a237244",
+              "clientIds": [
+                "923a237244"
+              ]
+            }
+          },
+          "authorization_details": null
+        }
+      },
+      "definitions": {
+        "pull_execution": {
+          "type": "object",
+          "properties": {
+            "pull_id": {
+              "type": "string"
+            },
+            "execution_agent": {
+              "type": "string",
+              "enum": [
+                "cli"
+              ]
+            },
+            "execution_agent_source": {
+              "type": "string",
+              "enum": [
+                "runner_explicit_v1"
+              ]
+            },
+            "skill_name": {
+              "type": "string",
+              "enum": [
+                "mt-code-standards"
+              ]
+            },
+            "skill_version": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "pull_id",
+            "execution_agent",
+            "execution_agent_source",
+            "skill_name",
+            "skill_version"
+          ]
+        },
+        "resolve_request": {
+          "type": "object",
+          "properties": {
+            "repository_locator": {
+              "type": "string"
+            },
+            "stage": {
+              "type": "string",
+              "enum": [
+                "design",
+                "coding",
+                "cr"
+              ]
+            },
+            "known_snapshot_id": {
+              "type": "string"
+            },
+            "execution": {
+              "$ref": "pull_execution"
+            }
+          },
+          "required": [
+            "repository_locator",
+            "execution"
+          ]
+        },
+        "bootstrap_request": {
+          "type": "object",
+          "properties": {
+            "repository_locator": {
+              "type": "string"
+            },
+            "standard_domain": {
+              "type": "string",
+              "enum": [
+                "frontend",
+                "backend"
+              ]
+            },
+            "stage": {
+              "type": "string",
+              "enum": [
+                "design",
+                "coding",
+                "cr"
+              ]
+            },
+            "known_snapshot_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "repository_locator",
+            "standard_domain"
+          ]
+        },
+        "rule_bundle_response": {
+          "type": "object",
+          "description": "Edge 原始规则包或结构化错误响应"
+        }
+      }
+    }
+  }
+}

@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { parseCliArgs } from "./mt-code-standards.mjs";
+import { parseCliArgs, runCli } from "./mt-code-standards.mjs";
 import { canonicalJson, sha256Hex } from "../scripts/resolve-effective-rules.mjs";
 
 const cli = fileURLToPath(new URL("./mt-code-standards.mjs", import.meta.url));
@@ -15,7 +15,7 @@ const packageInfo = JSON.parse(await readFile(new URL("../package.json", import.
 test("parses pull options and fixes the independent execution agent to cli", () => {
   assert.deepEqual(parseCliArgs([
     "pull", "--repository", "hotel-web", "--output-dir", "/tmp/output",
-    "--mis", "tester", "--json", "--non-interactive", "--execution-agent", "cli",
+    "--transport", "direct", "--mis", "tester", "--json", "--non-interactive", "--execution-agent", "cli",
   ]), {
     action: "pull",
     options: {
@@ -23,6 +23,7 @@ test("parses pull options and fixes the independent execution agent to cli", () 
       bootstrap: false,
       nonInteractive: true,
       transport: "direct",
+      transportExplicit: true,
       mtcliService: "mt-code-standards",
       repositoryLocator: "hotel-web",
       outputDir: "/tmp/output",
@@ -45,7 +46,8 @@ test("parses the delivery stage for stage-aware backend pulls", () => {
       json: false,
       bootstrap: false,
       nonInteractive: false,
-      transport: "direct",
+      transport: "public",
+      transportExplicit: false,
       mtcliService: "mt-code-standards",
       repositoryLocator: "hbar/java-service",
       domain: "backend",
@@ -86,6 +88,24 @@ test("parses mtcli transport options and rejects unsafe service names", () => {
   );
 });
 
+test("parses public transport without accepting authentication options", () => {
+  const parsed = parseCliArgs([
+    "pull", "--repository", "hfe/hotel-web", "--transport", "public",
+  ]);
+  assert.equal(parsed.options.transport, "public");
+  assert.equal(parsed.options.transportExplicit, true);
+  for (const extra of [
+    ["--mis", "tester"],
+    ["--auth-agent", "cursor"],
+    ["--bootstrap"],
+  ]) {
+    assert.throws(
+      () => parseCliArgs(["pull", "--transport", "public", ...extra]),
+      (error) => error.code === "RULE_BUNDLE_ARGUMENT_INVALID",
+    );
+  }
+});
+
 test("preflight rejects a missing repository before asking for MIS", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "setup-cli-no-git-"));
   const result = spawnSync(process.execPath, [
@@ -100,7 +120,7 @@ test("preflight rejects a missing repository before asking for MIS", async () =>
 test("non-interactive pull requires MIS only after request preflight succeeds", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "setup-cli-mis-"));
   const result = spawnSync(process.execPath, [
-    cli, "pull", "--repository", "hotel-web", "--output-dir", directory,
+    cli, "pull", "--repository", "hotel-web", "--output-dir", directory, "--transport", "direct",
     "--json", "--non-interactive",
   ], { encoding: "utf8", cwd: directory, env: {} });
   assert.equal(result.status, 2);
@@ -108,6 +128,76 @@ test("non-interactive pull requires MIS only after request preflight succeeds", 
   assert.equal(body.error.code, "RULE_BUNDLE_PORTABLE_MIS_REQUIRED");
   assert.equal(JSON.stringify(body).includes("token"), false);
   assert.equal(result.stderr, "");
+});
+
+test("default CLI pull uses the public endpoint without inheriting credentials", { concurrency: false }, async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "setup-cli-default-public-"));
+  const content = "# Public L1\n";
+  const files = [{
+    relative_path: "l1/frontend-l1.md",
+    content,
+    sha256: sha256Hex(content),
+    byte_size: Buffer.byteLength(content),
+  }];
+  const manifestHash = sha256Hex(canonicalJson(files.map(({ relative_path, sha256, byte_size }) => ({
+    relative_path, sha256, byte_size,
+  }))));
+  const repository = {
+    repository_id: "repo:hotel-web",
+    canonical_key: "hfe/hotel-web",
+    standard_domain: "frontend",
+  };
+  const releaseRefs = [{ rule_set_id: "frontend-l1", release_id: "frontend-l1@test", scope_level: "L1" }];
+  const snapshotId = sha256Hex(canonicalJson({
+    resolver_version: "effective-rule-bundle/v2",
+    repository_id: repository.repository_id,
+    canonical_key: repository.canonical_key,
+    standard_domain: repository.standard_domain,
+    manifest_hash: manifestHash,
+    release_refs: releaseRefs,
+  }));
+  const output = [];
+  const originalWrite = process.stdout.write;
+  process.stdout.write = (chunk) => { output.push(String(chunk)); return true; };
+  try {
+    const status = await runCli({
+      argv: ["pull", "--repository", "git@git.sankuai.com:HFE/Hotel-Web.git", "--output-dir", directory, "--json"],
+      environment: {
+        RULE_OBSERVABILITY_USER_TOKEN: "must-not-be-used",
+        SSO_USER_ID: "must-not-be-used",
+      },
+      cwd: directory,
+      fetchImpl: async (url, init) => {
+        assert.match(url, /\/v1\/public\/effective-rule-bundles\/resolve$/u);
+        assert.equal(init.headers.Authorization, undefined);
+        assert.equal(JSON.parse(init.body).repository_locator, "hfe/hotel-web");
+        return {
+          ok: true,
+          status: 200,
+          text: async () => JSON.stringify({
+            schema_version: "effective-rule-bundle/v2",
+            status: "ready",
+            snapshot: {
+              resolver_version: "effective-rule-bundle/v2",
+              snapshot_id: snapshotId,
+              repository,
+              manifest_hash: manifestHash,
+              release_refs: releaseRefs,
+              total_bytes: Buffer.byteLength(content),
+            },
+            files,
+          }),
+        };
+      },
+    });
+    assert.equal(status, 0);
+  } finally {
+    process.stdout.write = originalWrite;
+  }
+  const result = JSON.parse(output.join(""));
+  assert.equal(result.receipt.authentication_mode, "public_repository");
+  assert.equal(result.receipt.authentication_route_reason, "default_public_transport");
+  assert.equal(await readFile(path.join(directory, ".mdp/rules/company/frontend-l1.md"), "utf8"), content);
 });
 
 test("mtcli transport performs verified dry-run and installs without MIS or inherited user token", async () => {

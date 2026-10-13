@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "ed5beaff-525c-4ba9-a479-3c7246fa887c",
+  "path": "trade-ai-coding-stats",
+  "path_key": "trade-ai-coding-stats",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

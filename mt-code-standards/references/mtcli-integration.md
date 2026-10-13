@@ -17,7 +17,7 @@
 
 两个方法的生产服务地址均为 `https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-distribution`，`authType=SSO`，目标 `clientId/clientIds` 为 `923a237244`。这是目标服务 audience，不是用户需要填写的调用方 secret。方法参数须保留 `body`（`type=object, location=body`），否则 mtcli 不会生成 `--json` 参数。
 
-通过 `--params` 传入固定协议头：`X-Rule-Auth-Source=mtcli-sso`、`X-Rule-Protocol-Version=1.0`。请求体使用 `--json`。不在定义中放置 Authorization、Cookie、静态 token 或手工 MIS。`contentType=application/json`；真实 mtcli dry-run 不一定回显 Content-Type，适配器允许缺省，若回显则必须匹配。`authType=SSO` 的真实 mtcli 1.1.x 请求会自动携带目标 audience 对应的短期 `923a237244_ssoid` Cookie，不能假设它会发送 `Authorization: Bearer`；该来源只用于 mtcli 的短期 SSO 票据，网关严格提取目标 Cookie 后交由生产 NoCode 用户接口校验并记录返回的真实 MIS；默认 direct/Skill 路径继续使用原有 `nocode-agent-sso`。
+通过 `--params` 传入固定协议头：`X-Rule-Auth-Source=mtcli-sso`、`X-Rule-Protocol-Version=1.0`。请求体使用 `--json`。不在定义中放置 Authorization、Cookie、静态 token 或手工 MIS。`contentType=application/json`；真实 mtcli dry-run 不一定回显 Content-Type，适配器允许缺省，若回显则必须匹配。`authType=SSO` 的真实 mtcli 1.1.x 请求会自动携带目标 audience 对应的短期 `923a237244_ssoid` Cookie，不能假设它会发送 `Authorization: Bearer`；该来源只用于 mtcli 的短期 SSO 票据，网关严格提取目标 Cookie 后交由生产 NoCode 用户接口校验并记录返回的真实 MIS；显式 direct/Skill 路径继续使用原有 `nocode-agent-sso`。
 
 ## 2. 确认 SSO 与拉取审计
 
@@ -65,7 +65,7 @@ mt-code-standards pull --repository '<namespace/repository>' \
 4. 对无权限、未登记、名称歧义、SSO 失败和 Hash 异常，确认无部分安装、旧文件不变；仅显式 bootstrap 且满足原有条件时才能安装公开 L1。
 5. 平台回读真实用户的正式拉取记录；登录成功但记录错误时不能作为接入验收通过。
 
-如认证或响应不兼容，停止 mtcli 上线，继续使用默认 direct 路径；不要修改为共享账号、静态票据或伪造用户身份。
+如认证或响应不兼容，停止 mtcli 上线；公开仓库继续使用默认 public 路径，需要用户权限时显式使用 direct。不要修改为共享账号、静态票据或伪造用户身份。
 
 ## 4. 发布顺序与边界
 
@@ -136,7 +136,7 @@ mtcli version
 | `--repository` | string | 仓库名称或地址；无 Git 目录必须显式提供，Git 目录可自动探测 |
 | `--output-dir` | string，可选 | 基目录；实际写入其下 `.mdp/rules/`，默认当前目录 |
 | `--stage` | `design` / `coding` / `cr`，可选 | 不传时使用 legacy 规则包 |
-| `--transport` | `direct` / `mtcli` | 当前代码默认 direct；本接入示例显式指定 mtcli |
+| `--transport` | `public` / `direct` / `mtcli` | 当前代码默认 public；本接入示例显式指定 mtcli |
 | `--json` | boolean | 输出机器可读结果 |
 | `--non-interactive` | boolean | 禁止本 CLI 的 MIS 提示，不代替 mtcli 的预先登录 |
 

@@ -1,0 +1,8 @@
+skill-manifest-version: 1
+skill-id: 1282350f7d6a32c2f9a27db3dff2b932d9333a5bb310a0c5f210135ce828c563
+
+files:
+  8f21132804f7ac3d42066acaae8a9738381ef117e614c328118bb8b077fb4acb  SKILL.md
+  d345ac451009f34c03ada32308d0dd1b277ba855ebf17c077e25f515f8323831  references/case-writing-guide.md
+  1e72f3a6eb7971428e1092db3d8b503775decc6ae1de0e3d76f22dcac3d21c64  references/lp-behavior-data.md
+  175a869247c59fbcd80479f4e94f20e492e01d8d990afbbdc0ebcb0371b5f68a  references/scenario-templates.md

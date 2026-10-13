@@ -10,6 +10,7 @@ import {
   RuleBundleError,
   EXECUTION_AGENTS,
   prepareSyncRequest,
+  readLocalGitMis,
   syncEffectiveRuleBundle,
 } from "./resolve-effective-rules.mjs";
 
@@ -47,11 +48,11 @@ const INTERNAL_AUTH_ENV_PREFIXES = [
 ];
 
 const text = (value) => String(value ?? "").trim();
-const parseArgs = (argv) => {
-  const result = {};
+export const parseArgs = (argv) => {
+  const result = { transport: "public", transportExplicit: false };
   const valued = new Set([
     "--repository", "--repo-root", "--output-dir", "--gateway-url", "--execution-agent", "--auth-agent", "--skill-version",
-    "--pull-id", "--mis", "--domain", "--stage",
+    "--pull-id", "--mis", "--domain", "--stage", "--transport",
   ]);
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index];
@@ -74,7 +75,15 @@ const parseArgs = (argv) => {
     else if (key === "--mis") result.mis = value;
     else if (key === "--domain") result.domain = value;
     else if (key === "--stage") result.stage = value;
+    else if (key === "--transport") {
+      if (!["public", "direct"].includes(value)) throw new RuleBundleError("RULE_BUNDLE_ARGUMENT_INVALID", "Runner 的 --transport 仅支持 public 或 direct");
+      result.transport = value;
+      result.transportExplicit = true;
+    }
     index += 1;
+  }
+  if (result.transport === "public" && (result.mis || result.authAgent || result.bootstrap)) {
+    throw new RuleBundleError("RULE_BUNDLE_ARGUMENT_INVALID", "public 模式不接受 --mis、--auth-agent 或 --bootstrap");
   }
   return result;
 };
@@ -324,10 +333,46 @@ export const syncWithOfficialSso = async ({
 } = {}) => {
   const detected = detectExecutionAgent(environment);
   const explicitAgent = text(options.agent);
+  const transport = text(options.transport) || "public";
+  if (!["public", "direct"].includes(transport)) {
+    throw new RuleBundleError("RULE_BUNDLE_ARGUMENT_INVALID", "Runner 的 --transport 仅支持 public 或 direct");
+  }
   if (explicitAgent && !EXECUTION_AGENTS.has(explicitAgent)) {
     throw new RuleBundleError("RULE_BUNDLE_EXECUTION_INVALID", "执行 Agent 必须是受支持的平台标识。");
   }
-  await prepareSyncRequest({
+  if (transport === "public" && (options.mis || options.authAgent || options.bootstrap)) {
+    throw new RuleBundleError("RULE_BUNDLE_ARGUMENT_INVALID", "public 模式不接受 --mis、--auth-agent 或 --bootstrap");
+  }
+  if (transport === "public") {
+    const pullId = options.pullId || randomUUID();
+    const receipt = await syncEffectiveRuleBundle({
+      gatewayUrl: options.gatewayUrl,
+      repositoryLocator: options.repositoryLocator,
+      repoRoot: options.repoRoot,
+      outputDir: options.outputDir,
+      cwd: options.cwd,
+      domain: options.domain,
+      bootstrap: false,
+      stage: options.stage,
+      publicPull: true,
+      fetchImpl,
+      execution: {
+        pullId,
+        agent: explicitAgent || detected.agent,
+        source: explicitAgent ? "runner_explicit_v1" : detected.source,
+        skillVersion: options.skillVersion,
+      },
+    });
+    return {
+      ...receipt,
+      authentication_mode: "public_repository",
+      authentication_route_reason: options.transportExplicit === true
+        || (options.transport === "public" && options.transportExplicit === undefined)
+        ? "explicit_public_transport"
+        : "default_public_transport",
+    };
+  }
+  const prepared = await prepareSyncRequest({
     gatewayUrl: options.gatewayUrl,
     repositoryLocator: options.repositoryLocator,
     repoRoot: options.repoRoot,
@@ -367,8 +412,9 @@ export const syncWithOfficialSso = async ({
       skillVersion: options.skillVersion,
     },
   });
+  const mis = text(options.mis || environment.SSO_USER_ID || readLocalGitMis(prepared.sourceRoot));
   let credential = await tokenFromSelectedRoute({
-    selection, environment, execute, mis: options.mis,
+    selection, environment, execute, mis,
   });
   try {
     const receipt = await run(credential);
@@ -386,7 +432,7 @@ export const syncWithOfficialSso = async ({
       executionAgent: explicitAgent,
     });
     credential = await tokenFromSelectedRoute({
-      selection, environment: retryEnvironment, execute, mis: options.mis,
+      selection, environment: retryEnvironment, execute, mis,
     });
     const receipt = await run(credential);
     return {

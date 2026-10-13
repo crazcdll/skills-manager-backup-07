@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdtemp, mkdir, symlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -11,6 +11,7 @@ import {
   detectAuthAgent,
   detectExecutionAgent,
   EXTERNAL_AUTH_AGENTS,
+  parseArgs,
   selectAuthenticationRoute,
   syncWithOfficialSso,
   tokenFromOfficialExchange,
@@ -44,7 +45,7 @@ test("uses the injected official token first and records the detected Codex agen
   let request;
   const receipt = await syncWithOfficialSso({
     environment: { RULE_OBSERVABILITY_USER_TOKEN: "official-token", CODEX_SESSION_ID: "current" },
-    options: { repoRoot: root, repositoryLocator: "hfe/test", pullId: "22222222-2222-4222-8222-222222222222" },
+    options: { transport: "direct", repoRoot: root, repositoryLocator: "hfe/test", pullId: "22222222-2222-4222-8222-222222222222" },
     fetchImpl: async (_url, init) => { request = JSON.parse(init.body); return response(bundle()); },
   });
   assert.equal(receipt.authentication_mode, "injected_user_token");
@@ -64,6 +65,7 @@ test("standalone CLI keeps an injected user token first and records cli", async 
     environment: { RULE_OBSERVABILITY_USER_TOKEN: "injected-cli-token" },
     options: {
       standaloneCli: true,
+      transport: "direct",
       agent: "cli",
       repositoryLocator: "hotel-web",
       outputDir: root,
@@ -78,13 +80,96 @@ test("standalone CLI keeps an injected user token first and records cli", async 
   assert.equal(JSON.stringify(receipt).includes("injected-cli-token"), false);
 });
 
+test("default public transport bypasses inherited SSO and uses the anonymous repository route", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "setup-public-transport-"));
+  let url = "";
+  const receipt = await syncWithOfficialSso({
+    environment: { RULE_OBSERVABILITY_USER_TOKEN: "ignored", SSO_USER_ID: "ignored" },
+    options: {
+      repositoryLocator: "hfe/test",
+      repoRoot: root,
+      agent: "cli",
+    },
+    execute: async () => { throw new Error("public transport must not authenticate"); },
+    fetchImpl: async (requestUrl, init) => {
+      url = requestUrl;
+      assert.equal(init.headers.Authorization, undefined);
+      return response(bundle());
+    },
+  });
+  assert.match(url, /\/v1\/public\/effective-rule-bundles\/resolve$/u);
+  assert.equal(receipt.authentication_mode, "public_repository");
+  assert.equal(receipt.authentication_route_reason, "default_public_transport");
+});
+
+test("explicit public transport records its explicit route reason", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "setup-explicit-public-transport-"));
+  const receipt = await syncWithOfficialSso({
+    options: { transport: "public", repositoryLocator: "hfe/test", repoRoot: root },
+    fetchImpl: async () => response(bundle()),
+  });
+  assert.equal(receipt.authentication_route_reason, "explicit_public_transport");
+});
+
+test("runner arguments default to public and require direct for authentication options", () => {
+  assert.deepEqual(parseArgs(["--repository", "hfe/test"]), {
+    transport: "public",
+    transportExplicit: false,
+    repositoryLocator: "hfe/test",
+  });
+  for (const extra of [
+    ["--mis", "zhangce07"],
+    ["--auth-agent", "cursor"],
+    ["--bootstrap"],
+  ]) {
+    assert.throws(
+      () => parseArgs(["--repository", "hfe/test", ...extra]),
+      (error) => error.code === "RULE_BUNDLE_ARGUMENT_INVALID",
+    );
+  }
+  assert.equal(parseArgs(["--transport", "direct", "--mis", "zhangce07"]).transport, "direct");
+});
+
+test("programmatic public calls reject authentication and bootstrap options before network access", async () => {
+  for (const extra of [
+    { mis: "zhangce07" },
+    { authAgent: "cursor" },
+    { bootstrap: true },
+  ]) {
+    let calls = 0;
+    await assert.rejects(
+      syncWithOfficialSso({
+        options: { repositoryLocator: "hfe/test", ...extra },
+        fetchImpl: async () => { calls += 1; return response(bundle()); },
+      }),
+      (error) => error.code === "RULE_BUNDLE_ARGUMENT_INVALID",
+    );
+    assert.equal(calls, 0);
+  }
+});
+
+test("runner argv defaults flow through sync with the default public receipt reason", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "setup-runner-argv-default-public-"));
+  const options = parseArgs(["--repository", "hfe/test", "--repo-root", root]);
+  const receipt = await syncWithOfficialSso({
+    options,
+    environment: { RULE_OBSERVABILITY_USER_TOKEN: "ignored", SSO_USER_ID: "ignored" },
+    execute: async () => { throw new Error("default public transport must not authenticate"); },
+    fetchImpl: async (_url, init) => {
+      assert.equal(init.headers.Authorization, undefined);
+      return response(bundle());
+    },
+  });
+  assert.equal(receipt.authentication_route_reason, "default_public_transport");
+});
+
 test("forwards an explicit delivery stage through the SSO wrapper", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "setup-stage-forward-"));
   await mkdir(path.join(root, ".git"));
   let request;
   const receipt = await syncWithOfficialSso({
     environment: { RULE_OBSERVABILITY_USER_TOKEN: "official-token" },
-    options: { repoRoot: root, repositoryLocator: "hfe/test", stage: "coding" },
+    options: { transport: "direct", repoRoot: root, repositoryLocator: "hfe/test", stage: "coding" },
     fetchImpl: async (_url, init) => {
       request = JSON.parse(init.body);
       return response(bundle("coding"));
@@ -101,7 +186,7 @@ test("rejects an explicit empty delivery stage before the SSO wrapper calls Edge
   await assert.rejects(
     syncWithOfficialSso({
       environment: { RULE_OBSERVABILITY_USER_TOKEN: "official-token" },
-      options: { repoRoot: root, repositoryLocator: "hfe/test", stage: "" },
+      options: { transport: "direct", repoRoot: root, repositoryLocator: "hfe/test", stage: "" },
       fetchImpl: async () => { calls += 1; return response(bundle()); },
     }),
     (error) => error.code === "RULE_BUNDLE_STAGE_INVALID",
@@ -122,7 +207,7 @@ test("routes all supported explicit external auth agents directly to portable CI
     let portableCalls = 0;
     const receipt = await syncWithOfficialSso({
       environment: {},
-      options: { authAgent, mis: "zhangce07", repoRoot: root, repositoryLocator: "hfe/test" },
+      options: { transport: "direct", authAgent, mis: "zhangce07", repoRoot: root, repositoryLocator: "hfe/test" },
       execute: async (command) => {
         if (command === "npx") officialCalls += 1;
         else portableCalls += 1;
@@ -137,12 +222,30 @@ test("routes all supported explicit external auth agents directly to portable CI
   }
 });
 
+test("uses repository-local user.mis as the portable CIBA login hint", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "setup-git-mis-"));
+  execFileSync("git", ["init", "-q"], { cwd: root, stdio: "ignore" });
+  execFileSync("git", ["config", "--local", "user.mis", "zhangce07"], { cwd: root });
+  let helperArgs;
+  const receipt = await syncWithOfficialSso({
+    environment: {},
+    options: { transport: "direct", authAgent: "cursor", repoRoot: root, repositoryLocator: "hfe/test" },
+    execute: async (_command, args) => {
+      helperArgs = args;
+      return { stdout: JSON.stringify({ token: "portable-git-mis-ticket" }) };
+    },
+    fetchImpl: async () => response(bundle()),
+  });
+  assert.deepEqual(helperArgs.slice(-2), ["--mis", "zhangce07"]);
+  assert.equal(receipt.authentication_mode, "portable_sso_ciba");
+});
+
 test("uses an injected token before validating an optional auth agent hint", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "setup-injected-auth-agent-"));
   await mkdir(path.join(root, ".git"));
   const receipt = await syncWithOfficialSso({
     environment: { RULE_OBSERVABILITY_USER_TOKEN: "injected" },
-    options: { authAgent: "vscode", repoRoot: root, repositoryLocator: "hfe/test" },
+    options: { transport: "direct", authAgent: "vscode", repoRoot: root, repositoryLocator: "hfe/test" },
     fetchImpl: async () => response(bundle()),
   });
   assert.equal(receipt.authentication_mode, "injected_user_token");
@@ -166,7 +269,7 @@ test("detects high-confidence Codex and Claude Code environments for direct port
     let officialCalls = 0;
     const receipt = await syncWithOfficialSso({
       environment,
-      options: { repoRoot: root, repositoryLocator: "hfe/test" },
+      options: { transport: "direct", repoRoot: root, repositoryLocator: "hfe/test" },
       execute: async (command) => {
         if (command === "npx") officialCalls += 1;
         return { stdout: JSON.stringify({ token: "portable-detected-ticket" }) };
@@ -189,7 +292,7 @@ test("keeps unknown and explicitly internal execution agents on the official exc
     const commands = [];
     const receipt = await syncWithOfficialSso({
       environment,
-      options: { ...options, repoRoot: root, repositoryLocator: "hfe/test" },
+      options: { transport: "direct", ...options, repoRoot: root, repositoryLocator: "hfe/test" },
       execute: async (command) => {
         commands.push(command);
         return { stdout: JSON.stringify({ access_token: "official-ticket" }) };
@@ -222,7 +325,7 @@ test("forwards an explicit bootstrap domain through the SSO wrapper", async () =
   const requests = [];
   const receipt = await syncWithOfficialSso({
     environment: { RULE_OBSERVABILITY_USER_TOKEN: "official-token" },
-    options: { repoRoot: root, repositoryLocator: "team/new-java", domain: "backend", bootstrap: true },
+    options: { transport: "direct", repoRoot: root, repositoryLocator: "team/new-java", domain: "backend", bootstrap: true },
     fetchImpl: async (url, init) => {
       requests.push(JSON.parse(init.body));
       return url.endsWith("/v1/effective-rule-bundles/resolve")
@@ -400,7 +503,7 @@ test("captures portable tokens without including them in the receipt", async () 
   await mkdir(path.join(root, ".git"));
   const receipt = await syncWithOfficialSso({
     environment: {},
-    options: { mis: "zhangce07", repoRoot: root, repositoryLocator: "hfe/test", pullId: "33333333-3333-4333-8333-333333333333" },
+    options: { transport: "direct", mis: "zhangce07", repoRoot: root, repositoryLocator: "hfe/test", pullId: "33333333-3333-4333-8333-333333333333" },
     execute: async (command) => {
       if (command === "npx") throw commandFailure({ stderr: "缺少 client_id" });
       return { stdout: JSON.stringify({ token: "portable-secret-ticket" }) };
@@ -418,7 +521,7 @@ test("refreshes an injected ticket only once after an explicit Edge unauthorized
   let exchangeCalls = 0;
   const receipt = await syncWithOfficialSso({
     environment: { RULE_OBSERVABILITY_USER_TOKEN: "expired-ticket", CATDESK_SESSION_ID: "current" },
-    options: { repoRoot: root, repositoryLocator: "hfe/test", pullId: "44444444-4444-4444-8444-444444444444" },
+    options: { transport: "direct", repoRoot: root, repositoryLocator: "hfe/test", pullId: "44444444-4444-4444-8444-444444444444" },
     execute: async () => { exchangeCalls += 1; return { stdout: JSON.stringify({ access_token: "replacement-ticket" }) }; },
     fetchImpl: async (_url, init) => {
       calls.push(init.headers.Authorization);
@@ -443,7 +546,7 @@ test("keeps the external portable route when an injected ticket is rejected", as
       CODEX_SESSION_ID: "current",
       SSO_USER_ID: "zhangce07",
     },
-    options: { repoRoot: root, repositoryLocator: "hfe/test" },
+    options: { transport: "direct", repoRoot: root, repositoryLocator: "hfe/test" },
     execute: async (command) => {
       commands.push(command);
       return { stdout: JSON.stringify({ token: "portable-replacement-ticket" }) };
@@ -476,6 +579,7 @@ test("standalone CLI refreshes a rejected injected token with its explicit MIS",
     environment: { RULE_OBSERVABILITY_USER_TOKEN: "expired-cli-ticket" },
     options: {
       standaloneCli: true,
+      transport: "direct",
       agent: "cli",
       mis: "current-user",
       repositoryLocator: "hotel-web",
@@ -506,7 +610,7 @@ test("does not refresh an injected ticket after another business rejection", asy
   await assert.rejects(
     syncWithOfficialSso({
       environment: { RULE_OBSERVABILITY_USER_TOKEN: "valid-user-ticket" },
-      options: { repoRoot: root, repositoryLocator: "hfe/test" },
+      options: { transport: "direct", repoRoot: root, repositoryLocator: "hfe/test" },
       execute: async () => { exchangeCalls += 1; return { stdout: JSON.stringify({ access_token: "unused" }) }; },
       fetchImpl: async () => ({
         ok: false,
@@ -549,7 +653,7 @@ test("runs the SSO wrapper when its Skill directory is installed as a symbolic l
   const result = spawnSync(process.execPath, [entry, "--unexpected"], { encoding: "utf8" });
   assert.equal(result.status, 2);
   assert.match(result.stderr, /RULE_BUNDLE_ARGUMENT_INVALID/);
-  const invalidAuthAgent = spawnSync(process.execPath, [entry, "--auth-agent", "vscode"], {
+  const invalidAuthAgent = spawnSync(process.execPath, [entry, "--transport", "direct", "--auth-agent", "vscode"], {
     encoding: "utf8",
     env: { ...process.env, RULE_OBSERVABILITY_USER_TOKEN: "" },
   });

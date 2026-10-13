@@ -57,6 +57,15 @@ node -e "const cp=require('child_process'),fs=require('fs'),p=require('path'),np
 若 Runner 返回 `RULE_BUNDLE_SSO_PORTABLE_PROVIDER_REQUIRED`，说明当前 Node 下的包缺失或内置 shared 版本
 低于要求；在同一 Node 环境更新 `@it/oa-skills` 后重试。
 
+官方换票命令 `mtsso-moa-local-exchange` 是 npm 包 `@mtfe/mtsso-auth-official` 内置的 bin，不是独立 npm 包。
+若当前 Node 环境未安装该包，`npx` 找不到本地命令会转而向公网 registry 查找该包名并返回 404，最终表现为
+`RULE_BUNDLE_SSO_EXCHANGE_FAILED`。首次执行 Skill 前同时检查该 CLI 是否可用，缺失时从内网 registry
+全局安装（属于补齐官方依赖，不是切换认证路径）：
+
+```shell
+command -v mtsso-moa-local-exchange >/dev/null 2>&1 || npm install -g @mtfe/mtsso-auth-official --registry=http://r.npm.sankuai.com
+```
+
 - 先读取或加载当前平台的 `mtsso-skills-official`，理解官方 V13 默认换票合同和错误分类；平台已适配官方
   SSO 时按该合同取票。
 - 实际执行前再把 `${user_access_token}` 替换为官方用户票据。

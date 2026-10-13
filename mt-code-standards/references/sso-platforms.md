@@ -82,6 +82,10 @@ Skill 对上述独立外部编码 Agent 采用直接便携 CIBA，是为了避�
 ## 认证失败时
 
 - 缺少官方 Skill 或 CLI：先在当前执行环境安装/更新官方依赖，不改业务仓库来补认证配置。
+- 官方换票命令 `mtsso-moa-local-exchange` 报 `npm 404`（向 `registry.npmjs.com` 查找同名包失败）：该命令
+  是 `@mtfe/mtsso-auth-official` 的内置 bin，本机未安装时 npx 会错误地请求公网 registry。从内网
+  registry 安装 `npm install -g @mtfe/mtsso-auth-official --registry=http://r.npm.sankuai.com` 后重试；
+  这是补齐官方依赖，不切换认证路径，也不触发便携回退。
 - 未识别宿主走官方路径后缺少 Agent `client_id`、probe 明确无能力或本地换票能力不可用：有当前公司用户 MIS 时允许便携 CIBA；
   缺少 MIS 则停止并提示 `--mis` / `SSO_USER_ID`。`923a237244` 只填写在 audience 中；不要让普通用户
   提供调用方 `client_secret`。

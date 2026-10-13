@@ -43,11 +43,24 @@ zhangyanbing  张艳兵
 
 默认时间范围为「上周周五 00:00:00 ~ 本周四 23:59:59」。用户可指定其他时间范围。
 
-使用 `date` 命令计算具体日期：
+> **重要：每次统计必须实时执行 `date` 命令获取当前日期，严禁复用同一会话（session）早前统计时获取的日期。**
+> 该 skill 常在长期 agent 会话中反复执行，相邻两次统计可能间隔数天甚至数周，直接沿用会话上下文中的旧日期会导致统计范围整体错误。
+
+获取当前日期并计算时间范围（推荐用 Python，避免 `date -v` 隐式语义的跨星期 bug）：
+
 ```bash
-# 示例：计算上周五和本周四
-date -v-thu -v-fri "+%Y-%m-%d" 2>/dev/null || date -d "last friday" "+%Y-%m-%d"
+python3 -c '
+from datetime import date, timedelta
+today = date.today()
+mon = today - timedelta(days=today.weekday())   # 本周一（一周起点）
+fri = mon - timedelta(days=3)                   # 上周五
+thu = mon + timedelta(days=3)                   # 本周四
+print("今天:", today)
+print(f"{fri} 00:00:00 ~ {thu} 23:59:59")
+'
 ```
+
+> **不要使用** `date -v-thu -v-fri`：它只在周四~周日运行时正确，周一~周三运行会把统计范围整体提前一周。也不要使用 GNU `date -d "last friday"`：周五当天运行会返回 7 天前。
 
 ### Step 2: 查询每人的发布
 
@@ -146,9 +159,10 @@ mcm plan detail <planId> -f json
 ## 注意事项
 
 1. **无发布记录的同学**：在按人统计中标注「本周无创建发布」
-2. **MCM 链接格式**：`https://mcm.mws.sankuai.com/#/mine/plan/detail/<planId>`
-3. **时间格式**：`yyyy-MM-dd HH:mm:ss`，北京时间 (UTC+8)
-4. **每页条数**：默认 50 条，若团队成员发布较多可适当调大
-5. **跨周变更过滤**：Step 2 必须按 `planStartTime` 在本周区间内做客户端二次过滤，避免把上周及更早创建、本周仍在执行中的老变更计入本周统计
-6. **PRD/ONES 缺失**：若某条变更未找到 PRD 或 ONES 链接，该单元格显示「—」
-7. **无权限文档**：部分学城文档可能因权限或高密级无法访问，标注「（无权限）」即可
+2. **实时获取日期**：每次统计前必须先执行 Step 1 获取当前日期，同一长期会话中不得复用之前统计的日期或时间范围
+3. **MCM 链接格式**：`https://mcm.mws.sankuai.com/#/mine/plan/detail/<planId>`
+4. **时间格式**：`yyyy-MM-dd HH:mm:ss`，北京时间 (UTC+8)
+5. **每页条数**：默认 50 条，若团队成员发布较多可适当调大
+6. **跨周变更过滤**：Step 2 必须按 `planStartTime` 在本周区间内做客户端二次过滤，避免把上周及更早创建、本周仍在执行中的老变更计入本周统计
+7. **PRD/ONES 缺失**：若某条变更未找到 PRD 或 ONES 链接，该单元格显示「—」
+8. **无权限文档**：部分学城文档可能因权限或高密级无法访问，标注「（无权限）」即可

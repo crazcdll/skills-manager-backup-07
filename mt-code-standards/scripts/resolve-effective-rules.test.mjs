@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
+import fs from "node:fs";
 import { access, mkdtemp, mkdir, readFile, writeFile, symlink } from "node:fs/promises";
+import { syncBuiltinESMExports } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -921,7 +923,7 @@ test("keeps one flat company file per L1 source when source basenames collide", 
   assert.deepEqual(new Set([baseContent, suffixedContent]), new Set(["# 甲\n", "# 乙\n"]));
 });
 
-test("does not trust a stale manifest when a local managed file was changed", async () => {
+test("preserves the installed bundle when a local managed file was changed", async () => {
   const root = await createRepository();
   const ready = bundleBody();
   await syncEffectiveRuleBundle({
@@ -930,18 +932,299 @@ test("does not trust a stale manifest when a local managed file was changed", as
     repoRoot: root,
     fetchImpl: async () => response(ready),
   });
-  await writeFile(path.join(root, ".mdp/rules/company/frontend-l1.md"), "changed\n", "utf8");
-  let request;
+  const managedPath = path.join(root, ".mdp/rules/company/frontend-l1.md");
+  const manifestPath = path.join(root, ".mdp/rules/.mt-effective-rule-bundle.json");
+  const manifestBefore = await readFile(manifestPath, "utf8");
+  await writeFile(managedPath, "changed\n", "utf8");
+  let requested = false;
+  await assert.rejects(
+    syncEffectiveRuleBundle({
+      token: "token",
+      repositoryLocator: "hfe/hotel-web",
+      repoRoot: root,
+      fetchImpl: async () => {
+        requested = true;
+        return response(ready);
+      },
+    }),
+    (error) => error.code === "RULE_BUNDLE_LOCAL_MANAGED_FILE_CHANGED",
+  );
+  assert.equal(requested, false);
+  assert.equal(await readFile(managedPath, "utf8"), "changed\n");
+  assert.equal(await readFile(manifestPath, "utf8"), manifestBefore);
+});
+
+test("moves a canonical L2 release to its rule-set-name directory and replays without writes", async () => {
+  const root = await createRepository();
+  const options = { token: "token", repositoryLocator: "hfe/hotel-web", repoRoot: root };
+  const legacy = bundleBody({
+    version: 2,
+    files: [{ relative_path: "l1/frontend-l1/base.md", content: "# L1\n" }, {
+      relative_path: "l2/legacy-team-l2/STYLE-01-old.md",
+      content: "# Legacy L2\n",
+    }],
+  });
+  await syncEffectiveRuleBundle({ ...options, fetchImpl: async () => response(legacy) });
+
+  const canonicalRefs = [releaseRefs[0], {
+    rule_set_id: "rs-11111111-1111-4111-8111-111111111111",
+    release_id: "rs-11111111-1111-4111-8111-111111111111@1",
+    scope_level: "L2",
+    rule_set_name: "billing-settlement-frontend",
+    stored_rule_set_id: "legacy-team-l2",
+    stored_release_id: "legacy-team-l2@1",
+    version_policy: "auto_follow_latest",
+    migration_id: "11111111-1111-4111-8111-111111111111",
+  }];
+  const canonical = bundleBody({
+    version: 2,
+    refs: canonicalRefs,
+    files: [{ relative_path: "l1/frontend-l1/base.md", content: "# L1\n" }, {
+      relative_path: "l2/billing-settlement-frontend/STYLE-01-promise.md",
+      content: "# Canonical L2\n",
+    }],
+  });
+  await syncEffectiveRuleBundle({ ...options, fetchImpl: async () => response(canonical) });
+
+  const oldPath = path.join(root, ".mdp/rules/team/legacy-team-l2/STYLE-01-old.md");
+  const newPath = path.join(root, ".mdp/rules/team/billing-settlement-frontend/STYLE-01-promise.md");
+  const manifestPath = path.join(root, ".mdp/rules/.mt-effective-rule-bundle.json");
+  await assert.rejects(readFile(oldPath));
+  assert.equal(await readFile(newPath, "utf8"), "# Canonical L2\n");
+  const manifestBefore = await readFile(manifestPath, "utf8");
+  assert.equal(JSON.parse(manifestBefore).release_refs[1].stored_release_id, "legacy-team-l2@1");
+  const receipt = await syncEffectiveRuleBundle({
+    ...options,
+    fetchImpl: async (_url, init) => {
+      const request = JSON.parse(init.body);
+      assert.equal(request.known_snapshot_id, canonical.snapshot.snapshot_id);
+      return response({ ...canonical, status: "not_modified", files: [] });
+    },
+  });
+  assert.equal(receipt.status, "not_modified");
+  assert.equal(await readFile(manifestPath, "utf8"), manifestBefore);
+});
+
+test("rejects a canonical L2 rule-set name that does not start with a letter", async () => {
+  const root = await createRepository();
+  const invalidRefs = [releaseRefs[0], {
+    rule_set_id: "rs-11111111-1111-4111-8111-111111111111",
+    release_id: "rs-11111111-1111-4111-8111-111111111111@1",
+    scope_level: "L2",
+    rule_set_name: "2billing-settlement",
+  }];
+  await assert.rejects(
+    syncEffectiveRuleBundle({
+      token: "token",
+      repositoryLocator: "hfe/hotel-web",
+      repoRoot: root,
+      fetchImpl: async () => response(bundleBody({ version: 2, refs: invalidRefs })),
+    }),
+    (error) => error.code === "RULE_BUNDLE_RELEASE_REFS_INVALID",
+  );
+});
+
+test("binds every canonical L2 file path to exactly one release reference", async () => {
+  const canonicalRef = {
+    rule_set_id: "rs-11111111-1111-4111-8111-111111111111",
+    release_id: "rs-11111111-1111-4111-8111-111111111111@1",
+    scope_level: "L2",
+    rule_set_name: "billing-settlement-frontend",
+  };
+  const l1File = { relative_path: "l1/frontend-l1/base.md", content: "# L1\n" };
+  for (const [files, refs, expectedCode] of [
+    [
+      [l1File, { relative_path: "l2/unrelated-directory/STYLE-01-safe.md", content: "# Wrong\n" }],
+      [releaseRefs[0], canonicalRef],
+      "RULE_BUNDLE_FILE_PATH_INVALID",
+    ],
+    [
+      [l1File, { relative_path: "l2/team-fe-l2/legacy.md", content: "# Legacy\n" }],
+      [releaseRefs[0], releaseRefs[1], canonicalRef],
+      "RULE_BUNDLE_FILES_MISSING",
+    ],
+    [
+      [l1File, { relative_path: "l2/team-fe-l2/shared.md", content: "# Shared\n" }],
+      [releaseRefs[0], releaseRefs[1], { ...canonicalRef, rule_set_name: "team-fe-l2" }],
+      "RULE_BUNDLE_RELEASE_REFS_INVALID",
+    ],
+  ]) {
+    const root = await createRepository();
+    const sortedRefs = [...refs].sort((left, right) => (
+      left.rule_set_id.localeCompare(right.rule_set_id, "en")
+      || left.release_id.localeCompare(right.release_id, "en")
+      || left.scope_level.localeCompare(right.scope_level, "en")
+    ));
+    await assert.rejects(
+      syncEffectiveRuleBundle({
+        token: "token",
+        repositoryLocator: "hfe/hotel-web",
+        repoRoot: root,
+        fetchImpl: async () => response(bundleBody({ version: 2, files, refs: sortedRefs })),
+      }),
+      (error) => error.code === expectedCode,
+    );
+  }
+});
+
+test("installs mixed canonical and legacy L2 paths without truncating an 80-character name", async () => {
+  const root = await createRepository();
+  const maxLengthName = `a${"b".repeat(79)}`;
+  const canonicalRef = {
+    rule_set_id: "rs-11111111-1111-4111-8111-111111111111",
+    release_id: "rs-11111111-1111-4111-8111-111111111111@1",
+    scope_level: "L2",
+    rule_set_name: maxLengthName,
+  };
+  const ready = bundleBody({
+    version: 2,
+    refs: [releaseRefs[0], canonicalRef, releaseRefs[1]],
+    files: [
+      { relative_path: "l1/frontend-l1/base.md", content: "# L1\n" },
+      { relative_path: "l2/team-fe-l2/legacy.md", content: "# Legacy\n" },
+      { relative_path: `l2/${maxLengthName}/STYLE-01-safe.md`, content: "# Canonical\n" },
+    ],
+  });
   await syncEffectiveRuleBundle({
     token: "token",
     repositoryLocator: "hfe/hotel-web",
     repoRoot: root,
-    fetchImpl: async (_url, init) => {
-      request = JSON.parse(init.body);
-      return response(ready);
-    },
+    fetchImpl: async () => response(ready),
   });
-  assert.equal("known_snapshot_id" in request, false);
+  assert.equal(
+    await readFile(path.join(root, ".mdp/rules/team", maxLengthName, "STYLE-01-safe.md"), "utf8"),
+    "# Canonical\n",
+  );
+  assert.equal(
+    await readFile(path.join(root, ".mdp/rules/team/team-fe-l2/legacy.md"), "utf8"),
+    "# Legacy\n",
+  );
+});
+
+test("does not trust a self-consistent local manifest with a mismatched canonical L2 source path", async () => {
+  const root = await createRepository();
+  const canonicalRef = {
+    rule_set_id: "rs-11111111-1111-4111-8111-111111111111",
+    release_id: "rs-11111111-1111-4111-8111-111111111111@1",
+    scope_level: "L2",
+    rule_set_name: "billing-settlement-frontend",
+  };
+  const ready = bundleBody({
+    version: 2,
+    refs: [releaseRefs[0], canonicalRef],
+    files: [
+      { relative_path: "l1/frontend-l1/base.md", content: "# L1\n" },
+      { relative_path: "l2/billing-settlement-frontend/STYLE-01-safe.md", content: "# Canonical\n" },
+    ],
+  });
+  await syncEffectiveRuleBundle({
+    token: "token",
+    repositoryLocator: "hfe/hotel-web",
+    repoRoot: root,
+    fetchImpl: async () => response(ready),
+  });
+  const manifestPath = path.join(root, ".mdp/rules/.mt-effective-rule-bundle.json");
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  const canonicalManagedPath = manifest.managed_files.find((managedPath) =>
+    managedPath.startsWith("team/billing-settlement-frontend/")
+  );
+  manifest.managed_file_sources[canonicalManagedPath] = "l2/unrelated-directory/STYLE-01-safe.md";
+  const projection = manifest.managed_files.map((managedPath) => ({
+    relative_path: manifest.managed_file_sources[managedPath],
+    sha256: manifest.managed_file_hashes[managedPath],
+    byte_size: manifest.managed_file_sizes[managedPath],
+  })).sort((left, right) => left.relative_path < right.relative_path ? -1 : left.relative_path > right.relative_path ? 1 : 0);
+  manifest.manifest_hash = sha256Hex(canonicalJson(projection));
+  manifest.snapshot_id = sha256Hex(canonicalJson({
+    resolver_version: manifest.resolver_version,
+    repository_id: manifest.repository.repository_id,
+    canonical_key: manifest.repository.canonical_key,
+    standard_domain: manifest.repository.standard_domain,
+    manifest_hash: manifest.manifest_hash,
+    release_refs: manifest.release_refs,
+  }));
+  await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+
+  let requested = false;
+  await assert.rejects(
+    syncEffectiveRuleBundle({
+      token: "token",
+      repositoryLocator: "hfe/hotel-web",
+      repoRoot: root,
+      fetchImpl: async () => {
+        requested = true;
+        return response({ ...ready, status: "not_modified", files: [] });
+      },
+    }),
+    (error) => error.code === "RULE_BUNDLE_LOCAL_MANIFEST_INVALID",
+  );
+  assert.equal(requested, false);
+});
+
+test("rejects portable reserved canonical L2 names", async () => {
+  for (const ruleSetName of ["con", "prn", "aux", "nul", "com1", "com9", "lpt1", "lpt9"]) {
+    const root = await createRepository();
+    const refs = [releaseRefs[0], {
+      rule_set_id: "rs-11111111-1111-4111-8111-111111111111",
+      release_id: "rs-11111111-1111-4111-8111-111111111111@1",
+      scope_level: "L2",
+      rule_set_name: ruleSetName,
+    }];
+    await assert.rejects(
+      syncEffectiveRuleBundle({
+        token: "token",
+        repositoryLocator: "hfe/hotel-web",
+        repoRoot: root,
+        fetchImpl: async () => response(bundleBody({ version: 2, refs })),
+      }),
+      (error) => error.code === "RULE_BUNDLE_RELEASE_REFS_INVALID",
+    );
+  }
+});
+
+test("keeps the previous bundle when staging cannot be created", async () => {
+  const root = await createRepository();
+  const options = { token: "token", repositoryLocator: "hfe/hotel-web", repoRoot: root };
+  const initial = bundleBody({ version: 2 });
+  await syncEffectiveRuleBundle({ ...options, fetchImpl: async () => response(initial) });
+  const rulesRoot = path.join(root, ".mdp/rules");
+  const manifestPath = path.join(rulesRoot, ".mt-effective-rule-bundle.json");
+  const managedPath = path.join(rulesRoot, "company/frontend-l1.md");
+  const manifestBefore = await readFile(manifestPath, "utf8");
+  const managedBefore = await readFile(managedPath, "utf8");
+  const next = bundleBody({
+    version: 2,
+    files: [{ relative_path: "l1/frontend-l1/next.md", content: "# Next L1\n" }],
+    refs: [{ rule_set_id: "frontend-l1", release_id: "frontend-l1@next", scope_level: "L1" }],
+  });
+  const originalMkdtemp = fs.promises.mkdtemp;
+  let stagingMkdtempCalls = 0;
+  fs.promises.mkdtemp = async (prefix, ...args) => {
+    if (path.basename(prefix) === ".mt-bundle-stage-") {
+      stagingMkdtempCalls += 1;
+      const error = new Error("injected staging directory creation failure");
+      error.code = "EACCES";
+      throw error;
+    }
+    return originalMkdtemp(prefix, ...args);
+  };
+  syncBuiltinESMExports();
+  try {
+    await assert.rejects(syncEffectiveRuleBundle({
+      ...options,
+      fetchImpl: async () => response(next),
+    }), (error) => (
+      error?.code === "EACCES"
+      && error.message === "injected staging directory creation failure"
+    ));
+    assert.equal(stagingMkdtempCalls, 1);
+  } finally {
+    fs.promises.mkdtemp = originalMkdtemp;
+    syncBuiltinESMExports();
+  }
+  assert.equal(await readFile(manifestPath, "utf8"), manifestBefore);
+  assert.equal(await readFile(managedPath, "utf8"), managedBefore);
+  await assert.rejects(readFile(path.join(rulesRoot, "company/next.md")));
 });
 
 test("fails closed on content hash mismatch without creating managed files", async () => {

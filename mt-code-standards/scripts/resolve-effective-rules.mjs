@@ -56,6 +56,10 @@ const EXECUTION_AGENT_SOURCES = new Set([
 const EXECUTION_SKILL_NAMES = new Set(["mt-code-standards", "mt-code-standards-setup"]);
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
+const RULE_SET_NAME_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/;
+const CANONICAL_L2_RULE_SET_ID_PATTERN =
+  /^rs-[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const PORTABLE_RESERVED_SEGMENT_PATTERN = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])$/;
 const pathKey = (value) => value.normalize("NFC").toUpperCase().toLowerCase().normalize("NFC");
 const binaryPathOrder = (left, right) => left < right ? -1 : left > right ? 1 : 0;
 
@@ -572,11 +576,34 @@ const normalizeReleaseRefs = (releaseRefs) => {
     const releaseId = text(value.release_id);
     const scopeLevel = text(value.scope_level);
     const manifestHash = value.manifest_hash == null ? "" : text(value.manifest_hash);
+    const ruleSetName = value.rule_set_name == null ? "" : text(value.rule_set_name);
+    const storedRuleSetId = value.stored_rule_set_id == null ? "" : text(value.stored_rule_set_id);
+    const storedReleaseId = value.stored_release_id == null ? "" : text(value.stored_release_id);
+    const versionPolicy = value.version_policy == null ? "" : text(value.version_policy);
+    const migrationId = value.migration_id == null ? "" : text(value.migration_id);
     if (!ruleSetId || !releaseId || !["L1", "L2"].includes(scopeLevel)) {
       fail("RULE_BUNDLE_RELEASE_REFS_INVALID", "release 引用缺少 rule_set_id、release_id 或 scope_level");
     }
     if (manifestHash && !SHA256_PATTERN.test(manifestHash)) {
       fail("RULE_BUNDLE_RELEASE_REFS_INVALID", `release ${releaseId} 的 manifest_hash 非法`);
+    }
+    if (ruleSetName && (
+      scopeLevel !== "L2" || ruleSetName.length < 3 || ruleSetName.length > 80 ||
+      !RULE_SET_NAME_PATTERN.test(ruleSetName) || PORTABLE_RESERVED_SEGMENT_PATTERN.test(ruleSetName)
+    )) {
+      fail("RULE_BUNDLE_RELEASE_REFS_INVALID", `release ${releaseId} 的 rule_set_name 非法`);
+    }
+    if (scopeLevel === "L2" && CANONICAL_L2_RULE_SET_ID_PATTERN.test(ruleSetId) && !ruleSetName) {
+      fail("RULE_BUNDLE_RELEASE_REFS_INVALID", `canonical release ${releaseId} 缺少 rule_set_name`);
+    }
+    const hasStoredIdentity = value.stored_rule_set_id != null || value.stored_release_id != null
+      || value.version_policy != null || value.migration_id != null;
+    if (hasStoredIdentity && (
+      scopeLevel !== "L2" || !storedRuleSetId || !storedReleaseId ||
+      !["pinned", "manual_upgrade", "auto_follow_latest"].includes(versionPolicy) ||
+      (migrationId && !UUID_PATTERN.test(migrationId))
+    )) {
+      fail("RULE_BUNDLE_RELEASE_REFS_INVALID", `release ${releaseId} 的订阅身份元数据非法`);
     }
     const key = `${ruleSetId}\0${releaseId}\0${scopeLevel}`;
     if (seen.has(key)) fail("RULE_BUNDLE_RELEASE_REFS_INVALID", `release 引用重复：${releaseId}`);
@@ -586,6 +613,13 @@ const normalizeReleaseRefs = (releaseRefs) => {
       release_id: releaseId,
       scope_level: scopeLevel,
       ...(manifestHash ? { manifest_hash: manifestHash } : {}),
+      ...(ruleSetName ? { rule_set_name: ruleSetName } : {}),
+      ...(hasStoredIdentity ? {
+        stored_rule_set_id: storedRuleSetId,
+        stored_release_id: storedReleaseId,
+        version_policy: versionPolicy,
+        ...(migrationId ? { migration_id: migrationId } : {}),
+      } : {}),
     };
   });
   return result.sort((left, right) => (
@@ -593,6 +627,39 @@ const normalizeReleaseRefs = (releaseRefs) => {
     || left.release_id.localeCompare(right.release_id, "en")
     || left.scope_level.localeCompare(right.scope_level, "en")
   ));
+};
+
+const assertCanonicalL2PathBindings = (releaseRefs, relativePaths) => {
+  const canonicalL2Refs = releaseRefs.filter((ref) =>
+    ref.scope_level === "L2" && CANONICAL_L2_RULE_SET_ID_PATTERN.test(ref.rule_set_id)
+  );
+  if (!canonicalL2Refs.length) return;
+  const l2DirectoryOwners = new Map();
+  for (const ref of releaseRefs.filter((item) => item.scope_level === "L2")) {
+    const directory = ref.rule_set_name || ref.rule_set_id;
+    const key = pathKey(directory);
+    const owners = l2DirectoryOwners.get(key) || [];
+    owners.push(ref);
+    l2DirectoryOwners.set(key, owners);
+  }
+  if ([...l2DirectoryOwners.values()].some((owners) => owners.length !== 1)) {
+    fail("RULE_BUNDLE_RELEASE_REFS_INVALID", "L2 release 引用目录归属不唯一");
+  }
+  const matchedCanonicalRefs = new Set();
+  for (const relativePath of relativePaths.filter((item) => item.startsWith("l2/"))) {
+    const directory = relativePath.split("/")[1] || "";
+    const owners = l2DirectoryOwners.get(pathKey(directory));
+    if (!owners || owners.length !== 1
+      || (owners[0].rule_set_name && owners[0].rule_set_name !== directory)) {
+      fail("RULE_BUNDLE_FILE_PATH_INVALID", `L2 文件目录没有唯一 release 引用：${relativePath}`);
+    }
+    if (owners[0].rule_set_name) matchedCanonicalRefs.add(owners[0].rule_set_id);
+  }
+  for (const ref of canonicalL2Refs) {
+    if (!matchedCanonicalRefs.has(ref.rule_set_id)) {
+      fail("RULE_BUNDLE_FILES_MISSING", `canonical release ${ref.release_id} 没有匹配规则文件`);
+    }
+  }
 };
 
 const validateBundle = (body, knownSnapshotId, expectedStage = "") => {
@@ -690,6 +757,10 @@ const validateBundle = (body, knownSnapshotId, expectedStage = "") => {
     }
     return { relative_path: relativePath, content, sha256: actualHash, byte_size: actualBytes };
   }).sort((left, right) => pathOrder(left.relative_path, right.relative_path));
+
+  if (currentVersion) {
+    assertCanonicalL2PathBindings(releaseRefs, normalizedFiles.map((file) => file.relative_path));
+  }
 
   const totalBytes = normalizedFiles.reduce((sum, file) => sum + file.byte_size, 0);
   if (snapshot.total_bytes !== totalBytes) fail("RULE_BUNDLE_TOTAL_BYTES_MISMATCH", "规则包总字节数校验失败");
@@ -981,6 +1052,13 @@ const validateLocalManifestStructure = (manifest) => {
   if (sha256Hex(canonicalJson(projection)) !== manifest.manifest_hash) return false;
   if (projection.reduce((sum, file) => sum + file.byte_size, 0) !== manifest.total_bytes) return false;
   const releaseRefs = normalizeReleaseRefs(manifest.release_refs);
+  if (versionTwo) {
+    try {
+      assertCanonicalL2PathBindings(releaseRefs, projection.map((file) => file.relative_path));
+    } catch {
+      return false;
+    }
+  }
   const snapshotProjection = {
     ...(bundleSchema !== LEGACY_BUNDLE_SCHEMA ? { resolver_version: bundleSchema } : {}),
     repository_id: manifest.repository.repository_id,
@@ -1452,6 +1530,18 @@ export const syncEffectiveRuleBundle = async ({
   const previousCurrent = previousTrusted
     ? await validateLocalManifestFiles(absoluteRoot, previousManifest).catch(() => false)
     : false;
+  if (previousManifest && !previousTrusted) {
+    fail(
+      "RULE_BUNDLE_LOCAL_MANIFEST_INVALID",
+      "本地正式规则包 manifest 非法，禁止静默覆盖；请先恢复或移走现有 .mdp/rules 目录",
+    );
+  }
+  if (previousTrusted && !previousCurrent) {
+    fail(
+      "RULE_BUNDLE_LOCAL_MANAGED_FILE_CHANGED",
+      "本地受管规则文件缺失或已被修改，禁止覆盖；请先恢复受管文件或移走现有 .mdp/rules 目录",
+    );
+  }
   // A verified legacy tree must be fetched once more so it can be migrated to
   // the flat company/team layout; only the current layout may receive a
   // not_modified response without rewriting local files.

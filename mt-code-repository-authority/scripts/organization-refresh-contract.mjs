@@ -54,7 +54,9 @@ const callbackForAttempt = (value, attemptId) => {
   if (
     url.protocol !== "https:" || url.hostname !== CALLBACK_HOST || url.port ||
     url.username || url.password || url.search || url.hash ||
-    url.pathname !== `/functions/v1/rule-observability/internal/organization-refresh/attempts/${attemptId}/result` ||
+    !new Set(["rule-observability", "organization-admin"].map((functionName) => (
+      `/functions/v1/${functionName}/internal/organization-refresh/attempts/${attemptId}/result`
+    ))).has(url.pathname) ||
     !CALLBACK_TOKEN.test(String(value.token ?? ""))
   ) throw new OrganizationRefreshContractError("callback capability is invalid");
   return { url: url.toString(), token: value.token };

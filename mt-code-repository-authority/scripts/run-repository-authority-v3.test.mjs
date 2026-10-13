@@ -41,9 +41,17 @@ const validateTask = (task) => { const taskBytes = Buffer.from(JSON.stringify(ta
 
 test("batch artifact validates independent capabilities and rejects duplicate attempts and foreign ports", () => {
   assert.equal(validateTask(batchTask()).items.length, 2);
+  const migrated = batchTask();
+  migrated.payload[0].callback.url = migrated.payload[0].callback.url.replace(
+    "/rule-observability/",
+    "/repository-governance/",
+  );
+  assert.equal(validateTask(migrated).items[0].callback.url, migrated.payload[0].callback.url);
   for (const mutate of [
     (task) => { task.payload[1].attempt_id = task.payload[0].attempt_id; task.payload[1].callback.url = task.payload[0].callback.url; },
     (task) => { task.payload[0].callback.url = task.payload[0].callback.url.replace(".com/", ".com:4444/"); },
+    (task) => { task.payload[0].callback.url = task.payload[0].callback.url.replace("/rule-observability/", "/organization-admin/"); },
+    (task) => { task.payload[0].callback.url += "?redirect=repository-governance"; },
     (task) => { task.execution.workers = 10; },
     (task) => { task.actor.execution_mis = "another_user"; },
   ]) { const task = batchTask(); mutate(task); assert.throws(() => validateTask(task)); }
@@ -89,6 +97,22 @@ test("source task selects the versioned result contract without changing the tas
   legacy.skill_contract_version = "mt-code-repository-authority/v3";
   legacy.actor.execution_mis = "zhangce07";
   assert.throws(() => validateTask(legacy), /source scan task actor is invalid/u);
+
+  const migrated = sourceTask();
+  migrated.payload.callback.url = migrated.payload.callback.url.replace(
+    "/rule-observability/",
+    "/repository-governance/",
+  );
+  assert.equal(validateTask(migrated).source.callback.url, migrated.payload.callback.url);
+  for (const url of [
+    migrated.payload.callback.url.replace("/repository-governance/", "/organization-admin/"),
+    `${migrated.payload.callback.url}?redirect=rule-observability`,
+    migrated.payload.callback.url.replace(migrated.payload.run_id, uuid(22)),
+  ]) {
+    const invalid = sourceTask();
+    invalid.payload.callback.url = url;
+    assert.throws(() => validateTask(invalid), /source callback URL/u);
+  }
 });
 
 test("source attempts isolate and clean actor CIBA state after success, rejection, and timeout", async () => {
@@ -128,6 +152,8 @@ test("source attempts isolate and clean actor CIBA state after success, rejectio
         calls += 1;
         assert.equal(options.env.SSO_CIBA_TOKEN, undefined);
         assert.equal(options.env.SSO_OIDC_FALLBACK, "false");
+        assert.equal(options.env.NO_CHECK_VERSION, "true");
+        if (_command === "oa-skills") assert.ok(args.includes("--no-version-check"));
         const cacheFile = options.env.AUTH_CACHE_FILE;
         cacheFiles.push(cacheFile);
         assert.equal((await stat(join(cacheFile, ".."))).mode & 0o077, 0);
@@ -166,6 +192,10 @@ test("v2 extraction preserves address-shaped values for the Edge normalizer", ()
     "ssh://git@[2001:db8::1]:2222/Team/CaseSensitive.git",
     "git@unknown.example.com:/srv/git/CaseSensitive.git",
     "https://external.example.com/team/repository",
+    "https://ocean.sankuai.com/config",
+    "https://diva.sankuai.com/bundle/team-repository/versions",
+    "https://km.sankuai.com/api/file/cdn/123/456",
+    "https://dev.sankuai.com/code/repo-detail/HFE/Hotel-Web/pr/1/overview",
     "repository-name",
   ].join(" ") }, "document");
   assert.deepEqual(extracted.candidates.map((item) => item.raw_value), [
@@ -176,7 +206,6 @@ test("v2 extraction preserves address-shaped values for the Edge normalizer", ()
     "ssh://git@gitserver/Team/CaseSensitive.git",
     "ssh://git@[2001:db8::1]:2222/Team/CaseSensitive.git",
     "git@unknown.example.com:/srv/git/CaseSensitive.git",
-    "https://external.example.com/team/repository",
   ]);
   assert.deepEqual(extracted.invalidItems, []);
 });
@@ -220,7 +249,7 @@ test("source scan returns partial status and keeps repositories when one table p
   assert.equal(scan.issues.length, 1);
 });
 
-test("v2 source scan separates invalid addresses from partial read errors", async () => {
+test("v2 source scan ignores unrelated HTTP links without reporting read errors", async () => {
   const processRunner = async (_command, args) => {
     if (args[1] === "getSimpleMarkdown") return result({ content: "https://dev.sankuai.com/code/repo-detail/team/board?branch=main https://external.example.com/team/nope" });
     if (args[1] === "getDocumentJson") return result({ body: '{"content":[]}' });
@@ -236,7 +265,6 @@ test("v2 source scan separates invalid addresses from partial read errors", asyn
   assert.equal(scan.scan_status, "completed");
   assert.deepEqual(scan.candidates.map((item) => item.raw_value), [
     "https://dev.sankuai.com/code/repo-detail/team/board?branch=main",
-    "https://external.example.com/team/nope",
   ]);
   assert.deepEqual(scan.invalid_items, []);
   assert.deepEqual(scan.read_errors, []);
@@ -259,7 +287,9 @@ test("source scan stops before deadline and preserves completed reads", async ()
 
 test("Citadel reads all columns and preserves completed pages after a later page failure", async () => {
   let pageReads = 0;
-  const processRunner = async (command, args) => {
+  const processRunner = async (command, args, options) => {
+    assert.equal(options.env.NO_CHECK_VERSION, "true");
+    if (command === "oa-skills") assert.ok(args.includes("--no-version-check"));
     if (args[1] === "getSimpleMarkdown") return result({ content: "" });
     if (args[1] === "getDocumentJson") return result({ body: '{"content":[{"type":"xtable","attrs":{"xtableId":"12345"}}]}' });
     if (args[1] === "listTables") return result({ tables: [] });
@@ -322,6 +352,12 @@ test("official single-page adapter keeps authentication and paging errors explic
   await assert.rejects(readCitadelTablePage({ tableId: "12345", columnIds: [1], actorMis: "actual_user", Client: DeniedAuthClient }), /citadel_document_access_denied/u);
   class TimedOutAuthClient extends Client { async ensureAuth() { throw new Error("ETIMEDOUT"); } }
   await assert.rejects(readCitadelTablePage({ tableId: "12345", columnIds: [1], actorMis: "actual_user", Client: TimedOutAuthClient }), /citadel_scan_timeout/u);
+  class RejectedAuthClient extends Client { async ensureAuth() { throw new Error("MOA_USER_REJECTED"); } }
+  await assert.rejects(readCitadelTablePage({ tableId: "12345", columnIds: [1], actorMis: "actual_user", Client: RejectedAuthClient }), /citadel_auth_rejected/u);
+  class ExpiredAuthClient extends Client { async ensureAuth() { throw new Error("expired_token"); } }
+  await assert.rejects(readCitadelTablePage({ tableId: "12345", columnIds: [1], actorMis: "actual_user", Client: ExpiredAuthClient }), /citadel_auth_expired/u);
+  class PendingAuthClient extends Client { async ensureAuth() { throw new Error("MOA_AUTH_REQUEST_PENDING"); } }
+  await assert.rejects(readCitadelTablePage({ tableId: "12345", columnIds: [1], actorMis: "actual_user", Client: PendingAuthClient }), /citadel_auth_required/u);
   class FailedClient extends Client { async queryTableDataSinglePage() { throw new Error("permission denied"); } }
   await assert.rejects(readCitadelTablePage({ tableId: "12345", columnIds: [1], actorMis: "actual_user", Client: FailedClient }), /permission denied/u);
 });
@@ -340,11 +376,51 @@ test("source scan pins actor CIBA and stops after authorization rejection", asyn
   assert.equal(calls.length, 1);
   assert.deepEqual(calls[0].args, [
     "citadel", "getSimpleMarkdown", "--contentId", "123",
-    "--mis", "actual_user", "--sso-strategy", "sso-ciba", "--raw",
+    "--mis", "actual_user", "--sso-strategy", "sso-ciba", "--raw", "--no-version-check",
   ]);
   assert.equal(calls[0].options.env.AUTH_CACHE_FILE, "/private/attempt/auth-cache.json");
+  assert.equal(calls[0].options.env.NO_CHECK_VERSION, "true");
   assert.equal(scan.scan_status, "failed");
   assert.deepEqual(scan.read_errors, [{ source: "document", error_code: "citadel_auth_failed", retriable: false }]);
+});
+
+test("source scan distinguishes CIBA outcomes without treating timeout hints as failures", async () => {
+  const classify = async (stderr) => scanSource({
+    source: { citadelUrl: "https://km.sankuai.com/page/123" },
+    resultSchema: V3_SOURCE_RESULT_SCHEMA_V2,
+    processRunner: async () => ({ exitCode: 1, stdout: Buffer.alloc(0), stderr: Buffer.from(stderr) }),
+    waitBetweenReads: async () => {},
+  });
+  for (const [message, code] of [
+    ["MOA_USER_REJECTED", "citadel_auth_rejected"],
+    ["expired_token", "citadel_auth_expired"],
+    ["authorization timed out", "citadel_auth_timeout"],
+    ["MOA_AUTH_REQUEST_PENDING", "citadel_auth_required"],
+    ["HTTP 403 forbidden", "citadel_document_access_denied"],
+    ["HTTP 401 Unauthorized", "citadel_auth_failed"],
+  ]) {
+    const scan = await classify(message);
+    assert.equal(scan.read_errors[0].error_code, code);
+  }
+  const hintOnly = await classify("请前往大象确认授权，等待超时 150 秒");
+  assert.equal(hintOnly.read_errors[0].error_code, "citadel_auth_required");
+  const promptThenDenied = await classify("请前往大象确认授权，等待超时 150 秒\nHTTP 403 forbidden");
+  assert.equal(promptThenDenied.read_errors[0].error_code, "citadel_document_access_denied");
+});
+
+test("source scan classifies process timeout from the strongest available evidence", async () => {
+  const classify = async (stderr) => scanSource({
+    source: { citadelUrl: "https://km.sankuai.com/page/123" },
+    resultSchema: V3_SOURCE_RESULT_SCHEMA_V2,
+    processRunner: async () => ({ exitCode: 1, timedOut: true, stdout: Buffer.alloc(0), stderr: Buffer.from(stderr) }),
+    waitBetweenReads: async () => {},
+  });
+  const waiting = await classify("请前往大象确认授权，等待超时 150 秒");
+  assert.equal(waiting.read_errors[0].error_code, "citadel_auth_timeout");
+  const denied = await classify("请前往大象确认授权\nHTTP 403 forbidden");
+  assert.equal(denied.read_errors[0].error_code, "citadel_document_access_denied");
+  const timedOut = await classify("");
+  assert.equal(timedOut.read_errors[0].error_code, "citadel_scan_timeout");
 });
 
 test("source scan fails closed without an isolated actor session", async () => {

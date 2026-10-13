@@ -157,3 +157,67 @@ def build_modify_model(
         },
     }
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 房态管理维度切换：房型维度 → 产品维度
+# 接口：MeGoodsFacade#changeRoomStatusDimension（与 batchUpdateInventory 不同 Facade）
+# ══════════════════════════════════════════════════════════════════════════════
+
+DIMENSION_SERVICE = "com.meituan.hotel.biz.platform.goods.facade.standard.MeGoodsFacade"
+
+
+def call_change_room_status_dimension(
+    partner_id: str,
+    poi_id: str,
+    swimlane: str = "",
+    dry_run: bool = False,
+) -> dict:
+    """
+    切换房态管理维度：房型维度 → 产品维度（MeGoodsFacade#changeRoomStatusDimension）。
+
+    ⚠️⚠️⚠️ 高风险不可逆操作 ⚠️⚠️⚠️
+      1. 切换后不支持切回房型维度（无逆向接口）。
+      2. 切换后需在「产品」维度做开/关房，同一房型下有多个产品时要逐个维护，
+         不再是"改一个房型、所有产品共享房态"。
+      3. 库存/超售仍然是房型维度（同房型下产品共享库存），只有"开关房态"这一件事
+         变成了产品维度，其余不受影响。
+      4. 该接口只是**发起**切换（异步）：请求成功仅代表任务已提交，服务端会：
+         - 先把维度状态置为「切换中」（ROOM_DIMENSION_CHANGING）
+         - 异步线程逐个房型迁移库存/房态数据到产品维度
+         - 完成后维度状态最终变为「产品维度」（ROOM_DIMENSION_CHANGE_SUCCESS）
+           或「切换失败」（ROOM_DIMENSION_CHANGE_FAILED）
+         本接口和本函数都**不做轮询确认**（无对外暴露的维度状态查询接口），
+         调用方需要自行等待一段时间或在前端页面确认最终是否切换成功。
+
+    抓包依据（2026-08-18，HTTP 网关 `/api/gw/v1/product/vpoi/changeRoomStatusDimension`，
+    与 Thrift `MeGoodsFacade#changeRoomStatusDimension` 底层走同一个
+    `RoomStatusServiceImpl.changeRoomStatusDimension` 核心逻辑）：
+      请求：{"poiId": "1090269458133536", "partnerId": 4576342}
+      响应：{"code": 10000, "data": "hotel_sc_dealing_new_changeRoom_...", "success": true}
+      （data 是本次切换任务的流水号/标识字符串，非 goodsId，无法用于轮询）
+
+    参数：
+        partner_id  - 供应商ID
+        poi_id      - 门店ID（mtPoiId）
+        swimlane    - 泳道（空字符串=主干）
+        dry_run     - True 时只打印不执行
+
+    返回：RPC 原始响应 dict（data 字段是切换任务标识字符串）
+    异常：InvokeError（业务失败，如参数缺失、已切换过、手工直连门店不允许切换等）
+    """
+    params = {
+        "partnerId": int(partner_id),
+        "poiId": str(poi_id),
+    }
+    return invoke(
+        appkey=APPKEY,
+        service=DIMENSION_SERVICE,
+        method="changeRoomStatusDimension",
+        params=params,
+        swimlane=swimlane,
+        timeout_ms=30000,
+        dry_run=dry_run,
+        raise_on_biz_error=True,
+        progress_hint="切换房态管理维度（房型→产品，不可逆）...",
+    )
+

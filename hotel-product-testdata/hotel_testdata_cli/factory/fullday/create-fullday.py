@@ -152,6 +152,26 @@ python3 factory/fullday/create-fullday.py \\
   --room-id 77671480 --room-name "标准大床房" \\
   --swimlane user-zhangsan
 
+# 15. 创建后设置特殊状态（两步：先建品上线，再用 goods-state.py 设置目标状态）
+# Step1：正常建品（create-fullday.py 只负责建品+上线）
+python3 factory/fullday/create-fullday.py \\
+  --partner-id 4550589 --poi-id 1085927256096396 \\
+  --room-id 77671480 --room-name "标准大床房"
+# Step2：对已上线商品设置目标状态（废除/价格审核/关房/满房 等）
+# 例：废除
+python3 factory/ops/goods-state.py \\
+  --partner-id 4550589 --poi-id 1085927256096396 \\
+  --goods-id <goodsId> --state abolish
+# 例：触发商家价格审核
+python3 factory/ops/goods-state.py \\
+  --partner-id 4550589 --poi-id 1085927256096396 \\
+  --goods-id <goodsId> --state merchant-auditing --current-price-yuan 200.0
+# 例：B端关房
+python3 factory/ops/goods-state.py \\
+  --partner-id 4550589 --poi-id 1085927256096396 \\
+  --goods-id <goodsId> --state b-closed --room-id 77671480 --goods-type 1
+# 查看所有支持状态：python3 factory/ops/goods-state.py --show-schema
+
 # dry-run 模式（只打印最终参数不执行）
 python3 factory/fullday/create-fullday.py \\
   --partner-id 4550589 --poi-id 1085927256096396 \\
@@ -173,6 +193,7 @@ import os
 import re
 import sys
 import time
+from typing import Optional
 
 # ── 根路径注入 ────────────────────────────────────────────────────────────
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -774,6 +795,7 @@ def validate_constraints(params: dict) -> None:
 # ══════════════════════════════════════════════════════════════════════════
 
 _INV_ERROR_KEYWORD = "最近90天内至少30天同时有价格和库存"
+_AUDIT_KEYWORDS = ("审核", "audit", "price audit")
 
 
 def _today() -> str:
@@ -885,7 +907,6 @@ def _online_with_inventory_retry(
         return
 
     # ── 上线失败后兜底：若原因含"审核"字样（非库存问题），再补一次审核重试 ────
-    _AUDIT_KEYWORDS = ("审核", "audit", "price audit")
     _audit_in_reason = any(kw in reason.lower() for kw in _AUDIT_KEYWORDS)
     if _audit_in_reason and _INV_ERROR_KEYWORD not in reason:
         print(f"\n── Step 6.5（兜底）: 上线失败含审核字样，重新执行 BD 改价审核 ──────")
@@ -1034,7 +1055,6 @@ def _show_schema():
   --dry-run              只打印最终参数，不执行
   --show-template        打印模板默认值（templates/fullday-default.json）
   --skip-constraints     跳过本地约束校验（谨慎使用）
-
 【本地约束校验（自动执行）】
   C0  商品名称不能含「测试」字样
   C1  售价必须 > 0（单位：分）
@@ -1107,7 +1127,6 @@ def main():
                          help="跳过本地约束校验（谨慎使用）")
     g_exec.add_argument("--poll-timeout",  type=int, default=120,
                          help="等待创建完成的最长秒数（默认120秒）")
-
     # ── 帮助类命令 ────────────────────────────────────────────────────────
     g_help = parser.add_argument_group("帮助命令")
     g_help.add_argument("--show-template", action="store_true",

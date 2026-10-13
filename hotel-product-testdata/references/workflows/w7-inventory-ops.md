@@ -119,4 +119,45 @@ python3 factory/inventory/update-inventory.py \
 - 全日房：`--day-room-ids`；钟点房：`--hour-room-ids`，不能搞混
 - 日期范围建议：`start-date=今天`，`end-date=两年后`（确保足够库存覆盖）
 - 详细 countType 坑记录：`references/pitfalls/inventory.md`
+- `update-inventory.py` 同时支持「房型维度」和「产品维度」两种操作：
+  - 传 `--day-room-ids`/`--hour-room-ids` → 房型维度（`changeType=1`，适用于未切换维度的门店）
+  - 传 `--goods-ids` → 产品维度（`changeType=2`，仅适用于已通过下方"切换房态管理维度"
+    章节切换为产品维度的门店），二者互斥不可混传
+  - `factory/goods-state/goods_inventory_ops.py` 对应封装为 `dimension="room"`（默认）/
+    `dimension="goods"` 两种入参，`factory/ops/goods-state.py` 则对外暴露为
+    `b-closed`/`b-full`（房型维度）与 `b-closed-goods`/`b-full-goods`（产品维度）四个 `--state`
+    值，详见 `w10-goods-state.md`
+
+---
+
+## ⚠️ 切换房态管理维度（房型 → 产品，高风险不可逆，独立场景）
+
+ME 系统支持把某个门店（VPOI）的房态管理从「房型维度」切换为「产品维度」，通过
+`MeGoodsFacade#changeRoomStatusDimension` 接口触发（HTTP 网关对应
+`/api/gw/v1/product/vpoi/changeRoomStatusDimension`）。**这是一个门店级、异步、不可逆的操作**，
+与本 workflow 上面描述的"开关房/设库存"是完全不同的两件事，务必先完全理解以下三点再执行：
+
+1. **不可逆**：切换后不支持从产品维度切回房型维度，没有反向接口。
+2. **切换后 B 端存在两套独立数据**：在房型维度的库存/房态之外，多出一层产品维度的库存/房态，
+   两个维度可以分别单独设置（B 端视角 = 房型维度库存/房态 + 产品维度库存/房态，共两套）。
+3. **C 端取用时做两个维度的交集判断**：房型维度库存售罄或关房时，即使产品维度房态为开、
+   有库存，C 端也买不了；只有两个维度都"开房且有库存"，C 端才可售。
+
+调用方式：
+
+```bash
+python3 factory/inventory/change-room-status-dimension.py \
+  --partner-id <partnerId> --poi-id <poiId>
+
+# 强烈建议先 dry-run 确认门店/供应商无误
+python3 factory/inventory/change-room-status-dimension.py \
+  --partner-id <partnerId> --poi-id <poiId> --dry-run
+```
+
+- 只需要 `partnerId` + `poiId`，没有 `goodsId`/`roomId` 维度的入参（接口本身就是门店级操作）。
+- 接口调用成功只代表"切换任务已提交"（服务端异步迁移库存/房态数据），**本脚本不轮询确认最终
+  是否切换成功**，`data` 字段返回的是任务标识字符串（非 goodsId），无法复用 `wait_for_goods_id`
+  轮询逻辑；如需确认最终状态，需等待片刻后在 ME/MTA 前端页面自行核实。
+- ⚠️ **仅当用户明确要求"切换为产品维度房态"时才执行**，不要在普通开关房/建品需求中主动调用，
+  也不要在非测试专用门店上执行（该操作对整个门店生效且不可逆）。
 

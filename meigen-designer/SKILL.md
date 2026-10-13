@@ -4,8 +4,8 @@ description: 美境 AI 设计师。凡是涉及视觉创作的需求，优先使
 
 metadata:
   skillhub.creator: "zhuxiangyu04"
-  skillhub.updater: "shiyunlong"
-  skillhub.version: "V20"
+  skillhub.updater: "chenshengtao"
+  skillhub.version: "V21"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "5315"
   skillhub.high_sensitive: "false"
@@ -29,14 +29,14 @@ metadata:
 
 ### 1. 检查 meigen-cli
 
-执行 `meigen --version`，确认版本号 **>= 1.4.9**。
+执行 `meigen --version`，确认版本号 **>= 1.5.1**。
 
 - **未安装**（命令不存在）：询问用户是否安装 meigen-cli，用户同意后执行 `npm install -g @meigen/meigen-cli@latest --registry=http://r.npm.sankuai.com`
 - **版本过低**：执行 `npm install -g @meigen/meigen-cli@latest --registry=http://r.npm.sankuai.com`升级版本
 
 ### 2. 同步 Skill 版本
 
-先获取 `<dirname>`——即存放各个 skill 子目录的那个**上级目录**：
+将 `<this-skill-md>` 替换为当前 SKILL.md 的绝对路径，获取存放 skill 子目录的上级目录：
 
 ```bash
 DIRNAME="$(cd "$(dirname "<this-skill-md>")/.." && pwd)"
@@ -52,11 +52,11 @@ meigen sync "$DIRNAME" meigen-designer
 
 | 退出码 | stderr 关键词 | 含义 | 后续动作 |
 |-------|-------------|------|---------|
-| 0 | `已是最新` | 本地已是最新版本 | 继续下一步 |
-| 0 | `已更新` | 已自动更新到最新版本 | 继续下一步 |
-| 0 | `已安装` | skill 首次注册安装成功 | 继续下一步 |
+| 0 | `已是最新` | 本地版本不低于线上版本 | 继续下一步 |
+| 0 | `已更新` / `已安装` | 同步成功 | 重新读取当前 Skill 的 SKILL.md，从同步后的步骤继续 |
 | 2 | `未检测到 mtskills` | 缺少 mtskills 依赖 | 询问用户是否安装：`npm install -g @mtfe/mtskills --registry=http://r.npm.sankuai.com`，用户同意后执行安装，再**重新执行** `meigen sync` |
-| 1 | `失败` / `更新失败` | 同步异常 | 告知用户错误信息，跳过同步继续后续步骤 |
+| 2 | `目录不存在` | `DIRNAME` 错误 | 修正路径并重新执行 |
+| 1 | 其他错误 | 同步失败 | 告知用户错误信息，继续后续步骤 |
 
 ### 3. 确认脚本目录
 
@@ -309,7 +309,7 @@ python3 "$SCRIPT_DIR/generate.py" --abort "$SESSION_ID" 2>&1
 - **任务终态失败**（退出码 0）：任务 FAILED/ABORTED/TIMEOUT，通过 `notify_failed`/`notify_timeout` JSON Line 标识，宿主按 `_action` 处理后停止读取。这是正常业务终态，非脚本异常。
 - **脚本自身错误**（退出码 1）：输出 `_action=failed` JSON Line，读 `msg` 处理。
 
-**升级指令处理**：若 `msg` 提示 skill 版本不可用问题且告诉了升级指令，按照升级指令执行；若仅提示需升级但未给指令，回退执行 `meigen sync "$DIRNAME" meigen-designer`。升级完成后重新发起原任务。
+**升级指令处理**：若 `msg` 提示 skill 版本不可用问题且告诉了升级指令，按照升级指令执行；若仅提示需升级但未给指令，执行 `meigen sync "$DIRNAME" meigen-designer`。同步结果为 `已更新` 或 `已安装` 时，重新读取本 SKILL.md 并重试原任务；否则告知用户同步结果。
 
 ---
 

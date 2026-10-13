@@ -5,8 +5,8 @@ allowed-tools: [read, exec]
 
 metadata:
   skillhub.creator: "mengfanchen"
-  skillhub.updater: "liruzhen"
-  skillhub.version: "V31"
+  skillhub.updater: "zhaoshichuan"
+  skillhub.version: "V32"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "17622"
   skillhub.high_sensitive: "false"
@@ -132,6 +132,7 @@ bash "$SKILL_DIR/scripts/setup.sh"
 | 开房 / 关房 / 修改库存余量 | `references/workflows/w7-inventory-ops.md` | partnerId + poiId + roomId |
 | 门店私海认领 / 供应商绑定门店 / 价格模式切换 | `references/workflows/w8-infra-bootstrap.md` | poiId（认领）/ poiId+partnerId（绑定）/ platformContractId（价格模式） |
 | 住宿门店资质添加（工具476）、供应商门店资质审核（工具498） | `references/workflows/w8-infra-bootstrap.md` | poiId |
+| 已有商品设置特殊状态（不在线/废除/审核中/审核驳回/B端关房/B端满房，**仅用户明确要求时**） | `references/workflows/w10-goods-state.md` | partnerId + poiId + goodsId |
 
 **前置 ID 缺失时自动进入 W8 补齐**，根据用户实际持有情况走对应路径：
 

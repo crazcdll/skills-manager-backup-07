@@ -1,9 +1,9 @@
 skill-manifest-version: 1
-skill-id: 539f01dfd4899ad23664e30b72dc558e98ad8d7ee7f9a014fbacfbcac415d940
+skill-id: a98bfdb69e68b0a03149a11ff69397f288d36197aa1b1f7039b46605ccb9209b
 
 files:
   2bdf304c8b913391ef02ee608d2d53e4db8f03d5c831f2b87aadbb8a21a02286  .skillignore
-  6bb49cfc63fdefbf3a89546a95735bd2b9dbd297068f2879af6a22f40d2212bf  SKILL.md
+  e6f3cc87de4580ed043bfee99e784d5e6926f01e5ce1ffaf138c795e323785bc  SKILL.md
   88915a3666de76b7c2dcb7fe2966810d28431bd2d5dd9e0e0224b6f41a527cf8  cr-config.yaml
   f8dbb8d87d35cba06489b0e88fab030c8f842a97fc08697f7daf2f4ba35bb460  references/citadel-write-guide.md
   25e2d61d6a496cbf88e513f19d7ce97d5575e15f0e5568c7e9022a0f96d0a023  references/coding-standards-checklist.md
@@ -58,4 +58,4 @@ files:
   fd65f486837d6e512de7fdc70fc8b24c1c21c12dda64c264bdd6535edc4be7be  scripts/env-check.sh
   21ac358b246cc1e6ae2cc5373cecfd45280440f50ff40f3126a168b3387c1f6e  scripts/get_org_info.py
   c240902056d2ec8348fe23b425c27a5df86ea1c9a95a65ab830f6bb6b6c31ea4  scripts/notify.py
-  b26ccfdba9ec52153bf3705a0f9ee9edb9b93da6a96e6e13aa53b76b1e00d549  scripts/publish_results.py
+  64dbcdd853a87bd55e53a38b44d4e6e5dee7a53c716039a1c6d0e2b0e0f37778  scripts/publish_results.py

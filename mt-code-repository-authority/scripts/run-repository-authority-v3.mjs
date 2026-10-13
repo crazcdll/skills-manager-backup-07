@@ -44,7 +44,7 @@ const errorShape = (error) => ({ phase: String(error?.phase || "runner"), error_
 const createCitadelAuthSession = async () => {
   const directory = await mkdtemp(join(tmpdir(), "repository-citadel-auth-"));
   await chmod(directory, 0o700);
-  const env = { ...process.env, AUTH_CACHE_FILE: join(directory, "auth-cache.json"), SSO_OIDC_FALLBACK: "false" };
+  const env = { ...process.env, AUTH_CACHE_FILE: join(directory, "auth-cache.json"), SSO_OIDC_FALLBACK: "false", NO_CHECK_VERSION: "true" };
   delete env.SSO_CIBA_TOKEN;
   return { env, cleanup: () => rm(directory, { recursive: true, force: true }) };
 };
@@ -180,6 +180,14 @@ export const extractRepositoryCandidatesV2 = (value, location) => {
   strings(value).forEach((source) => {
     for (const match of source.matchAll(REPOSITORY_ADDRESS)) {
       const raw = match[0].replace(/[,;]+$/u, "");
+      if (/^https?:\/\//iu.test(raw)) {
+        let url;
+        try { url = new URL(raw); } catch { continue; }
+        if (
+          url.hostname !== "dev.sankuai.com" || url.port || url.username || url.password ||
+          !/^\/code\/repo-detail\/(?:~?[a-z0-9._-]{1,120})\/[a-z0-9._-]{1,120}(?:\/file\/list)?\/?$/iu.test(url.pathname)
+        ) continue;
+      }
       const item = { raw_value: raw.slice(0, 2000), source_locations: [location] };
       if (raw.length <= 2000) candidates.push(item);
       else invalidItems.push({ ...item, error_code: "repository_address_too_long" });
@@ -218,17 +226,21 @@ export const scanCitadelSource = async ({ source, actorMis, authEnvironment, res
     const remaining = deadline - now() - 60_000;
     if (remaining <= 1000) return { exitCode: 1, timedOut: true, stdout: Buffer.alloc(0) };
     await waitBetweenReads(300 + Math.floor(Math.random() * 200));
-    try { return await processRunner(command, args, { env: authEnvironment, maxBuffer, timeout: Math.min(remaining, 150_000) }); }
+    try { return await processRunner(command, args, { env: { ...authEnvironment, NO_CHECK_VERSION: "true" }, maxBuffer, timeout: Math.min(remaining, 150_000) }); }
     catch { return { exitCode: 1, stdout: Buffer.alloc(0), stderr: Buffer.alloc(0) }; }
   };
-  const authArgs = ["--mis", actorMis, "--sso-strategy", "sso-ciba", "--raw"];
+  const authArgs = ["--mis", actorMis, "--sso-strategy", "sso-ciba", "--raw", "--no-version-check"];
   const terminalFailureCode = (result) => {
-    if (result?.timedOut === true) return "citadel_scan_timeout";
     const output = `${Buffer.from(result?.stdout ?? "").toString("utf8")}\n${Buffer.from(result?.stderr ?? "").toString("utf8")}`;
-    if (/(?:citadel_scan_timeout|timed?\s*out|timeout|ETIMEDOUT|超时)/iu.test(output)) return "citadel_scan_timeout";
-    if (/(?:citadel_auth_required|authorization_pending|slow_down|cooldown|auth(?:entication|orization)?.{0,60}required|需要.{0,12}(?:认证|授权)|请.{0,12}(?:认证|授权))/iu.test(output)) return "citadel_auth_required";
-    if (/(?:citadel_auth_failed|MOA_USER_REJECTED|access_denied|expired_token|invalid_grant|401.{0,20}unauthorized|unauthorized|auth(?:entication|orization)?.{0,60}(?:failed|denied|expired)|(?:认证|授权).{0,30}(?:失败|拒绝|过期))/iu.test(output)) return "citadel_auth_failed";
+    const authRequired = /(?:citadel_auth_required|MOA_NOT_LOGGED_IN|MOA_AUTH_REQUEST_PENDING|ric_feedback_required|authorization_pending|slow_down|auth(?:entication|orization)?.{0,60}required|需要.{0,12}(?:认证|授权)|请.{0,12}(?:认证|授权)|前往大象.{0,20}(?:确认|授权))/iu.test(output);
+    if (/(?:citadel_auth_rejected|MOA_USER_REJECTED|MOA_REJECT_COOLDOWN|(?:认证|授权).{0,30}(?:被?拒绝|冷却)|user.{0,20}rejected)/iu.test(output)) return "citadel_auth_rejected";
+    if (/(?:citadel_auth_expired|expired_token|invalid_grant|token.{0,20}expired|auth(?:entication|orization)?.{0,30}expired|(?:认证|授权|令牌).{0,30}过期)/iu.test(output)) return "citadel_auth_expired";
     if (/(?:citadel_document_access_denied|403|forbidden|permission denied|access denied|没有.{0,12}(?:查看|阅读|访问)?.{0,12}权限|无.{0,12}(?:查看|阅读|访问)?.{0,12}权限|权限不足)/iu.test(output)) return "citadel_document_access_denied";
+    if (/(?:citadel_auth_failed|access_denied|sub_access_denied|act_access_denied|sub_act_access_denied|401.{0,20}unauthorized|unauthorized|auth(?:entication|orization)?.{0,60}(?:failed|denied)|(?:认证|授权).{0,30}失败)/iu.test(output)) return "citadel_auth_failed";
+    if (result?.timedOut === true) return authRequired ? "citadel_auth_timeout" : "citadel_scan_timeout";
+    if (/(?:citadel_auth_timeout|MOA_AUTH_TIMEOUT|AUTHORIZATION_TIMEOUT|auth(?:entication|orization)?.{0,30}timed?\s*out|(?:认证|授权)(?:请求|等待)?(?:已)?超时|等待.{0,20}(?:认证|授权|大象).{0,20}(?:已)?超时)/iu.test(output)) return "citadel_auth_timeout";
+    if (/(?:citadel_scan_timeout|ETIMEDOUT|ECONNABORTED|request.{0,20}timed?\s*out|请求.{0,12}超时)/iu.test(output)) return "citadel_scan_timeout";
+    if (authRequired) return "citadel_auth_required";
     return null;
   };
   const terminalFailure = (sourceLocation, errorCode) => {

@@ -5,6 +5,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const MIS = /^[a-z][a-z0-9._-]{0,63}$/u;
 const SAFE_ERROR_CODES = new Set([
   "citadel_auth_required",
+  "citadel_auth_rejected",
+  "citadel_auth_timeout",
+  "citadel_auth_expired",
   "citadel_auth_failed",
   "citadel_document_access_denied",
   "citadel_scan_timeout",
@@ -14,10 +17,13 @@ const SAFE_ERROR_CODES = new Set([
 const safeCitadelErrorCode = (error) => {
   const message = String(error instanceof Error ? error.message : error);
   if (SAFE_ERROR_CODES.has(message)) return message;
-  if (/(?:timed?\s*out|timeout|ETIMEDOUT|超时)/iu.test(message)) return "citadel_scan_timeout";
-  if (/(?:authorization_pending|slow_down|cooldown|auth(?:entication|orization)?.{0,60}required|需要.{0,12}(?:认证|授权)|请.{0,12}(?:认证|授权))/iu.test(message)) return "citadel_auth_required";
-  if (/(?:MOA_USER_REJECTED|access_denied|expired_token|invalid_grant|401.{0,20}unauthorized|unauthorized|auth(?:entication|orization)?.{0,60}(?:failed|denied|expired)|(?:认证|授权).{0,30}(?:失败|拒绝|过期))/iu.test(message)) return "citadel_auth_failed";
+  if (/(?:MOA_USER_REJECTED|MOA_REJECT_COOLDOWN|(?:认证|授权).{0,30}(?:被?拒绝|冷却)|user.{0,20}rejected)/iu.test(message)) return "citadel_auth_rejected";
+  if (/(?:expired_token|invalid_grant|token.{0,20}expired|auth(?:entication|orization)?.{0,30}expired|(?:认证|授权|令牌).{0,30}过期)/iu.test(message)) return "citadel_auth_expired";
+  if (/(?:MOA_AUTH_TIMEOUT|AUTHORIZATION_TIMEOUT|auth(?:entication|orization)?.{0,30}timed?\s*out|(?:认证|授权)(?:请求|等待)?(?:已)?超时|等待.{0,20}(?:认证|授权|大象).{0,20}(?:已)?超时)/iu.test(message)) return "citadel_auth_timeout";
   if (/(?:403|forbidden|permission denied|access denied|没有.{0,12}(?:查看|阅读|访问)?.{0,12}权限|无.{0,12}(?:查看|阅读|访问)?.{0,12}权限|权限不足)/iu.test(message)) return "citadel_document_access_denied";
+  if (/(?:access_denied|sub_access_denied|act_access_denied|sub_act_access_denied|401.{0,20}unauthorized|unauthorized|auth(?:entication|orization)?.{0,60}(?:failed|denied)|(?:认证|授权).{0,30}失败)/iu.test(message)) return "citadel_auth_failed";
+  if (/(?:ETIMEDOUT|ECONNABORTED|request.{0,20}timed?\s*out|请求.{0,12}超时)/iu.test(message)) return "citadel_scan_timeout";
+  if (/(?:MOA_NOT_LOGGED_IN|MOA_AUTH_REQUEST_PENDING|ric_feedback_required|authorization_pending|slow_down|auth(?:entication|orization)?.{0,60}required|需要.{0,12}(?:认证|授权)|请.{0,12}(?:认证|授权)|前往大象.{0,20}(?:确认|授权))/iu.test(message)) return "citadel_auth_required";
   return "citadel_database_page_unavailable";
 };
 

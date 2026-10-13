@@ -89,7 +89,7 @@ Yuntu 结果通过后，Runner 必须再次读取同一 canonical 仓库。owner
 
 ## Callback
 
-- URL：`/functions/v1/rule-observability/internal/repository-authority/attempts/{attempt_id}/result`
+- URL：`/functions/v1/repository-governance/internal/repository-authority/attempts/{attempt_id}/result`
 - Bearer：attempt 级短期 capability，只在数据库保存 SHA-256。
 - Idempotency-Key：`{attempt_id}:{runner_invocation_id}`。
 - callback body 使用递归 key-sort 的 canonical JSON，`result_hash` 对同一 canonical 字节计算 SHA-256；不得
@@ -137,8 +137,11 @@ artifact Hash 校验原始 UTF-8 字节；task 不得超过 64 KiB，接收时�
 每个 item 使用自己的 capability，地址固定为：
 
 ```text
-https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-observability/internal/organization-refresh/attempts/{attempt_id}/result
+https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/organization-admin/internal/organization-refresh/attempts/{attempt_id}/result
 ```
+
+迁移期间三个 Runner 还精确接受相同 host、业务路径和任务 ID 的旧 `rule-observability` 地址；其他 Function、
+host、ID、query 或 fragment 均拒绝。回调 Schema、capability 与幂等键不变。
 
 callback 不接受重定向或其他主机，Idempotency-Key 固定为 `{attempt_id}:{runner_invocation_id}`。
 对同一 canonical 结果最多发送三次，只有网络错误、408/425/429/5xx 可以重送；原查询不重跑。
@@ -151,7 +154,9 @@ callback 不接受重定向或其他主机，Idempotency-Key 固定为 `{attempt
 来源没有提供修订号，`verified_at` 仅记录采样时间，平台应通过 run generation、当前 attempt 和同轮链一致性
 控制应用顺序，不能按回调到达时间覆盖关系。
 
-部署需要分别更新 Friday 的 `mt-code-repository-authority` 和 CatX 实际安装的技能包。Skill 包包含两个
+拆分部署先更新 Friday 的 `mt-code-repository-authority` 和 CatX 实际安装的技能包，再部署
+`repository-governance`、`organization-admin` 并由 Edge 改签新地址；旧 `rule-observability` 回调入口在
+迁移期保留转发。Skill 包包含两个
 Runner，但仓库识别继续使用 v1 执行合同；v2 表示新增组织核验能力，不表示 Friday 安装版本号。
 先部署数据库迁移与具备新入口的技能包，再启用 Edge 组织核验；初次启用保持 `dry_run`，真实无人值守
 Metrics 换票和来源权限需另行验证。本机模拟测试不等于已部署定时任务。
@@ -177,20 +182,22 @@ authority shard 的 `actor.execution_mis="zhangce07"`；source scan 的
   显式读取全部列，固定读取器调用官方 `XTableClient.queryTableDataSinglePage` 逐页查询。
   不消费 CLI 全量自动翻页的空 rows/缓存文件回执，以免遗漏数据或吞掉读取错误。
   运行环境必须安装 Node.js 24、`oa-skills`，且客户端提供上述单页能力；顺序读取加入短暂抖动。
-  旧结果合同仅解析完整 MCode HTTPS/SSH 地址。新版结果合同提取地址原文，不把裸名、文档说明或
-  嵌入指令作为执行请求，也不在 Runner 内解析仓库身份或调用 Code/Yuntu。
+  旧结果合同仅解析完整 MCode HTTPS/SSH 地址。新版结果合同中，HTTP(S) 仅提取
+  `dev.sankuai.com/code/repo-detail/{namespace}/{repository}`（可带 `/file/list`、query 和 hash），
+  同时保留完整 SSH 与 `git@` 地址；不把裸名、其他网页链接、文档说明或嵌入指令作为执行请求，
+  也不在 Runner 内解析仓库身份或调用 Code/Yuntu。
   使用平台核验的 `actor.mis` 和 `sso-ciba` 发起当前用户大象授权；attempt 内创建 `0700` 私有
   `AUTH_CACHE_FILE`，清除受控子进程继承的 `SSO_CIBA_TOKEN`、关闭 OIDC fallback，并在最外层 Runner
   的 `finally` 中清理。多次读取在同一 attempt 复用认证，不跨 attempt 复用。单次读取有超时/缓冲限制，
   扫描预留一分钟回调时间；普通中断可保留已发现地址并报告未读来源，不将 `partially_scanned` 宣称为全量成功。
-  CIBA 等待/拒绝/失败/超时或文档 ACL 失败则立即停止后续文档和表格读取，结果为 `failed`，提示用户
+  CIBA 等待/拒绝/过期/失败/超时或文档 ACL 失败则立即停止后续文档和表格读取，结果为 `failed`，提示用户
   在大象完成确认或取得文档权限后新建 attempt。传入 MIS 不等同于已认证主体，授权事实仅来自官方响应。
 
 历史来源结果 Schema `repository-authority-source-scan-result/v1` 曾包含
 `run_id,shard_id,generation,scan_revision,execution_mis,scan_status,repositories,issues,chunk_index,is_final`。
 该 v1 结果仅作为历史合同记录，新的 v3/v4 source scan task 不再接受。历史地址和错误结果曾按最多
 500 项且约 240 KiB 分段，顺序提交，**总仓库数不设上限**。
-回调 URL 固定为 `/functions/v1/rule-observability/internal/repository-association/runs/{run_id}/source-result`，
+当前回调 URL 固定为 `/functions/v1/repository-governance/internal/repository-association/runs/{run_id}/source-result`，
 Bearer 是 shard/generation 级 capability，Idempotency-Key 为 `{shard_id}:{generation}`。
 每个 chunk 的 canonical Hash 绑定数据库分段记录；同段同 Hash 返回 duplicate，不同 Hash 返回 409，
 只有 final 段才能将扫描置为 ready/failed。重送最多三次，仅对传输临时错误进行。

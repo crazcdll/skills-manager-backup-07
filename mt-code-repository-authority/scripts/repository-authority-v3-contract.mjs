@@ -40,8 +40,10 @@ const callback = (value, attemptId) => {
   if (!CALLBACK_TOKEN.test(String(item.token ?? ""))) throw new AuthorityContractError("callback token is invalid");
   let url;
   try { url = new URL(item.url); } catch { throw new AuthorityContractError("callback URL is invalid"); }
-  const expected = `/functions/v1/rule-observability/internal/repository-authority/attempts/${attemptId}/result`;
-  if (url.protocol !== "https:" || url.hostname !== CALLBACK_HOST || url.port || url.pathname !== expected || url.search || url.hash || url.username || url.password) {
+  const expectedPaths = new Set(["rule-observability", "repository-governance"].map((functionName) => (
+    `/functions/v1/${functionName}/internal/repository-authority/attempts/${attemptId}/result`
+  )));
+  if (url.protocol !== "https:" || url.hostname !== CALLBACK_HOST || url.port || !expectedPaths.has(url.pathname) || url.search || url.hash || url.username || url.password) {
     throw new AuthorityContractError("callback URL is outside the allowed endpoint");
   }
   return { url: url.toString(), token: item.token };
@@ -127,8 +129,10 @@ export const validateV3TaskArtifact = ({ taskBytes, expectedTaskArtifactHash, no
     if (!CALLBACK_TOKEN.test(String(sourceCallback.token ?? ""))) throw new AuthorityContractError("source callback token is invalid");
     let callbackUrl;
     try { callbackUrl = new URL(sourceCallback.url); } catch { throw new AuthorityContractError("source callback URL is invalid"); }
-    const expectedPath = `/functions/v1/rule-observability/internal/repository-association/runs/${payload.run_id}/source-result`;
-    if (callbackUrl.protocol !== "https:" || callbackUrl.hostname !== CALLBACK_HOST || callbackUrl.port || callbackUrl.pathname !== expectedPath || callbackUrl.search || callbackUrl.hash || callbackUrl.username || callbackUrl.password) {
+    const expectedPaths = new Set(["rule-observability", "repository-governance"].map((functionName) => (
+      `/functions/v1/${functionName}/internal/repository-association/runs/${payload.run_id}/source-result`
+    )));
+    if (callbackUrl.protocol !== "https:" || callbackUrl.hostname !== CALLBACK_HOST || callbackUrl.port || !expectedPaths.has(callbackUrl.pathname) || callbackUrl.search || callbackUrl.hash || callbackUrl.username || callbackUrl.password) {
       throw new AuthorityContractError("source callback URL is outside the allowed endpoint");
     }
     return {

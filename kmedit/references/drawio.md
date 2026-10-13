@@ -6,7 +6,7 @@
 
 - 新插入 DrawIO：`insert_drawio`。
 - 一次性改完已有 DrawIO：`update_drawio`。
-- 用户要求“边改边看”“多次局部调整”“先预览，最后保存”：使用 DrawIO session runtime。
+- 多次局部调整、先预览最后保存：默认 `kmedit drawio-session` API-only 本地草稿；浏览器 iframe 实时交互使用 CDP session runtime。
 
 ## 关键 Gotchas
 
@@ -16,11 +16,29 @@
 - 更新已有 DrawIO 时优先用 `target.nodeId` 绑定具体 drawio 节点；fallback 必须唯一。
 - 已有节点只传 `target.nodeId` 即可；`check` / `patch` 会优先读取节点内联 XML，缺失时通过节点的 KM
   attachment URL 只读恢复可编辑 SVG/XML。只有附件不可访问或不含可编辑 `mxfile` 时才需要显式补充原文件。
-- API-only 一次性编辑可直接传 `.drawio` / XML / 可编辑 SVG：本地 renderer 会生成带 `mxfile content` 的 SVG，再由官方文件上传接口落成原生节点；无需 Chrome/CDP。
-- 本地 renderer 不认识的第三方 shape 默认会失败。只有明确接受视觉降级时才传 `allowDegraded: true`；不要把 raw XML 当普通 `.svg` 上传。
+- API-only 一次性编辑可直接传 `.drawio` / XML / 可编辑 SVG，再由官方文件上传接口落成原生节点；无需 Chrome/CDP。
+- 传入已含可编辑 mxfile（`content` 属性）的 SVG 且不附带 cell 操作时，本地 renderer 直通上传原文件，不重渲染，drawio-converter 等工具产出的高保真 SVG（含 UserObject、第三方 shape）都可用；summary 里 `renderer.version` 为 `local-drawio-passthrough-1`。
+- kmedit >= 3.1.1 支持带 XML 声明、注释和公共 DOCTYPE 的桌面 SVG，并保留原始字节；XML 解析不加载外部 DTD。生成图仍由 converter 的桌面/webapp 引擎完成，KM 上传与提交阶段不需要浏览器。
+- 只有附带 cell 操作、或输入是 `.drawio` / 裸 XML 时才会走本地 renderer 重渲染（`local-drawio-1`）；该 renderer 不认识的第三方 shape 和 UserObject 包装默认会失败。只有明确接受视觉降级时才传 `allowDegraded: true`；不要把 raw XML 当普通 `.svg` 上传。
 - DrawIO XML 操作后使用 `expectedCellIds` 校验关键 cell，避免保存空图、旧图或未命中的操作结果。
 
-## 实时编辑流程
+## API-only 本地草稿（默认）
+
+```bash
+kmedit drawio-session start --doc-id '<docId>' --target-node-id '<drawio-or-anchor-nodeId>' \
+  --session-file /tmp/drawio-task/session.json --input-file /tmp/drawio-task/source.drawio
+kmedit drawio-session apply --session-file /tmp/drawio-task/session.json --ops-file /tmp/drawio-task/cell-ops.json
+kmedit drawio-session commit --session-file /tmp/drawio-task/session.json --expected-cell-id '<key-cell>'
+```
+
+编辑现有 DrawIO 时 start 可不传 input-file；新插入时 target 是锚点，position 支持 before/after。
+apply 只改本地文件，返回 sourceFile 和可用的 preview，uploadCount/saveCount 均为 0。
+模型编辑保留 UserObject、自定义属性、shape 和 geometry；复杂 shape 的预览若不可用，使用 kmdrawio converter
+从 apply 返回的 sourceFile 生成可编辑 SVG，然后 commit --input-file '<SVG>'。commit 校验 SVG 模型与草稿一致，
+并绑定开始时的协作版本，上传一次、提交一次、读回验证。版本冲突需重新 inspect/start/reapply；未知提交状态禁止盲目重试。
+放弃使用 discard。session-file 私有权限保存，不含登录凭据；不要并发修改同一个草稿。
+
+## CDP 实时编辑流程
 
 1. `kmedit browser-inspect --doc-id <docId> --node-type drawio --limit 20`，记录返回的 `binding.targetId`，并从 `inspect.matches.nodes` 找到目标 `drawio` 节点的 `nodeId`。
 2. 调用 `drawio_session_start`，传入 `target.nodeId`、稳定 `sessionId`、`targetId`。如果是新 XML 草稿，可以传 `drawio.xml` / `drawio.path`；编辑已有图通常只传 `target`。
@@ -101,7 +119,7 @@ bun run src/main.ts < ./drawio-session-start.json
 
 ## 一次性更新示例
 
-一次性更新已有 DrawIO 优先走 API-only；实时 session 仍使用 CDP：
+一次性更新和本地草稿默认 API-only；以下是一次性更新的 ops：
 
 ```json
 {

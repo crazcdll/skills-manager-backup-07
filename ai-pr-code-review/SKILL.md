@@ -7,7 +7,7 @@ PR → 大象推送 → 登记多维表格，I/O 操作均重试4次失败通知
 metadata:
   skillhub.creator: "mengmuzi"
   skillhub.updater: "mengmuzi"
-  skillhub.version: "V155"
+  skillhub.version: "V156"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "5205"
   skillhub.high_sensitive: "false"
@@ -878,7 +878,7 @@ note: 纯配置/测试/重构变更，无业务 spec 要求
 
 > ⚠️ **硬门禁**：在执行本步骤前，必须确保以下文件已就绪：
 > 1. issues JSON 文件（Step 4C~4G 产出）：`/tmp/cr_issues_{repo}_{branch}.json`
-> 2. 变更文件清单（Step 3 产出，可选）：`/tmp/cr_changed_files_{prId}.md`
+> 2. 变更文件清单（Step 3 产出，可选）：`/tmp/cr_changed_files_{prId}.md` —— 每行一个变更文件路径（Step 2 `pr-info` 的 changed_files 逐行写入；该文件同时供 publish 阶段技术栈嗅探使用，未产出时技术栈回退默认 java）
 > 3. 变更综述+总体评价+人工复审要点（Step 3 产出，可选）：`/tmp/cr_summary_{prId}.md`
 > 4. SDD 校验章节（Step 3D 产出，可选）：`/tmp/cr_sdd_{prId}.md`
 > 5. CatPaw 对比章节（Step 2 产出，可选）：`/tmp/cr_catpaw_{prId}.md`
@@ -902,6 +902,7 @@ python3 "$SKILL_ROOT/scripts/publish_results.py" \
   [--is-sdd {has_spec}] \
   [--consistency-rate "{alignment_rate}"] \
   [--catpaw-file "/tmp/cr_catpaw_{prId}.md"] \
+  [--tech-stack "{java|mrn|max|miniprogram|duo|react}"] \
   [--branch "{sourceBranch}"] \
   [--file-count {fileCount}] \
   [--line-changes "+{added} -{deleted}"] \
@@ -928,7 +929,8 @@ python3 "$SKILL_ROOT/scripts/publish_results.py" \
 | `--citadel-parent-id` | ✅ | Step 2 `get_org_info.py` | 学城父目录 ID |
 | `--team-chat-group-id` | 可选 | Step 2 接口返回 | 团队大象群 ID（无则只推全局群） |
 | `--issues-file` | ✅ | Step 4C~4G | issues JSON 文件路径 |
-| `--changed-files-file` | 可选 | Step 3 | 变更文件清单 markdown |
+| `--changed-files-file` | 可选 | Step 3 | 变更文件清单 markdown（兼作技术栈嗅探数据源） |
+| `--tech-stack` | 可选 | 主 Agent 判定 | 技术栈（java/mrn/max/miniprogram/duo/react）；未传时按变更文件清单嗅探，嗅探不出回退 java |
 | `--summary-file` | 可选 | Step 3 | 变更综述+总体评价+人工复审要点 |
 | `--sdd-file` | 可选 | Step 3D | SDD 校验章节 markdown |
 | `--is-sdd` | 🚨必传 | Step 3D `SDD_CHECK_RESULT.has_spec` | 本次 CR 是否有 SDD spec 产物（true/false，禁止自行推断；未传一律按 false 兜底） |

@@ -152,12 +152,24 @@ const callbackReceipt = (body, status = "accepted") => {
 };
 
 test("task rejects duplicated identities, extra principals, expired deadlines and foreign callbacks", () => {
+  const migrated = taskFixture();
+  migrated.items[0].callback.url = migrated.items[0].callback.url.replace(
+    "/rule-observability/",
+    "/organization-admin/",
+  );
+  assert.equal(
+    validateTask(migrated, sha256(canonical(migrated))).items[0].callback.url,
+    migrated.items[0].callback.url,
+  );
   for (const mutate of [
     (task) => { task.items[1].item_id = task.items[0].item_id; },
     (task) => { task.items[1].runner_invocation_id = task.items[0].runner_invocation_id; },
     (task) => { task.items[0].unexpected_mis = "mallory"; },
     (task) => { task.execution.deadline = new Date(Date.now() - 1).toISOString(); },
     (task) => { task.items[0].callback.url = "https://other.example/collect"; },
+    (task) => { task.items[0].callback.url = task.items[0].callback.url.replace("/rule-observability/", "/repository-governance/"); },
+    (task) => { task.items[0].callback.url += "?redirect=organization-admin"; },
+    (task) => { task.items[0].callback.url = task.items[0].callback.url.replace(task.items[0].attempt_id, ids[0]); },
     (task) => { task.items = Array.from({ length: 11 }, () => task.items[0]); },
   ]) {
     const task = taskFixture();

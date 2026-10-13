@@ -681,8 +681,12 @@ def call_add_poi_qualification(
 # ════════════════════════════════════════════════════════════════════════════
 
 # 价格模式枚举（工具906 境内）
-PRICE_MODE_BASE_PRICE   = "BASE_PRICE"    # 底价模式
-PRICE_MODE_SELLING      = "SELLING_PRICE" # 卖价模式
+# ⚠️ 服务端 PmcPriceChangeModeEnum 合法值：MEITUAN_COMMISION / MEITUAN_SETTLE_PRICE /
+#    RESERVE_PRICE / SETTLE_PRICE_COMMISION_RATE / SETTLE_PRICE_COMMISION /
+#    MEITUAN_PRICE / SELLING_PRICE / MARKUP_RATE（2026-09-23 实测）
+# 底价模式 = RESERVE_PRICE（BASE_PRICE 会被服务端反序列化拒绝）
+PRICE_MODE_BASE_PRICE   = "RESERVE_PRICE"  # 底价模式
+PRICE_MODE_SELLING      = "SELLING_PRICE"  # 卖价模式
 
 # 工具928 境外 priceMode 枚举
 PRICE_MODE_OVERSEAS_BASE    = "2"  # 底价/结算价佣金率

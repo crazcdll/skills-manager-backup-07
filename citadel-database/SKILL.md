@@ -4,8 +4,8 @@ description: "学城多维表格操作工具。支持:文档/表格创建与管�
 
 metadata:
   skillhub.creator: "zhangshufei02"
-  skillhub.updater: "hekai13"
-  skillhub.version: "V23"
+  skillhub.updater: "zhangshufei02"
+  skillhub.version: "V24"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "3859"
   skillhub.high_sensitive: "true"
@@ -406,7 +406,7 @@ oa-skills citadel-database getUserInfo --misList '["zhangsan", "lisi"]'
 - **列的删除**
 - LOOKUP（查找引用）列及系统列（code ≥ 101）的创建
 
-用户要求时明确说明"当前暂不支持"。替代方案：可通过 Web UI 手动操作。
+用户要求时明确说明"当前暂不支持"。不可通过 Web UI 手动操作。
 
 ## 认证
 

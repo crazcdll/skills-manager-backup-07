@@ -79,6 +79,26 @@ python3 factory/hourly/create-hourly.py \\
   --room-id 12345 --room-name "钟点房" \\
   --swimlane user-zhangsan
 
+# 创建后设置特殊状态（两步：先建品上线，再用 goods-state.py 设置目标状态）
+# Step1：正常建品（create-hourly.py 只负责建品+上线）
+python3 factory/hourly/create-hourly.py \\
+  --partner-id 4550100 --poi-id 1090235108219575 \\
+  --room-id 12345 --room-name "钟点房"
+# Step2：对已上线商品设置目标状态（废除/价格审核/关房/满房 等）
+# 例：废除
+python3 factory/ops/goods-state.py \\
+  --partner-id 4550100 --poi-id 1090235108219575 \\
+  --goods-id <goodsId> --state abolish
+# 例：触发商家价格审核（钟点房默认售价80元）
+python3 factory/ops/goods-state.py \\
+  --partner-id 4550100 --poi-id 1090235108219575 \\
+  --goods-id <goodsId> --state merchant-auditing --current-price-yuan 80.0
+# 例：B端关房（钟点房用 --goods-type 2）
+python3 factory/ops/goods-state.py \\
+  --partner-id 4550100 --poi-id 1090235108219575 \\
+  --goods-id <goodsId> --state b-closed --room-id 12345 --goods-type 2
+# 查看所有支持状态：python3 factory/ops/goods-state.py --show-schema
+
 # dry-run 模式（只打印最终参数不执行）
 python3 factory/hourly/create-hourly.py \\
   --partner-id 4550100 --poi-id 1090235108219575 \\
@@ -100,6 +120,7 @@ import os
 import re
 import sys
 import time
+from typing import Optional
 
 # ── 根路径注入 ────────────────────────────────────────────────────────────
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -540,6 +561,7 @@ def validate_constraints(params: dict) -> None:
 # ══════════════════════════════════════════════════════════════════════════
 
 _INV_ERROR_KEYWORD = "最近90天内至少30天同时有价格和库存"
+_AUDIT_KEYWORDS = ("审核", "audit", "price audit")
 
 
 def _load_update_inventory():
@@ -731,7 +753,6 @@ def _show_schema():
   --dry-run              只打印最终参数，不执行
   --show-template        打印模板默认值（templates/hourly-default.json）
   --skip-constraints     跳过本地约束校验（谨慎使用）
-
 【本地约束校验（自动执行）】
   C2   typeLimitValue 必须在 1~23 之间
   C2a  paymentType 必须为 0（不支持现付担保/非担保）
@@ -811,7 +832,6 @@ def main():
                          help="跳过本地约束校验（谨慎使用）")
     g_exec.add_argument("--poll-timeout",  type=int, default=60,
                          help="等待创建完成的最长秒数（默认60秒）")
-
     # ── 帮助类命令 ────────────────────────────────────────────────────────
     g_help = parser.add_argument_group("帮助命令")
     g_help.add_argument("--show-template", action="store_true",

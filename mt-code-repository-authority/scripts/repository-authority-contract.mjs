@@ -145,12 +145,13 @@ const validateCallbackUrl = (raw, attemptId) => {
       errorCode: "task_invalid",
     });
   }
-  const expectedPath =
-    `/functions/v1/rule-observability/internal/repository-authority/attempts/${attemptId}/result`;
+  const expectedPaths = new Set(["rule-observability", "repository-governance"].map((functionName) => (
+    `/functions/v1/${functionName}/internal/repository-authority/attempts/${attemptId}/result`
+  )));
   if (
     url.protocol !== "https:" || url.hostname !== CALLBACK_HOST ||
     (url.port && url.port !== "443") || url.username || url.password ||
-    url.search || url.hash || url.pathname !== expectedPath
+    url.search || url.hash || !expectedPaths.has(url.pathname)
   ) {
     throw new AuthorityContractError("callback URL is outside the allowed endpoint", {
       phase: "task_validation",

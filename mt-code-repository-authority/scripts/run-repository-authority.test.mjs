@@ -105,6 +105,17 @@ test("validates a hash-bound task and preserves a personal repository namespace"
   assert.equal(context.repository.canonicalKey, "~zhangce07/l2-rules-test");
   assert.equal(context.taskArtifactHash, artifact.hash);
   assert.equal(context.actorMis, "zhangce07");
+  const migrated = await taskArtifact({
+    execution: { callback: { url: artifact.task.execution.callback.url.replace(
+      "/rule-observability/",
+      "/repository-governance/",
+    ) } },
+  });
+  assert.equal(validateTaskArtifact({
+    taskBytes: migrated.bytes,
+    expectedTaskArtifactHash: migrated.hash,
+    now: NOW,
+  }).callback.url, migrated.task.execution.callback.url);
   assert.throws(() => validateTaskArtifact({
     taskBytes: artifact.bytes,
     expectedTaskArtifactHash: artifact.hash,
@@ -131,6 +142,23 @@ test("rejects task hash mismatch, callback exfiltration and business target fiel
     expectedTaskArtifactHash: foreignCallback.hash,
     now: NOW,
   }), /callback URL/);
+
+  for (const url of [
+    artifact.task.execution.callback.url.replace("/rule-observability/", "/rule-intake/"),
+    `${artifact.task.execution.callback.url}?redirect=repository-governance`,
+    `${artifact.task.execution.callback.url}#repository-governance`,
+    artifact.task.execution.callback.url.replace(
+      artifact.task.attempt_id,
+      artifact.task.runner_invocation_id,
+    ),
+  ]) {
+    const wrongEndpoint = await taskArtifact({ execution: { callback: { url } } });
+    assert.throws(() => validateTaskArtifact({
+      taskBytes: wrongEndpoint.bytes,
+      expectedTaskArtifactHash: wrongEndpoint.hash,
+      now: NOW,
+    }), /callback URL/);
+  }
 
   const withTargetOrganization = Buffer.from(JSON.stringify({
     ...artifact.task,

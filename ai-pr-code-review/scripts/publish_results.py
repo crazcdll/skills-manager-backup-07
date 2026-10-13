@@ -1181,6 +1181,78 @@ def _build_overview_data(args):
     }
 
 
+# ─── 技术栈识别（tech_stack）────────────────────────────────────────────────────
+# 值域与后端 sku-operation-server 落库枚举对齐：java / mrn / max / miniprogram / duo / react
+# 优先级：主 Agent 显式 --tech-stack 传入 > 变更文件清单嗅探兜底
+
+VALID_TECH_STACKS = ["java", "mrn", "max", "miniprogram", "duo", "react"]
+
+_TECH_PATH_RULES = [
+    ("mrn", ("rn/", "react-native", "node_modules/react-native", "mtrn", "mrn-")),
+    ("max", ("max/", "max-", "/max/", "maxapp", "max-web", "meituan-max")),
+    ("miniprogram", ("miniprogram/", "mini-program/", "mp-wx", "wxapp", "weapp", "app.json")),
+    ("duo", ("duo/", "duo-", "/duo/")),
+    ("react", ("react", "src/pages", "src/views", "src/components")),
+]
+
+_FE_EXTS = {".js", ".jsx", ".ts", ".tsx", ".vue", ".css", ".scss", ".less", ".sass", ".styl", ".html"}
+_JAVA_EXTS = {".java", ".kt"}
+
+_NOISE_PATTERNS = (
+    "package-lock.json", "yarn.lock", "pnpm-lock.yaml", "npm-shrinkwrap.json",
+    "dist/", "build/", "node_modules/", ".min.js", ".min.css",
+    "coverage/", ".map",
+)
+
+
+def _extract_paths_from_md(md_text):
+    """从变更文件清单 markdown 中提取代码路径。"""
+    paths = set()
+    for raw in (md_text or "").splitlines():
+        line = raw.strip().lstrip("|*-# >").strip()
+        if not line:
+            continue
+        m = re.findall(r"`([^`]+)`", line)
+        candidates = m if m else re.findall(r"[\w./-]+\.[A-Za-z0-9]+", line)
+        for c in candidates:
+            c = c.strip().strip("`|")
+            if "/" in c or "." in c:
+                paths.add(c)
+    return paths
+
+
+def sniff_tech_stack(changed_files_md, default="java"):
+    """从变更文件清单嗅探技术栈（未显式传入 --tech-stack 时的兜底判定）。"""
+    paths = _extract_paths_from_md(changed_files_md)
+    clean_paths = [p for p in paths if not any(n in p for n in _NOISE_PATTERNS)]
+    if not clean_paths:
+        return default
+    low_paths = [p.lower() for p in clean_paths]
+    for stack, keys in _TECH_PATH_RULES:
+        if any(any(k in lp for k in keys) for lp in low_paths):
+            return stack
+    has_java = any(p.rsplit(".", 1)[-1] in ("java", "kt") for p in clean_paths if "." in p)
+    has_fe = any(("." + p.rsplit(".", 1)[-1].lower()) in _FE_EXTS for p in clean_paths if "." in p)
+    if has_java:
+        return "java"
+    if has_fe:
+        return "react"
+    return default
+
+
+def resolve_tech_stack(args):
+    """解析本次 CR 的技术栈：显式传入优先，未传时嗅探兜底。"""
+    explicit = (getattr(args, "tech_stack", "") or "").strip().lower()
+    if explicit:
+        if explicit in VALID_TECH_STACKS:
+            return explicit
+        log(f"⚠️ --tech-stack 值非法：{explicit}（合法值：{VALID_TECH_STACKS}），回退嗅探")
+    changed_md = read_text_file(getattr(args, "changed_files_file", ""), "")
+    stack = sniff_tech_stack(changed_md)
+    log(f"技术栈判定：tech_stack={stack}（来源：{'显式传入（非法值已回退）' if explicit else '嗅探'}）")
+    return stack
+
+
 def _build_changed_files_data(args):
     """结构化「二、变更综述」兜底用的变更文件清单。"""
     changed_files_md = read_text_file(getattr(args, "changed_files_file", ""), "")
@@ -1229,6 +1301,7 @@ def build_cr_result(args, issues, counts, conclusion, km_url):
         "is_sdd": is_sdd,
         "text_code_consistency_rate": consistency_rate if is_sdd else "",
         "skill_version": f"ai-pr-code-review {SKILL_VERSION}",
+        "tech_stack": resolve_tech_stack(args),
         "km_url": km_url,
         "review_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "issues": _build_doc_issues(
@@ -1886,8 +1959,10 @@ def parse_args():
     parser.add_argument("--is-sdd", type=lambda x: x.lower() in ("true", "1", "yes"), default=False,
                         help="本次 CR 是否有 SDD spec 产物（取 SDD 校验结论 has_spec；未传时一律按 false 兜底）")
     parser.add_argument("--consistency-rate", default="",
-                        help="文码一致率（取 SDD 校验结论 alignment_rate 原值，如 \"90%\"；无 spec 时传空或不传）")
+                        help="文码一致率（取 SDD 校验结论 alignment_rate 原值，如 90%%；无 spec 时传空或不传）")
     parser.add_argument("--catpaw-file", default="", help="与 CatPaw 对比章节 markdown（可选）")
+    parser.add_argument("--tech-stack", default="",
+                        help="技术栈（java/mrn/max/miniprogram/duo/react；未传时按变更文件清单嗅探兜底）")
     parser.add_argument("--branch", default="", help="PR 分支（可选）")
     parser.add_argument("--file-count", type=int, default=None, help="变更文件数（可选）")
     parser.add_argument("--line-changes", default="", help="行数变化如 +120 -30（可选）")

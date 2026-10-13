@@ -148,7 +148,7 @@ API-only 已与 CDP 的标准 `table` 命令对齐：
 
 | operation | API-only 语义 |
 | --- | --- |
-| `paste` | 仅 `textPlain`；换行物化为多个 paragraph |
+| `paste` | HTML/Markdown/纯文本、文件、原生 copy_result/copy_refs；迁移资源并重建 ID |
 | `insert_image` | 下载/读取图片、调用官方 `uploadphoto`、插入同文档原生 `image` 节点 |
 | `insert_attachment` | 下载/读取文件、调用官方文件上传、插入同文档原生 `attachment` 节点 |
 | `insert_audio` / `insert_video` | 下载/读取媒体、调用官方 `uploadMedia`、插入同文档原生音视频节点 |
@@ -267,10 +267,10 @@ API-only 已与 CDP 的标准 `table` 命令对齐：
   `open_iframe`、`plantuml`、`html`、`image`、`audio`、`video`、`attachment` 等受管节点；
   `set_node_attrs` 也不能绕过对应高阶命令直接修改这些节点。
   这类输入返回 `browserless_capability_unavailable`，防止跳过 provider 字段和附件生命周期校验。
-- 富文本/Markdown/custom/file paste、`copy_result`、`copy_refs` 必须走 CDP；API-only paste 只接受 `textPlain`。图片、附件和音视频应使用四个显式高阶 operation，而不是 file paste。
+- 富文本/Markdown/file/copy paste 均支持 API-only；原生 custom MIME 为 `application/x-kmedit-nodes+json`，其他 custom 格式须显式 CDP。复制资源会上传到目标文档，复制 Data2Chart/Mermaid 会创建新 Provider。详见 [API-only](api-only.md)。
 - DrawIO、Minder 的本地 renderer 以及 PlantUML 的学城 SVG renderer 与 KM 编辑传输是分离的：`render` 只生成 artifact，`check` 只读验证，
   `patch` 才上传、调用 provider 并提交 Pike step。所有运行均不启动 Chrome/CDP。
-- DrawIO 未覆盖的 shape、无法读取的既有 DrawIO 源、Minder 未支持的模板或 XLSX 未归一化数据会失败并给出可选 CDP fallback；绝不伪造成普通图片或残缺节点。
+- DrawIO 未覆盖的 shape、无法读取的既有 DrawIO 源、Minder 未支持的模板会失败并给出可选 CDP fallback；绝不伪造成普通图片或残缺节点。
 - PlantUML 保留原生 source 节点，宽高来自同一源码的服务端 SVG `width`/`height` 或 `viewBox`；没有固定尺寸降级，语法、网络或不可测量 SVG 都会在提交前失败。
 - 快照节点/mark、远端 step slice、输入内容和属性都按本地 Parker schema 严格校验。出现未知类型、未知属性、非法 content expression 或未知 step 时不提交。
 - request、operation、target、fallback、node 和 mark JSON 的未知字段也会直接失败；例如把 `position` 拼成 `positon` 不会静默使用默认值。

@@ -34,7 +34,7 @@
 - `table_set_cell`
 - `table_delete`
 
-API-only 图片定位插入使用 `kmedit patch` 的 `insert_image`。CDP 路径仍可用公开 CLI `kmedit insert-image`；四个新资源 operation 不属于 `kmedit browser-apply`。
+API-only 图片定位插入使用 `kmedit patch` 的 `insert_image`。快捷 CLI `kmedit insert-image` 默认 API，CDP 使用 `--transport cdp`；四个新资源 operation 不属于 `kmedit browser-apply`。
 
 DrawIO session runtime action 不是 `kmedit browser-apply` 的普通 `op`，需要直接传给 JS runtime：
 
@@ -50,7 +50,7 @@ DrawIO session runtime action 不是 `kmedit browser-apply` 的普通 `op`，需
 - 通用节点/文本/属性/mark：`replace_text`、`replace`、`insert`、`delete`、`set_node_attrs`、
   `add_mark`、`remove_mark`
 - 全部标准 `table_*`
-- `paste`，但只限 `clipboard.textPlain` 或 `source.type=payload` + `textPlain`
+- `paste`：`textPlain`、`textHtml`、`textMarkdown`、files、原生 custom capsule、copy_result、copy_refs
 - `insert_image`、`insert_attachment`、`insert_audio`、`insert_video`：显式上传到目标文档后插入原生节点
 - `insert_html`、`edit_html`、`insert_mermaid`、`insert_plantuml`、`insert_yuntu`
 - `insert_drawio` / `update_drawio`：支持 XML、`.drawio`、可编辑 SVG 和本地 cell operations；未知 shape
@@ -58,9 +58,9 @@ DrawIO session runtime action 不是 `kmedit browser-apply` 的普通 `op`，需
 - `insert_minder` / `insert_minder_svg`：支持本地语义布局或已有带 `content` 的可编辑 SVG
 - 完整 Provider 生命周期的 `insert_data2chart`、`update_data2chart_config`、`update_data2chart_data`
 
-下列模式仍必须使用 CDP `kmedit browser-apply`：富文本/Markdown/file/copy paste、跨文档 copy/paste、DrawIO
-实时 session、低层兼容 `update_data2chart`，以及本地 renderer 明确报告不支持的图形语义。误送到 API-only 时会返回
-`browserless_capability_unavailable`，不会静默降级。
+`kmedit copy` 默认从 snapshot + tail 只读复制原生节点，不申请编辑会话；目标 `patch` 会迁移资源并创建新 Provider。详见 [API-only](api-only.md)。
+浏览器 iframe 实时交互、未知 custom MIME 和低层兼容 `update_data2chart` 使用 CDP。API-only 多次 DrawIO 编辑使用 `drawio-session` 本地草稿。
+本地 renderer 不支持的图形先用 converter 导出可编辑 SVG，再通过 API 上传；不能将残缺图当成功。
 
 通用 `insert` / `replace` / `table_set_cell` 只用于普通 Parker schema 节点，不能直接构造
 `drawio`、`minder`、`data2chart`、`open_iframe`、`plantuml`、`html`、`image`、`audio`、
@@ -78,7 +78,7 @@ DrawIO session runtime action 不是 `kmedit browser-apply` 的普通 `op`，需
 
 优先使用 `target.nodeId`。fallback 文本容易重复，只能作为兜底；fallback 命中多个节点时必须指定 `nth`。
 
-未知 `nodeId` 时，先用官方学城 Skill `citadel` 或 `km get <docId>` 理解上下文；再用 `kmedit inspect --find "<text>" --limit 5`、`--node-type <type>` 或 `--outline` 定向找候选节点。文档结构复杂或定向 inspect 不足时，用 `kmedit inspect --doc-id <docId> --snapshot-file /tmp/km_doc_<docId>.json` 导出已重放 tail 的当前 JSON tree，再用 `jq` 或 Node 短脚本筛出少量候选节点，不要把完整 JSON tree 塞进 Agent 上下文。
+未知 `nodeId` 时，先用`km get <docId>` 理解上下文；再用 `kmedit inspect --find "<text>" --limit 5`、`--node-type <type>` 或 `--outline` 定向找候选节点。文档结构复杂或定向 inspect 不足时，用 `kmedit inspect --doc-id <docId> --snapshot-file /tmp/km_doc_<docId>.json` 导出已重放 tail 的当前 JSON tree，再用 `jq` 或 Node 短脚本筛出少量候选节点，不要把完整 JSON tree 塞进 Agent 上下文。
 
 插入类 `position`：
 
@@ -93,15 +93,15 @@ DrawIO session runtime action 不是 `kmedit browser-apply` 的普通 `op`，需
 - `type="copy_result"` + `result`
 - `type="copy_refs"` + `sources`
 
-跨学城文档复制时，优先使用 `source.type="copy_result"` 或 `copy_refs`，不要手写或拼接 `clipboard.textHtml`。`kmedit copy` 会从源文档采集编辑器原生剪贴板数据，`paste` 再按原生剪贴板内容写入目标文档；含图片内容粘贴后，用 `kmedit browser-inspect --force-refresh` 确认图片节点。
+跨学城文档复制时，优先使用 `source.type="copy_result"` 或 `copy_refs`，不要手写或拼接 `clipboard.textHtml`。`kmedit copy` 默认返回原生 JSON capsule，`paste` 重建 ID、迁移图片/附件/DrawIO/Minder，并新建 Mermaid/Data2Chart Provider；使用 `kmedit inspect` 验证目标节点。API copy capsule 配合 patch；CDP copy 的专属 MIME 配合 browser-apply，不交叉混用。
 一个 copy result 中的多个 item 会按原顺序作为同一插入容器下的同级片段落地，不会沿用前一个片段内部的光标位置。
 
 `paste.clipboard`：
 
-- `textMarkdown`：按 Markdown 粘贴为正文节点。不要用 `![alt](url)` 作为图片插入方式；需要图片时先转成 `textHtml` 的 `<img src="...">`。
+- `textMarkdown`：API-only 按 Markdown 粘贴为正文节点，支持 `![alt](url)` 并将图片上传到目标文档。
 - `textHtml`：按浏览器 HTML 剪贴板粘贴为正文节点；适合公众号/网页全文富文本迁移。
 - `textPlain`：纯文本兜底。
-- `files`：可选，用于模拟剪贴板 File 项。PDF/DOCX 等 file-only 粘贴会生成 `attachment` 节点；期望生成附件时建议单独一次只带 `files` 的 paste。含图 HTML 粘贴通常不必提供 `files`；只要 `textHtml` 中的 `<img src="https://...">` 可被学城编辑器访问，编辑器会在粘贴时拉取并上传为 KM 图片节点。
+- `files`：可选，API-only 按 MIME 上传为图片/音视频/附件；CDP 用于模拟 File 项。PDF/DOCX 等 file-only 粘贴会生成 `attachment` 节点；期望生成附件时建议单独一次只带 `files` 的 paste。含图 HTML 粘贴通常不必提供 `files`；只要 HTML/Markdown 中的图片 URL 可下载，API-only 会迁移为目标文档的 KM 图片节点。
 
 ## 表格规则
 

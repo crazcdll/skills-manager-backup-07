@@ -102,6 +102,23 @@ python3 factory/inventory/update-inventory.py \\
   --start-date 2026-05-21 --end-date 2028-05-21 \\
   --inv-switch 1 --limit-change-value 299 \\
   --dry-run
+
+=== 产品维度（changeType=2）用法 ===
+
+⚠️ 仅当门店已通过 change-room-status-dimension.py 切换为「产品维度」
+（ROOM_DIMENSION_CHANGE_SUCCESS）后才可用，否则请继续使用 --day-room-ids/--hour-room-ids。
+
+# 8. 产品维度：关房（按 goodsId，不是 roomId）
+python3 factory/inventory/update-inventory.py \\
+  --partner-id 4576342 --poi-id 1090269458133536 \\
+  --goods-ids 123456789 \\
+  --inv-switch 0
+
+# 9. 产品维度：满房（开房但库存为0）
+python3 factory/inventory/update-inventory.py \\
+  --partner-id 4576342 --poi-id 1090269458133536 \\
+  --goods-ids 123456789 \\
+  --inv-switch 1 --limit-change-value 0
 """
 
 import argparse
@@ -173,6 +190,7 @@ def open_and_set_inventory(
     poi_id,
     day_room_ids: list = None,
     hour_room_ids: list = None,
+    goods_ids: list = None,
     start_date: str = "",
     end_date: str = "",
     inv_switch: int = 1,
@@ -193,11 +211,22 @@ def open_and_set_inventory(
       - 设置库存余量为 299（满足上线校验"90天内至少30天有库存"）
       - 预留房不变（count 字段被忽略，传 1 仅满足 @Positive 约束）
 
+    维度选择（changeType）：
+      - 传 day_room_ids / hour_room_ids → 按「房型维度」（changeType=1，ROOM）
+      - 传 goods_ids                    → 按「产品维度」（changeType=2，GOODS）
+      - 三者互斥，不可混传（房型维度和产品维度不是同一个 modifyInventorySubjectsModel
+        可以混用的概念，混传会导致后端按 changeType 只识别其中一种，另一种被忽略）
+      - ⚠️ 只有该门店已通过 factory/inventory/change-room-status-dimension.py 切换为
+        「产品维度」（ROOM_DIMENSION_CHANGE_SUCCESS）后，goods_ids 才有意义；
+        未切换维度的门店传 goods_ids 大概率会被后端拒绝或不生效。
+
     参数：
         partner_id          - 供应商ID
         poi_id              - 门店ID
-        day_room_ids        - 全日房房型ID列表（与 hour_room_ids 至少一个非空）
-        hour_room_ids       - 钟点房房型ID列表
+        day_room_ids        - 全日房房型ID列表（房型维度，与 hour_room_ids/goods_ids 三选一组）
+        hour_room_ids       - 钟点房房型ID列表（房型维度）
+        goods_ids           - 商品ID列表（产品维度，changeType=2 时用；与
+                               day_room_ids/hour_room_ids 互斥）
         start_date          - 日期范围起始（默认今天）
         end_date            - 日期范围截止（默认两年后）
         inv_switch          - 房态：-1=不变, 0=关房, 1=开房
@@ -218,14 +247,23 @@ def open_and_set_inventory(
     if effect_weeks is None:
         effect_weeks = [1, 2, 3, 4, 5, 6, 7]
 
-    if not day_room_ids and not hour_room_ids:
-        raise ValueError("day_room_ids 和 hour_room_ids 至少需要一个非空")
+    if not day_room_ids and not hour_room_ids and not goods_ids:
+        raise ValueError("day_room_ids / hour_room_ids / goods_ids 至少需要一个非空")
+    if (day_room_ids or hour_room_ids) and goods_ids:
+        raise ValueError(
+            "day_room_ids/hour_room_ids（房型维度）不能与 goods_ids（产品维度）同时传，"
+            "两者对应不同的 changeType，请分开调用"
+        )
+
+    # 产品维度（changeType=2）：只有传了 goods_ids 才启用，否则默认走房型维度（changeType=1）
+    change_type = 2 if goods_ids else 1
 
     iface = _load_interface()
 
     modify_model = iface.build_modify_model(
         day_room_ids=day_room_ids or [],
         hour_room_ids=hour_room_ids or [],
+        goods_ids=goods_ids or [],
         start_date=start_date,
         end_date=end_date,
         effect_weeks=effect_weeks,
@@ -238,7 +276,7 @@ def open_and_set_inventory(
     return iface.call_batch_update_inventory(
         partner_id=int(partner_id),
         poi_id=int(poi_id),
-        change_type=1,  # 1=房型维度（ROOM）
+        change_type=change_type,  # 1=房型维度（ROOM）  2=产品维度（GOODS）
         modify_inventory_model_list=[modify_model],
         swimlane=swimlane,
         dry_run=dry_run,
@@ -334,12 +372,16 @@ def main():
     g_req.add_argument("--partner-id", required=True, type=int, help="供应商ID（partnerId）")
     g_req.add_argument("--poi-id",     required=True, type=int, help="门店ID（poiId）")
 
-    # ── 房型参数（二选一或同时填）────────────────────────────────────────────
-    g_room = parser.add_argument_group("房型参数（至少填一个）")
+    # ── 房型/产品参数（房型维度 or 产品维度，二选一组）──────────────────────────
+    g_room = parser.add_argument_group("房型/产品参数（房型维度、产品维度二选一组，至少填一个）")
     g_room.add_argument("--hour-room-ids", type=int, nargs="+", default=[],
-                        help="钟点房房型ID列表，空格分隔，如：77671480")
+                        help="钟点房房型ID列表（房型维度），空格分隔，如：77671480")
     g_room.add_argument("--day-room-ids",  type=int, nargs="+", default=[],
-                        help="全日房房型ID列表，空格分隔，如：12345")
+                        help="全日房房型ID列表（房型维度），空格分隔，如：12345")
+    g_room.add_argument("--goods-ids", type=int, nargs="+", default=[],
+                        help="商品ID列表（产品维度，changeType=2；与 --hour-room-ids/"
+                             "--day-room-ids 互斥，需门店已切换为产品维度才生效，"
+                             "见 change-room-status-dimension.py）")
 
     # ── 日期参数 ──────────────────────────────────────────────────────────────
     g_date = parser.add_argument_group("日期参数")
@@ -370,8 +412,12 @@ def main():
 
     args = parser.parse_args()
 
-    if not args.hour_room_ids and not args.day_room_ids:
-        parser.error("至少填一个房型ID：--hour-room-ids 或 --day-room-ids")
+    if not args.hour_room_ids and not args.day_room_ids and not args.goods_ids:
+        parser.error("至少填一个：--hour-room-ids / --day-room-ids（房型维度）或 --goods-ids（产品维度）")
+    if (args.hour_room_ids or args.day_room_ids) and args.goods_ids:
+        parser.error("--hour-room-ids/--day-room-ids（房型维度）不能与 --goods-ids（产品维度）同时传")
+
+    change_type = 2 if args.goods_ids else 1
 
     start_date = args.start_date or _today()
     end_date   = args.end_date   or _two_years_later()
@@ -379,10 +425,13 @@ def main():
     print("═" * 60)
     print("  房态 & 库存修改（直调研发级 RPC）")
     print(f"  供应商: {args.partner_id}  门店: {args.poi_id}")
+    print(f"  维度: {'产品维度（changeType=2）' if change_type == 2 else '房型维度（changeType=1）'}")
     if args.hour_room_ids:
         print(f"  钟点房房型: {args.hour_room_ids}")
     if args.day_room_ids:
         print(f"  全日房房型: {args.day_room_ids}")
+    if args.goods_ids:
+        print(f"  商品ID: {args.goods_ids}")
     print(f"  日期范围: {start_date} ~ {end_date}")
     print(f"  生效星期: {args.effect_weeks}")
     print(f"  房态: {args.inv_switch}（{INV_SWITCH_DESC.get(args.inv_switch, '?')}）")
@@ -399,6 +448,7 @@ def main():
         modify_model = iface.build_modify_model(
             day_room_ids=args.day_room_ids,
             hour_room_ids=args.hour_room_ids,
+            goods_ids=args.goods_ids,
             start_date=start_date,
             end_date=end_date,
             effect_weeks=args.effect_weeks,
@@ -410,7 +460,7 @@ def main():
         full_params = {
             "partnerId":  args.partner_id,
             "poiId":      args.poi_id,
-            "changeType": 1,
+            "changeType": change_type,
             "modifyInventoryModelList": [modify_model],
         }
         print(json.dumps(full_params, ensure_ascii=False, indent=2))
@@ -423,6 +473,7 @@ def main():
             poi_id=args.poi_id,
             day_room_ids=args.day_room_ids,
             hour_room_ids=args.hour_room_ids,
+            goods_ids=args.goods_ids,
             start_date=start_date,
             end_date=end_date,
             effect_weeks=args.effect_weeks,
@@ -452,6 +503,8 @@ def main():
             print(f"  钟点房房型: {args.hour_room_ids}")
         if args.day_room_ids:
             print(f"  全日房房型: {args.day_room_ids}")
+        if args.goods_ids:
+            print(f"  商品ID    : {args.goods_ids}")
         print(f"  房态变更  : {switch_label}")
         if args.inv_switch != 0:
             print(f"  库存余量  : {args.limit_change_value}")

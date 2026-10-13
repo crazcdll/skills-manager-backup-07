@@ -26,7 +26,7 @@ KM step 提交前会再次读取 Provider 的生效 config/source，读回不一
 
 - 已有 KM 图表：用户给出目标图表、位置描述或上下文文本时，先定位到原生 `data2chart` 节点，再更新。
 - 新图表位置：用户给出“插在某段后 / 某标题下 / 文末”等位置时，先定位到对应段落/标题节点的 `nodeId`，再用 `target.nodeId` 插入。
-- API-only 本地数据文件：支持 `.csv`；`.xlsx` 先在本地归一化成 `data.rows`，或显式转到 CDP runtime。
+- API-only 本地数据文件：支持 `.csv` 与 `.xlsx`，无需预先提供 `data.rows`；XLSX 默认第一张工作表，`data.sheet` 可指定表名。
 - 内联数据：支持用户粘贴的 markdown 表格、CSV 文本、JSON rows、自然语言表格。先在本地生成完整 `.csv` 或 `.xlsx` 文件，再调用数据更新能力。
 - 样式要求：支持标题、图表类型、颜色、图例、坐标轴、标签、网格、柱宽、折线样式、饼图半径等常见展示配置。
 
@@ -121,13 +121,14 @@ KM step 提交前会再次读取 Provider 的生效 config/source，读回不一
 
 - `target`：必填，必须定位到已有原生 `data2chart` 节点。
 - `data`：必填，数据源替换参数对象。
-- `data.path` 或 `data.file.path`：必填，本地 `.csv` 文件路径；XLSX API-only 需要同时提供已归一化的 `data.rows`。
+- `data.path` 或 `data.file.path`：必填，本地 `.csv` / `.xlsx` 文件路径。
 - `data.header`：必填，文件第一行字段名列表；字段名不能为空且不能重复。
 - `data.dimensionField`：可选，维度字段；默认 `header[0]`。
 - `data.numberFields`：可选，数值字段列表；默认除维度字段外的全部字段。
 - `data.filename` 或 `data.file.name`：可选，上传文件名；当本地临时文件没有 `.xlsx` / `.csv` 扩展名时必须提供。
 - `data.file.mimeType`：可选，通常不需要；`.xlsx` 和 `.csv` 会自动推断。
-- `data.rows`：可选的已归一化二维数据；CSV 未提供时从文件读取。XLSX API-only 必填，避免在编辑链路中引入浏览器 Office renderer。
+- `data.rows`：可选的已归一化二维数据；CSV/XLSX 未提供时从文件读取。XLSX 只读取存储值和公式缓存结果，不执行公式；缺少缓存结果时先重算保存。
+- `data.sheet`：XLSX 工作表名，默认第一张。字段名须与第一行一致。
 
 ## 标准 Workflow
 

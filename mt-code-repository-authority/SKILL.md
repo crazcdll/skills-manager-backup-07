@@ -10,7 +10,7 @@ skill-dependencies:
 metadata:
   skillhub.creator: "zhangce07"
   skillhub.updater: "zhangce07"
-  skillhub.version: "V6"
+  skillhub.version: "V10"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "141227"
   skillhub.high_sensitive: "false"
@@ -39,6 +39,7 @@ metadata:
 
 数据库 job/attempt 是业务状态权威。Agent 回复、Session 状态、工具事件、安装日志、stdout 和结果文件都
 不能推进平台状态。Runner 不查询或接收目标组织、规则领域和展示名称，避免把用户期待答案传给解析过程。
+仓库领域事实也不直接决定某个唯一 L1；同一领域可登记多套 L1，具体规则集与研发阶段选择由后续分发服务根据注册表元数据完成。
 
 仓库负责人识别当前由共享 CatX 账号 `zhangce07` 执行；各看板用户无需单独绑定。Vault/credential 均未配置时使用
 CatX 原生 SSO，Edge 创建 Session 时省略 `vault_ids`；两项均配置时，Edge 在派发前校验官方凭据状态
@@ -94,11 +95,12 @@ Runner 只接受 task 中平台核验的 `actor.mis`，以该 MIS 和 `sso-ciba`
 OIDC fallback；同一 attempt 的多次文档/表格读取复用该缓存，结束时由最外层 Runner 清理，不跨 attempt 复用。
 运行环境必须提供 Node.js 24 与 `oa-skills`，且官方客户端支持 `queryTableDataSinglePage`。
 旧结果合同只提取完整 MCode HTTPS/SSH 地址。新版
-`repository-association-source-scan-result/v2` 提取地址原文并保留来源位置，覆盖 `sankuai.com`
-根域或子域的 HTTP(S)、`ssh://git@host/path` 和 `git@host:path`；不在 Runner 内合并仓库身份，
+`repository-association-source-scan-result/v2` 提取地址原文并保留来源位置；HTTP(S) 仅接受
+`dev.sankuai.com/code/repo-detail/{namespace}/{repository}`（可带 `/file/list`、query 和 hash），并保留
+`ssh://git@host/path` 和 `git@host:path`；不在 Runner 内合并仓库身份，
 不调用 Code/Yuntu，也不创建逐仓任务。参数和片段交由平台统一去除，线下 VIP、未知主机及大小写路径
 也由平台统一判定，Runner 不按同路径猜测等价仓库。普通来源读取中断可保留已完成结果并返回
-`partially_scanned`；本人拒绝/未完成认证、认证超时或文档 ACL 失败必须立即停止后续读取并返回
+`partially_scanned`；本人拒绝、未完成认证、认证过期、认证超时或文档 ACL 失败必须立即停止后续读取并返回
 `failed`，不得继续触发授权或伪造全量完成。source scan 的 `actor.execution_mis` 与结果
 `execution_mis` 都必须等于 `actor.mis`；MIS 只是 CIBA 发起参数，不能单独作为已认证主体证据，
 最终授权仍由官方 CIBA/学城响应决定。

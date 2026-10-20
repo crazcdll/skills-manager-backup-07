@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "2859b2c3-3680-4039-941d-72f8604244bd",
+  "path": "trade-ai-reading",
+  "path_key": "trade-ai-reading",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

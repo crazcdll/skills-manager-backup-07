@@ -58,6 +58,7 @@ _infra_iface = _load_module("interface/infra/interface.py", "infra_interface")
 build_recharge_body = _vh_iface.build_recharge_body
 call_recharge_free_room = _vh_iface.call_recharge_free_room
 count_free_room_records = _vh_iface.count_free_room_records
+query_free_room_record = _vh_iface.query_free_room_record
 query_merchant_account = _vh_iface.query_merchant_account
 ensure_account_registered = _vh_iface.ensure_account_registered
 FreeRoomError = _vh_iface.FreeRoomError
@@ -192,6 +193,18 @@ def main():
         count = count_free_room_records(args.poi_id, args.partner_id, swimlane=args.swimlane)
         if count is not None and count > 0:
             print(f"\n✅ 闲置房充值成功：置换记录数 countByParam = {count}（已落库），子产品已生成。")
+            # 捞子产品 ID：queryByPageParam 按母产品 goodsId 匹配最新置换记录
+            rec = query_free_room_record(args.poi_id, args.partner_id, args.goods_id, swimlane=args.swimlane)
+            if rec:
+                print("\n════════════════════════════════════════════")
+                print(f"  子产品ID (longNewGoodsId) : {rec.get('longNewGoodsId')}")
+                print(f"  母产品ID (goodsId)        : {rec.get('goodsId')}")
+                print(f"  置换库存                  : {rec.get('goodsNum')} 间")
+                print(f"  估值总额                  : {(rec.get('evaluateAmount') or 0) / 100} 元")
+                print(f"  rechargeType              : {rec.get('rechargeType')}（0=先充值，1=先售卖）")
+                print("════════════════════════════════════════════")
+            else:
+                print("\n⚠️ 未能捞到子产品ID（queryByPageParam 未匹配），请到 EB 闲置房管理页查看。")
         elif count is not None:
             print("\n⚠️ 接口返回成功但置换记录数为 0，请到 EB 闲置房管理页或查日志人工核对。")
         else:

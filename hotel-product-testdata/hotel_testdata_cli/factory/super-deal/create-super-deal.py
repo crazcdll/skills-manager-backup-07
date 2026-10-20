@@ -828,10 +828,6 @@ def main() -> None:
         "--skip-refresh-spu-cache", action="store_true",
         help="跳过上线后的 SPU 缓存刷新（SPU 套餐产品缓存 + POI-SPU 映射缓存）；默认上线后自动刷新",
     )
-    parser.add_argument(
-        "--cache-env", choices=["test", "prod"], default="test",
-        help="goodsoperator-cli 缓存刷新环境（默认 test，与本 skill 创建商品所用环境一致）",
-    )
     args = parser.parse_args()
 
     if args.calc_fullday_price:
@@ -977,7 +973,6 @@ def main() -> None:
             refresh_spu_cache(
                 spu_id=spu_id,
                 poi_ids=[args.poi_id],
-                env=args.cache_env,
             )
 
 

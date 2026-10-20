@@ -27,12 +27,3 @@ imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-orderfill-du
 
 **校验**：
 - 「住客」区域房间数增加 — 视觉确认
-
-### S3. 关闭弹窗
-
-**操作**：点击关闭按钮。
-
-**等待**：弹窗关闭。
-
-**校验**：
-- 弹窗已关闭，页面恢复正常 — 视觉确认

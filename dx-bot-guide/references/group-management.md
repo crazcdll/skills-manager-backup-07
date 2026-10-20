@@ -41,9 +41,22 @@ dx-bot-cli group set-admin --gid <群ID> --user <mis> --disable
 dx-bot-cli group info --gid <群ID>
 dx-bot-cli group members --gid <群ID>
 dx-bot-cli group search --name "关键词"
+
+# 查询机器人所在群（默认自动翻页拉全量）
 dx-bot-cli group list-joined
-dx-bot-cli group list-joined --cursor <token> --page-size 50
+
+# 手动翻页：--limit 控制总量，到量即停并输出 next_cursor
+dx-bot-cli group list-joined --limit 20
+# → 结果已达 --limit 上限，使用 `--cursor <next_cursor>` 继续获取下一批
+dx-bot-cli group list-joined --limit 20 --cursor <next_cursor>
+
+# 调整单次 API 请求的页大小（默认 20，上限 50）
+dx-bot-cli group list-joined --page-size 50
 ```
+
+> `--limit`：结果总条数上限（须 >0，省略 = 全量）；截断时输出续取游标，配合 `--cursor`
+> 构成手动翻页。`--json` 模式下 `next_cursor` / `has_more` 字段可用于程序化分页。
+> direct / proxy 两种模式默认均为**自动翻页拉全量**，`--limit` / `--cursor` 语义一致。
 
 ## 公告与更新
 

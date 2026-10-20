@@ -205,7 +205,7 @@ python3 factory/freeRoom/create-freeRoom.py \
 脚本打印完整请求体和响应体，并按以下规则自动校验：
 
 1. `data == null`（假成功）→ 直接报错退出，提示先开资金池（见前置 C）
-2. `data == true` → 自动调用 mcoin `IFreeRoomRecordService.countByParam`（appkey `com.sankuai.mpht.mcoin.biz`，Thrift）按 `partnerId + poiId` 统计置换记录数，**记录数 > 0 才最终判定成功**
+2. `data == true` → 自动调用 mcoin `IFreeRoomRecordService.countByParam`（appkey `com.sankuai.mpht.mcoin.biz`，Thrift）按 `partnerId + poiId` 统计置换记录数，**记录数 > 0 才最终判定成功**；随后再调 `queryByPageParam`（同参数 + `pageNo=1, pageSize=20`，⚠️ pageSize 必须在 [20,200]）按母产品 goodsId 匹配最新置换记录，**输出子产品ID `longNewGoodsId`**、置换库存、估值总额、rechargeType
 3. 常见业务报错：`充值母产品下面子产品尚未履约完成，不能再次进行充值` —— 同一母产品下有未履约完成的闲置房子产品时不能再次充值，需等子产品履约完成（或换一个母产品）
 
 ---
@@ -233,7 +233,7 @@ python3 factory/freeRoom/create-freeRoom.py \
 - **商家必须先开通资金池**：未开通时接口静默跳过充值并返回 `{"status":0,"data":null}` 假成功；用 `mt-testdata hotel coinpool --action open --merchant-type hotel-yf --biz-account-id <bizAccountId> --partner-id <partnerId>` 开户
 - **`rechargeScheme` 默认 1（先售卖，无需估值 mock）**；0=先充值需按**前置 E**在 Moka 配置**泳道级**估值 mock（三条件选泳道，请求带 `swimlane` header；**严禁动主干 BACK_BONE 共享配置**），用完必须删除 mock
 - **同一母产品下有未履约完成的闲置房子产品时不能再次充值**（报"子产品尚未履约完成"），需换母产品或等履约完成
-- 充值成功后务必用 mcoin `IFreeRoomRecordService.countByParam`（partnerId+poiId）验证置换记录数 > 0（脚本已内置）
+- 充值成功后务必用 mcoin `IFreeRoomRecordService.countByParam`（partnerId+poiId）验证置换记录数 > 0，并用 `queryByPageParam` 捞取**子产品ID（longNewGoodsId）**输出给用户（脚本已内置）
 - HTTP 直连通过 `swimlane` 请求头支持泳道路由（脚本 `--swimlane` 已实现）；⚠️ EB 网关只放行部分泳道，不认的泳道报 `302 权限验证失败`（详见前置 E）
 - 商家账号登录名依赖 `merchant-testdata-cli`（按 partnerId 查询），首次使用需按 SKILL.md 初始化章节安装
 - `startTime`/`endTime` 为毫秒时间戳，脚本用 `--start-days`/`--end-days`（相对今天的天数偏移）自动换算，无需手动拼接 `"$+N day"` 占位符

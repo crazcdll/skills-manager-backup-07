@@ -33,6 +33,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+# 源树零字节码：本文件是进程入口，开关必须在引擎包导入之前生效。
+sys.dont_write_bytecode = True
+os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
+
 SCRIPTS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _REPO_HINT = os.path.dirname(os.path.dirname(SCRIPTS_DIR))
 

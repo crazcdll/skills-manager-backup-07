@@ -1,7 +1,9 @@
 skill-manifest-version: 1
-skill-id: ac06427846b5791a015079eba0bef264d225b9ef58d67ec3f4277719b6d94d33
+skill-id: eca5831efe70b0b4fdaa1f9af95bdf971bea2b56464193138797b8755ba1c19d
 
 files:
-  385f7b466dfd5b127cb975b3240a49606fc15b64086cb72f118d59df1ff2a600  SKILL.md
-  ed88937e7affe25f469df42ac21dd5c3c5a22c5bbc900c9060431e08c01e8ec8  scripts/env_setup.py
+  ab3b5fdecfc1bf1e7e4058dcc6e3e36fde35c0295c19109a143bd48a8895692f  SKILL.md
+  2b569dce88e3cb672569b29fa48b9f01de6df728be0cf625aaa33d07d683da02  scripts/env_setup.py
+  afb4bb60898e1b8f9ace5d1c38c9f13b1fc71ed95521e32bad449091be84e8d0  scripts/orchestrate.py
   861314dede7efebf076c22101bfe6f6a291d3626c14ef508e79d9e8178be2073  scripts/report_usage.py
+  552e2a3c4571750ce61ee2ca29daec6d8d4875d9be992947c6a5521008e3bf91  scripts/selfupdate.py

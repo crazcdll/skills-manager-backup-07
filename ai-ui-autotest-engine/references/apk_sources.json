@@ -1,18 +1,39 @@
 {
-  "_comment": "可测性 App 安装包来源配置。供 install-app 脚本使用。更新版本时只需修改此文件。Android/Harmony 是完全独立发布的安装包（不同格式、不同版本号节奏），按 platform 分层存储；package 字段仅作交叉展示，实际探测/安装以 AppDescriptor.package_name 为准。",
+  "_comment": "可测性 App 安装包来源配置。统一结构：meituan → platform → form → 配置（form=real 真机/云真机，form=emulator 模拟器）。Android/Harmony 完全独立发布；同一平台的真机与模拟器可能是不同制品/包名（如鸿蒙真机企业包 vs 模拟器正式包）。form 取自 devices/registry.py 的 _DEVICE_TYPE_REGISTRY[form]，业务侧不写 device_type 分支。目标条目按 devices/interfaces/artifact_spec.py::ArtifactSpec 声明的字段填写：testability_apk_url（制品地址）/ version（目标 versionName）/ version_code（可选，目标 versionCode）/ requires_testability_build（true=必须可测性(debug)构建）/ package（仅作交叉展示，实际探测/安装以 AppDescriptor.package_name 为准）/ updated。",
   "meituan": {
     "android": {
-      "testability_apk_url": "https://hyperloop-s3.sankuai.com/hpx-artifacts/5707119-1559-1785814830105614/aimeituan-release_12.63.400-565173-aarch32.apk",
-      "version": "12.63.400",
-      "package": "com.sankuai.meituan",
-      "updated": "2026-07-01"
+      "real": {
+        "testability_apk_url": "https://hyperloop-s3.sankuai.com/hpx-artifacts/5974437-973-1790044848856029/aimeituan-release_12.66.400-584862-aarch64.apk",
+        "version": "12.66.400",
+        "requires_testability_build": false,
+        "package": "com.sankuai.meituan",
+        "updated": "2026-07-01"
+      },
+      "emulator": {
+        "testability_apk_url": "https://hyperloop-s3.sankuai.com/hpx-artifacts/5974437-973-1790044848856029/aimeituan-release_12.66.400-584862-aarch64.apk",
+        "version": "12.66.400",
+        "requires_testability_build": false,
+        "package": "com.sankuai.meituan",
+        "updated": "2026-07-01"
+      }
     },
     "harmony": {
-      "_comment": "testability_apk_url 必须是 HPX 生成的企业安装页 HTML 页面 URL（harmony-inhouse-*.html），不是 .hap 直链——HarmonyOS 对企业签名包的 hdc install 有较高概率因签名校验失败，只有通过系统浏览器打开该安装页触发的系统级安装器才是稳定安装方式，详见 platform/harmony/ops.py::HarmonyOps.install_app 顶部说明。",
-      "testability_apk_url": "https://hyperloop-s3.sankuai.com/hpx-artifacts/5793626-22501-1787211950740662/harmony-inhouse-meituan-65152.html",
-      "version": "12.64.400",
-      "package": "com.sankuai.hmeituan.beta",
-      "updated": "2026-08-20"
+      "real": {
+        "testability_apk_url": "https://hyperloop-s3.sankuai.com/hpx-artifacts/5793626-22501-1787211950740662/harmony-inhouse-meituan-65152.html",
+        "version": "12.64.400",
+        "requires_testability_build": false,
+        "package": "com.sankuai.hmeituan.beta",
+        "updated": "2026-08-20"
+      },
+      "emulator": {
+        "testability_apk_url": "https://hyperloop-s3.sankuai.com/hpx-artifacts/5975897-36285-1790063126850664/meituan-12.66.203-69533-debug-default-signed.hap",
+        "version": "12.66.203",
+        "version_code": 1200660203,
+        "requires_testability_build": true,
+        "package": "com.sankuai.hmeituan",
+        "updated": "2026-09-22",
+        "_note": "必须用 debug 包，勿回退 release：鸿蒙 pillow H5 的非 delay action（如 signin）走 MSI 扩展 API（name=pillowConfig, scope=testability），release 包未提供该能力，登录会静默卡在 Loading（页面无报错，pillow 页显示 signin 转圈）。debug 包实测 signin 返回「登录成功」、control auth status 变 logged_in。version_code / requires_testability_build 供 check_version（→ devices/interfaces/artifact_spec.py::decide_app_action）判定「设备上已装的包是否可直接复用」：versionCode ≥ 目标且确认为可测性(debug)构建 → 直接复用不重装；已装为 release 或构建类型无法确认 → 保守重装。"
+      }
     }
   },
   "adb_keyboard": {

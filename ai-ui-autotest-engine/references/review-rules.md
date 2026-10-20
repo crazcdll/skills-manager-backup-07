@@ -13,7 +13,8 @@
   - track → track_assert（含 match + 可选 expected_fields）
   - step-type=assert → asserts 至少 1 项
   - kind=visual → expect 非空（多验收点用 targets 拆开）
-  - tap/input-text → action_anchor；tap-text/scroll-until/open-url → action_arg
+  - tap/input-text → action_anchor（tap 的 anchor = 无文案图标所在**行文案**；input-text 的 anchor = 输入框标签或语义描述 —— 引擎在同一视觉行内自行定位输入框）
+  - tap-text/scroll-until/open-url → action_arg
   - 打开新页面/弹窗/动态区域加载 → page_ready: true
 - **R-STR-003 [P0] kind 互斥**：asserts 的 `kind` 只能是 text / visual；api/track 是步骤类型（配 `api_assert`/`track_assert`），不写进 asserts
 - **R-STR-004 [P1] asserts 取值合法**：`kind` ∈ text / visual；`match` ∈ present / gone（仅 kind=text）
@@ -26,10 +27,14 @@
 - **R-ACT-003 [P0] 视觉断言目标完整**：`kind: "visual"` 必须有 expect；有硬性验收点（位数/数值/状态）必须用 targets 逐项列出
 - **R-ACT-004 [P1] 开看关拆分**：弹窗类拆三段，「看」独立为 step-type=assert
 - **R-ACT-005 [P2] wait 条件合理**：页面稳定等待统一用 `page_ready: true`
-- **R-ACT-006 [P0] action_arg 用页面完整节点文案**：`tap-text` / `scroll-until` 只做精确匹配，禁止写复合文案的子串（页面是「已优惠¥219」就不能写「已优惠」），否则执行期必然落入 resolve_text_not_found hook
-  - Flow 原文就是子串时：改用完整文案并标 `"inferred": true`
-  - 断言侧不受此限：单条 expect 允许子串 / 形态差异（候选唯一时引擎直接判 pass/semantic）
+- **R-ACT-006 [P0] action_arg 用页面完整节点文案**：`tap-text` / `scroll-until` 优先精确匹配，禁止写复合文案的子串（页面是「已优惠¥219」就应写完整文案）
+  - 页面文案与 action_arg 存在**唯一子串/重叠关系**时：引擎运行期**唯一子串兜底**直接命中，并记录 `action_hit`（verdict=semantic）→ 该步标记 `needs_review`、evidence 记录 `text_mismatch`，**不额外落 hook**（tap 为单向包含，scroll 为双向重叠）
+  - 页面存在**多种**包含形态时：不兜底，转 `resolve_text_not_found`（tap）/ `SUBSTRING_AMBIGUOUS`（scroll）hook 由 AI 消歧
+  - Flow 原文就是子串时：建议改用完整文案并标 `"inferred": true`
+  - 断言侧同口径：单条 expect 允许子串 / 形态差异（候选唯一时引擎判 `pass/semantic`，同样标记待人工复核）
   - 文案口径差异只记备注：`log-record --desc "..." --note "..."`（不带判定开关）
+- **R-ACT-007 [P0] 无文案图标用锚点点击**：`tap` + `action_anchor`（图标所在行文案），**禁止用 `tap-text` 借文案表达图标**。引擎取锚点行唯一可点击目标自动点击（标待复核）；多 / 无可点击目标 → handoff（`resolve_tap_anchor_ambiguous` / `resolve_tap_anchor_not_found`）
+- **R-ACT-008 [P0] 组件语义不进引擎**：只有结构/文本可证明的（精确文案 / 唯一子串 / 唯一可点击 / 可见性）才交引擎自动化；同类多图标等语义判定走**视觉通道**（`kind: visual` + 读图）或坐标兜底，禁止为具体组件加方位/序号等特化参数
 
 ## R-AST 断言校验
 
@@ -53,15 +58,15 @@
 - **R-PAR-001 [P0] 运行时参数补填**：tap/input-text 必须配 action_anchor
 - **R-PAR-002 [P0] 占位符完整**：Flow 的 {xxx} 在 steps-input 中全部用到
 - **R-PAR-003 [P1] 日期用 {T+N:format}**：禁止硬编码日期，如 `{T+10:%Y-%m-%d}`（不指定 format 时默认 `%Y-%m-%d`）
-- **R-PAR-004 [P0] device/env 对齐**：把 `flow-convert` 的默认 device（type/platform/app）与 env 修正为 device-required / env-required 的实际结果
-- **R-PAR-005 [P0] 真实值覆盖**：account/password 和 params 从 Flow「测试数据参考」提取真实值，经 `save-answers` 持久化到 env_answers.json
+- **R-PAR-004 [P0] device 对齐**：把 `flow-convert` 的默认 device（type/platform/app）修正为信息收集（`input-next` 循环）的实际结果（env 的收集字段由引擎从 intake 合成，无需手写）
+- **R-PAR-005 [P0] 真实值覆盖**：凭证登录（线上 A）的 account/password、以及各场景 params，从 Flow「测试数据参考」提取真实值，经 `input-answer` 持久化到 `intake.json`；验证码登录（alpha/泳道 B/C）的测试手机号由引擎按 workspace 确定性自动生成（`test_account`，不提问），无需从 Flow 提取（如需指定号码，用 `input-seed test_account` 覆盖）
 - **R-PAR-006 [P0] 匹配标识必填**：`api_assert.path` 与 `track_assert.match` 为空会被 flow-init 硬拒（空 path 匹配任意请求、空 match 必然匹配不到）
 - **R-PAR-007 [P1] 埋点匹配标识选择**：`track_assert.match` 优先用 `val_bid`（事件 ID，精确且唯一，命中即 PASS）。Flow 只给组件级 cid（如 `c_hotel_xxx`）时，同一 cid 下会同时存在 PV / MV / MC 等多个事件，引擎会转 PENDING 交 AI 用 `assert-fields --picked` 消歧；建议补 `expected_fields` 锁定事件类型（如 `{"nm":"PV"}`）以减少歧义、提升确定性
 
 ## R-CFL 冲突检测
 
 - **R-CFL-001 [P0] landing_scheme 不重复**：首步不得是 open-url 等于 landing_scheme（C2 已自动跳转），发现即删该步骤
-- **R-CFL-002 [P0] tap 不用坐标**：tap/input-text 必须用 action_anchor 锚点文案，禁止写坐标
+- **R-CFL-002 [P0] tap 不用坐标**：`tap` 必须用 `action_anchor` 锚点文案（无文案图标），`input-text` 必须用 `action_anchor`（输入框标签）；声明步骤禁止写坐标（坐标仅由 hook 兜底回写）
 
 ---
 

@@ -44,17 +44,17 @@ data.nodeDataMap.HfeHotelSubmitPrePay.p.orderAmount → 预付组件的订单金
 
 ```bash
 # 修改底部栏总价为 ¥0.01（1 分）
-python3 scripts/cli.py mock patch-field --mock-id <mockId> --field "data.nodeDataMap.BottomBar.p.totalPayAmount" --value "1"
-python3 scripts/cli.py mock patch-field --mock-id <mockId> --field "data.nodeDataMap.BottomBar.p.roomFeeAmount" --value "1"
-python3 scripts/cli.py mock patch-field --mock-id <mockId> --field "data.nodeDataMap.BottomBar.p.cashRoomFeeAmount" --value "1"
+<入口> mock patch-field --mock-id <mockId> --field "data.nodeDataMap.BottomBar.p.totalPayAmount" --value "1"
+<入口> mock patch-field --mock-id <mockId> --field "data.nodeDataMap.BottomBar.p.roomFeeAmount" --value "1"
+<入口> mock patch-field --mock-id <mockId> --field "data.nodeDataMap.BottomBar.p.cashRoomFeeAmount" --value "1"
 
 # 同步修改 currentData
-python3 scripts/cli.py mock patch-field --mock-id <mockId> --field "data.currentData.totalPayAmount" --value "1"
-python3 scripts/cli.py mock patch-field --mock-id <mockId> --field "data.currentData.roomFeeAmount" --value "1"
-python3 scripts/cli.py mock patch-field --mock-id <mockId> --field "data.currentData.cashRoomFeeAmount" --value "1"
+<入口> mock patch-field --mock-id <mockId> --field "data.currentData.totalPayAmount" --value "1"
+<入口> mock patch-field --mock-id <mockId> --field "data.currentData.roomFeeAmount" --value "1"
+<入口> mock patch-field --mock-id <mockId> --field "data.currentData.cashRoomFeeAmount" --value "1"
 
 # 修改后必须重新加载页面（scheme 跳转）才能看到变化
-python3 scripts/cli.py open-url --url "<目标scheme>"
+<入口> open-url --url "<目标scheme>"
 ```
 
 ## 如何定位其他组件的字段
@@ -63,7 +63,7 @@ python3 scripts/cli.py open-url --url "<目标scheme>"
 
 ```bash
 # 获取当前 Mock 的完整 response
-python3 scripts/cli.py mock get --mock-id <mockId>
+<入口> mock get --mock-id <mockId>
 
 # 用 Python 搜索关键词（如价格、文案等）
 python3 -c "

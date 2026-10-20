@@ -4,11 +4,9 @@
 
 ## 适用范围
 
-无需克隆本地仓库，仅基于 PR 远程 diff 与远程上下文完成代码审查。典型场景：
+业务代码证据来自 PR 远程 diff 与远程上下文。本地 checkout 只用于同步和读取平台规则。
 
-- 当前目录不是 PR 对应仓库，且不便切换或克隆
-- 需要快速过一遍他人提的 PR
-- 用户明确表达「走 PR-only 模式」
+适用于当前目录不是 PR 仓库、但用户提供了该仓库 checkout 的场景。
 
 ## 执行流程概览
 
@@ -17,12 +15,13 @@ Step 0：输入采集
   ├── 0.a 解析 PR 链接 → {org, repo, pr_id}
   ├── 0.b 拉取 PR 元信息：title / description / fromRef / toRef
   ├── 0.c 拉取变更文件清单（pr-changes）
-  ├── 0.d 探测远程上下文工具 code-repo-search 是否可用
-  └── 0.e 选择上下文采集策略（with-search / diff-only）
+  ├── 0.d 校验用户提供的匹配本地 checkout
+  ├── 0.e 探测远程上下文工具 code-repo-search 是否可用
+  └── 0.f 选择上下文采集策略（with-search / diff-only）
 
 Step 1：输出准备信息（含 PR-only 模式声明）
 
-Step 2：识别技术栈并加载规则
+Step 2：同步并读取平台规则
 
 Step 3：执行审查
   ├── 3.a 拉取每个变更文件的 diff（pr-diff）
@@ -85,7 +84,14 @@ python3 scripts/pr-comment/code_cli.py pr-changes --url <PR_URL>
 - `totalFiles` ≥ 100 → 提示用户 PR 较大，需要重点关注；不自动截断，但 Step 3 拉 diff 时按“高变更文件优先”处理
 - `totalFiles` 命中 500 上限 → 提示“PR 触发 Code 平台 500 文件展示上限”，明确告知本次审查可能漏掉超出范围的文件
 
-### Step 0.d：探测 code-repo-search 是否可用
+### Step 0.d：校验平台规则 checkout
+
+用户必须提供一个本地 checkout 路径。执行 `git remote get-url origin`，确认 origin 包含 Step 0.a 解析出的 `{org}/{repo}`。
+
+- 一致 → 记录该路径，Step 2 使用它作为 `mt-code-standards-setup` 的 `--repo-root`；不读取其业务代码作为本次 PR-only 的代码证据。
+- 不一致、路径不存在或非 Git 仓库 → 停止并要求用户提供匹配 checkout 或切换到本地模式。
+
+### Step 0.e：探测 code-repo-search 是否可用
 
 执行 `which code-repo-search`，记录两种状态：
 
@@ -94,7 +100,7 @@ python3 scripts/pr-comment/code_cli.py pr-changes --url <PR_URL>
 
 > `diff-only` 是合法降级路径——不要因为缺工具不使用本节路径，仅是上下文受限。
 
-### Step 0.e：选择上下文采集策略
+### Step 0.f：选择上下文采集策略
 
 | 策略 | 触发条件 | 行为 | 报告 banner |
 |------|---------|------|-------------|
@@ -107,7 +113,7 @@ python3 scripts/pr-comment/code_cli.py pr-changes --url <PR_URL>
 
 严格按 `references/tpl-report.md`「准备」章节组织内容，至少包含：
 
-- 模式声明：**PR-only 模式（未拉取本地代码）**
+- 模式声明：**PR-only 模式（业务代码证据来自远程 PR；匹配 checkout 仅用于平台规则同步）**
 - PR 元信息：org/repo/pr_id、title、author、fromRef → toRef
 - 变更摘要：文件数、改动文件列表（按目录归类）
 - 上下文策略：`with-search` 或 `diff-only`，diff-only 时显式标注"上下文受限"
@@ -120,24 +126,11 @@ PR-only 模式下不输出"自由文本可靠性结论"（避免逐次重复输�
 
 `with-search` 路径默认不阻塞，结合 PR 描述完整性自行判断；PR 描述缺失到无法判断变更目标时，请求补充。
 
-## Step 2：识别技术栈并加载规则
+## Step 2：读取平台规则
 
-**下列规则覆盖的是高频风险，不是审查边界。结合上下文和工程常识独立判断，看到明显问题就指出，不需要被规则条文局限。**
+使用 Step 0.d 已校验的 checkout，读取 [`references/rules-loading.md`](../rules-loading.md)。同步成功时读取 L1/L2/L3；同步失败时读取 L3 和 fallback 规则。准备信息记录规则快照、Release 和 fallback 状态。
 
-PR-only 模式下，技术栈识别在无本地仓库时退化为基于 PR 文件后缀 + 路径特征推断（如 `.tsx + react-native` 包路径 → MRN；`max-components` 引用 → Max；`pages/` + `app.json` → 小程序），准确度低于本地模式。识别不出时按通用前端规则集处理，并在报告中标注"技术栈未确认"。
-
-先执行规则同步动作，确定本次规则读取根目录，详见 `references/rules-loading.md`。不得未尝试拉取规则直接使用本地兜底规则。
-
-规则加载顺序（路径相对于已确定的读取根目录）：
-
-1. **必读**：`base/general-rules.md` + `base/trade-rules.md`
-2. **按技术栈选择**：MRN / Max / 小程序 / DUO stack 规则
-   - MRN → `stack/mrn-rules.md`
-   - Max → `stack/max-rules.md`
-   - 小程序 → `stack/miniprogram-rules.md`
-   - DUO → `stack/duo-rules.md`
-3. **按需补读**：框架背景 context 规则（`references/context/mrn-context.md` / `references/context/max-context.md`，固定读本 skill 自带路径，不受规则同步动作影响）
-4. **项目层规则**：用户显式提供时加载
+需要理解 MRN / Max 行为时，读取对应 context；这些内容不作为规则来源。
 
 ## Step 3：执行审查
 
@@ -226,7 +219,7 @@ PR-only 模式下的差异处理：
 
 **PR-only 特别提醒**：传给 subagent 的 prompt **必须**包含以下说明，避免 subagent 误以为可读本地代码：
 
-> "本次审查在 PR-only 模式下执行，无本地代码可读；候选问题的证据仅来自 PR diff{ + 远程符号搜索}。"
+> “本次审查在 PR-only 模式下执行；本地 checkout 仅用于读取平台规则，候选问题的业务代码证据只能来自 PR diff{ + 远程符号搜索}。”
 
 ## Step 5：组织发现项
 
@@ -242,7 +235,7 @@ PR-only 模式下的差异处理：
 - 包含：问题类型、原因、位置、修复建议
 - 可自动修复的风格问题合并为一条，不逐行展开
 - 需要展开说明时，在详项区补充置信度、原因、回归提示
-- 问题命中规则库条目（`general-rules.md` / `trade-rules.md` / `stack/*.md`）时，标注对应规则编号（如 `R09`、`T02`、`MRN05`），0~n 个均可；纯上下文/业务逻辑判断没有对应规则时留空，不得编造
+- 命中规则时按 `rules-loading.md` 记录 `rule_sources`；纯上下文发现项传空数组
 
 ## Step 6：产出结论报告
 
@@ -264,7 +257,7 @@ PR-only 模式下的差异处理：
 **模式声明（始终添加）**：报告概要紧随标题之后插入一行：
 
 ```
-> 审查模式：PR-only（未拉取本地代码，基于 PR 远程 diff 完成审查）
+> 审查模式：PR-only（业务代码证据基于 PR 远程 diff；匹配本地 checkout 仅用于平台规则同步）
 ```
 
 **上下文受限 banner（仅 diff-only 路径添加）**：紧跟在模式声明下方，使用引用块强调：
@@ -296,14 +289,7 @@ PR-only 模式下天然有 PR 链接，无需仓库一致性校验，触发逻�
 
 ## Step 8: 上报到 CR 看板（可选后置动作）
 
-报告产出后，按 `references/report-submit.md` 的要求组装 payload 并通过脚本提交。
-
-- **触发**（默认启用）：Step 6 完成后自动执行
-- **跳过**：用户显式说「不要上报」「不上报看板」
-- **执行**：按 `references/report-submit.md` 中「执行」一节的要求，通过临时文件传入 payload 并运行脚本
-- **失败**：在会话末尾静默附加一行 `⚠️ CR 看板上报失败：<原因>`，不重试，不阻塞
-- **PR-only 特别说明**：无本地 git 环境时，`operator` 从 PR 元信息 `author` 字段提取；`repo` / `branch` 从 PR URL 解析结果中取得
-- **字段解析、枚举映射、payload 组装**：详见 [`references/report-submit.md`](../report-submit.md)
+读取 [`references/report-submit.md`](../report-submit.md)，组装 CR 看板 payload 并运行上报脚本。用户说「不要上报」时跳过；上报失败时在会话末尾提示。`operator` 从 PR 作者取得，`repo` / `branch` 从 PR 元信息取得。
 
 ## 修复检查（增量复查）
 

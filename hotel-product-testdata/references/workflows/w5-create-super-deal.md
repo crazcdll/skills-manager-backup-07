@@ -166,7 +166,6 @@ python3 factory/super-deal/create-super-deal.py \
   [--payload-file /path/to/custom-spu-payload.json] \
   [--swimlane <泳道>] \
   [--skip-refresh-spu-cache] \
-  [--cache-env test|prod] \
   --dry-run
 ```
 
@@ -183,7 +182,7 @@ python3 factory/super-deal/create-super-deal.py \
 3. 等待 60s（确保专属全日房型信息在后端传播完成，避免 `submitSpu` 报「查询套餐关联房型信息失败」）
 4. `MeResourceFacade#submitSpu` 提交非通兑超团（autoPublish=true，含 `spuImageInfoModel` 图文信息）
 5. **（自动）** autoPublish=true，SPU 创建即自动完成审核并发布上线，**无需手动调用审核脚本**
-6. **（自动）** 上线后刷新 SPU 缓存（SPU 套餐产品缓存 + POI-SPU 映射缓存），通过 goodsoperator-cli 调用；加 `--skip-refresh-spu-cache` 可跳过，`--cache-env` 控制环境（默认 `test`）
+6. **（自动）** 上线后刷新 SPU 缓存（SPU 套餐产品缓存 + POI-SPU 映射缓存），通过 goodsoperator-cli 调用（固定 test 环境）；加 `--skip-refresh-spu-cache` 可跳过
 
 > ⚠️ **异步入库延迟**：`submitSpu` 返回 `spuId` 后，后端魔盒（商品中心）创建 SPU 实体数据是**异步**的，通常需要 10-30 秒才真正落库。在落库完成前，前端/查询接口可能显示「基本信息模块未入库」「关联选单未入库」「关联魔盒未入库，魔盒创建失败,原因:依赖系统异常」「110003 魔盒 thrift 连接异常」「13001提交审核失败」「13013关联套餐礼包不存在或不是套餐礼包」等报错——多数是**正常的异步延迟表现，不代表创建失败**。
 > - 脚本返回 `spuId` 即代表创建受理成功
@@ -265,7 +264,6 @@ python3 factory/super-deal-unified/create-super-deal-unified.py \
   [--checkin-start YYYY-MM-DD --checkin-end YYYY-MM-DD] \
   [--swimlane <泳道>] \
   [--skip-refresh-spu-cache] \
-  [--cache-env test|prod] \
   --dry-run
 ```
 
@@ -358,7 +356,7 @@ hthotel-ops-product --env test goodsquery query-poi-spu-mapping --poi-id <poiId>
 > ```bash
 > pip3 install -e /Users/baichenyu/.catpaw/skills/skills-market/goodsoperator-cli -q
 > ```
-> 刷新为 best-effort 后置动作：CLI 缺失或单条刷新失败仅打印告警，不会让已成功的超团创建流程报错退出。`--cache-env` 默认 `test`（与本 skill 创建商品所用测试环境一致）。
+> 刷新为 best-effort 后置动作：CLI 缺失或单条刷新失败仅打印告警，不会让已成功的超团创建流程报错退出。缓存刷新固定走 `test` 环境（与本 skill 创建商品所用测试环境一致，不支持线上）。
 
 ---
 
@@ -532,7 +530,6 @@ python3 factory/super-deal-promo/create-super-deal-promo.py \
   [--swimlane <泳道>] \
   [--skip-audit] \
   [--skip-refresh-spu-cache] \
-  [--cache-env test|prod] \
   --dry-run
 ```
 
@@ -657,7 +654,7 @@ python3 factory/super-deal-promo/create-super-deal-promo.py \
 - **通兑超团审核顺序：BPM 先 → auditProduct 后**：BPM 通过后 auditProduct 的 `spuAuditUpdate` 返回 code=2024（预期），但 `approvedSpuAndAddGraphicDetails` 成功提交图文为「编审修改后通过」。若先调 auditProduct 再做 BPM，或只调 auditProduct 不做 BPM，图文会卡在「审核中」
 - **通兑超团 submitSpu 不能带 `spuImageInfoModel`**：带了之后 auditProduct 会把图文推到「审核中」；不带时 auditProduct 添加默认图文并直接通过
 - `auditProduct` 返回值含义：`code=200` 图文+基础信息均成功；`code=2024` BPM 已完成基础信息审核，spuAuditUpdate 冲突，但图文已成功提交（预期行为）；`code=2023` 图文提交失败
-- **超团上线后自动刷新 SPU 缓存**（SPU 套餐产品缓存 + POI-SPU 映射缓存，通过 goodsoperator-cli），避免 C 端查不到产品/房型售罄；加 `--skip-refresh-spu-cache` 可跳过，`--cache-env` 控制环境（默认 `test`，与本 skill 创建商品环境一致）。非通兑在 autoPublish 上线后刷新单门店 POI-SPU；通兑在审核上线成功后对所有 shopIds 逐个刷新
+- **超团上线后自动刷新 SPU 缓存**（SPU 套餐产品缓存 + POI-SPU 映射缓存，通过 goodsoperator-cli），避免 C 端查不到产品/房型售罄；加 `--skip-refresh-spu-cache` 可跳过，固定走 `test` 环境（与本 skill 创建商品环境一致）。非通兑在 autoPublish 上线后刷新单门店 POI-SPU；通兑在审核上线成功后对所有 shopIds 逐个刷新
 - ⚠️ **非通兑超团 submitSpu 后异步入库延迟**：`submitSpu` 返回 `spuId` 后魔盒（商品中心）创建 SPU 实体是异步的（约 10-30s），落库前前端会显示「基本信息模块未入库」「魔盒创建失败,依赖系统异常」「110003 魔盒 thrift 连接异常」「13001提交审核失败」等报错——**多数是正常延迟，不是创建失败**。
   - ❌ **不要用 `querySpuListPage` 验证入库**：该接口对超团（spuType=1）查询不可靠，无论传不传 spuId、加不加 onLineStatus 过滤，RPC 均正常返回 success=true，但恒为 totalCount=0、list=[]，会造成误判
   - ✅ **用 `factory/super-deal/query-spu.py` 验证入库+在线状态**（`MeResourceFacade#getSpuDetail`，按 partnerId+spuId 精确查询，已实测验证可靠）：`python3 factory/super-deal/query-spu.py --partner-id <partnerId> --spu-id <spuId> --wait`（`--wait` 自动重试最多8次/每次15s）。`status=1`（上架）即代表入库+上线成功，同时可看 `mboxId` 是否非空、`relatedGoodsList` 关联全日房是否正确

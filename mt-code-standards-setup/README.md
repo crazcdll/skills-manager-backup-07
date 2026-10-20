@@ -92,7 +92,7 @@ mtcli 模式不接受 `--mis`、`--auth-agent`，也不使用 direct 的用户�
 
 ## 发布
 
-本仓库根目录同时是 npm 包根目录和 Friday Skill 根目录。Talos 构建使用 Node.js 20；当前已在 Node.js 20.20.2 下验证 `build`、98 项测试和 pack 入口。`build` 只执行语法、包结构、Skill 合同与 mtcli Schema 检查，不生成构建产物：
+本仓库根目录同时是 npm 包根目录和 Friday Skill 根目录。Talos 构建使用 Node.js 20；当前已在 Node.js 20.20.2 下验证 `build`、124 项测试和 pack 入口。`build` 只执行语法、包结构、Skill 合同与 mtcli Schema 检查，不生成构建产物：
 
 ```shell
 nvm use 20
@@ -108,11 +108,27 @@ mnpm install --prefix "$VERIFY_DIR" "$PACKAGE_DIR/$PACKAGE_TGZ"
 
 npm 只通过 Talos 应用 `1000376` 发布，不在本地执行 `npm publish` 或 `mnpm publish`；`mnpm` 仅用于公司源安装与发布结果查询。Talos 构建环境使用 Node.js 20（当前验证版本为 20.20.2），发布插件的包名必须为 `@nibfe/mt-code-standards`。npm 版本由 Talos 流水线自动递增并回写，开发者不在本地执行 `npm version`，也不为发布手工修改 `package.json`、`package-lock.json` 或 `SKILL.md` 的版本。npm 包与 Friday Skill 分别发布、分别管理版本；以 Talos 发布回执和公司 npm 源中的实际版本为准。不要直接套用其他项目的 `npmVersionType`、`npmDistTag`、`usePackageJsonVersion`、`onlyPushProdVersion` 或生产依赖选项；以应用 `1000376` 的实际 Talos 配置和本包合同为准。
 
-Friday Skill ID 为 `150847`。其版本与 npm 版本相互独立；后续更新必须单独切换到 Node.js 24，再执行 `mtskills push --intro auto`，不要再次创建同名条目：
+Friday 上维护两个既有条目，均复用本仓库的同一套源码，不在仓库中维护第二份 Setup 源码：
+
+- `mt-code-standards`：Friday Skill ID 为 `150847`，从仓库根目录直接发布。
+- `mt-code-standards-setup`：Setup Skill ID 为 `141006`，通过固定脚本生成一次性临时包；脚本只修改
+  `SKILL.md` 的顶层名称和 `agents/openai.yaml` 的默认调用令牌，运行期 Schema、npm 包名和 CLI 命令保持 canonical 值。
+
+两个 Friday 版本均与 npm 版本相互独立。发布 canonical Skill 时必须单独切换到 Node.js 24，再从仓库根目录执行 `mtskills push --intro auto`，不要再次创建同名条目：
 
 ```shell
 nvm use 24
 mtskills push --intro auto
 ```
+
+发布 Setup Skill 前先用 dry-run 核对目标 ID、文件数和内容 Hash。dry-run 只在系统临时目录生成并删除包，不安装工具、不联网，也不调用 `mtskills`：
+
+```shell
+nvm use 24
+npm run skill:publish:setup -- --dry-run
+npm run skill:publish:setup
+```
+
+正式 Setup 发布命令会先运行仓库校验，再从公司 npm 源全局更新 `@mtfe/mtskills`，最后在临时包目录固定执行 `mtskills push --intro auto`。更新全局发布工具是该命令的明确副作用；脚本不会发布 npm、提交或推送 Git，也不会安装全局 Skill。临时包在成功或失败后都会删除。发布完成后仍须从 Friday 回读 ID `141006` 的实际版本和文件内容；源码提交或命令调用成功不能替代线上回读。本轮加入发布脚本本身不表示已实际发布。
 
 npm、Friday、CatX 和 mtcli 是独立发布单元；按 [接入说明](references/mtcli-integration.md) 分别回读和验收，本仓库提交不会自动完成任一线上发布。

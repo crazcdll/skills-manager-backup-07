@@ -1,12 +1,12 @@
 # CR 看板上报
 
-Step 8 执行的上报动作：把本次 CR 结果写入 [AI CR 看板](https://aicr.mynocode.host)。
+报告产出后读取本文件，上报审查结论和发现项到 CR 看板。
 
-> 接口文档：https://aicr.mynocode.host/#/api-doc
+- 需要本次规则上下文：平台 receipt、L3 规则清单和 fallback 状态。
+- 用户说「不要上报」时跳过。
+- 上报失败时在会话末尾提示，不阻塞审查结论。
 
-- **默认启用**：Step 6 报告产出后，尽量作为后台 subagent 静默执行，不打断主会话
-- **跳过**：用户说「不要上报」「不上报看板」时跳过
-- **失败**：在会话末尾静默附加一行提示，不阻塞
+质量门禁接口提供前，只调用现有看板。后续质量门禁看板复用同一份标准化 payload，不再转换规则 ID。
 
 ## 字段来源
 
@@ -19,7 +19,7 @@ Step 8 执行的上报动作：把本次 CR 结果写入 [AI CR 看板](https://
 | `branch` | `git branch --show-current` |
 | `review_mode` | 路由时已知：`local` 或 `pr-only` |
 | `tech_stack` | 技术栈识别结果，多值英文逗号拼接如 `"max,mrn"`；识别不出填 `"others"` |
-| `review_depth` | 用户说"快速过一遍" → `quick`；其余 → `deep` |
+| `review_depth` | 用户说“快速过一遍”时填 `quick`；其余填 `deep` |
 | `conclusion` | 见枚举映射 |
 | `launch_risk` | 见枚举映射 |
 | `p0_count` / `p1_count` / `p2p3_count` | 报告问题统计 |
@@ -32,7 +32,7 @@ Step 8 执行的上报动作：把本次 CR 结果写入 [AI CR 看板](https://
 |---|---|
 | `pr_id` | PR URL `pr/{id}` 中提取（仅 pr-only 模式） |
 | `diff_range` | local 模式的 diff range，如 `origin/master...feature/xxx` |
-| `change_summary` | 报告变更摘要要点，转为 `string[]`，建议 `"类型: 描述"` 格式。第一条放最能代表本次变更意图的摘要，其余按重要性递减，chore/纯技术类放最后 |
+| `change_summary` | 报告变更摘要要点，转为 `string[]` |
 | `dep_changes` | package.json 有版本变化时填写，见格式说明 |
 | `client` | 当前运行环境。如 `catpaw`、`catdesk`、`claudecode`、`cursor`、`clawagent`、`openclaw` 等 |
 
@@ -56,35 +56,56 @@ Step 8 执行的上报动作：把本次 CR 结果写入 [AI CR 看板](https://
 
 ### `findings`（必填）
 
-无问题时传空结构：
-
-```json
-{ "p0": [], "p1": [], "p2p3": [], "openQuestions": [] }
-```
-
-有发现项时每条格式（`confidence` P2-P3 可选；`code_context` 可选，P0/P1 优先填，截取 1~3 行关键变更；`rule_ids` 可选，0~n 个，见下方说明）：
+`rule_bundle` 是两个看板共用的规则上下文：
 
 ```json
 {
-  "p0": [{
-    "level": "P0", "type": "空值未处理",
-    "path": "src/pages/checkout/index.jsx:L45",
-    "reason": "order.items 在接口异常时可能为 null",
-    "suggestion": "增加空值保护：(order.items ?? []).map(...)",
-    "confidence": "高",
-    "rule_ids": ["R29"],
-    "code_context": {
-      "lang": "jsx",
-      "before": "const items = order.items.map((x) => <Item key={x.id} data={x} />);",
-      "after": "const items = (order.items ?? []).map((x) => <Item key={x.id} data={x} />);"
-    }
-  }],
-  "p1": [], "p2p3": [],
-  "openQuestions": ["handleRetry 最大重试次数是否与后端约定一致？"]
+  "p0": [],
+  "p1": [],
+  "p2p3": [],
+  "openQuestions": [],
+  "rule_bundle": {
+    "schema_version": "cr-rule-source/v1",
+    "source": "mt-code-standards-setup",
+    "snapshot_id": "<receipt.snapshot_id>",
+    "standard_domain": "frontend",
+    "release_refs": [
+      {"rule_set_id": "frontend-l1", "release_id": "frontend-l1@2026.09", "scope_level": "L1"}
+    ],
+    "project_rules": [
+      {"rule_set_id": "order-detail", "file": "project/order-detail/ab.md", "rule_version": "<sha256>"}
+    ],
+    "fallback": {"active": false, "rule_set_id": "fe-ai-review-fallback", "rule_version": "v2"}
+  }
 }
 ```
 
-`rule_ids`：命中的规则库条目编号数组，取自 `general-rules.md`（`R01`~）/ `trade-rules.md`（`T01`~）/ `stack/*.md`（`MRN01`~、`MAX01`~、`DUO01`~ 等）已有编号，不新建编号体系。一条问题可命中 0 个（纯上下文/业务逻辑判断，没有对应规则）到多个规则；无命中时省略该字段或传空数组，不得编造编号。
+Runner 失败时：`source` 填 `fallback`，`snapshot_id` 填 `null`，`release_refs` 填空数组，`fallback.active` 填 `true`。L3 规则仍列入 `project_rules`。
+
+每个发现项填写 `rule_sources`。上报脚本根据来源字段生成 `rule_id`：
+
+```json
+{
+  "level": "P0",
+  "type": "空值未处理",
+  "path": "src/pages/checkout/index.jsx:L45",
+  "reason": "order.items 在接口异常时可能为 null",
+  "suggestion": "增加空值保护：(order.items ?? []).map(...)",
+  "confidence": "高",
+  "rule_sources": [{
+    "source_type": "platform",
+    "scope_level": "L1",
+    "rule_set_id": "frontend-l1",
+    "rule_version": "frontend-l1@2026.09",
+    "file": "company/ASYNC-异步与异常处理.md",
+    "title": "异步与异常处理",
+    "section": "空值与异常返回",
+    "upstream_rule_id": "<平台规则 UID，可选>"
+  }]
+}
+```
+
+L3 使用 `source_type: "project"`、`scope_level: "L3"` 和文件 SHA-256 作为 `rule_version`。Fallback 使用 `source_type: "fallback"`、`scope_level: "FALLBACK"`、`rule_set_id: "fe-ai-review-fallback"`；`rule_version`、`file`、`title` 和 `section` 按 [`rules/fallback-rules.md`](rules/fallback-rules.md) 顶部约定填写。
 
 ### `dep_changes`
 
@@ -110,16 +131,16 @@ ENDJSON
 bash "$SKILL_DIR/scripts/report-submit.sh" "$PAYLOAD_FILE"
 ```
 
-脚本读完文件后会自动删除 `/tmp/` 下的临时文件，无需手动清理。
+脚本会生成 `rule_id`、上报现有看板，并删除 `/tmp/` 下的 payload 文件。
 
 上报成功时，从脚本输出中提取 id，在会话末尾附加一行报告地址：
 
-```
+```text
 📊 CR 报告已上报：https://aicr.mynocode.host/#/reports/{id}
 ```
 
 失败时附加：
 
-```
+```text
 ⚠️ CR 看板上报失败：<错误原因>（不影响本地报告）
 ```

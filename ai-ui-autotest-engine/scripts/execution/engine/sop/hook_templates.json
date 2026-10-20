@@ -1,0 +1,307 @@
+{
+  "pre_step": [
+    {
+      "id": "check_device_alive",
+      "desc": "设备连通性检查",
+      "required": true,
+      "auto": true
+    },
+    {
+      "id": "check_screen_interactive",
+      "desc": "设备熄屏/锁屏检查（仅本地真机场景，云模拟器/云真机跳过）",
+      "required": true,
+      "auto": true
+    }
+  ],
+  "on_pass": [],
+  "on_text_assertion": [
+    {
+      "id": "verify_text_assertion",
+      "desc": "T1 程序化匹配未命中，需 AI 读元素目录做语义确认。对每条断言按 id 独立判定，注意 present / gone 方向相反：present —— 文案一致→pass/exact，形态差异但语义等价→pass/semantic，文案不存在→fail；gone —— 页面已完全找不到 expect（含子串形态）→pass，仍以任何形态存在→fail。判定结果通过 override-step-result 一次性写入。",
+      "required": true,
+      "cli_hint": "【AI 语义确认】T1 程序化匹配未命中，需 AI 读元素目录做语义确认。\n\nAssertion Catalog（待确认的断言清单）：\n{assertion_list}\n\n判定口径（result = 判成什么，verdict = 怎么判出来的），按断言自己的 match 选方向：\n  match=present（期望出现）\n   result=pass, verdict=exact    —— 页面文案与 expect 完全一致\n   result=pass, verdict=semantic —— 形态差异但语义等价：截断/省略/跨节点拆分/空白或全半角差异，或 expect 是页面复合文案的子串\n   result=fail                   —— 文案不存在，或语义不等价\n  match=gone（期望消失，方向相反）\n   result=pass, verdict=exact    —— 页面已完全找不到 expect（含子串形态）\n   result=fail                   —— expect 仍以任何形态存在，reason 写清实测值\n\n1️⃣ 读元素目录文件\n   用 read_file 读取文末「元素目录」块\n   文件是 markdown 格式的元素目录，按视口分区（视口内 / 视口下方 / 视口上方），\n   每个元素一行，含 ID/类型/文案/center 坐标/可点击标记。\n   直接扫描文案列即可确认目标是否在页面中，无需额外 grep/脚本过滤。\n\n2️⃣ 对每条断言按 id 独立判定（对照目录的「文案」列）\n\n3️⃣ 一次性写入所有断言的判定结果（JSON dict，键=断言 id）\n     python3 scripts/cli.py override-step-result --pass/--fail --sid {{sid}} \\\n       --assert-verdict '{{\"A1\":{{\"result\":\"pass\",\"verdict\":\"exact\",\"actual\":\"待使用\"}}}}' \\\n       --desc '(分析总结)'\n\n   ⚠️ 一个步骤的所有断言（text + visual）只写一次 override：两个 hook\n      共用同一份 --assert-verdict，逐条按 id 给出 result / verdict。\n   ⚠️ 断言判定是步骤结论的唯一依据：全部 pass 才可 --pass，有任意 result=fail\n      则必须 --fail，不得出现「断言失败但步骤通过」。\n   ⚠️ result=fail 时必须在 reason 写清「实测值 vs 期望（expect / criteria）」。\n\n4️⃣ 标记完成\n   python3 scripts/cli.py flow-next --done-hooks verify_text_assertion"
+    }
+  ],
+  "on_visual_assertion": [
+    {
+      "id": "verify_visual_assertion",
+      "desc": "视觉断言需 AI 读图判定（result=pass/fail，verdict=visual）。每条断言按自己的 expect / criteria / targets 逐项判定；targets 中任一不满足则整条断言 fail，且不得因「模块存在/渲染正常」放行带硬性标准（位数/数值/状态等）的断言。判定结果通过 override-step-result 一次性写入。",
+      "required": true,
+      "cli_hint": "【视觉确认】需读图确认 UI 呈现，对每条 visual 断言独立判定。\n\nAssertion Catalog（需视觉确认的断言清单）：\n{assertion_list}\n\n1️⃣ 读元素目录确认目标视口状态\n   用 read_file 读取文末「元素目录」块，查看目标文案所在分区（视口内 / 下方 / 上方）。\n\n2️⃣ 目标不在视口时先滚动到目标，再重新读图\n   - 从目录的 center 列取参考坐标\n   - 滚动：python3 scripts/cli.py step scroll-until --action-arg '<目标文案>'\n   - 重新截图：python3 scripts/cli.py screenshot --out <新截图文件名>\n\n3️⃣ 读截图逐项判定（截图：{screenshot_path}，对照每条断言的 expect / criteria / targets）\n   带 targets 的断言必须逐项给出结果，不得只看「模块是否存在」。\n\n4️⃣ 一次性写入所有视觉断言的判定结果（键=断言 id）\n     python3 scripts/cli.py override-step-result --pass/--fail --sid {{sid}} \\\n       --assert-verdict '{{\"A3\":{{\"result\":\"fail\",\"verdict\":\"visual\",\"actual\":\"实测 13 位\",\"reason\":\"未满足 criteria：券码为 11 位数字\",\"targets\":[{{\"expect\":\"二维码可见\",\"result\":\"pass\",\"actual\":\"可见\"}},{{\"expect\":\"券码为 11 位数字\",\"result\":\"fail\",\"actual\":\"0100 8514 7753 8（13 位）\"}}]}},\"A4\":{{\"result\":\"pass\",\"verdict\":\"visual\"}}}}' \\\n       --desc '(视觉确认总结)'\n\n   ⚠️ 一个步骤的所有断言（text + visual）只写一次 override：两个 hook\n      共用同一份 --assert-verdict，逐条按 id 给出 result / verdict。\n   ⚠️ 断言判定是步骤结论的唯一依据：全部 pass 才可 --pass，有任意 result=fail\n      则必须 --fail，不得出现「断言失败但步骤通过」。\n   ⚠️ result=fail 时必须在 reason 写清「实测值 vs 期望（expect / criteria）」。\n\n4️⃣ 标记完成\n   python3 scripts/cli.py flow-next --done-hooks verify_visual_assertion"
+    }
+  ],
+  "on_text_visual_recheck": [
+    {
+      "id": "verify_text_visual_recheck",
+      "desc": "T2 语义确认的视觉复核：读图确认 T1 未命中的 text 断言在截图中确实可见（未被遮挡、不在滚动容器外）。复核不通过则修正该断言的 result/reason，不单独产生新的判定项。",
+      "required": false,
+      "cli_hint": "【视觉复核】复核上面 T2 语义确认的 text 断言：元素目录与真实截图是否一致。\n\n待复核断言：\n{assertion_list}\n\n1️⃣ 读截图：{screenshot_path}\n   对照文末「元素目录」块与断言清单里的 match，按方向复核：\n   · match=present → 确认 expect 文案在截图中确实可见\n   · match=gone    → 确认 expect 文案在截图中确实不可见（任何形态都没有）\n\n2️⃣ 判定：\n   - 一致 → 无需额外动作，直接进入 3️⃣\n   - 不一致（present 却看不到 / gone 却仍可见 / 被遮挡）→ 用 override-step-result 修正该断言的\n     result / reason（复用同一份 --assert-verdict，勿重复写其他断言）\n\n4️⃣ 标记完成\n   python3 scripts/cli.py flow-next --done-hooks verify_text_visual_recheck"
+    }
+  ],
+  "on_api_fields_assertion": [
+    {
+      "id": "verify_api_fields",
+      "desc": "API 接口字段校验。程序已匹配到接口并提取了结构化数据，需 AI 读证据文件逐字段判定。",
+      "required": true,
+      "cli_hint": "【API 字段断言】程序已匹配到接口并提取了结构化数据，需 AI 逐字段校验。\n\n待校验字段清单：\n{expected_fields_list}\n\n1️⃣ 取实际值（不要整读证据文件，可能超 token 上限）\n   证据文件：{evidence_path}\n   · 请求/查询串/元信息/请求头：用 grep 按字段名搜（extracted_fields 键形如 request.xxx / query.xxx / meta.xxx；状态码取 meta.http_code）\n   · 响应体：不在 extracted_fields 里（避免报告膨胀），全量在证据文件 source.response。\n     先读结构：{skeleton_path}（浅骨架小文件，可直接 read_file；深度 ≤4、数组折叠 —— 深度 >4 的字段（容器显示为 object: N keys）骨架看不到，必须改用 --query 检索）\n     用例通常只给文案/值不给路径 —— 用检索定位：\n       python3 scripts/cli.py response-search --sid {sid} --query '<用例中的文案或值>'\n     命中数触顶会被截断（命令行会给出提示），此时换更具体的关键字或直接 --path 取值；命中后再精确取值：\n       python3 scripts/cli.py response-search --sid {sid} --path '<命中路径>'\n\n2️⃣ 逐字段判定\n   比对期望值与实测值；响应字段的 field 必须写成真实路径 response.<路径>（与检索结果一致）。上方清单里的语义名只表示「要校验什么」，真实路径由本判定落定，results 条数需与清单一一对应（否则不回写 flow-context）。\n   ⚠️ 索引里没有 ≠ 字段不存在：响应字段必须先用 response-search 确认后再判 fail。\n\n3️⃣ 记录断言结果\n   使用 assert-fields 命令一次性记录所有字段的断言结果：\n     python3 scripts/cli.py assert-fields --sid {sid} --desc '接口字段断言完成' \\\n       --results '<field_results_json>'\n\n   field_results JSON 格式：\n     [{{\"field\":\"字段路径\",\"expected\":\"预期值\",\"actual\":\"实际值\",\"pass\":true,\"reason\":\"\"}}]\n\n4️⃣ 标记完成\n   assert-fields 命令会自动标记 hook 完成，然后执行 flow-next 推进：\n     python3 scripts/cli.py flow-next"
+    }
+  ],
+  "on_track_fields_assertion": [
+    {
+      "id": "verify_track_fields",
+      "desc": "埋点事件断言。程序已匹配到埋点事件；命中多个候选时需 AI 按 nm/val_lab 语义选定目标事件，再逐字段校验。",
+      "required": true,
+      "cli_hint": "【埋点断言】程序已匹配到埋点事件，需 AI 选定目标事件并逐字段校验。\n\n匹配标识：{match}\n候选事件：{candidate_count} 条\n候选清单：\n{candidate_list}\n\n待校验字段清单：\n{expected_fields_list}\n\n1️⃣ 读证据文件（多候选时含每个候选的完整字段）\n   用 read_file 读取：{evidence_path}\n   当 candidate_count > 1 时，先按 nm / val_lab 语义选定唯一目标事件\n   （如曝光 PV vs 模块曝光 MV；用 button_name / _phpage 等区分来源与入口）。\n\n2️⃣ 逐字段判定\n   对比 expected_fields 与所选事件的字段实测值；无 expected_fields 时，\n   消歧本身即结论（--results 传 []）。\n\n3️⃣ 记录断言结果（candidate_count > 1 时必须带 --picked <序号>）\n     python3 scripts/cli.py assert-fields --sid {sid} --picked <序号> --desc '埋点断言完成' \\\n       --results '<field_results_json>'\n\n   field_results JSON 格式：\n     [{{\"field\":\"字段路径\",\"expected\":\"预期值\",\"actual\":\"实际值\",\"pass\":true,\"reason\":\"\"}}]\n\n4️⃣ 标记完成\n   assert-fields 命令会自动标记 hook 完成，然后执行 flow-next 推进：\n     python3 scripts/cli.py flow-next"
+    }
+  ],
+  "on_text_not_found": [
+    {
+      "id": "resolve_text_not_found",
+      "desc": "TEXT_NOT_FOUND — tap-text 精确定位未命中：action_arg 与页面节点文案不一致（如页面是复合文案「已优惠¥219」而 action_arg 是「已优惠」）。需 AI 从候选节点选定目标并坐标点击完成操作；该口径差异记入 note，步骤结论由本步骤断言决定。",
+      "required": true,
+      "cli_hint": "【TEXT_NOT_FOUND】tap-text 精确定位未命中：action_arg 与页面节点文案不一致。\n这是最常见的场景（如底部栏文本是复合字符串\"¥236.69已优惠¥213\"，\n独立文案\"已优惠\"不存在）。不需要 find-text 重试。\n\n目标文案（action_arg）：{target_text}\n截图路径：{screenshot_path}\n\n候选（与 action_arg 构成字面重叠的节点，✅=可点击；坐标为设备绝对坐标，H5 元素标 [webview]）：\n{candidate_list}\n\n1️⃣ 读截图确认页面状态（错误页/白屏先恢复，不要直接判失败）\n\n2️⃣ 选定候选：\n   - 恰好一个 ✅ 可点击节点 → 即目标\n   - 多个候选 → 结合步骤 desc 与截图选最贴合的一个（整行/整块容器通常就是点击目标）\n   - 无候选 → 结合文末元素目录做语义匹配；确无等价元素才判不存在（路径 C）\n\n3️⃣ 用坐标完成点击（坐标点击只代表操作已发出，不代表步骤通过）：\n     python3 scripts/cli.py step --for-sid {{sid}} tap --action-x <cx> --action-y <cy> --desc '坐标点击兜底：<实际文案>'\n   （坐标超出视口时引擎会自动滚动到视口后再点）\n   （不要用 step --sid 重跑被声明的步骤，会被 SID 冲突拦截；口径差异由 4️⃣ 的 --note 承载）\n\n4️⃣ 判定本步骤断言（一个步骤只写一次 override，逐条按 id 给出结果）\n   - 断言全部 pass（口径差异不影响页面功能正确性）→ 步骤 PASS，并留痕：\n     python3 scripts/cli.py override-step-result --pass --sid {{sid}} \\\n       --desc 'action_arg 与页面文案不一致，已按候选坐标点击完成操作' \\\n       --note 'action口径差异：target=<action_arg>, actual=<实际文案>, coordinate_tap=<x,y>' \\\n       --assert-verdict '{{\"<断言id>\":{{\"result\":\"pass\",\"verdict\":\"exact\",\"actual\":\"<页面实际文案>\"}}}}'\n   - 断言确有 fail → 步骤 FAIL，reason 写清实测值 vs expect：\n     python3 scripts/cli.py override-step-result --fail --sid {{sid}} \\\n       --desc '<失败结论>' \\\n       --assert-verdict '{{\"<断言id>\":{{\"result\":\"fail\",\"reason\":\"实测<实际值> ≠ 期望<expect>\"}}}}'\n\n   路径 C — 视图中完全没有包含目标子串的节点（目标不在当前页面）：\n     python3 scripts/cli.py override-step-result --fail --sid {{sid}} \\\n       --desc '页面不存在目标文案：<action_arg>（无任何子串候选）'\n\n   ⚠️ 一个步骤的所有断言（text + visual）只写一次 override：两个 hook\n      共用同一份 --assert-verdict，逐条按 id 给出 result / verdict。\n   ⚠️ 断言判定是步骤结论的唯一依据：全部 pass 才可 --pass，有任意 result=fail\n      则必须 --fail，不得出现「断言失败但步骤通过」。\n   ⚠️ result=fail 时必须在 reason 写清「实测值 vs 期望（expect / criteria）」。\n   ⚠️ action_arg 口径差异本身不是被测系统缺陷：不得因为它就把已通过的断言标 fail。\n\n5️⃣ relay-hook-result 记录本 hook 结论\n6️⃣ python3 scripts/cli.py flow-next --done-hooks resolve_text_not_found"
+    }
+  ],
+  "on_target_unresolved": [
+    {
+      "id": "resolve_target_unresolved",
+      "desc": "UNRESOLVED — 精确命中目标文案但文本节点不可点击且无可用可点击祖先",
+      "required": true,
+      "cli_hint": "【UNRESOLVED】目标文本已精确命中，但文本节点不可点击，\n且未找到可点击的祖先容器，无法自动上溯。\n\n目标文案：{target_text}\n截图路径：{screenshot_path}\n\n锚点行（同一视觉行）的可点击候选（✅=可点击，坐标为设备绝对坐标，可直接 tap）：\n{candidate_list}\n\n1️⃣ 读截图确认页面状态\n2️⃣ 从候选中选定真实点击目标：\n   - 可能是同级/子级的 CheckBox / Radio / 整行容器\n3️⃣ 跳转到真实点击目标：\n   python3 scripts/cli.py step --for-sid {{sid}} tap --action-x <x> --action-y <y> --desc '坐标点击兜底：<实际文案>'\n4️⃣ relay-hook-result 记录结果\n5️⃣ flow-next --done-hooks resolve_target_unresolved"
+    }
+  ],
+  "on_target_ambiguous": [
+    {
+      "id": "resolve_target_ambiguous",
+      "desc": "AMBIGUOUS — 目标文案精确命中多个候选，需 AI 读截图消歧",
+      "required": true,
+      "cli_hint": "【AMBIGUOUS】目标文案精确命中 {candidate_count} 个候选可点击位置。\n\n目标文案：{target_text}\n截图路径：{screenshot_path}\n\n候选位置（坐标为设备绝对坐标，可直接 tap）：\n{candidate_list}\n\n1️⃣ 读截图确认目标上下文\n2️⃣ 结合步骤描述选择正确的候选：\n   python3 scripts/cli.py step --for-sid {{sid}} tap --action-x <x> --action-y <y> --desc '坐标点击兜底：<实际文案>'\n3️⃣ relay-hook-result 记录结果\n4️⃣ flow-next --done-hooks resolve_target_ambiguous"
+    }
+  ],
+  "on_target_blocked": [
+    {
+      "id": "resolve_target_blocked",
+      "desc": "BLOCKED — 目标已被调试控件遮挡，需 AI 确认 Recce 移除结果或换坐标",
+      "required": true,
+      "cli_hint": "【BLOCKED】目标区域被调试控件遮挡。\n\n目标文案：{target_text}\n原目标坐标：({target_x}, {target_y})\n截图路径：{screenshot_path}\n\n1️⃣ 读截图确认 Recce 浮层是否已自动移除\n2️⃣ 若 Recce 已移除 → 直接重试 tap-text：\n   python3 scripts/cli.py step tap-text --action-arg \"{target_text}\"\n3️⃣ 若仍有遮挡 → 用 find-icon 取安全坐标：\n   python3 scripts/cli.py find-icon --anchor \"{target_text}\"\n4️⃣ relay-hook-result 记录结果\n5️⃣ flow-next --done-hooks resolve_target_blocked"
+    }
+  ],
+  "on_tap_anchor_not_found": [
+    {
+      "id": "resolve_tap_anchor_not_found",
+      "desc": "TAP-ANCHOR 未命中 — 锚点文案未在目标集合中命中，或命中但该行没有可点击目标。需 AI 从页面元素确认真实锚点，或用坐标完成点击。",
+      "required": true,
+      "cli_hint": "【TAP-ANCHOR 未命中】锚点「{target_text}」未命中，或该行没有可点击目标（锚点点击只在形态唯一时自动）。\n\n截图：{screenshot_path}\n元素目录见文末统一块\n候选（✅=可点击，坐标为设备绝对坐标）：\n{candidate_list}\n\n1️⃣ 读截图确认页面状态\n2️⃣ 分支处理（换新 sid，避免覆盖已声明步骤）：\n   · 锚点写错 → step --sid {{sid}}b tap --action-anchor \"<真实锚点>\"\n   · 该行无可点击目标 → 坐标兜底：step --sid {{sid}}b tap --action-x <cx> --action-y <cy>\n3️⃣ 判定本步骤断言（一次 override，逐条给 result/verdict；全部 pass 才 --pass）\n4️⃣ relay-hook-result 记录结论，再 flow-next --done-hooks resolve_tap_anchor_not_found"
+    }
+  ],
+  "on_tap_anchor_ambiguous": [
+    {
+      "id": "resolve_tap_anchor_ambiguous",
+      "desc": "TAP-ANCHOR 多候选 — 锚点行内有多个可点击目标，引擎不擅自择优，需 AI 按上下文选定。",
+      "required": true,
+      "cli_hint": "【TAP-ANCHOR 多候选】锚点「{target_text}」所在行有 {candidate_count} 个可点击目标。\n同类无文案图标的语义判定属视觉通道（读图 + 断言），引擎不按几何择优。\n\n截图：{screenshot_path}\n元素目录见文末统一块\n锚点行候选（✅=可点击，坐标为设备绝对坐标）：\n{candidate_list}\n\n1️⃣ 读截图 + 步骤 desc 选定目标\n2️⃣ 坐标点击（绑父步骤，避免孤立 finding）：step --sid {{sid}}b tap --action-x <cx> --action-y <cy>\n3️⃣ 判定本步骤断言（一次 override）—— 断言是本步骤正确性的唯一依据，选错必然 fail\n4️⃣ relay-hook-result 记录结论（--resolution 写清选定理由），再 flow-next --done-hooks resolve_tap_anchor_ambiguous"
+    }
+  ],
+  "on_input_anchor_not_found": [
+    {
+      "id": "resolve_input_anchor_not_found",
+      "desc": "input-text 锚点文案未精确命中：anchor 与页面文案不一致。需 AI 从候选中选定真实锚点后重跑 input-text（输入动作不能用坐标点击替代）。",
+      "required": true,
+      "cli_hint": "【INPUT-TEXT 锚点未命中】锚点文案「{target_text}」没有精确命中页面节点。\n\n⚠️ 输入动作不能用坐标点击代替：必须**修正锚点后重跑 input-text**。\n\n截图路径：{screenshot_path}\n\n候选（含字面重叠，✅=可点击；【】内为元素角色）：\n{candidate_list}\n\n1️⃣ 读截图确认页面状态（错误页/白屏先恢复）\n2️⃣ 从候选中选定锚点对应的**真实节点文案**（通常是输入框左侧/上方的标签，如页面是「联系手机」而 anchor 写了「手机号」）\n3️⃣ 用真实锚点重跑输入（换新 sid，避免覆盖已声明步骤）：\n     python3 scripts/cli.py step --sid {{sid}}b input-text --action-arg '{{\"anchor\":\"<真实锚点>\",\"text\":\"<要输入的值>\"}}' --desc '锚点修正后重试输入'\n4️⃣ 结合文末元素目录仍无语义匹配项 → 目标不存在，记录失败：\n     python3 scripts/cli.py override-step-result --fail --sid {{sid}} --desc '页面不存在锚点：{target_text}'\n5️⃣ relay-hook-result 记录结论，然后：\n     python3 scripts/cli.py flow-next --done-hooks resolve_input_anchor_not_found"
+    }
+  ],
+  "on_input_anchor_viewport": [
+    {
+      "id": "resolve_input_anchor_viewport",
+      "desc": "input-text 锚点在视口外：先滚动到锚点，再重跑 input-text。",
+      "required": true,
+      "cli_hint": "【INPUT-TEXT 锚点在视口外】需先滚动到锚点，再重跑输入。\n\n锚点文案：{target_text}\n锚点坐标：({target_x}, {target_y})\n视口偏移：{viewport_offset}px\n截图路径：{screenshot_path}\n\n1️⃣ 先滚动到锚点（用户语义方向：目标在下方用 down，在上方用 up）：\n     python3 scripts/cli.py step scroll-until --action-arg \"{target_text}\" --direction down\n2️⃣ 锚点进入视口后重跑输入（换新 sid）：\n     python3 scripts/cli.py step --sid {{sid}}b input-text --action-arg '{{\"anchor\":\"{target_text}\",\"text\":\"<要输入的值>\"}}' --desc '滚动到位后重试输入'\n3️⃣ relay-hook-result 记录结论，然后：\n     python3 scripts/cli.py flow-next --done-hooks resolve_input_anchor_viewport"
+    }
+  ],
+  "on_input_box_resolve": [
+    {
+      "id": "resolve_input_box",
+      "desc": "input-text 只给了锚点/语义描述，锚点行内识别不到输入框：AI 需结合「截图 + 锚点行结构（含宽度的行成员）」推断输入框坐标，用坐标形态重跑 input-text。",
+      "required": true,
+      "cli_hint": "【INPUT-TEXT 找不到输入框】Flow 只给了锚点/语义描述「{target_text}」，引擎未能在锚点行内定位到唯一输入框（可能：无输入框 / 需先点击展开 / 是选择器）。\n\n⚠️ 输入动作不能用坐标点击代替；本 hook 的目标是**由 AI 找到真正的输入框后，用坐标形态重跑 input-text**。\n\n锚点坐标：({target_x}, {target_y})\n截图路径：{screenshot_path}\n元素目录见文末统一块\n锚点行成员（按**宽度降序**，宽≈输入区域；✅=可点击；坐标为设备绝对坐标）：\n{candidate_list}\n\n1️⃣ 读截图 + 行成员，交叉推断输入框：\n   - 行内最宽的成员（或标签右侧大片区域）= 输入区域 → 取它的 center 作为输入坐标\n   - 多个宽成员 → 结合步骤 desc 与截图选定；行内已有【输入框】则直接用其坐标\n2️⃣ 若截图上该位置确实不是输入框，再判字段形态：\n   - 需先点击才出现输入框（字段是容器/按钮，点击后弹窗或二级页才出现输入框）→ 先展开：\n       python3 scripts/cli.py step --for-sid {{sid}} tap --action-x <cx> --action-y <cy> --desc '展开输入入口'\n     展开后对出现的输入框重跑 input-text（见 3️⃣，anchor 换成展开后输入框的标签/占位文案）\n   - 或只给了语义描述、锚点行不完整 → 用结构查询复核输入框位置：\n       python3 scripts/cli.py find-input --anchor \"{target_text}\"\n   - 确为选择器/按钮（值来自选择，非自由输入）→ 该步骤不适用，记录失败：\n       python3 scripts/cli.py override-step-result --fail --sid {{sid}} --desc '字段非输入框形态（选择器/按钮），无法执行文本输入'\n3️⃣ 定好坐标后用**坐标形态**重跑输入（换新 sid）：\n     python3 scripts/cli.py step --sid {{sid}}b input-text --action-x <x> --action-y <y> --action-arg '{{\"text\":\"<要输入的值>\"}}' --desc '按截图+结构推断坐标后重试输入'\n4️⃣ relay-hook-result 记录结论（--resolution 写清选定/展开理由），然后：\n     python3 scripts/cli.py flow-next --done-hooks resolve_input_box"
+    }
+  ],
+  "on_tap_failed": [
+    {
+      "id": "resolve_tap_failed",
+      "desc": "tap 设备级执行失败：已内部重试仍失败，需 AI 换坐标/换路径重试或判环境问题。",
+      "required": true,
+      "cli_hint": "【TAP 设备执行失败】tap 已内部重试 1 次仍失败（目标坐标 ({target_x}, {target_y})）。\n\n⚠️ 这不是语义/形态问题，而是**设备级**点击失败（触控未响应 / 坐标已失效 / 页面已变）。\n\n动作参数：{target_text}\n截图路径：{screenshot_path}\n\n1️⃣ 读图确认页面状态（白屏 / 弹窗 / 页面已跳走？）\n2️⃣ 重新取证坐标后重试（绑父步骤）：\n     python3 scripts/cli.py find-text --text \"<节点文案>\"\n     python3 scripts/cli.py step --for-sid {{sid}} tap --action-x <cx> --action-y <cy> --desc '坐标重试：<实际文案>'\n3️⃣ 优先改走文本/锚点路径（引擎自带遮挡与视口处理）：\n     python3 scripts/cli.py step --for-sid {{sid}} tap-text --action-arg \"<实际文案>\"\n4️⃣ 仍失败 → 判设备/环境问题：python3 scripts/cli.py override-step-result --fail --sid {{sid}} --desc '<结论>' --error '设备 tap 无响应'\n5️⃣ relay-hook-result 记录结论 → python3 scripts/cli.py flow-next --done-hooks resolve_tap_failed"
+    }
+  ],
+  "on_tap_blocked_by_overlay": [
+    {
+      "id": "resolve_tap_blocked_by_overlay",
+      "desc": "tap 坐标被调试浮层（AppMock Mock / Recce）遮挡：先移开浮层，或改走文本/锚点路径重试。",
+      "required": true,
+      "cli_hint": "【TAP 坐标被调试浮层遮挡】({target_x}, {target_y}) 命中调试控件，引擎自动拖离后仍被遮挡。\n\n命中控件：{overlay_hit}\n截图路径：{screenshot_path}\n\n1️⃣ 先手动移开浮层：python3 scripts/cli.py dismiss-recce\n2️⃣ 重试（优先改走文本/锚点路径，其遮挡处理更完整）：\n     python3 scripts/cli.py step --for-sid {{sid}} tap-text --action-arg \"<实际文案>\"\n     无文案图标：python3 scripts/cli.py step --for-sid {{sid}} tap --action-anchor \"<行文案>\"\n3️⃣ 或换一个不与浮层重叠的坐标重试\n4️⃣ relay-hook-result 记录结论 → python3 scripts/cli.py flow-next --done-hooks resolve_tap_blocked_by_overlay"
+    }
+  ],
+  "on_input_device_failed": [
+    {
+      "id": "resolve_input_device_failed",
+      "desc": "input-text 设备级输入失败（ADBKeyboard/焦点）：重定位并重试，必要时重建输入法或判环境问题。",
+      "required": true,
+      "cli_hint": "【INPUT-TEXT 设备级输入失败】已定位输入框并聚焦，但文本注入失败（ADBKeyboard 广播失败 / 焦点丢失）。\n\n⚠️ 与「找不到输入框」分治：形态问题走 resolve_input_box，这里只处理设备/输入法。\n\n锚点文案：{target_text}\n目标坐标：({target_x}, {target_y})\n截图路径：{screenshot_path}\n\n1️⃣ 读图确认输入框是否聚焦（光标 / 键盘是否弹出）\n2️⃣ 复核输入框后重试（换新 sid）：\n     python3 scripts/cli.py find-input --anchor \"{target_text}\"\n     python3 scripts/cli.py step --sid {{sid}}c input-text --action-arg '{{\"anchor\":\"{target_text}\",\"text\":\"<要输入的值>\"}}' --desc '重试输入'\n3️⃣ 仍失败 → 重建输入法后重试：python3 scripts/cli.py device setup（其 adb_keyboard 步骤会重装并设为默认输入法；会冷重启 App，需随后用 open-url 回到落地页）\n4️⃣ 确认是环境问题 → python3 scripts/cli.py override-step-result --fail --sid {{sid}} --desc '<结论>' --error 'ADBKeyboard/输入法不可用'；必要时 skip-case\n5️⃣ relay-hook-result 记录结论 → python3 scripts/cli.py flow-next --done-hooks resolve_input_device_failed"
+    }
+  ],
+  "on_open_url_failed": [
+    {
+      "id": "resolve_open_url_failed",
+      "desc": "open-url scheme 推送失败：先确认是否已在目标页，否则重试（≤3 次），仍失败则跳过该 Case。",
+      "required": true,
+      "cli_hint": "【OPEN-URL 推送失败】scheme 未拉起目标页。\n\n目标 URL：{target_text}\n截图路径：{screenshot_path}\n\n1️⃣ 读图确认当前页（有时 scheme 已生效只是渲染慢；已在目标页则可直接继续）\n2️⃣ 重试推送（最多 3 次）：\n     python3 scripts/cli.py open-url --url \"{target_text}\"\n3️⃣ 连续失败 → 该 Case 无法到达落地页：python3 scripts/cli.py override-step-result --fail --sid {{sid}} --desc 'open-url 推送失败，无法到达落地页' → python3 scripts/cli.py skip-case --reason 'open-url 推送失败'\n4️⃣ relay-hook-result 记录结论 → python3 scripts/cli.py flow-next --done-hooks resolve_open_url_failed"
+    }
+  ],
+  "on_back_failed": [
+    {
+      "id": "resolve_back_failed",
+      "desc": "back 设备执行失败（页面栈未变化）：确认页面栈后用 open-url 恢复或换新 sid 重试。",
+      "required": true,
+      "cli_hint": "【BACK 设备执行失败】返回键未生效（页面栈未变化）。\n\n截图路径：{screenshot_path}\n\n1️⃣ 读图确认当前页与页面栈（是否已在目标页、或已退多了页）\n2️⃣ 页面已偏离 → 用 open-url 恢复落地页：\n     python3 scripts/cli.py open-url --url \"<落地 scheme>\"\n3️⃣ 仍在原页 → 换新 sid 重试一次（back 不可原地重跑）：\n     python3 scripts/cli.py step --sid {{sid}}b back --desc '重试返回'\n4️⃣ 判定该步断言后 override；relay-hook-result 记录结论 → python3 scripts/cli.py flow-next --done-hooks resolve_back_failed"
+    }
+  ],
+  "on_blur_anchor_not_found": [
+    {
+      "id": "resolve_blur_anchor_not_found",
+      "desc": "blur-input 失焦锚点未找到：需 AI 从不可点击文本中选定锚点后重跑 blur-input。",
+      "required": true,
+      "cli_hint": "【BLUR-INPUT 失焦锚点不可用】指定的失焦锚点「{target_text}」在页面上找不到，或其落点被可点击容器覆盖（点它会触发跳转/弹窗）。\n\n截图路径：{screenshot_path}\n\n候选（**不可点击、且落点未被可点击容器覆盖**的文本目标 = 真正的失焦锚点）：\n{candidate_list}\n\n1️⃣ 读截图确认页面状态与键盘是否已收起\n2️⃣ 从候选中选定一个**惰性文本**作为失焦锚点（点它不会触发跳转/弹窗）\n3️⃣ 重跑失焦（换新 sid）：\n     python3 scripts/cli.py step --sid {{sid}}b blur-input --action-arg \"<选定锚点文案>\" --desc '换锚点后重试失焦'\n4️⃣ relay-hook-result 记录结论，然后：\n     python3 scripts/cli.py flow-next --done-hooks resolve_blur_anchor_not_found"
+    }
+  ],
+  "on_viewport_resolve": [
+    {
+      "id": "resolve_target_viewport",
+      "desc": "目标已在视图树中找到但不在视口内，需 AI 读截图分析滚动策略后执行",
+      "required": true,
+      "cli_hint": "【目标在视口外】AI 需确认滚动策略。\n\n目标文案：{target_text}\n目标坐标：({target_x}, {target_y})\n视口偏移：{viewport_offset}px\n视口横向偏移：{viewport_offset_x}px\n截图路径：{screenshot_path}\n\n1️⃣ 读截图分析页面结构（纵向列表还是横向容器），查看元素索引中 scrollable 和 scroll_dir 字段确认滚动容器\n2️⃣ 根据分析结果选择滚动命令：\n   纵向滚动 → step scroll-until --action-arg \"{target_text}\"\n   横向滚动 → step scroll-until --action-arg \"{target_text}\" --direction left\n3️⃣ 滚动成功 → step tap-text --action-arg \"{target_text}\"\n4️⃣ relay-hook-result 记录结果\n5️⃣ flow-next --done-hooks resolve_target_viewport"
+    }
+  ],
+  "on_scroll_target_not_found": [
+    {
+      "id": "resolve_scroll_target_not_found",
+      "desc": "SCROLL_TARGET_NOT_FOUND — scroll-until 精确匹配未命中，AI 读元素目录做语义匹配后决定下一步",
+      "required": true,
+      "cli_hint": "【SCROLL_TARGET_NOT_FOUND】scroll-until 用下方文案精确匹配未命中，已停止滚动。\n\n原目标文案（仅用于比对，不要原样重试）：{target_text}\n截图路径：{screenshot_path}\n\n📋 元素目录见文末统一块：\n   （完整路径见文末「元素目录」块）\n   用 read_file 读取该 markdown，直接扫「文案」列，无需 grep/脚本过滤。\n\n1️⃣ 在目录里做语义匹配，确认三件事：\n   · 页面上真实的**节点文案**是什么 —— 它才是可用的精确匹配值\n     （允许文本截断/省略/跨节点聚合）\n   · 该元素在哪个分区（视口内 / 视口上方 / 视口下方）\n   · 对应行的 center 坐标\n\n2️⃣ 按结果分支处理：\n\n   ⚠️ 重试必须使用 1️⃣ 找到的真实节点文案。原目标文案已精确匹配失败，\n      原样重试必然再次失败，不要浪费一轮。\n\n   路径 A — 找到语义匹配目标，且在视口内:\n     无需滚动，直接跳到 3️⃣\n     （仅代表滚动/定位动作完成，不代表断言通过）\n\n   路径 B — 找到语义匹配目标，但在视口外:\n     用真实节点文案滚动到位：\n        python3 scripts/cli.py step --sid {{sid}} scroll-until \\\n          --action-arg \"<1️⃣ 中匹配到的真实节点文案>\" --direction <up/down>\n     （目标在视口上方用 up，下方用 down）\n\n   路径 C — 目录里也没有语义等价元素（目标确实不存在）:\n     标记步骤 FAIL：\n        python3 scripts/cli.py override-step-result --fail \\\n          --sid {{sid}} --desc \"目标文案不存在：{target_text}\"\n\n3️⃣ relay-hook-result 记录结果\n   --resolution 写清口径差异，如 semantic_match:<原目标文案>→<真实节点文案>\n4️⃣ flow-next --done-hooks resolve_scroll_target_not_found\n\n⚠️ 重跑/定位不会重置本步骤原有断言：断言若仍为 pending，\n   flow-next 会继续提示 verify_text_assertion hook，需按该 hook 指引用\n   override-step-result --assert-verdict 一次性判定（键=断言 id）。\n   不要只完成本 hook 就让流程推进，否则报告会出现「步骤 PASS + 断言 pending」自相矛盾。"
+    }
+  ],
+  "on_scroll_substring_ambiguous": [
+    {
+      "id": "resolve_scroll_substring_ambiguous",
+      "desc": "SUBSTRING_AMBIGUOUS — scroll-until 锚点匹配出多个候选，无法自动消歧；需 AI 选定语义正确的元素后用真实文案重跑。",
+      "required": true,
+      "cli_hint": "【SUBSTRING_AMBIGUOUS】scroll-until 的锚点在页面上匹配出**多个**候选（子串 / 语义重叠），引擎不擅自择优，交 AI 消歧。\n\n原目标文案：{target_text}\n截图路径：{screenshot_path}\n元素目录见文末统一块\n\n候选（与目标构成字面重叠，✅=可点击，H5 元素标 [webview]）：\n{candidate_list}\n\n1️⃣ 读截图 + 候选 + 元素目录，按步骤 desc 与上下文选定语义正确的那个元素\n2️⃣ 用它的**真实节点文案**重跑滚动（换新 sid，避免覆盖已声明步骤）：\n     python3 scripts/cli.py step --sid {{sid}}b scroll-until --action-arg \"<真实节点文案>\" --direction <up/down>\n   若选定元素已在视口内，可直接进入 3️⃣\n3️⃣ relay-hook-result 记录结论（--resolution 写清 semantic_match:<原目标文案>→<真实节点文案>）\n4️⃣ python3 scripts/cli.py flow-next --done-hooks resolve_scroll_substring_ambiguous"
+    }
+  ],
+  "on_scroll_exhausted": [
+    {
+      "id": "resolve_scroll_exhausted",
+      "desc": "VERTICAL/HORIZONTAL_SCROLL_EXHAUSTED — scroll-until 渐进滚动耗尽次数后目标仍未进入视口，需 AI 读截图判断状态后处理",
+      "required": true,
+      "cli_hint": "【SCROLL_EXHAUSTED】scroll-until 渐进滚动 {scroll_direction} 已达上限（{swipes}次），目标文案仍未进入视口。\n\n目标文案：{target_text}\n截图路径：{screenshot_path}\n滚动方向：{scroll_direction}\n\n1️⃣ 读截图判断当前状态：\n   - 页面是否已到底/顶边界（内容已加载完毕）\n   - 是否加载异常（骨架屏 / 错误态 / 空白）\n   - 目标是否已在视口内但 inspect-tree 未命中（WebView 渲染）\n\n2️⃣ 按结果分支处理：\n\n   路径 A — 目标已在视口（截图可见）:\n     用 find-text 或坐标定位：\n     python3 scripts/cli.py find-text --text \"{target_text}\"\n     如 find-text 返回坐标 → step --for-sid {{sid}} tap --action-x <x> --action-y <y> --desc '坐标兜底：{target_text}'\n     步骤标记 PASS：\n     python3 scripts/cli.py override-step-result --pass \\\n       --sid {{sid}} --desc \"截图确认目标已在视口内\"\n\n   路径 B — 已到边界但目标不存在:\n     python3 scripts/cli.py override-step-result --fail \\\n       --sid {{sid}} --desc \"已滚动到底部/边界，目标不存在：{target_text}\"\n\n   路径 C — 页面状态异常:\n     按异常类型处理（重试 / 修复 / 跳过）\n\n3️⃣ relay-hook-result 记录结果\n4️⃣ flow-next --done-hooks resolve_scroll_exhausted"
+    }
+  ],
+  "on_warn": [
+    {
+      "id": "log_step_warn",
+      "desc": "步骤 WARN（动作成功但部分断言未命中），需读图分析后记录",
+      "required": true,
+      "cli_hint": "动作已执行成功，但部分预期文案未命中（WARN）。\n先读截图确认页面当前状态，再按以下优先级处理：\n\n1️⃣ 读截图分析（始终优先）\n   读取截图，逐项对照 Assertion Catalog 断言清单确认：\n   - 页面仍在加载中（骨架屏/loading）→ 等待后重试：\n     python3 scripts/cli.py find-text --text \"<页面锚点文案>\"\n   - 页面已正常渲染但文案不同（实际 UI 与预期文案有差异）→ 记录 FAIL（带实际文案）：\n     python3 scripts/cli.py override-step-result --fail --sid {sid} --desc \"文案精确匹配未命中，实际文案：<实际页面文案>\" --note \"expected=<预期文案>, actual=<实际页面文案>\"\n   - 页面异常（错误页/白屏）→ 按步骤类型处理：\n     滚动类 → 检查页面是否真的到底了，确认后直接 PASS\n     断言类 → 确认文案确实不存在，记录 FAIL"
+    }
+  ],
+  "on_fail": [
+    {
+      "id": "read_screenshot_and_analyze",
+      "desc": "读截图分析失败原因（始终优先，再试其他策略前必须先读图确认）",
+      "required": true,
+      "cli_hint": "步骤失败，先读截图确认页面当前状态，再根据分析结果选择恢复策略：\n\n1️⃣ 读截图分析（始终优先于任何自动检测）\n   读取步骤截图，确认页面当前状态并判断失败原因：\n   - 页面正常渲染（预期 UI 可见但操作未命中）→ 跳转到 3️⃣ 按 action 类型重试\n   - 错误兜底页（含「加载失败」「服务异常」「网络异常」「网络加载失败」「请稍后重试」「出错了」等文案）→ 跳转到 2️⃣ 错误兜底页处理\n   - 页面仍在 loading 加载中（骨架屏/loading 动画）→ 等待后重试：\n     python3 scripts/cli.py find-text --text \"<页面锚点文案>\"\n   - 页面异常（白屏/错误页/无内容）→ 尝试 2️⃣ 错误兜底页处理\n   - 系统弹窗遮挡（权限弹窗/更新提示/广告浮层等）→ 先关闭弹窗再确认\n   - 操作点错位置（截图显示点击了其他元素/区域）→ 跳转到 3️⃣ 按 action 类型重试\n\n2️⃣ 错误兜底页（含加载失败/服务异常/网络异常等文案，且有重试按钮）\n   → 用 find-text 扫描页面上的可点击操作文案：\n      python3 scripts/cli.py find-text --text \"重试/重新加载/刷新/Retry/Reload\"\n   → 找到后点击重试按钮：\n      python3 scripts/cli.py step --sid {sid}b tap-text --action-arg \"<找到的文案>\"\n   → 点击后等待 5s 让页面重新加载\n   → 重新执行原步骤断言（换新 sid 避免覆盖）：\n      python3 scripts/cli.py step --sid {sid}c assert-text --asserts '[{{\"kind\":\"text\",\"match\":\"present\",\"expect\":\"<原断言文案>\"}}]' --step-type assert --desc \"<原步骤描述>（重试后）\"\n   → 恢复成功则自动覆盖父步骤终态，无需手动 override-step-result\n   → 恢复失败则继续下方通用处理\n\n  错误兜底页但无重试按钮（或重试后仍失败）\n   → 记录 FAIL 并尝试跳转到下一个 case：\n      python3 scripts/cli.py override-step-result --fail --sid {sid} --desc \"错误兜底页无法恢复：点击重试后仍未成功\"\n   → python3 scripts/cli.py skip-case --reason '错误兜底页，自动重试后仍未恢复'\n\n3️⃣ 其他失败原因（非错误兜底页，按 action 类型处理）\n  open-url（页面跳转失败）→ 重新执行 open-url 重试，最多 3 次：\n     python3 scripts/cli.py open-url --url \"<URL>\"\n  scroll-until（滚动未找到目标文案）→ 用 find-text 确认是否存在，不存在则 skip-case\n  back（返回键执行失败）→ 读截图确认当前页面状态\n  input-text/blur-input（输入/失焦操作失败）→ 用 find-input 重定位后重试\n  scroll-edge（滚动到边界）→ 检查是否可滚动，确认后直接 PASS\n\n4️⃣ 以上均无法恢复 → 记录失败跳过：\n  python3 scripts/cli.py override-step-result --fail --sid {sid} --desc \"<失败原因>\"\n  → 然后 flow-next 继续推进（不阻断流程）"
+    },
+    {
+      "id": "log_step_fail_fallback",
+      "desc": "重试无法恢复时的最终记录",
+      "required": false,
+      "cli_hint": "最终无法恢复时记录 FAIL 结果：\n  python3 scripts/cli.py override-step-result --fail --sid {sid} --desc \"<失败原因>\"\n"
+    }
+  ],
+  "on_back_unexpected": [
+    {
+      "id": "log_step_warn",
+      "desc": "back 未返回到预期页面，读截图确认当前状态",
+      "required": true,
+      "cli_hint": "读截图确认当前页面状态：\n⚠️ back 不能重试，再次 back 只会多退一页，不要尝试重复 back。\n\n  弹窗仍存在（back 未关闭弹窗）\n    → 弹窗有关闭按钮（X/取消）→ 用 tap-text 关闭\n      python3 scripts/cli.py find-text --text \"<关闭/取消>\"\n    → 弹窗无关闭按钮 → 用 recover_via_scheme 跳过恢复到目标页\n\n  已回到上一页（back 返回过度）\n    → 记录 WARN 后跳转到 recover_via_scheme：\n      python3 scripts/cli.py override-step-result --ok 2 --sid {sid} --desc \"back 返回过度，已回到上一页\"\n\n  已进入其他页面（页面跳转异常）\n    → 记录 WARN 后跳转到 recover_via_scheme：\n      python3 scripts/cli.py override-step-result --ok 2 --sid {sid} --desc \"back 后进入非预期页面\""
+    },
+    {
+      "id": "recover_via_scheme",
+      "desc": "用 open-url 重跳 landing_scheme 恢复到目标页，继续后续步骤",
+      "required": true,
+      "cli_hint": "恢复目标页后继续后续步骤：\n  python3 scripts/cli.py open-url --url \"<landing_scheme>\"\n  恢复后确认页面正常：python3 scripts/cli.py find-text --text \"<页面锚点文案>\""
+    }
+  ],
+  "on_login": [
+    {
+      "id": "resolve_login_scheme_not_dispatched",
+      "desc": "登录 scheme 未成功下发：scheme 推送返回失败或 App 未被拉起",
+      "required": true,
+      "cli_hint": "【登录异常 · scheme 未下发】\n\n失败详情：{detail}\n认证方式：{action}\n\n1️⃣ 取证\n   · 读 env-prepare 输出中打印的 scheme 片段与前缀\n   · 读设备当前前台：python3 scripts/cli.py device app-info\n   · 必要时看 App 是否被拉起失败（设备锁屏/前台被其他 App 占据）\n\n2️⃣ 判断根因分支\n   a) 设备不在可就绪状态（锁屏 / 熄屏 / 前台被占用）→ 先解锁回桌面再重试\n   b) scheme 前缀不对（AppDescriptor.testability_scheme_prefix 与目标 App 不匹配）→ 核对包名/ability 是否与设备上安装的一致\n   c) 目标 App 未安装或包名不符 → python3 scripts/cli.py device setup 重新安装/校验版本\n   d) 其它推送失败 → 重跑一次：python3 scripts/cli.py env-prepare\n\n3️⃣ 处置后重跑登录\n   python3 scripts/cli.py env-prepare\n\n4️⃣ 标记完成 / 上抛\n   · 已解决：python3 scripts/cli.py flow-next --done-hooks resolve_login_scheme_not_dispatched\n   · 确认是环境（设备/包）问题无法自动修复：不要静默放行，按 B2_login 的 login_completed 门禁上抛并说明结论"
+    },
+    {
+      "id": "resolve_login_action_failed",
+      "desc": "登录动作返回失败（页面出现「登录失败」，可能是凭证/风控/字段缺失）",
+      "required": true,
+      "cli_hint": "【登录异常 · 动作失败】\n\n失败详情：{detail}\n认证方式：{action}\n\n1️⃣ 取证（按优先级）\n   · 读 env-prepare 打印的截图路径，确认 pillow 页 signin 行文案（「登录失败」/「登录成功」）\n   · 抓设备日志定位 App 侧真实错误：\n       hdc -s <remote> -t <serial> shell hilog | grep -E \"testBundleAutoLogin|user_login_yoda_verify|Passport\"\n\n2️⃣ 按 App 侧错误码判根因\n   · code:101190 / type:user_login_yoda_verify（\"为了您的账号安全，请进行验证\"）\n     → 账号触发风控/校验：改用**已加白账号**，或走审批加白（env-prepare 已在输出里打印加白入口）\n   · 缺字段导致被拒（如 signin 的 info 缺 countryCode）→ 属引擎缺陷，登记后按 §1.2 修复，不要重试掩盖\n   · 账号或密码错误 → 向用户重新确认凭证后重跑（凭证来自 steps-input 的 env，不要自行替换）\n   · 其它业务错误码 → 把完整 code/message 记录到结论里再上抛\n\n3️⃣ 处置后重跑\n   python3 scripts/cli.py env-prepare\n\n4️⃣ 标记完成：python3 scripts/cli.py flow-next --done-hooks resolve_login_action_failed"
+    },
+    {
+      "id": "resolve_login_stuck_loading",
+      "desc": "登录动作无回调、页面一直 loading（App 侧缺少可测性执行能力）",
+      "required": true,
+      "cli_hint": "【登录异常 · 卡在 loading】\n\n失败详情：{detail}\n\n症状特征：pillow 页 action 一直转圈、**没有任何成功/失败回调**，且页面不报错。\n\n1️⃣ 定性：区分「无回调」与「有回调但业务失败」\n   · 有回调（errno/code 返回）→ 走 resolve_login_action_failed\n   · 无回调（本文档）→ App 侧没有可测性执行能力，换包/升级组件\n\n2️⃣ 确认 App 侧能力\n   · 抓日志找执行通道：\n       hdc -s <remote> -t <serial> shell hilog | grep -E \"pillowConfig|MSI|testability\"\n   · 出现 \"api pillowConfig not found: wasn't registered on knb\" 且无 asyncInvoke callback\n     → 该包缺少可测性执行通道\n\n3️⃣ 处置\n   · 换用带可测性的 **debug 包**（release 包通常缺该通道）\n   · 或升级 App 内的可测性组件版本（参考组件版本要求文档）\n   · 换包后重跑：python3 scripts/cli.py env-prepare\n\n4️⃣ 标记完成：python3 scripts/cli.py flow-next --done-hooks resolve_login_stuck_loading"
+    },
+    {
+      "id": "resolve_login_state_unconfirmed",
+      "desc": "登录态无法确认（探针结论不确定或与页面表现不一致）",
+      "required": true,
+      "cli_hint": "【登录异常 · 登录态无法确认】\n\n探针/详情：{detail}\n探针名：{probe}\n\n1️⃣ 取证\n   · 读 env-prepare 归档的登录截图（case frames/login-result.png）\n   · 读设备侧登录态：python3 scripts/cli.py device app-info（看 user.userId 是否为空）\n\n2️⃣ 判断\n   · 页面显示已登录（我的页有账号/订单）但探针判未登录 → 探针不可用（如鸿蒙未走 auth status），把结论登记为「需人工确认」\n   · 页面显示未登录 → 属真失败，走 resolve_login_action_failed 或直接重跑 env-prepare\n   · 注意：pillow 页的 `id: <traceId>-undefined` 行**不能**作为失败判据（登录成功后它仍是 undefined）\n\n3️⃣ 处置后重跑：python3 scripts/cli.py env-prepare\n\n4️⃣ 标记完成：python3 scripts/cli.py flow-next --done-hooks resolve_login_state_unconfirmed"
+    },
+    {
+      "id": "resolve_login_popup_blocked",
+      "desc": "登录被弹窗/权限拦截（隐私协议、通知、定位等）",
+      "required": true,
+      "cli_hint": "【登录异常 · 被弹窗拦截】\n\n失败详情：{detail}\n\n1️⃣ 读取当前页面节点，确认弹窗类型\n   python3 scripts/cli.py inspect-tree --out case_01/dumps/popup.json\n   常见三类（处理方式不同）：\n   · 隐私协议「温馨提示」→ 点「同意」，点击后**必须冷重启**让同意状态生效\n   · 系统权限弹窗（通知/定位）→ 按测试意图选择允许/拒绝\n   · App 引导弹窗（开启定位服务等）→ **按返回键关闭**；不要点「快速开启定位」（会跳系统设置并把 App 顶掉）\n\n2️⃣ 弹窗消除已由引擎统一处理（devices/popup.py + 词表 platform/popup/patterns.py，两端共用一条可视树路径）\n   · 若弹窗仍在：确认 App 已在前台后重跑 env-prepare（引擎会按词表识别并点击）\n   · 不要用 imeituan CLI 的 control popup clear（鸿蒙明确不支持；Android 上引擎已内置语义等价实现）\n\n3️⃣ 处置后重跑：python3 scripts/cli.py env-prepare\n\n4️⃣ 标记完成：python3 scripts/cli.py flow-next --done-hooks resolve_login_popup_blocked"
+    },
+    {
+      "id": "resolve_qahome_login_failed",
+      "desc": "QAHome 验证码登录失败（页态/导航/发码/回填提交任一段未通过；证据已自动落盘）",
+      "required": true,
+      "cli_hint": "【登录异常 · 验证码登录失败】\n\n失败详情：{detail}\n\n1️⃣ 先看**已落盘的证据**（失败瞬间的现场，不需要重跑）\n   · 截图：`.run/tasks/<ws>/runs/<run>/case_NN/frames/` 里 `*login_a<N>_<stage>*.png`\n   · 视图树快照：同 case 的 `diagnostics/login_a<N>_<stage>.tree.json`\n   · 时间线：case 目录 `audit/run-events.jsonl` 中 `login.stage` 事件（含页态迁移、\n     输入回显、短信批次计数与时钟偏差）\n\n2️⃣ 定位失败段：读 `audit/run-events.jsonl` 的 `login.stage` 事件（**stage=事件名，reason=事件字段**，别把 reason 当 stage 去搜）：\n   · stage `account_action_rejected` / `state_invalid` / `navigate_failed` → 起点或导航问题\n     （页态由页面**内容**判定；确认登录页/验证码页文案是否改版）\n   · stage `code_page_not_arrived` → 点了「获取验证码」但页面**未迁移** → 未真正发码\n     （协议未勾选导致按钮禁用 / 按钮坐标漂移）\n   · stage `submit_verdict_midway` / `submit_timeout_verdict` → 看其 `reason`：`reason=code_rejected` 码被服务端拒绝（已就地重发一次仍失败）→ 见 resolve_qahome_sms_timeout\n   · `reason=code_not_entered` 验证码没真正进框；`reason=submit_timeout` / `reason=foreground_not_restored` 提交后未回 App 前台\n\n3️⃣ 处置\n   · 元素定位失败 → 用元素目录（find-text / inspect-tree）确认文案，必要时反馈给 Flow 用例维护者\n   · 协议未勾选导致按钮禁用 → 确认勾选状态后再点「获取验证码」\n   · 输入法不可用 → python3 scripts/cli.py device setup 重建输入法后重试\n\n4️⃣ 重跑：python3 scripts/cli.py env-prepare\n5️⃣ 标记完成：python3 scripts/cli.py flow-next --done-hooks resolve_qahome_login_failed"
+    },
+    {
+      "id": "resolve_qahome_sms_timeout",
+      "desc": "验证码短信未在预算内到达（旧码/频控/时钟偏差）",
+      "required": true,
+      "cli_hint": "【登录异常 · 验证码未到】\n\n失败详情：{detail}\n\n1️⃣ 先读证据区分三种情形（`audit/run-events.jsonl` 里的 `login.stage` / sms_query 事件）\n   · `counts.total=0` → 短信池里**没有**该号码的任何短信 → 号码/QAHome 侧问题\n   · `counts.code_like>0` 但 `stale` 非空 → 只查到**旧码**（本次请求的新码没到）\n   · `skew_seconds` 长期为负且接近常量 → 短信网关与本机存在**固定时钟偏差**\n   · 连续多轮 empty 且日志出现 `sms_rate_limit_suspect` → 疑似**网关频控**\n\n2️⃣ 注意：取码规则是「码必须是**本次请求之后**下发的」（旧码已被服务端作废，提交必失败），\n   因此「查到了码但被跳过」是**预期行为**，不是 bug —— 别把 stale 的码手动填进去。\n\n3️⃣ 常见原因与处置\n   · 手机号不是 QAHome 池内号码 → 与用例维护者确认号码\n   · 短时间重复触发导致频控 → 等待数分钟后再重跑（此时冷重启无效，不要在恢复链里空转）\n   · 页面未真正点中「获取验证码」→ 看 `code_page_not_arrived` 事件与截图确认\n\n4️⃣ 重跑：python3 scripts/cli.py env-prepare\n5️⃣ 标记完成：python3 scripts/cli.py flow-next --done-hooks resolve_qahome_sms_timeout"
+    },
+    {
+      "id": "resolve_login_env_ineffective",
+      "desc": "环境切换/泳道/域名映射未生效（登录后环境配置步骤失败）",
+      "required": true,
+      "cli_hint": "【登录异常 · 环境未生效】\n\n失败详情：{detail}\n步骤：{step_id}\n\n1️⃣ 区分失败类型\n   · 泳道规则创建/复用失败（AppMock 平台侧）→ 核对泳道名是否存在、是否有权限\n   · 泳道切换失败 → 核对 ruleId 与 userDomain（工作域 mis）是否匹配\n   · 域名映射写入失败 → 核对 URL 不能重复（同 userDomain 下 url 唯一）、betaUrl/ppeUrl 至少一个\n   · 映射写入成功但页面未走新域名 → 需要冷重启让网络栈重新初始化\n\n2️⃣ 处置后重跑：python3 scripts/cli.py env-prepare\n\n3️⃣ 标记完成：python3 scripts/cli.py flow-next --done-hooks resolve_login_env_ineffective"
+    },
+    {
+      "id": "resolve_appmock_unconfirmed",
+      "desc": "AppMock 已下发但无法确认生效（无状态查询通道）",
+      "required": false,
+      "cli_hint": "【登录异常 · AppMock 状态无法确认】\n\n失败详情：{detail}\n步骤：{step_id}\n\n说明：部分平台（如 HarmonyOS）没有设备端状态查询通道，只能确认「指令已下发」，\n无法程序化确认「是否真的生效」。这属于**已知能力限制**，不是必然失败。\n\n1️⃣ 间接确认\n   · 读图找页面上的 MOCK 标签\n   · 或跑一次 record-data，看是否真的录到流量\n\n2️⃣ 若确认未生效：核对 misId（工作域）与设备端登录账号是否一致，再重跑\n   python3 scripts/cli.py env-prepare\n\n3️⃣ 标记完成：python3 scripts/cli.py flow-next --done-hooks resolve_appmock_unconfirmed"
+    },
+    {
+      "id": "resolve_login_missing_credential",
+      "desc": "凭证/账号缺失或未通过校验",
+      "required": true,
+      "cli_hint": "【登录异常 · 凭证缺失】\n\n失败详情：{detail}\n认证方式：{action}\n\n1️⃣ 确认凭证来源\n   · 凭证来自 steps-input.json 的 env（account / password），缺省时会回落到 flow-context\n   · 凭证校验会拦截占位符、脱敏值（如 ab****cd）与过短值\n\n2️⃣ 处置\n   · 用 AskQuestion 向用户索取真实凭证，写入 steps-input 的 env 后重跑\n   · 不要自行编造凭证；不要用空值/占位符绕过校验\n\n3️⃣ 重跑：python3 scripts/cli.py env-prepare\n4️⃣ 标记完成：python3 scripts/cli.py flow-next --done-hooks resolve_login_missing_credential"
+    }
+  ]
+}

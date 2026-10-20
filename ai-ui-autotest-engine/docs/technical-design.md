@@ -1,5 +1,8 @@
 # AI UI Autotest Engine — 技术架构文档
 
+> ⚠️ **状态**：本文档描述的是 **T0 目录重构前**的架构（文中 `core/`、`actions/`、`.run/active_case` 等为改造前路径）。
+> 目录/分层与运行隔离（T1）已演进，本文档仅描述重构前的历史架构；最新设计以代码与本 Skill 的 `SKILL.md` 为准。
+
 ## 一、Skill 是什么
 
 ai-ui-autotest-engine 是一个 AI 驱动的移动端 UI 自动化测试 Skill。它通过 CatPaw Agent 读取人工编写的测试 Flow（Markdown），自动完成云真机设备创建、App 安装登录、页面操作走查、截图断言、证据归档和测试报告生成的全流程。
@@ -73,77 +76,121 @@ ai-ui-autotest-engine/
 ├── SKILL.md                    # Skill 使用手册（AI 阅读的操作指南）
 ├── docs/                       # 技术文档
 │   ├── technical-design.md     # 本文档
-│   ├── duo-mock-guide.md       # DUO 协议 Mock 指南
-│   └── ui-quality-checklist.md # UI 质量检查规范
-├── examples/                   # Flow 文件示例
-│   ├── flow-01-*.md            # 各场景 Flow
-│   └── flow-01-ptype-multi-step/ # 多步骤拆分示例
+│   └── duo-mock-guide.md       # DUO 协议 Mock 指南
+├── examples/                   # Flow 文件示例（按 assertion/data-test/element-location/interaction/login/mock/report/scroll/sop-flow 分类）
 ├── references/                 # 静态资源
 │   ├── apk_sources.json        # 可测性 APK 版本配置
 │   ├── ADBKeyboard.apk         # ADB 键盘输入法
-│   └── templates/              # 标准生成脚本模板
-├── scripts/                    # 全部 Python 脚本（约 20,800 行）
-│   ├── cli.py                  # CLI 入口（薄壳，参数分发）
-│   ├── gen_report.py           # 报告生成模块（cli.py gen-report 子命令委托）
-│   ├── device_lifecycle.py     # 设备生命周期 CLI
-│   ├── core/                   # 引擎核心（SOP 编排 + onboarding 画像注册表）
-│   ├── actions/                # 设备操作与断言
-│   ├── assertions/             # 埋点与接口断言解析
-│   ├── context/                # 工厂层：按注册表惰性创建并缓存四维抽象实例
-│   ├── environment/            # 环境准备、登录与设备前置校验/引导
-│   ├── infra/                  # 基础设施（ADB/HDC/API/Session/安装）
-│   ├── mock/                   # AppMock 全功能子系统
-│   ├── screen_state/             # 视图树采集、元素定位与探针链调度
-│   ├── device_platform/               # 四维抽象定义（base.py）与 android/harmony 实现
-│   └── report/                 # 报告构建与传输
-├── .config/                    # 持久配置（MIS、SSO Cookie）
-├── .run/                       # 当前运行工作区（执行后清空）
+│   └── review-rules.md         # Flow → steps 审校规则
+├── scripts/                    # 全部 Python 脚本
+│   ├── cli.py                  # CLI 唯一入口（参数注册 + 分发 + workspace 门禁）
+│   ├── cli_utils.py            # 上下文解析 / 时间线记录 / 统一错误边界
+│   ├── shared/                 # 跨层纯工具（errors / exit_codes / json_utils / case_utils / context）
+│   │   ├── paths.py            #   作用域分层路径（workspace / run / 设备池 / 凭据）
+│   │   ├── workspace.py        #   workspace 分配 + 入口脚本生成 + 命令渲染
+│   │   ├── intake.py           #   信息收集结果读写（intake.json）
+│   │   └── observability/      #   审计时间线 / 异常上报
+│   ├── platform/               # L0 平台接入（对平台 REST 的唯一出口）
+│   │   ├── sandbox_api.py  auth.py  ssl_helper.py
+│   │   ├── resource_client.py  #   虚拟 mis 池客户端（/mis-pool/*，经 yooz-server）
+│   │   └── appmock/            #   AppMock 子系统（规则/录制/泳道/环境/ptest）
+│   ├── devices/                # 设备抽象：契约 + android/harmony 实现 + 探针 + 工具链
+│   ├── resources/              # L2 资源池（device_pool：本地租约；mis_pool：经 resource_client 调平台）
+│   ├── provisioning/           # L3 环境供给（validators / setup 登录 / prereq 依赖 / questions 信息收集）
+│   ├── execution/              # L1 执行引擎
+│   │   ├── engine/             #   SOP 编排 / flow 生命周期 / placeholder / profile
+│   │   ├── steps/              #   步骤执行（pipeline / handlers / commands / recording）
+│   │   ├── assertions/         #   断言引擎
+│   │   └── screen/             #   视图树采集与元素定位
+│   ├── reporting/              # 报告构建与上报
+│   └── dev/                    # 架构守卫等开发工具
+├── .run/                       # ★运行态：tasks/<ws>/（工作区）+ ws/<ws>/cli（入口）
+├── .device-pool/               # ★设备池租约（跨 workspace 共享）
+├── .credentials/               # ★用户级凭据缓存（AppMock SSO Cookie）
+├── .cache/artifacts/          # ★L1 制品缓存（安装包，跨 run / 跨子 Agent 共享；引擎永不自动清理）
 └── output/                     # 历史报告与归档产物
+
+★ = 执行期生成（已 gitignore，不入版本库）
+> `.cache/` 只在用户手动清理 Skill 时消失：`post-clean` / `preflight-clean` 只作用于
+> `.run/tasks/<ws>/`，从不触碰它（唯一访问入口与并发约定见 `shared/artifact_cache.py`，
+> 静态守卫见 `dev/check_architecture.py` 规则 19）。
 ```
 
 ## 四、核心模块详解
 
+> ⚠️ 本节模块名以**重构前布局**为参照（`environment/` / `device_platform/` / `infra/` / `mock/` / `report/` / `core/sop/` / `screen_state/`）。
+> 当前布局为 `provisioning/` / `devices/` / `platform/` / `execution/` / `reporting/` / `shared/`（对照关系见 `scripts/stages/login-architecture.md`）；
+> 涉及**登录流程**的模块名已按重构后更新（见 4.4/4.5/4.6 与附录），其余章节待随下一次文档刷新统一收口。
+
 ### 4.1 CLI 入口 — `cli.py`
 
-整个 Skill 的唯一命令入口，纯粹的参数解析和分发层。所有操作通过 `python3 scripts/cli.py <command>` 调用。命令按依赖程度分三档：不依赖 active_case 的（check-deps、preflight-clean、device query）、只需 run_dir 的（flow-status、flow-next、flow-advance、ack）、需要设备已创建的（tap-text、screenshot、step）。
+整个 Skill 的唯一命令入口，纯粹的参数解析和分发层。**阶段 0 第一步 `ws-init` 通过 `python3 scripts/cli.py ws-init` 调用（它分配 workspace 本身）；此后所有命令一律通过 workspace 入口调用，即 `<入口> <command>`**（`<入口>` = `.run/ws/<ws>/cli`，由 `ws-init` 生成；非白名单命令缺 workspace 会被统一门禁直接拒绝）。命令按依赖程度分四档：**不需要 workspace 的（ws-init）**、不依赖 run 的（check-deps、preflight-clean、device query）、只需 run_dir 的（flow-status、flow-next、flow-advance、ack）、需要设备已创建的（tap-text、screenshot、step）。
 
 ### 4.2 Flow 引擎 — `core/`
 
 这是整个 Skill 的"大脑"，负责 SOP 生命周期管理。
 
-`core/sop/` 按职责拆分为若干小模块：`stages.py`（SOP 阶段模板：Batch 头部 B0-B3、Case 循环体、Batch 尾部 T0-T2）、`hook_templates.json` + `hook_templates.py`（Hook 模板数据与加载，改文案只动 JSON）、`on_fail.py`（失败策略与默认规则）、`hook_router.py`（按步骤结果生成 Hook）、`hook_render.py`（Hook 占位符裁剪与渲染）、`actions.py`（步骤动作契约）、`constants.py`（通用常量）。修改模板或策略只需改数据或对应的小模块，即可调整整个 SOP 流程。
+`core/sop/` 按职责拆分为若干小模块：`stages.py`（SOP 阶段模板：Batch 头部 B0-B2、Case 循环体、Batch 尾部 T0-T2）、`hook_templates.json` + `hook_templates.py`（Hook 模板数据与加载，改文案只动 JSON）、`on_fail.py`（失败策略、默认规则、**(意图, reason) → Hook 路由表**与"不配 hook"白名单）、`hook_router.py`（按步骤结果生成 Hook + 修复类 Hook 门禁集合）、`hook_render.py`（Hook 占位符裁剪与渲染）、`actions.py`（步骤动作契约 `ACTION_SPECS` + **动作→reason 注册表 `ACTION_REASONS`**）、`constants.py`（通用常量）。修改模板或策略只需改数据或对应的小模块，即可调整整个 SOP 流程。Hook 链路的完整说明见「Hook 子系统」小节。
 
 `flow_init.py` 负责从 A·q   I 生成的 `steps-input.json` 初始化 `flow-context.json`，校验结构完整性，为每个 Case 展开一组 Case 循环体阶段，并创建运行目录。
 
-`stage_orchestrator.py` 是阶段编排层，负责 SOP 阶段推进（flow-advance）、条件跳过（无 mock_ids 时跳过 B0）、门禁校验（requires_ack）和失败收口（abort/skip_to_next_case/best_effort）。
+`stage_orchestrator.py` 是阶段编排层，负责 SOP 阶段推进（flow-advance）、条件跳过（条件不满足即跳过，如无场景 Mock 时跳过 `B0_mock_preflight`）、门禁校验（requires_ack）和失败收口（abort/skip_to_next_case/best_effort）。
 
-`step_scheduler.py` 是步骤调度层，负责 C3 走查阶段内的步骤级调度，管理 Hook 生命周期（pre_step → 执行 → on_pass/on_warn/on_fail），处理偏移检测和步骤锁定（已执行步骤不可重跑）。
+`step_scheduler.py` 是步骤调度层，负责 C4 走查阶段内的步骤级调度，管理 Hook 生命周期（pre_step → 执行 → on_pass/on_warn/on_fail），处理偏移检测和步骤锁定（已执行步骤不可重跑）。
 
 `flow_context.py` 是数据访问层，封装 `flow-context.json` 的原子读写、条件评估和完成校验。所有状态变更都经过这一层，禁止 AI 直接编辑 JSON 文件。
 
 `runtime_audit.py` 负责运行清单（run-manifest.json）、事件流（run-events.jsonl）和证据清单（evidence-manifest.json）的写入。
 
-`onboarding.py` 声明 `OnboardingProfile`（按 device_type 分发的设备接入策略，回答“是否需要 acquire/版本检查/安装”等能力位组合）与 `MockLifecyclePolicy`（按 device_type 分发的 mis 账号级 AppMock 状态策略）两套接口，都通过 `_DEVICE_TYPE_PROFILE_REGISTRY` 查表分发，与 `device_platform/registry.py` 的三张注册表同构但独立维护（前者管“怎么接入”，后者管“怎么交互/获取/识别 App”）。`core/sop/stages.py`/`stage_orchestrator.py` 通过 `create_onboarding_profile(device_type).needs_device_acquire()` 等能力位方法判断阶段取舍，不再直接比较 `device_type == "local"` 字符串。
+`onboarding.py` 声明 `OnboardingProfile`（按 device_type 分发的设备接入策略，回答“是否需要 acquire/版本检查/安装”等能力位组合），通过 `_DEVICE_TYPE_PROFILE_REGISTRY` 查表分发，与 `device_platform/registry.py` 的三张注册表同构但独立维护（前者管“怎么接入”，后者管“怎么交互/获取/识别 App”）。`core/sop/stages.py`/`stage_orchestrator.py` 通过 `create_onboarding_profile(device_type).needs_device_acquire()` 等能力位方法判断阶段取舍，不再直接比较 `device_type == "local"` 字符串。
 
-`case_cli.py`/`case_utils.py` 是 Batch 内 Case 切换与 UI 扫描命令的 CLI 入口层与共享工具函数（如 `resolve_case_path`/`resolve_mis`），`json_utils.py` 提供原子写入 JSON 的通用封装，三者均为无业务状态的纯工具模块。
+`case_utils.py` 是 Batch 内 Case 切换与 UI 扫描命令的共享工具函数（如 `resolve_case_path`/`resolve_mis`/`resolve_mock_domain`），`json_utils.py` 提供原子写入 JSON 的通用封装，二者均为无业务状态的纯工具模块。
+
+#### Hook 子系统（`core/sop/`）—— 交互异常场景的统一扩展点
+
+**定位**：引擎不把「某交互的某异常怎么修」写进 handler，而是把决策交回 AI。handler 只负责**判定**（能自动完成的就做完，做不了就带**结构化原因** handoff），修复指引由 **Hook** 承载。因此新增一种交互异常 ≈ 新增一条数据，不需要动流程代码；代价是所有引导都必须显式声明，不能靠"隐式兜底"。
+
+**链路四层，缺一不可**：
+
+1. **动作 → reason 注册表**（`core/sop/actions.py::ACTION_REASONS`）：唯一事实来源，声明「某 action 在哪些异常场景会 handoff/失败」。有意不配 hook 的引擎内部错误（命令参数不合法等）另列于 `on_fail.REASONS_WITHOUT_HOOK`。
+2. **意图路由**（`core/sop/on_fail.py::INTENT_REASON_HOOK_MAP`）：键是 **(意图, reason)** 而非单独 reason —— 同一 reason 在点击/输入/失焦下修复动作不同（点击补坐标；输入必须重跑 `input-text`，不能用坐标点击替代；失焦换锚点），意图由 action 推导。
+3. **模板**（`core/sop/hook_templates.json` + `hook_templates.py`/`hook_render.py`）：每个 hook = `id`（AI 用它 `flow-next --done-hooks <id>` 收口）+ `desc` + `cli_hint`。`cli_hint` 里的 `{target_text}` / `{screenshot_path}` / `{candidate_list}` 等占位符由 handler 放进 `ctx`，`hook_router._build_reason_hooks` 填充值，`hook_render.render_hook_cli_hint` 在查询时现场渲染（改文案只动 JSON）。**元素目录**（`element_index_{sid}.catalog.md`，AI 定位元素的唯一权威视图）不走占位符：只要 hook 携带 `element_index_path`（handler 落盘后经 `hook_router._attach_element_index` 透传），渲染层就在其指引末尾统一追加「📐 元素目录」证据块 —— 保证任何需 AI 定位/选择元素的 hook 都能拿到结构视图树，不因个别模板漏挂而迫使 AI 重新采集（守卫 `test_element_catalog_is_centrally_surfaced`）。
+4. **门禁**（`hook_router.HOOKS_REQUIRE_STEPS_JSONL_RECORD`）：**修复类 hook 必须登记**。否则 hook 标完成后，`step_scheduler._finalize_effect_pending_step` 会把仍是 PENDING 的步骤**无条件改判 PASS**（表现为「有失败却全绿」）；登记后强制先落 `override-step-result` 或重试记录。
+
+**判定口径（什么算"有指引"）**：`ok=None`（handoff）时若 reason 无映射，AI **一条操作指引都拿不到**，只能空转 —— 这是唯一会产生「静默死端」的路径（`ok=False` 至少还有通用 `on_fail` 兜底，只是丢精度）。因此 `check_target_model.test_action_reason_registry_covers_hooks_and_labels` 做**双向守卫**：① 注册表 → 必须能路由到 hook；② 注册表 ↔ 各 handler 的 `_REASON_LABELS` **逐字一致**（多=漏配、少=空声明）；③ 白名单不得过期。
+
+**Hook 分层**：
+
+| 层 | 模板组 | 触发时机 |
+|---|---|---|
+| 前置 | `pre_step` | 每步开跑前（设备存活 / 屏幕可交互） |
+| 断言 | `on_text_assertion`、`on_visual_assertion`、`on_text_visual_recheck`、`on_api_fields_assertion`、`on_track_fields_assertion` | 断言结果需 AI 判定 |
+| 操作修复 | 各 `on_*` reason 组（tap/scroll/input/blur/back/open-url 的异常场景） | handler 带 reason 的 handoff / 失败 |
+| 通用兜底 | `on_warn`、`on_fail`、`on_back_unexpected` | WARN / 真失败 / back 异常 |
+
+**覆盖现状**：8 个 UI action、34 个已注册 reason（含 4 个引擎内部错误），共 **29 个模板组 / 31 个 hook id**，每个可 emit 的 reason 都能路由到 hook（0 缺口）。
+
+**新增「某交互 × 某异常场景」的固定动作**：① 在 `ACTION_REASONS[action]` 注册 reason → ② handler 用 `_handoff/_fail` 返回该 reason（并补进 `_REASON_LABELS`）→ ③ 在 `INTENT_REASON_HOOK_MAP` 配路由 → ④ 在 `hook_templates.json` 加模板组 → ⑤（能得出 FAIL 的）登记门禁。漏任一步，`check_target_model` 直接报红。
 
 ### 4.3 设备交互 — `actions/` + `screen_state/`
 
-`step_executor.py` 是步骤执行引擎，将一个声明式步骤（sid + action + assert）转换为“动作 → 等待 → 截图 → 断言 → 日志”的完整流水线。
+`actions/step/` 是步骤执行引擎（`engine.py` 编排，`context/guards/action/capture/assert/finalize/pipeline/run` 分阶段），将一个声明式步骤（sid + action + assert）转换为“动作 → 等待 → 截图 → 断言 → 日志”的完整流水线。
 
-`action_handlers.py` 实现各种 UI 动作的底层逻辑（tap-text 的视图树查找 + 坐标点击 + 上溯可点击父容器、scroll-until 的循环滚动查找、back 的返回键模拟）。
+`actions/handlers/` 按 action 拆分实现 UI 动作的底层逻辑（tap 的坐标/锚点点击、tap-text 的视图树查找 + 坐标点击 + 上溯可点击父容器、scroll-until 的循环滚动查找、input/blur 的输入与失焦、back 的返回键模拟）。动作参数契约由 `core/sop/actions.py` 的 `ACTION_SPECS` 唯一定义（`required` / `at_least_one_of` / `any_of`），校验、`--help` 与步骤命令生成器均从它派生；`tap` 有两种形态：`--action-anchor <锚点>`（锚点行唯一可点击目标 → 自动点击，多/无 → 走视觉通道）与 `--action-x/--action-y`（坐标兜底）。`input-text` 同样有两种形态：`--action-arg '{"anchor":"<锚点或语义描述>","text":"<值>"}'`（Flow 只给锚点，引擎在锚点所在**同一视觉行**内自行定位 `role=input` 目标）与 `--action-x/--action-y`（hook 兜底回写 AI 找到的输入框坐标）；行内 0/≥2 个输入框时**不盲输入**，转专用 hook `resolve_input_box`，由 AI 结合截图 + 锚点行成员（含宽度）推断坐标后重跑。
 
 `text_input.py` 封装文本输入与清空：含 CJK 字符走 ADBKeyboard broadcast，纯 ASCII 直接调 `PlatformOps.input_text`，清空用批量退格 keyevent，输入结果统一走 inspect-tree 校验。
 
 `api_step_executor.py`/`track_step_executor.py` 是接口断言与埋点断言的独立执行器：拉取 AppMock 录制快照 → 最新记录匹配（埋点额外做 lx0 解析 + 顶层/tag 递归匹配）→ 提取关键字段写入 `extracted_fields`（接口侧仅 query/request/meta/headers；响应体不入索引，浅骨架单独落 `diagnostics/response_skeleton_<sid>.md`，字段定位与取值走 `response-search --query/--path`），不执行程序化断言，字段级判定由 AI 通过 `assert-fields` 写入——判定结果以 `fa.field_results` 落盘（报告层唯一读取契约，经 `report/schema.build_evidence` → `report/steps._expand_field_results_to_fields` 展开为步骤 evidence 的 `api_assert.<真实路径>`），并把解析出的真实路径回写步骤 `api_assert.expected_fields`（原声明存 `declared_fields`）。
 
-`standalone_commands.py` 提供独立的 UI 交互原语（截图、滚动、断言），供引擎和 AI 直接调用。
+`actions/commands/` 提供独立的 UI 交互原语命令（截图、滚动、断言、tap/tap-text、input 等），供引擎和 AI 直接调用。
 
-`screen_state/` 按职责拆分（原单文件 `inspect_tree.py`，1014 行）：`tree_source.py`（imeituan CLI 采集 + 缓存）、`tree_parse.py`（原始树 → UiNode + 几何 + 滚动裁剪）、`tree_match.py`（多级匹配 + 最佳点击目标）、`tree_neighborhood.py`（邻域结构树）、`tree_hit.py`（坐标命中 / 遮挡规避）、`tree_query.py`（对外的 find-text / find-icon / find-input / 滚动 / 文本列表查询 API）。`inspect_tree.py` 作为统一入口 facade 保持不变，对外 API 零改动。
+`screen_state/` 按职责拆分（原单文件 `inspect_tree.py`，1014 行）：`tree_source.py`（imeituan CLI 采集 + 缓存 + **跨渲染层节点聚合**）、`tree_parse.py`（原始树 → UiNode + 几何 + 滚动裁剪）、`tree_match.py`（多级匹配 + 最佳点击目标）、`tree_index.py`（**可操作目标模型**：统一目标集合 + 目录/候选/邻域渲染 + 锚点行选取出口（tap / input）；`role` 识别覆盖 RN 混淆类名如 `com.facebook.react.views.textinput.f`，行判定统一为「同一视觉行」）、`tree_hit.py`（坐标命中 / 遮挡规避）、`tree_query.py`（对外的 find-text / find-icon / find-input / 滚动 / 文本列表查询 API）。`inspect_tree.py` 作为统一入口 facade 保持不变，对外 API 零改动。
 
 采集走 ADB 广播 `com.mrn.VIEW_TREE_DUMP`，接收器由 App 端按页面注入，因此覆盖范围取决于页面是否注入而非渲染技术栈——业务容器页（MRN 新老架构、Recce、Mach、动态布局）及其内部原生控件均可采集；首页（MainActivity）未注入，广播 `result=0` 且不产出文件，CLI 报 `INSPECT_TREE_TIMEOUT`，需改用截图或 Activity 焦点判断。
 
 `tree_query.py` 同时是探针链的调度入口：对外的 `inspect_tree_has_text` / `inspect_tree_find_center` 不再直接查询视图树，而是依次询问 `context.get_probes()` 返回的探针链，任一渲染层命中即返回。native 层的原始实现保留为 `native_has_text` / `native_find_center`，由 NativeProbe 调用。
+
+**跨渲染层一致性**：探针除「按键查值」（`find_text` / `find_center` / `list_texts`）外，还可实现 **`dump_nodes`** 导出本层节点（形状与 native `UiNode` 同构）。`tree_source.get_current_nodes` 会把 native 与各探针的节点**合并去重**（parent 索引重基、WebView 容器文本抑制），因此目标模型（目录/候选/邻域）与断言 T1/T1.5 对 H5 内容一致生效。WebView DOM 由 `WebViewProbe`（CDP）实现 `dump_nodes`；未开启调试开关时该探针不可用并自动退化为纯 native。
 
 `screen_state/screen_layout.py` 提供屏幕布局分析，辅助坐标计算。
 
@@ -151,17 +198,17 @@ ai-ui-autotest-engine/
 
 `env_prepare.py` 是一键环境准备命令，串联 set-mis → reset-env → 登录 → 环境切换 → MRN 锁包的完整链路。
 
-`login_strategy.py` 根据环境类型（A/B/C/D）选择登录策略：A 使用凭证登录（推送合并 Scheme），B/C 使用 QAHome 验证码登录，D 免登录（假定已登录，仅校验登录态）。
+`login_strategy.py` 根据环境类型选择登录策略这一职责已重构为**数据 + 分层**（`provisioning/setup/login/`）：`plan.py`（L1 登录意图；含 auth_method 与环境类型）→ `registry.py::ENV_STEPS`（L2 环境前置步骤序列）→ `actions/`（L3 认证动作构造，`create_auth_action(plan.auth_method)`）→ `probes/`（L4 登录态判定，按 platform 注册）。
 
-`env_validator.py` 在 flow-init 时校验环境配置的完整性（认证维度：环境类型 A-D、账号密码、MIS、ptest 开关），并在 env-required 阶段生成前置信息收集清单。
+`env_validator.py` 在 flow-init 时校验环境配置的完整性（认证维度：环境类型 A-D、账号密码、MIS、ptest 开关）；问题的声明与收集见 `provisioning/questions/`。
 
-`mock/ptest_mock.py` 管理 ptest partMock 生命周期：ptest 不是环境类型，而是独立开关 `env.ptest`（线上环境 + partMock 注入 isPtest 等参数），由 `env-prepare` 在登录前独立开启，与登录方式解耦（可与 A/B/C/D 任意组合）。
+`env_validator.py` 另维护**环境能力矩阵** `ENV_CAPABILITIES`（env_type → 该环境支持的可选能力，唯一事实来源）：采集层据此派生 `depends_on`（问不问）、校验层据此做组合校验（能不能生效），两层共用一张表，避免口径漂移。
+
+`mock/ptest_mock.py` 管理 ptest partMock 生命周期：ptest 不是环境类型，而是**线上环境(A)专属**的开关 `env.ptest`（partMock 注入 isPtest 等参数），由 `env-prepare` 在登录前独立开启，与登录方式解耦，但**适用环境受限**——仅线上(A)可选（`env_validator.ENV_CAPABILITIES` 为唯一事实来源，采集/校验/执行三层据此统一门控）。生命周期**启用/停用对称**：`enable_ptest_mock` 建规则 + 开 + push `htptest=1`，`disable_ptest_mock` 关规则 + 清 mockId + push `htptest=0`（`reset-env`/收尾统一走后者单一入口）。为避免 AppMock「命中即短路」导致 ptest 的全量 partMock 规则遮蔽场景响应型 Mock，ptest 规则按**场景 Mock 的 URI 规则**生成负向前瞻排除（`build_ptest_rule`），并在 `mock effective` 中给出「生效集 + 是否仍被遮蔽」的视图（`mock list` 只列自有规则，看不到跨分组的场景 Mock）。
 
 `device_validator.py` 与 `env_validator.py` 职责对称且正交，校验设备维度（device_type × platform × app 组合是否已经过业务验证允许选择）。`SUPPORTED_DEVICE_COMBINATIONS` 与 `device_platform/registry.py` 三张底层注册表是“业务白名单”与“能力声明”的关系（非同一份数据的重复拷贝），两者都在 flow-init 阶段完成硬校验，报错时机提前到设备创建之前，避免非法组合跑到 device create 才失败、浪费设备资源。
 
 `device_guidance.py` 是设备连接异常场景→用户可执行分步指引的纯数据注册表（`GUIDANCE_REGISTRY`），与 `device_validator`（组合是否受支持）、`env_validator`（认证信息是否齐备）职责正交，专注于“组合合法但设备当前不可达”时如何指导用户现场修复（如本地鸿蒙真机未连接），不包含交互/等待逻辑。
-
-`question_utils.py` 抽取 `env_validator.py` 与 `device_validator.py` 共用的 AskQuestion 契约构造工具（known_values 预填规则），避免两处重复实现。
 
 ### 4.5 设备与渲染层抽象 — `device_platform/` + `context/`
 
@@ -170,7 +217,7 @@ ai-ui-autotest-engine/
 | 维度 | 回答什么问题 | 取值 | 当前实现 |
 |------|------------|------|---------|
 | `PlatformOps` | 怎么与设备交互 | **android** / **harmony** / ios | AndroidOps、HarmonyOps |
-| `DeviceLifecycle` | 怎么获取释放设备 | **sandbox**（仅 android）/ **local**（android+harmony）/ cloud_device | SandboxDeviceLifecycle、LocalDeviceLifecycle |
+| `DeviceLifecycle` | 怎么获取/安装设备 | **sandbox**（仅 android）/ **local**（android+harmony）/ cloud_device | SandboxDeviceLifecycle、LocalDeviceLifecycle |
 | `AppDescriptor` | 目标 App 是什么 | **meituan@android** / **meituan@harmony** / dianping | MeituanAppDescriptor、MeituanHarmonyAppDescriptor |
 | `RendererProbe` | 探针名称标识 | **native** | NativeProbe |
 
@@ -184,7 +231,7 @@ ai-ui-autotest-engine/
 
 `DeviceLifecycle`（`device_platform/interfaces/lifecycle.py` 抽象基类）定义设备生命周期接口（acquire/release/install_app/query_user_devices），当前实现为 `SandboxDeviceLifecycle`（`device_platform/lifecycle/sandbox.py`，云模拟器，依赖 yooz-server API，目前仅 Android 镜像）和 `LocalDeviceLifecycle`（`device_platform/lifecycle/local.py`，本地真机，跨平台通用，内部按 `get_platform_module(platform)` 分发 `probe_local_devices`）。
 
-`AppDescriptor`（`device_platform/interfaces/app_descriptor.py` 抽象基类）封装宿主 App 的包名、Activity/Ability、testability scheme 前缀、调试控件类名等元数据，同时承载 app 和 platform 两个维度信息。当前实现为 `device_platform/android/apps/meituan.py::MeituanAppDescriptor` 和 `device_platform/harmony/apps/meituan.py::MeituanHarmonyAppDescriptor`。新增 App 时需在 `device_platform/<platform>/apps/` 下补实现并注册到 `_APP_REGISTRY`，同时同步补齐 `login_strategy.py`/`env_validator.py`/`device_validator.py` 三处（各自独立维护但语义对齐："未注册即不可用"），规则已内置于各 `*-required` 命令的 AI 引导提示中。
+`AppDescriptor`（`devices/interfaces/app_descriptor.py` 抽象基类）封装宿主 App 的包名、Activity/Ability、testability scheme 前缀、调试控件类名等元数据，同时承载 app 和 platform 两个维度信息。当前实现为 `devices/android/apps/meituan.py::MeituanAppDescriptor` 和 `devices/harmony/apps/meituan.py::MeituanHarmonyAppDescriptor`。新增 App 时需在 `devices/<platform>/apps/` 下补实现并注册到 `_APP_REGISTRY`，同时同步补齐 `provisioning/setup/login/`（AUTH_ACTIONS / ENV_STEPS / LOGIN_STATE_PROBES）与 `provisioning/validators/{env,auth,device}_validator.py`（各自独立维护但语义对齐："未注册即不可用"），规则已内置于各 `*-required` 命令的 AI 引导提示中。
 
 `RendererProbe`（`device_platform/interfaces/renderer_probe.py` 抽象基类）定义渲染层感知探针接口（find_text/find_center/list_texts/probe_name），通过 `probe_name` 属性标识当前使用的探针类型，用于日志与证据标注。`NativeProbe` 覆盖各平台原生视图树（Android View 体系含 MRN、Recce；HarmonyOS ArkUI 组件树），其 `probe_name` 恒为 `"native"`。
 
@@ -194,41 +241,49 @@ ai-ui-autotest-engine/
 
 AppMock 是美团客户端测试的核心基础设施，本 Skill 对其进行了全功能封装：
 
-`appmock_core.py` 实现核心 HTTP 调用（经 yooz-server 代理），所有 Mock 操作走统一的请求层。`appmock_rules.py` 封装规则 CRUD 和字段级补丁（patch-field），支持 DUO 协议的 nodeDataMap 精准修改。`appmock_record.py` 拉取接口录制数据并做噪音过滤（排除 lx0 埋点、CDN 等非业务域名）。`appmock_swimlane.py` 管理泳道代理。`appmock_session.py` 管理 SSO Cookie 和域名映射。`appmock_device.py` 管理设备端 Mock SDK 开关。`appmock_ops.py` 承载被 CLI 层与业务层共同复用的编排操作（可测性 Scheme 推送、环境重置、ptest mockId 持久化），使 `appmock_env_cli.py`、`ptest_mock.py`、`env_prepare.py`、`login_password.py` 无需反向依赖 CLI 模块，从根源上避免 `appmock_cli ↔ appmock_env_cli` 的模块级循环依赖。`appmock_env_cli.py` 从 `appmock_cli.py` 拆出，专注泳道管理、域名映射、MRN 锁包等环境配置类子命令；`appmock_cli.py` 本身保留规则 CRUD、录制和 CLI 分发入口。`mock_baseline.py` 负责 Mock 基线快照和回滚（B0 拍快照 → C5 Case 间回滚 → T0 Batch 级回滚）。
+`appmock_core.py` 实现核心 HTTP 调用（经 yooz-server 代理），所有 Mock 操作走统一的请求层。`appmock_rules.py` 封装规则 CRUD 和字段级补丁（patch-field），支持 DUO 协议的 nodeDataMap 精准修改。`appmock_record.py` 拉取接口录制数据并做噪音过滤（排除 lx0 埋点、CDN 等非业务域名）。`appmock_swimlane.py` 管理泳道代理。`appmock_session.py` 管理 SSO Cookie 和域名映射。`appmock_device.py` 管理设备端 Mock SDK 开关。`appmock_ops.py` 承载被 CLI 层与业务层共同复用的编排操作（可测性 Scheme 推送、环境重置、ptest mockId 持久化），使 `appmock_env_cli.py`、`ptest_mock.py`、`env_prepare.py`、`provisioning/setup/login/actions/password.py` 无需反向依赖 CLI 模块，从根源上避免 `appmock_cli ↔ appmock_env_cli` 的模块级循环依赖。`appmock_env_cli.py` 从 `appmock_cli.py` 拆出，专注泳道管理、域名映射、MRN 锁包等环境配置类子命令；`appmock_cli.py` 本身保留规则 CRUD、录制和 CLI 分发入口。`execution/engine/flow/lifecycle/mock_lifecycle.py` 负责场景 Mock 生命周期（B0 预检：union 快照 + 冲突检测 + 清场 → C1 逐 Case 差量开关 → T0 恢复 union 到执行前状态）。
 
 ### 4.7 报告子系统 — `report/`
 
-`data_collector.py` 从 Case workspace 的 `steps.jsonl` 读取原始执行事实。`model.py` 将同 SID 的多条记录归一化为 conclusion/executions 模型：`conclusion` 按 `followup > retry > step` 优先级选取终态记录（`retry` 是重试步骤如 `S2b` 写入父 SID `S2` 的记录，优先于原始 `step` 但低于显式 `followup`），`executions` 包含全部执行记录（step + followup + retry）供 `coalesce_evidence` 取值（取第一个非空值）。报告构建按职责拆为纯函数模块：`steps.py`（步骤级投影）/ `timeline.py`（时间线）/ `case_report.py`（单 Case）/ `run_report.py`（批次）/ `timefmt.py`（时间工具），文件读取统一走 `data_collector.py`。基于 conclusion 投影 Case 与 Batch 报告，`coalesce_evidence(executions, field, default)` 从所有 executions 中按优先级提取证据字段。`finalizer.py` 负责最终归档和落盘。`transport.py` 负责截图上传 S3（扫描 `frames/`）和平台入库。`schema.py` 定义报告数据结构；`core/util/records.py` 定义 `StepRecord` 单一写入契约（所有写入端统一构造，截图以 `screenshots` 数组承载）。截图由 `merge_screenshots(executions)` 跨同一 SID 的全部执行记录合并，conclusion 缺图时自动补齐。
+`data_collector.py` 从 Case workspace 的 `steps.jsonl` 读取原始执行事实。`model.py` 将同 SID 的多条记录归一化为 conclusion/executions 模型：记录来源为 `step / followup / retry / effect_verified / fallback / log`（`retry`：重试步骤如 `S2b` 写入父 SID `S2` 的记录；`fallback`：归属型兜底操作 `step --for-sid <SID>`，进父步骤证据但不主导结论；`log`：无判定备注）。`conclusion` 按 `followup > retry > effect_verified > 其它（时序最新；`fallback` 不主导）` 优先级选取终态记录，`executions` 包含全部执行记录供 `coalesce_evidence` 取值（取第一个非空值），`attempts` 为带判定且非结论的记录，`attempts_unjudged` 为**执行过但无判定**的非结论记录（如 PENDING 后被重跑覆盖的那次 —— 不并入 attempts，但保证「该步执行过两次」可追溯）。报告构建按职责拆为纯函数模块：`steps.py`（步骤级投影）/ `timeline.py`（时间线）/ `case_report.py`（单 Case）/ `run_report.py`（批次）/ `timefmt.py`（时间工具），文件读取统一走 `data_collector.py`。基于 conclusion 投影 Case 与 Batch 报告，`coalesce_evidence(executions, field, default)` 从所有 executions 中按优先级提取证据字段。`finalizer.py` 负责最终归档和落盘。`transport.py` 负责截图上传 S3（扫描 `frames/`）、平台入库，并构建列表页读模型 `run_index` 注入 payload（见下）。`schema.py` 定义报告数据结构；`core/util/records.py` 定义 `StepRecord` 单一写入契约（所有写入端统一构造，截图以 `screenshots` 数组承载）。步骤截图由 `report/steps._canonical_screenshots` 统一裁决：结论记录的截图置顶并标 `is_conclusion`，其余执行记录按执行时序追加（url 去重），`step.screenshot` 与 `evidence.screenshot` 同取 `canonical[0]`。
 
-统计口径的核心不变量：携带判定（ok 非空）的记录一律进入统计。findings 中存在 fail 时 Case 不得判为 completed。
+**自动截图命名的唯一键 = 张级分配序号**（`records.alloc_shot_seq`，每次分配即自增并持久化到 `<case>/.shot_seq`，与 `steps.jsonl` 正交）：声明步骤按 `case_NN_<sid>.png`（sid 唯一），非步骤级截图（`diag_*` / `auto_*` / `fallback_*`）统一走 `records.auto_shot_name`，避免固定名或秒级时间戳互相覆盖 —— 覆盖会让报告引用的证据与语义不符。**注意不能用「记录级」序号（`steps.jsonl` 行数 + 1）**：截图是张级资产，同一条记录追加前可能连拍多张（同一 open-url 重试、一次步骤内多次诊断图），记录级序号会给它们同一个值 → 同名覆盖。
+
+统计口径的核心不变量：携带判定（ok 非空）的记录一律进入统计——唯一例外是**归属型兜底**（`_src=fallback`）：它已绑定父步骤、只作执行证据，不落 findings、也不主导该步结论（结论权在断言与 AI override）。只有**未绑定已声明 SID** 的判定记录才归入 findings；findings 中存在 fail 时 Case 不得判为 completed。
+
+**平台入库 payload 契约**（`transport.insert_report` → DataMonitor `/test-report/insert` → 报告平台）：顶层为运行级标量（`id`/`title`/`device`/`platform`/`app`/`timestamp`/`duration`/`total_cases`/`total_steps`/`success_steps`/`failed_steps`/`ec_case_id`/`user_id`），外加 `cases`（jsonb，承载全部详情：`steps`/`timeline`/`raw_records`/`findings`/`notes`/`summary`）。运行级元信息 `env_config` / `run_status` / `run_index` 由 transport **注入到每个 case**，报告平台统一从 `cases[0]` 读取。
+
+其中 **`run_index` 是列表页读模型**：把列表渲染所需的全部标量（步骤 `pass/warn/fail/pending`、`api`/`track` 维度、`run_status`、`env_name`/`ptest`/锁包数、步骤级 `needs_review`）汇总成一个小对象。列表页以 PostgREST 的 jsonb 路径投影 `cases->0->run_index` 单字段读取，**不再整包拉取 `cases`**（详情数据单行可达数十 KB → 列表传输量由 ~40KB/行降到 <1KB/行，且免去本地 `JSON.parse` + 重算）。详情页仍按需读取完整 `cases`；历史行无 `run_index` 时列表退化为 DB 标量列 + `cases->0->{run_status,env_config}` 投影。
+
+`env_config` 走 `SAFE_ENV_KEYS` 脱敏白名单：`type`/`env_name`/`auth_method`/`ptest`/`bundle_lock`/**`swimline`**。`swimline` 是 B 泳道环境排查刚需且非敏感，平台详情页有对应渲染分支。
 
 ### 4.8 基础设施 — `infra/`
 
 `sandbox_api.py` 封装所有 Sandbox 云模拟器 API 调用（经 yooz-server 代理，API Key 由服务端持有）。设备创建采用异步模式：POST create 立即返回 taskId，Skill 自行轮询 GET status 直到 state=running。
 
-`session.py` 管理 imeituan CLI 的设备会话（注册/断开），内部通过 `get_platform_module(platform).register_device()` 分发到各平台的注册入口（云真机走 `device register`，本地真机走 `device connect --target local-device`），跨 Android/HarmonyOS 通用，不感知平台细节。`imeituan_cli.py`（三端通用封装层，见 4.5 节）也位于本目录。`app_installer.py` 负责 App 的版本检测、卸载、安装和验证，内部通过 `PlatformOps`/`DeviceLifecycle` 调用，跨 Android/HarmonyOS 通用。`adb.py` 封装 ADB 命令执行（Android），`hdc.py`（位于 `device_platform/harmony/`）封装 hdc 二进制探测与 PATH 准备（HarmonyOS）。`check_deps.py` 检测运行时依赖（Python、Node、imeituan CLI、adb/hdc、SSO Cookie，按当前 platform 按需检测对应工具链）。`node_env.py` 管理 Node.js 环境和 imeituan CLI 执行器。
+`session.py` 管理 imeituan CLI 的设备会话（注册/断开），内部通过 `get_platform_module(platform).register_device()` 分发到各平台的注册入口（云真机走 `device register`，本地真机走 `device connect --target local-device`），跨 Android/HarmonyOS 通用，不感知平台细节。`imeituan_cli.py`（三端通用封装层，见 4.5 节）也位于本目录。**设备会话按 run 绑定（并发隔离）**：`imeituan_cli.py` 提供 `bind_session/current_session/needs_session`，`_run` 对设备命令注入 `IMEITUAN_SESSION`、未绑定即显式失败；CLI 入口 `cli.py::_bind_device_session` 按 `flow-context.meta.session_id` 绑定；注册后立即绑定，且不再有全量断会话（`disconnect --all`）。`app_installer.py` 负责 App 的版本检测、卸载、安装和验证，内部通过 `PlatformOps`/`DeviceLifecycle` 调用，跨 Android/HarmonyOS 通用。`adb.py` 封装 ADB 命令执行（Android），`hdc.py`（位于 `device_platform/harmony/`）封装 hdc 二进制探测与 PATH 准备（HarmonyOS）。`check_deps.py` 检测运行时依赖（Python、Node、imeituan CLI、adb/hdc、SSO Cookie，按当前 platform 按需检测对应工具链）。`node_env.py` 管理 Node.js 环境和 imeituan CLI 执行器。
 
 ## 五、SOP 生命周期
 
-一次完整的测试执行分为 Batch 头部、Case 循环体和 Batch 尾部三段，共 16+ 个阶段。
+一次完整的测试执行分为 Batch 头部、Case 循环体和 Batch 尾部三段，共十余个阶段。
 
-### Batch 头部（B0-B3）— 执行一次
+### Batch 头部（B0-B2）— 执行一次
 
-B0 是 Mock 基线快照，仅在 steps-input.json 声明了 mock_ids 时执行，在所有修改前捕获预设 Mock 规则的真实状态，用于后续回滚。
+`B0_mis_acquire` 是批次第一步：**领取虚拟 mis**（`mis acquire`，从虚拟 mis 池取一个 AppMock 工作域，写入 workspace 级 `intake.mock_domain`），后续所有 AppMock（规则/录制/环境/泳道）都以它为准；与设备/报告归属的 `resource_mis` 恒定分离。
 
-B2 是设备获取，执行 device create（异步创建云模拟器） + device setup（注册 session、安装可测性 APK、处理隐私弹窗、配置 ADB Keyboard）。
+`B0_mock_preflight` 是场景 Mock 预检（`mock-preflight`）：快照所有 Case 声明的 mockId 并集（response + 启用态）到 run 级基线，并把它们全部置 OFF 进入确定初始态；同一 Case 内出现同接口两个 mockId → fail-fast。无场景 Mock 时该阶段自动跳过。
 
-B3 是环境登录，执行 env-prepare 一键完成 set-mis → reset-env → ptest mock（可选）→ 登录 → 泳道/域名映射切换 → MRN 锁包。凭证登录需 AI 读截图确认结果。
+`B1_device` 是设备获取，执行 device create（异步创建云模拟器） + device setup（注册 session、安装可测性 APK、收敛首启弹窗链（隐私协议/通知/定位）、配置 ADB Keyboard）。
 
-B4 是启用预设 Mock 规则，在 B3 的 reset-env 之后执行（避免被 stop-all 覆盖）。
+`B2_login` 是环境登录，执行 env-prepare 一键完成 set-mis → reset-env（**不再 blanket stop-all**；场景 Mock 交由 Case 级生命周期）→ ptest mock（可选）→ 登录 → 泳道/域名映射切换 → MRN 锁包。凭证登录需 AI 读截图确认结果。
 
-### Case 循环体（C0/C1/C2/C3/C4/C5）— 每个 Case 重复
+### Case 循环体（C0-C5）— 每个 Case 重复
 
-C0 切换到目标 Case。C1 启动接口录制。C2 通过 Scheme 跳转到目标落地页，AI 读截图确认（如 Recce 浮层遮挡可手动调 dismiss-recce）。C3 是统一多步走查，引擎按 steps 顺序逐步执行 step 命令，通过 `kind` 字段区分步骤类型：`ui`（UI 交互，动作 → 截图 → 断言，tap-text 遇 Recce 遮挡会自动处理）、`api`（接口字段验证，从录制数据中匹配并断言）、`track`（埋点字段验证，从录制数据中匹配并断言）。三种步骤的结果统一写入 steps.jsonl，不再需要独立的批量断言阶段。C4 生成 Case 报告。C5 回滚 Case 级 Mock 响应体。
+C0 切换到目标 Case。C1 收敛场景 Mock 到本 Case（`mock-apply`：差量开关 + body 回基线，保证任一时刻 AppMock 开启的场景规则 = 当前 Case 集合，同接口跳 Case 绝不共存）。C2 启动接口录制。C3 通过 Scheme 跳转到目标落地页，AI 读截图确认（如 Recce 浮层遮挡可手动调 dismiss-recce）。C4 是统一多步走查，引擎按 steps 顺序逐步执行 step 命令，通过 `kind` 字段区分步骤类型：`ui`（UI 交互，动作 → 截图 → 断言，tap-text 遇 Recce 遮挡会自动处理）、`api`（接口字段验证，从录制数据中匹配并断言）、`track`（埋点字段验证，从录制数据中匹配并断言）。三种步骤的结果统一写入 steps.jsonl，不再需要独立的批量断言阶段。C5 生成 Case 报告。
 
 ### Batch 尾部（T0-T2）— 执行一次
 
-T0 回滚 Batch 级 Mock。T2 是收尾清理：导出录制数据 → 停止录制 → 重置环境 → 销毁设备 → flow-finalize（归档 + 入库 + 生成最终报告）→ post-clean 清空 .run 目录。
+T0 把场景 Mock 并集恢复到执行前状态（response + 启用态）。T2 是收尾清理：导出录制数据 → 停止录制 → 重置环境 → 归还设备租约（`device release`，不销毁实例）→ flow-finalize（归档 + 入库 + 生成最终报告）→ post-clean（**删除本 workspace 与其入口**）。
 
 ### 阶段推进机制
 
@@ -248,7 +303,7 @@ steps.jsonl 是不可变的执行事实流，每个 Case workspace 一个，记�
 
 ### 输出
 
-每次运行归档到 `output/run-<timestamp>/`，包含 report.json（聚合报告）、各 Case 的 report.json 和 frames/（截图 S3 URL），以及 run/（完整原始执行产物备份）。报告同时入库到平台，可通过 URL 在线查看。
+每次运行归档到 `output/run-<timestamp>/`，包含 report.json（聚合报告）、各 Case 的 report.json 和 frames/（截图 S3 URL），以及 run/（完整原始执行产物备份）。报告同时入库到平台，可通过 URL 在线查看；平台列表页通过 jsonb 路径投影 `cases->0->run_index` 读取运行级汇总（见 4.7），避免整包拉取 `cases`。
 
 ## 七、设备管理架构
 
@@ -264,7 +319,7 @@ Android 通过 USB 或 WiFi ADB 连接，HarmonyOS 通过 USB HDC 连接，设�
 
 ### 四维抽象设计
 
-PlatformOps（怎么操作设备）、DeviceLifecycle（怎么获取和释放设备）、AppDescriptor（操作什么 App）、RendererProbe（探针名称标识）四个维度相互独立，均由 `device_platform/registry.py` 的注册表（`_PLATFORM_MODULES`/`_DEVICE_TYPE_REGISTRY`/`_APP_REGISTRY`）驱动分发，`context/__init__.py` 仅作为查表后的实例化与缓存层。新增平台（如 iOS）只需：实现 `device_platform/ios/ops.py`（满足 `_REQUIRED_MODULE_ATTRS` 契约）与对应 `AppDescriptor`，在三张注册表中各追加一行，不需要改动 `context/__init__.py`/`device_lifecycle.py`/`screen_state/`/`environment/` 任何调用方代码，也不会引入新的 if/elif 分支。
+PlatformOps（怎么操作设备）、DeviceLifecycle（怎么获取/安装设备）、AppDescriptor（操作什么 App）、RendererProbe（探针名称标识）四个维度相互独立，均由 `device_platform/registry.py` 的注册表（`_PLATFORM_MODULES`/`_DEVICE_TYPE_REGISTRY`/`_APP_REGISTRY`）驱动分发，`context/__init__.py` 仅作为查表后的实例化与缓存层。新增平台（如 iOS）只需：实现 `device_platform/ios/ops.py`（满足 `_REQUIRED_MODULE_ATTRS` 契约）与对应 `AppDescriptor`，在三张注册表中各追加一行，不需要改动 `context/__init__.py`/`device_lifecycle.py`/`screen_state/`/`environment/` 任何调用方代码，也不会引入新的 if/elif 分支。
 
 渲染层维度与前三维正交：同一台 Android 设备、同一个 App 内，既可能是 MRN 页面，也可能内嵌 H5 页面；iOS 上同样存在这种分化。
 
@@ -274,11 +329,11 @@ PlatformOps（怎么操作设备）、DeviceLifecycle（怎么获取和释放设
 
 | 能力 | 说明 |
 |------|------|
-| Android 云模拟器 | 通过 CatPaw Sandbox 自动创建/销毁（仅 Android 镜像） |
+| Android 云模拟器 | 通过 CatPaw Sandbox 自动创建；从设备池领取/复用（不销毁，仅 Android 镜像） |
 | Android 本地真机 | 通过 ADB 连接，`LocalDeviceLifecycle` 自动探测并校验唯一在线设备 |
 | HarmonyOS 本地真机 | 通过 HDC 连接，同一套 `LocalDeviceLifecycle` 按 platform 分发探测，接入方式与 Android 对齐 |
 | Native/MRN/H5 页面测试 | 基于 Native 视图树（Android View / HarmonyOS ArkUI）的精确元素定位 |
-| 四种环境类型 | 线上(A)、泳道(B)、alpha(C)、免登录(D)；ptest 为独立开关（`env.ptest`） |
+| 四种环境类型 | 线上(A)、泳道(B)、alpha(C)、免登录(D)；ptest 为线上专属开关（`env.ptest`，仅 A 可选） |
 | 凭证登录 + 验证码登录 + 免登录 | A 凭证，B/C QAHome 验证码，D 免登录 |
 | AppMock 全功能 | 规则 CRUD、录制、泳道、域名映射、MRN 锁包 |
 | DUO 协议 Mock | nodeDataMap 组件级字段精准修改 |
@@ -304,43 +359,43 @@ PlatformOps（怎么操作设备）、DeviceLifecycle（怎么获取和释放设
 
 ### 一次测试执行的最小路径
 
+> 作用域分层：`.run/tasks/<ws>/{config,inputs,tmp,runs/<run>}/`（workspace / run 级）；入口脚本 `.run/ws/<ws>/cli`；跨 workspace 共享的 `.device-pool/`（设备池）、`.credentials/`（凭据）、`.cache/artifacts/`（L1 制品缓存，跨 run / 跨子 Agent 复用安装包）；产物 `output/`。Flow 文件、CASES、steps-input 均落在当前 workspace 下。
+
 ```
-# 0. 保存 Flow 文件到 .run-input/flows/ 并执行依赖检测
-python3 scripts/cli.py check-deps
+# 0. 分配 workspace + 生成入口（整轮测试只执行一次）
+#    输出形如：你的入口 = .run/ws/<ws>/cli；之后所有命令都用 <入口> 执行
+python3 scripts/cli.py ws-init
 
-# 1. 预检清理（清空 .run/、.config/、.run-input/ 工作区）
-python3 scripts/cli.py preflight-clean
+# 1. 依赖检测
+<入口> check-deps
 
-# 2. 收集设备信息（选择云模拟器/本地真机/云真机）
-python3 scripts/cli.py device-required
+# 2. 创建 Flow 占位（多 Flow 场景每个 Flow 执行一次）
+#    文件落在 .run/tasks/<ws>/inputs/flows/，随后 AI 写入完整 Flow 内容
+<入口> flow-create --name <Flow名>
 
-# 3. 收集环境范围 + 认证凭证（env_type 确定后才能推断 auth_method，需分两步）
-#    第1轮：收集 env_type + mis
-python3 scripts/cli.py env-required --app meituan
-python3 scripts/cli.py save-answers --answers '{"env_type":"<所选>","mis":"<mis>"}'
-#    第2轮：env_type 已确定 → 自动推断 auth_method → 收集 credential 字段
-python3 scripts/cli.py env-required --app meituan --device-type <device_type>
-python3 scripts/cli.py save-answers --answers '{"account":"<手机号>","password":"<密码>"}'
+# 3. 信息收集：循环 input-next → AskQuestion → input-answer，直到 done
+#    问题由声明式 provider 产出（设备/环境/认证/可选配置/占位符），按 depends_on 条件自动展开
+#    一步一题：每次只把 input-next 下发的这 1 题交给 AskQuestion；可随时 `input-status` 总览
+<入口> input-next
+<入口> input-answer --id <当前下发的题ID> --value <值>
 
-# 4. 收集可选配置（ptest、锁包等）
-python3 scripts/cli.py config-required --flow-source <flow-文件路径>
+# 4. 解析 Flow 元数据（供 AI 写步骤参考）
+<入口> flow-convert --tag {tag}
 
-# 5. 解析 Flow 元数据（供 AI 写步骤参考）
-python3 scripts/cli.py flow-convert --flow-source .run-input/flows/flow-{NN}-{场景简称}.md --tag {tag}
+# 5. CASES 文件（强制约定）：先创建空文件 → AI 写入 → 落盘校验 → 生成 steps-input
+<入口> cases-create --tag {tag}
+#    AI 写入完整 CASES（device/env/cases/steps）到 .run/tasks/<ws>/tmp/cases-{tag}.json
+#    wc -c 确认非空后：
+<入口> steps-generate --input 'cases-{tag}.json' --tag {tag}
 
-# 6. CASES 文件（强制约定）：先创建空文件 → AI 写入 → 落盘校验 → 生成 steps-input
-python3 scripts/cli.py cases-create --tag {tag}
-#    AI 写入完整 CASES（device/env/cases/steps），wc -c 确认非空后：
-python3 scripts/cli.py steps-generate --input '.run/tmp/cases-{tag}.json' --tag {tag}
+# 6. 初始化 flow-context（占位符在此解析，并固化 steps-input 为唯一事实来源）
+<入口> flow-init --dir <run-name> --input 'steps-input-{tag}.json' --flow-name <Flow名>
 
-# 7. 初始化 flow-context（占位符在此解析，并固化 steps-input 为唯一事实来源；原文另存 steps-input.raw.json）
-python3 scripts/cli.py flow-init --dir <run-name> --input '.run/tmp/steps-input-<tag>.json' --flow-name <name> --mis <mis>
-
-# 8. 进入引擎驱动，按 flow-next 返回的命令逐步执行
-python3 scripts/cli.py flow-next   # 获取下一步
+# 7. 进入引擎驱动，按 flow-next 返回的命令逐步执行
+<入口> flow-next   # 获取下一步
 # ... 按 flow-next 返回的指令逐条执行 ...
 
-# 9. 收尾（flow-finalize → post-clean，由引擎 T2 阶段自动完成）
+# 8. 收尾（flow-finalize → post-clean，由引擎 T2 阶段自动完成；post-clean 删除本 workspace 与入口）
 ```
 
 ### 开发者扩展指南
@@ -349,11 +404,11 @@ python3 scripts/cli.py flow-next   # 获取下一步
 
 如需新增设备获取方式（如云真机 `cloud_device` 正式接入），只需实现对应 `DeviceLifecycle`（放在 `device_platform/lifecycle/` 跨平台通用位置，或确有平台专属逻辑时放 `device_platform/<platform>/lifecycle/`），在 `_DEVICE_TYPE_REGISTRY` 补齐 `module`/`class_name`，`context.create_device_lifecycle` 会自动分发。
 
-如需新增 App（如点评），需在 `device_platform/<platform>/apps/` 下实现 `AppDescriptor` 并注册到 `_APP_REGISTRY`，同时同步补齐 `login_strategy.py`（登录策略）、`env_validator.py`（认证信息校验）、`device_validator.py`（组合合法性）三处——三张表各自独立维护但语义对齐："未注册即不可用"，规则已内置于各 `*-required` 命令的 AI 引导提示中。
+如需新增 App（如点评），需在 `devices/<platform>/apps/` 下实现 `AppDescriptor` 并注册到 `_APP_REGISTRY`，同时同步补齐 `provisioning/setup/login/`（AUTH_ACTIONS / ENV_STEPS / LOGIN_STATE_PROBES）与 `provisioning/validators/{env,auth,device}_validator.py`——各表独立维护但语义对齐："未注册即不可用"，规则已内置于各 `*-required` 命令的 AI 引导提示中。
 
 如需新增 Mock 能力（如新的代理平台），在 `mock/` 目录下新增实现模块，并在 `appmock_cli.py`（规则/录制类）或 `appmock_env_cli.py`（环境配置类）的分发表中注册子命令；被多方复用的业务编排逻辑下沉到 `appmock_ops.py`，避免两个 CLI 模块互相依赖。
 
-如需新增步骤动作（如 long-press），在 `core/sop/actions.py` 的 `STEP_ACTIONS` 中注册，在 `action_handlers.py` 中实现处理逻辑，在 `cli.py` 中添加 CLI 参数。
+如需新增步骤动作（如 long-press），在 `core/sop/actions.py` 的 `STEP_ACTIONS` 与 `ACTION_SPECS` 中注册（契约是唯一事实来源），在 `actions/handlers/` 下按 action 实现处理逻辑并在 `HANDLERS` 注册，在 `cli.py` 的 step 子命令中添加 CLI 参数。
 
 ## 附录：多 App 支持下的架构演进
 
@@ -366,7 +421,8 @@ python3 scripts/cli.py flow-next   # 获取下一步
 | 设备 | `device_validator.py` | `SUPPORTED_DEVICE_COMBINATIONS` | 设备×平台×App 组合校验 |
 | 环境类型 | `env_validator.py` | `APP_ENV_TYPE_RULES[app]` | 各 App 的 ABCD 环境类型定义 |
 | 认证规则 | `auth_validator.py` | `AUTH_METHOD_RULES[app]` | 各 App 的认证方式定义、字段规则 |
-| 登录策略 | `login_strategy.py` | `APP_LOGIN_STRATEGY_BUILDERS[app]` | 各 App 的登录策略实现 |
+| 登录流程 | `provisioning/setup/login/` | `registry.ENV_STEPS` + `actions.create_auth_action` + `probes.LOGIN_STATE_PROBES` | 各 App 的登录动作 / 环境步骤 / 登录态探针（**不再有 `login_strategy.py`**） |
+
 
 新增 App 时，上述四处注册表各追加一条，框架逻辑不改。
 
@@ -385,7 +441,6 @@ environment/
 ```
 environment/
 ├── __init__.py
-├── question_utils.py          ← 共享：known_values 工具
 ├── device_validator.py        ← 共享：设备组合校验
 ├── device_guidance.py         ← 共享：设备引导
 ├── env_prepare.py             ← 共享：环境准备编排
@@ -394,15 +449,15 @@ environment/
 │   ├── __init__.py
 │   ├── _meituan.py            ← 美团认证规则
 │   └── _dianping.py           ← 点评认证规则
-├── strategies/                ← 按 App 分派的登录策略
-│   ├── __init__.py
-│   ├── _meituan.py            ← 美团登录策略
-│   └── _dianping.py           ← 点评登录策略
 └── login_*.py                 ← 共享：登录原语（已按职责拆分）
                                   app_lifecycle / sdk_enable / login_sms / login_qahome
                                   login_password / login_state / location
 ```
 
-`env_validator.py` 保留框架逻辑（`get_required_fields`、`validate_env_config`、`get_env_summary`），`APP_ENV_TYPE_RULES` 注册表改为从 `rules/` 目录自动发现。`auth_validator.py` 保留框架逻辑（`get_auth_required_fields`、`validate_auth_config`），`AUTH_METHOD_RULES` 注册表改为从 `auth_rules/` 目录自动发现。`login_strategy.py` 保留框架逻辑（`build_login_strategy`），`APP_LOGIN_STRATEGY_BUILDERS` 改为从 `strategies/` 目录自动发现。
+> 注：**登录动作/环境步骤/登录态探针已按此方向落地**（现为 `provisioning/setup/login/`：
+> `actions/` + `registry.py::ENV_STEPS` + `probes/`）；上图中 `strategies/` 与 `login_*.py`
+> 的拆分建议已被该实现取代，仅 `rules/`（认证规则）仍待此演进。
+
+`env_validator.py` 保留规则与校验（`validate_env_config`、`get_env_summary`、`infer_auth_method`），`APP_ENV_TYPE_RULES` 注册表改为从 `rules/` 目录自动发现。`auth_validator.py` 保留规则与校验（`validate_auth_config`），`AUTH_METHOD_RULES` 注册表改为从 `auth_rules/` 目录自动发现。登录策略部分**已落地**（`provisioning/setup/login/`：`registry.py::ENV_STEPS` + `actions/` + `probes/`，不再有 `login_strategy.py` / `strategies/` 目录）。
 
 **拆分原则**：不提前拆分，等第二个 App 确实出现时再重构，避免过度设计。

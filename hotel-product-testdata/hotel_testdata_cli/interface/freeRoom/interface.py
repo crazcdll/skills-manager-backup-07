@@ -52,6 +52,9 @@ RECHARGE_URL = "http://eb.hotel.test.sankuai.com/api/v1/ebooking/vacantHouse/rec
 MCOIN_APPKEY = "com.sankuai.mpht.mcoin.biz"
 MCOIN_SERVICE = "com.sankuai.mpht.mcoin.biz.api.freeroom.IFreeRoomRecordService"
 MCOIN_METHOD = "countByParam"
+# 查询置换记录明细分页接口（参数同 countByParam + 分页；pageSize 必须在 [20,200]，
+# 返回 data.detail[].longNewGoodsId 即闲置房子产品 goodsId）
+MCOIN_QUERY_METHOD = "queryByPageParam"
 
 
 class FreeRoomError(Exception):
@@ -329,6 +332,46 @@ def count_free_room_records(poi_id: str, partner_id: str, swimlane: str = "") ->
     except Exception:
         pass
     print(f"[WARN] 置换记录查询响应解析失败: {json.dumps(resp, ensure_ascii=False)[:300]}", file=sys.stderr)
+    return None
+
+
+def query_free_room_record(poi_id: str, partner_id: str, mother_goods_id, swimlane: str = "") -> Optional[dict]:
+    """
+    验证用：按 partnerId + poiId 分页查询闲置房置换记录明细（mcoin IFreeRoomRecordService.queryByPageParam），
+    返回匹配母产品 goodsId 的最新一条记录（含子产品 longNewGoodsId）。
+
+    ⚠️ pageSize 必须在 [20,200] 区间，否则报 "每页数据量不在有效范围"（2026-09-16 实测）。
+    返回记录 dict（含 longNewGoodsId/goodsNum/evaluateAmount/rechargeType 等）；查询失败或未匹配返回 None。
+    """
+    try:
+        resp = invoke(
+            appkey=MCOIN_APPKEY,
+            service=MCOIN_SERVICE,
+            method=MCOIN_QUERY_METHOD,
+            params={"poiId": int(poi_id), "partnerId": int(partner_id), "pageNo": 1, "pageSize": 20},
+            swimlane=swimlane,
+            timeout_ms=30000,
+            dry_run=False,
+            raise_on_biz_error=False,
+            progress_hint="查询闲置房子产品ID（queryByPageParam）...",
+        )
+    except Exception as e:
+        print(f"[WARN] 置换记录明细查询异常（不影响充值结果）: {e}", file=sys.stderr)
+        return None
+
+    try:
+        inner = resp
+        if isinstance(inner, dict) and isinstance(inner.get("data"), dict):
+            inner = inner["data"].get("data", inner)
+        if isinstance(inner, str):
+            inner = json.loads(inner)
+        if isinstance(inner, dict) and inner.get("status") == 0:
+            details = (inner.get("data") or {}).get("detail") or []
+            for rec in details:
+                if str(rec.get("goodsId")) == str(mother_goods_id):
+                    return rec
+    except Exception:
+        pass
     return None
 
 

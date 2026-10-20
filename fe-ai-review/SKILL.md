@@ -1,11 +1,11 @@
 ---
 name: fe-ai-review
-description: 通用前端代码审查 skill。面向 working tree、staged、commit、branch diff 执行结构化 CR，按通用规则、交易规则和技术栈经验规则输出审查结论；可选将发现项评论到对应 PR。当用户要求代码审查、CR、review xx、提交前检查、push 前检查、review 本地变更、Review PR、PR 审查时使用。
+description: 通用前端代码审查 skill。依赖 mt-code-standards-setup 同步有效编码规范。面向 working tree、staged、commit、branch diff 或具备匹配本地 checkout 的 PR 执行结构化 CR；可选将发现项评论到对应 PR。当用户要求代码审查、CR、review xx、提交前检查、push 前检查、review本地变更、Review PR、PR 审查时使用。
 
 metadata:
   skillhub.creator: "lidingcheng"
   skillhub.updater: "lidingcheng"
-  skillhub.version: "V18"
+  skillhub.version: "V19"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "39902"
   skillhub.high_sensitive: "false"
@@ -40,9 +40,9 @@ bash <skill_dir>/scripts/self-update.sh
 
 如果当前运行环境为 1024 Agent，且可用 `ai-quality-cr-agent` skill：
 
-- **审查流程**仍按本 skill 执行，包括范围识别、上下文补读、规则加载、审查和复查。
-- **输出、`ai-quality-cr-agent` 侧上报和 PR 评论**优先读取并遵循该 skill 的约定；有 PR 时由其流程完成行内评论和全局评论，避免与本 skill 的评论脚本重复发送。
-- **本 skill 的 CR 看板上报仍需保留**，按既有 Step 8 执行。
+- **审查流程**仍按本 Skill 执行，包括平台规则同步。
+- **输出、`ai-quality-cr-agent` 侧上报和 PR 评论**按该 Skill 的约定处理，并保留 `rule_bundle` / `rule_sources`。
+- **本 Skill 的 CR 看板上报**仍按 Step 8 执行。
 
 否则沿用本 skill 的默认输出、评论和上报策略。
 
@@ -50,7 +50,7 @@ bash <skill_dir>/scripts/self-update.sh
 
 - 理解用户指定范围的代码变更，协同用户完成不同类型的 Code Review
 - 默认在会话内输出报告；用户要求存档或落盘时写入 Markdown 文件
-- 加载规则等资产分三条并行线按需取用：**审查规则**（`base -> stack`，优先远程同步、失败回退本地兜底）、**附加能力模块**（依赖升级扫描 / MSI API 核对，固定本地路径）、**context**（技术栈背景知识，固定本地路径按需补读），详见「五、能力地图」
+- 使用 `mt-code-standards-setup` 同步的规则包审查变更；需要依赖升级、MSI 或框架背景时按能力地图读取对应资产
 
 ## 二、核心原则
 
@@ -78,20 +78,17 @@ bash <skill_dir>/scripts/self-update.sh
 
 ## 四、CR 模式入口
 
-本 skill 按“模式”组织流程。当前提供两种模式，两者共享同一套审查规则与报告模板，差异只在代码来源即上下文获取方式上：
-
-- **本地模式（默认）**。适用于在本地 git 仓库内 review 变更（`staged / working_tree / commit / branch`），可选把报告评论到对应 PR。完整流程见 [`references/modes/local.md`](references/modes/local.md)。
-- **PR-only 模式**。适用于本地无对应仓库的场景，基于 PR 远程 diff + （如可用）code-repo-search 远程上下文完成审查。完整流程见 [`references/modes/pr-only.md`](references/modes/pr-only.md)。
+- **本地模式（默认）**：审查当前 Git 仓库的 `staged / working_tree / commit / branch` 变更。需要本地变更时读取 [`references/modes/local.md`](references/modes/local.md)。
+- **PR-only 模式**：业务代码证据来自 PR 远程 diff；同时需要 PR 仓库的本地 checkout 同步规则。用户明确要求只审远程 PR 时读取 [`references/modes/pr-only.md`](references/modes/pr-only.md)。
 
 ### 路由判定
 
 用户已明确表达模式偏好（如"走本地模式""只用 PR 远程审"）时按其偏好执行；否则：
 
 - **本地有 PR 对应仓库** → 走本地模式；如有 PR 链接，Step 7 把发现项评论到对应 PR
-- **本地没有 PR 对应仓库** → 走 PR-only 模式，准备信息中会告知"已自动切换"
+- **用户明确要求 PR-only** → 检查是否提供匹配 checkout；缺失时请求补充后再开始。
 
-> "本地有 PR 对应仓库"：当前目录是 git 仓库，且 `git remote origin` 与 PR 仓库一致。
-> 仅提供 PR 链接而无本地变更时，也走 PR-only 模式（本地无可审查基准）。
+> 匹配 checkout：Git `origin` 包含 PR 的 `{org}/{repo}`。
 
 ### Stage 心智模型
 
@@ -99,7 +96,7 @@ CR 流程在心智上分为三个 Stage，**模式差异只发生在 Stage 1**�
 
 | Stage | 职责 | 模式差异 | 当前 Step |
 |---|---|---|---|
-| **Stage 1 上下文准备** | 输入采集、变更范围确定、技术栈识别、规则加载、产出准备信息 | **强相关**（决定模式选择的边界） | Step 0 / Step 1 / Step 2 |
+| **Stage 1 上下文准备** | 输入采集、变更范围确定、技术栈识别、平台规则同步与读取、产出准备信息 | **强相关**（决定模式选择与匹配 checkout 的边界） | Step 0 / Step 1 / Step 2 |
 | **Stage 2 执行审查** | 拿到「代码 + 规则」后做四层审查 | 无（不再关心代码来源） | Step 3 |
 | **Stage 3 输出与复检** | subagent 复查、组织发现项、产出报告、可选落地到 PR | 无 | Step 4 / Step 5 / Step 6 / Step 7 |
 
@@ -115,23 +112,13 @@ CR 流程在心智上分为三个 Stage，**模式差异只发生在 Stage 1**�
 - 报告结构 + 自检 + 输出风格：[`references/output.md`](references/output.md)
 - 完整报告模板：[`references/tpl-report.md`](references/tpl-report.md)
 
-### 审查规则
+### 平台编码规范
 
-审查规则条目必须先尝试从远程规则仓库同步，拉取失败时回退到本 skill 自带的兜底副本。详细步骤见 [`references/rules-loading.md`](references/rules-loading.md)，下列路径均相对于该文件确定的读取根目录。
-
-基础规则（每次必读）：
-- 通用规则：`base/general-rules.md`
-- 交易规则：`base/trade-rules.md`
-
-技术栈规则（按识别到的技术栈选择加载）：
-- MRN：`stack/mrn-rules.md`
-- Max：`stack/max-rules.md`
-- 小程序：`stack/miniprogram-rules.md`
-- DUO：`stack/duo-rules.md`
+`mt-code-standards-setup` 是必需依赖。进入任一模式的 Step 2 时，读取 [`references/rules-loading.md`](references/rules-loading.md)：同步规则包、读取受管文件，并记录规则来源。
 
 ### 附加能力模块（按需执行）
 
-本身是 subagent 执行流程说明，与 Step 3 编排逻辑强耦合，不参与规则仓库同步：
+在 Step 3 命中对应场景时读取：
 - 依赖升级扫描：[`references/rules/base/dep-upgrade-rules.md`](references/rules/base/dep-upgrade-rules.md)（diff 含 package.json 组件版本变化时，由 subagent 并行执行）
 - MSI API 契约核对：[`references/rules/base/msi-api-review-rules.md`](references/rules/base/msi-api-review-rules.md)（diff 实质修改 MSI Bridge 调用时，由 subagent 并行执行）
 

@@ -32,6 +32,7 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 
 DEFAULT_GROUP_ID = "69695119485"
@@ -86,6 +87,34 @@ def parse_assignees(md_path: str) -> list[Assignee]:
     return assignees
 
 
+def load_uid_map() -> dict[str, dict[str, str]]:
+    """
+    读取本地 MIS -> 数字 UID 映射缓存（与本脚本同目录的 daxiang_uid_map.json）。
+
+    大象 UID 长期稳定，缓存命中时直接使用，规避 catdesk 搜索接口瞬时降级导致
+    预检失败的问题。文件缺失或格式异常时返回空映射，退化为纯接口查询。
+    """
+    map_path = Path(__file__).with_name("daxiang_uid_map.json")
+    try:
+        payload = json.loads(map_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+    members = payload.get("members")
+    if not isinstance(members, dict):
+        return {}
+
+    uid_map = {}
+    for mis, info in members.items():
+        if not isinstance(info, dict):
+            continue
+        uid = str(info.get("uid", ""))
+        name = str(info.get("name", ""))
+        if mis and uid.isdigit() and name:
+            uid_map[str(mis)] = {"uid": uid, "name": name}
+    return uid_map
+
+
 def search_uid_once(mis: str) -> tuple[str | None, str | None]:
     """
     执行一次 catdesk 用户搜索。
@@ -126,13 +155,23 @@ def search_uid_once(mis: str) -> tuple[str | None, str | None]:
     return None, f"未找到 MIS={mis} 的数字 UID"
 
 
-def resolve_uid_with_retry(assignee: Assignee, retries: int) -> ResolvedMention:
+def resolve_uid_with_retry(assignee: Assignee, retries: int, uid_map: dict[str, dict[str, str]]) -> ResolvedMention:
     """
-    为单个研发同学解析数字 UID，并在瞬时搜索失败时重试。
+    为单个研发同学解析数字 UID：优先命中本地缓存，未命中再走接口查询与重试。
 
     未解析成功会抛出 RuntimeError，调用方必须中止整条消息发送。这样不会再出现
     “第一条消息中的 @ 只是纯文本，第二条补发才是真实 @mention”的问题。
     """
+    cached = uid_map.get(assignee.mis)
+    if cached:
+        if cached["name"] != assignee.name:
+            print(
+                f"[WARN] {assignee.mis} 本地缓存姓名（{cached['name']}）与需求列表（{assignee.name}）不一致，"
+                "沿用缓存 UID",
+                file=sys.stderr,
+            )
+        return ResolvedMention(name=assignee.name, mis=assignee.mis, uid=cached["uid"])
+
     errors = []
     for attempt in range(1, retries + 1):
         uid, error = search_uid_once(assignee.mis)
@@ -158,11 +197,12 @@ def preflight_mentions(assignees: list[Assignee], retries: int) -> list[Resolved
     if not assignees:
         raise RuntimeError("需求列表中没有可 @ 的研发同学")
 
+    uid_map = load_uid_map()
     resolved = []
     failures = []
     for assignee in assignees:
         try:
-            resolved.append(resolve_uid_with_retry(assignee, retries))
+            resolved.append(resolve_uid_with_retry(assignee, retries, uid_map))
         except RuntimeError as error:
             failures.append(str(error))
 

@@ -455,10 +455,6 @@ def main() -> None:
         "--skip-refresh-spu-cache", action="store_true",
         help="跳过上线后的 SPU 缓存刷新；默认审核上线后自动刷新",
     )
-    parser.add_argument(
-        "--cache-env", choices=["test", "prod"], default="test",
-        help="goodsoperator-cli 缓存刷新环境（默认 test，与本 skill 创建商品所用环境一致）",
-    )
     args = parser.parse_args()
 
     # ── 参数校验 ────────────────────────────────────────────────────────
@@ -554,7 +550,7 @@ def main() -> None:
         print("\n  ⚠️ 自动审核/上线未完全成功，跳过 SPU 缓存刷新", file=sys.stderr)
         print("  请手动审核上线后执行：", file=sys.stderr)
         print(
-            f"  hthotel-ops-product --env {args.cache_env} goodsquery query-spu "
+            f"  hthotel-ops-product --env test goodsquery query-spu "
             f"--spu-id {spu_id} --sync",
             file=sys.stderr,
         )
@@ -568,7 +564,6 @@ def main() -> None:
     refresh_spu_cache(
         spu_id=spu_id,
         poi_ids=None,  # 商促不绑定门店，仅刷新 SPU 缓存
-        env=args.cache_env,
     )
 
 

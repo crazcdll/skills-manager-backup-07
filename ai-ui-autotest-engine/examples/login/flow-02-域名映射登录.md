@@ -8,7 +8,7 @@
 |----|----|
 | 覆盖范围 | alpha 测试环境 → QAHome 验证码登录 → 域名映射配置 → 提单页正常加载 |
 | AppMock | `16305525`（自动化测试：preview 接口 Mock，测试环境下提单页必需） |
-| 域名映射 | `[{"url": "apihotel.meituan.com", "title": "酒店API", "betaUrl": "https://api.hotel.test.meituan.com"}]` |
+| 域名映射 | `[{"url": "apihotel.meituan.com", "betaUrl": "https://api.hotel.test.meituan.com"}]` |
 
 ## 落地入口
 

@@ -5,13 +5,17 @@ description: 交易前端变更上线观测助手。用户希望准备或开始�
 metadata:
   skillhub.creator: "duyifan10"
   skillhub.updater: "lidingcheng"
-  skillhub.version: "V29"
+  skillhub.version: "V30"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "3394"
   skillhub.high_sensitive: "false"
 ---
 
-# 交易前端变更上线观测
+
+
+# 交易前端变更上线观测(deprecated)
+
+## 该 Skill 已停止维护。得益于 MultiAgent，欢迎尝试 <u>[trade-stability-change-watch-v2](https://friday.sankuai.com/skills/skill-detail?activeTab=overview&activeTestTab=cases&from=/skills-market?deepSearch=false%26deepseek=false%26keyword=watch-v2%26mainView=skill%26orderByDownloadCount=all%26orderByTotalCallCount=all%26orderByTotalCallerCount=all%26page=1%26pageSize=30%26securityScanStatus=all%26spaceKeyword=%26spaceSortOrder=default%26spaceTypeFilter=org,project%26spaceVerifiedFilter=all%26supportEnv=all%26tag=%26verifiedType=all%26viewMode=card%26visibility=all&id=129323)</u> 更稳定快速的变更巡检能力。
 
 为一次上线变更维护完整 Observation 生命周期，在 1024 Agent 中通过短 `sleep` 循环持续执行 Raptor 巡检并向群内独立播报。当前支持 MRN 与 H5_DUO。
 

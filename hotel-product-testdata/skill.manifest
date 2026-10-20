@@ -1,8 +1,8 @@
 skill-manifest-version: 1
-skill-id: 34b0f52a2639e6a6ddd7fa1ac82976a454ee4f788b8d94ed3422f1a17d69cd63
+skill-id: fa2fb9b5f079e166791ecd8e475fdedbd91bcea78f0c7b5a424974d113f7b945
 
 files:
-  d337946a35c9c965d2371f6101b9911de40927b8c0249a6c8edcb246bfb29dfb  SKILL.md
+  c870cf5b8320bd8f1d7fc01985a05cd1cde629cbf467b72a61cce7a60f4a14ea  SKILL.md
   fe63cd4392c46613d88217ed2e006f69e6116f5a9bebc9436e08267efb3ed22d  capability-map.md
   25238a76aa0bf8c7e6f527e8fe60051b51bff5d45feeeb58eca9802f3ab6ae68  hotel_testdata_cli/MANIFEST.in
   5d34a48f4dd14295ac3ac286f7814876cc51e7016d094a3e4e1bbc414b33c85a  hotel_testdata_cli/README.md
@@ -26,7 +26,7 @@ files:
   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  hotel_testdata_cli/factory/audit/super-deal/__init__.py
   557c96cad7826fb385e1936d52033237c1e9ce2f354bf2b6807fd5bfa427213c  hotel_testdata_cli/factory/audit/super-deal/audit.py
   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  hotel_testdata_cli/factory/freeRoom/__init__.py
-  c261a90746c8d0ac4f99156702a75d625259a30316335b6602f8545b5bd27446  hotel_testdata_cli/factory/freeRoom/create-freeRoom.py
+  783b0368ec315eced65e0facca888936246e144c276236b3fecd3c32e09293a8  hotel_testdata_cli/factory/freeRoom/create-freeRoom.py
   f3aa88efc0b76c894eb1d6e3ecd1cccf4f1e2c7ea91f53b2c4493f500622b709  hotel_testdata_cli/factory/freeRoom/schema.json
   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  hotel_testdata_cli/factory/fullday/__init__.py
   e0f9e0bc35c4fc6815de7b3bad5da6ca89063e4dd1b29c024876cd90e30dba96  hotel_testdata_cli/factory/fullday/create-fullday.py
@@ -83,13 +83,13 @@ files:
   0d06bef2d68cab25d642cadc41290910cc42c2bd7ee80d0f52850eae6d655e13  hotel_testdata_cli/factory/package/schema.json
   36f181c97f26e81712aa91b1d0ae77da93d623c35f3c9438c546493becf36eb6  hotel_testdata_cli/factory/resource/upload-to-s3.py
   1aba0fb6411a1a1641ddf02f05ef3362696eabddbcd828f91483ab3ea879d6a2  hotel_testdata_cli/factory/super-deal-promo/__init__.py
-  a911c61366902fe73c2b252b7f3b84a34a2b0de053e3a9a3f3d5e2c19f29007c  hotel_testdata_cli/factory/super-deal-promo/create-super-deal-promo.py
-  b3bdab531ad238d9101c5d91a106b1b9045c1f98794cbb63fbbbc23c3b367c00  hotel_testdata_cli/factory/super-deal-promo/schema.json
+  86aee185eca2b2247385618fdde4b09eca207afc440df66a68e43b8cb5ae3068  hotel_testdata_cli/factory/super-deal-promo/create-super-deal-promo.py
+  2b9e2b6763d6e514e7dfcbab461b530c541e2a90782675402522837495f8659c  hotel_testdata_cli/factory/super-deal-promo/schema.json
   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  hotel_testdata_cli/factory/super-deal-unified/__init__.py
-  d12ca5bfec9adf2d9d20f1a4860a4a8b4018374a815c5cb72ead838b11cdbb8c  hotel_testdata_cli/factory/super-deal-unified/create-super-deal-unified.py
-  fe988b5a453ab918268319e1873b9bd9fd82154fefc07833cde12f8828850d34  hotel_testdata_cli/factory/super-deal-unified/schema.json
+  4b3ef683ae50a3b8a3818406c42b5b4fbdccee0dc867794c223c8ea76c4ef7e5  hotel_testdata_cli/factory/super-deal-unified/create-super-deal-unified.py
+  4a48c2e2b32fb8a97099650c44d2d6cd7aa04b3febbcb2ef1b00aecd8711ad25  hotel_testdata_cli/factory/super-deal-unified/schema.json
   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  hotel_testdata_cli/factory/super-deal/__init__.py
-  28c7200ec065039f106167d1e326e921fc651d071c56eab722490cd0e34c4639  hotel_testdata_cli/factory/super-deal/create-super-deal.py
+  217c27d2e33c93cf539af51ab3df5c9bf46108fb7c404524bfe94a02514b2c44  hotel_testdata_cli/factory/super-deal/create-super-deal.py
   b682ad0b2722c7e5b034500adcc8e3f500ad17b2ff41f2259933f17bb03aea66  hotel_testdata_cli/factory/super-deal/query-spu.py
   da23e91ac03146f71ef811cbc55ac8b31aaf5f8543e678e910baa0f4bb67ff22  hotel_testdata_cli/factory/super-deal/schema.json
   1d126a12171d51735fadef9959d0951327c04615f45b9464b0c8774f78a19d7e  hotel_testdata_cli/goods/__init__.py
@@ -97,7 +97,7 @@ files:
   d98cd27a85728bfd8d8648888d47b9b255e9e3ab4318a111e4f7786531e25adc  hotel_testdata_cli/infra.py
   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  hotel_testdata_cli/interface/__init__.py
   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  hotel_testdata_cli/interface/freeRoom/__init__.py
-  1da56d23af2420a0c4b0fbd1b087d456d316ed05c844f12a2de9104aa598b5d8  hotel_testdata_cli/interface/freeRoom/interface.py
+  0938f75a11e7708bd79f12e35ce277ca7c1b6c12753b812f3a0e3961bfefc6b0  hotel_testdata_cli/interface/freeRoom/interface.py
   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  hotel_testdata_cli/interface/fullday/__init__.py
   c7f885448fc400724c4647956398ff2859d0e8adf383249c7fea3e9506afac17  hotel_testdata_cli/interface/fullday/interface.py
   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  hotel_testdata_cli/interface/hub-strategy/__init__.py
@@ -133,7 +133,7 @@ files:
   cd7985f9e4ccfc4cb2a49513088ce1d9c26e461bb225270b891c632b11f75b4c  hotel_testdata_cli/scripts/config.py
   1976b58ebd6e4240a316662c455109bda7ee84c30662cc51c71c1032811b3f97  hotel_testdata_cli/scripts/du_runner.py
   b9fa2ff17a81fa23c6e204113bbcb04b6f9d25a3fc87742451a82c456f62d6a3  hotel_testdata_cli/scripts/http_gateway.py
-  53696cb957bded67e7542481d626abcdbef26655a381b9ff4151af549f333ec2  hotel_testdata_cli/scripts/refresh_spu_cache.py
+  ba9c981f980160960e5c21fcb67c9bcaebdd68c8b983c9a8bcd18e6a0d7035e5  hotel_testdata_cli/scripts/refresh_spu_cache.py
   284413a2374b2b2076aeeaef0d5aba59855b4e7b2cb5c2b200f50ee94402309a  hotel_testdata_cli/scripts/registry.py
   958541bf20e1b95f26980965904626e64e8b1124ddc9c8bac7dbaf157a2df852  hotel_testdata_cli/scripts/runner.py
   2db3fc50b9ebdf9c37af36596b08381cf17fca5f42bcf654112fcc05968c543d  hotel_testdata_cli/scripts/utils.py
@@ -144,12 +144,12 @@ files:
   69238058f44a617ae40ad5afc3c2e3e978aff9c6750b9dcbfb50709e976e2d41  references/pitfalls/rpc.md
   524a9b7d88edd3f9e4158b43ede5c69b41b231490c2f77cb39cd2c1c5002ff22  references/shared/enums.md
   a605c87b03b5edd2ab7b816c3955c277442b03141b0f0e65efea02e8dc6c0472  references/workflows/w1-create-fullday.md
-  0577298a7413d31af3c2735fbb181b87776b83595bc466034a776c368e6f5412  references/workflows/w10-create-freeRoom.md
+  1b5a8093c849f0a4cf4a19225cf4e463e9cfce59d2fadcde5f96d112b86504f2  references/workflows/w10-create-freeRoom.md
   97e81102bde6be49ff40199bf8fcdf79ffbc16964fee4dee2eabf748836c101a  references/workflows/w10-goods-state.md
   187d7c18ad917992cf3ec7705b5ebca16bd4f210a76a56360cfa7a57fb6c3854  references/workflows/w2-create-hourly.md
   2f42700dda5c1ac36678b753bd01b7fbae80a3c08c12588d3da65a839c84556a  references/workflows/w3-create-non-room.md
   53093aae23c5e196e6df19afd9cc691cd26a62ba04757d009e5fb7351f2efa21  references/workflows/w4-create-package.md
-  e8b58a83e9bfe202fb006251656a1d53714b91682394f3b1aa88987adf4f89e5  references/workflows/w5-create-super-deal.md
+  90308017953cd1aac4ee0569073f1b579b5bb2a51f290dcfcf5e88a8028fe487  references/workflows/w5-create-super-deal.md
   12704d083efcd857855a73cce9bcdc454ad26c30ddc1d96124efc76f402eea83  references/workflows/w6-marketing-ops.md
   e84c2c0d0b6a0325be8c1a5d29767f1bcf8c7c334694c82aa09b6991d7899e4d  references/workflows/w7-inventory-ops.md
   f7a040a887f4c9aee214b72e3f8e8ae59ed2dca664cddd4437d9c89ec0b5b295  references/workflows/w8-infra-bootstrap.md

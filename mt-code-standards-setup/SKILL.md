@@ -6,7 +6,7 @@ description: "按用户指定的仓库名称或当前 Git 仓库，从业务研�
 metadata:
   skillhub.creator: "zhangce07"
   skillhub.updater: "zhangce07"
-  skillhub.version: "V16"
+  skillhub.version: "V17"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "141006"
   skillhub.high_sensitive: "false"

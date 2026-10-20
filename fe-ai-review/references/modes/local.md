@@ -22,9 +22,7 @@ Step 0：判定范围与可靠性
 Step 1：输出准备信息（上下文感知）
   └── 参照 tpl-report.md「准备」章节输出，存在风险时要求用户确认是否继续
 
-Step 2：识别技术栈并加载对应规则
-  ├── 必读：general-rules + trade-rules
-  └── 按技术栈追加加载 stack 规则（MRN / Max / 小程序 / DUO）
+Step 2：同步并读取平台规则
 
 Step 3：执行审查
   ├── [并行] package.json 有组件升级时，subagent 执行依赖升级风险扫描（dep-upgrade-rules.md）
@@ -66,6 +64,8 @@ Step 8：上报到 CR 看板（优先 后台 subagent 静默执行）
 - `working_tree`：`git diff --name-only` + `git diff`
 - `commit:<sha>`：`git show --stat --name-only <sha>` + `git show <sha>`
 - `branch:<base>...HEAD`：`git diff --name-only <base>...HEAD` + `git diff <base>...HEAD`
+
+确定范围时排除 `.mdp/rules/**`。Git 支持 pathspec 时，使用 `-- . ':(exclude).mdp/rules/**'`；否则从文件清单中剔除该前缀。规则包不属于业务变更。用户要求核验规则同步时，检查 receipt 和 manifest，不审查规则文本。
 
 ### Step 0.b：异常处理
 
@@ -110,22 +110,11 @@ PR 仓库：{org}/{repo}
 - `需补充材料` → 先补材料后继续
 - `不建议继续` → 向用户说明风险，由用户决定是否继续
 
-## Step 2: 识别技术栈并加载规则
+## Step 2: 读取平台规则
 
-**下列规则覆盖的是高频风险，不是审查边界。结合上下文和工程常识独立判断，看到明显问题就指出，不需要被规则条文局限。**
+读取 [`references/rules-loading.md`](../rules-loading.md)。同步成功时读取 L1/L2/L3；同步失败时读取 L3 和 fallback 规则。准备信息记录规则快照、Release 和 fallback 状态。
 
-先执行规则同步动作，确定本次规则读取根目录，详见 `references/rules-loading.md`。不得未尝试拉取规则直接使用本地兜底规则。
-
-规则加载顺序（路径相对于已确定的读取根目录）：
-
-1. **必读**：`base/general-rules.md` + `base/trade-rules.md`
-2. **按技术栈选择**：MRN / Max / 小程序 / DUO stack 规则（通过项目使用的依赖情况识别）
-   - MRN → `stack/mrn-rules.md`
-   - Max → `stack/max-rules.md`
-   - 小程序 → `stack/miniprogram-rules.md`
-   - DUO → `stack/duo-rules.md`
-3. **按需补读**：框架背景 context 规则（`references/context/mrn-context.md` / `references/context/max-context.md`，固定读本 skill 自带路径，不受规则同步动作影响）
-4. **项目层规则**：用户显式提供，或项目中有可用知识库自动阅读
+需要理解 MRN / Max 行为时，读取对应 context；这些内容不作为规则来源。
 
 ## Step 3: 执行审查
 
@@ -195,7 +184,7 @@ PR 仓库：{org}/{repo}
 - 包含：问题类型、原因、位置、修复建议
 - 可自动修复的风格问题合并为一条，不逐行展开
 - 需要展开说明时，在详项区补充置信度、原因、回归提示
-- 问题命中规则库条目（`general-rules.md` / `trade-rules.md` / `stack/*.md`）时，标注对应规则编号（如 `R09`、`T02`、`MRN05`），0~n 个均可；纯上下文/业务逻辑判断没有对应规则时留空，不得编造
+- 命中规则时按 `rules-loading.md` 记录 `rule_sources`；纯上下文发现项传空数组
 
 ## Step 6: 产出结论报告
 
@@ -230,13 +219,7 @@ PR 仓库：{org}/{repo}
 
 ## Step 8: 上报到 CR 看板（可选后置动作）
 
-报告产出后，按 `references/report-submit.md` 的要求组装 payload 并通过脚本提交。
-
-- **触发**（默认启用）：Step 6 完成后自动执行
-- **跳过**：用户显式说「不要上报」「不上报看板」
-- **执行**：按 `references/report-submit.md` 中「执行」一节的要求，通过临时文件传入 payload 并运行脚本
-- **失败**：在会话末尾静默附加一行 `⚠️ CR 看板上报失败：<原因>`，不重试，不阻塞
-- **字段解析、枚举映射、payload 组装、`operator` 推断链**：详见 [`references/report-submit.md`](../report-submit.md)
+规则同步完成后，按 [`references/report-submit.md`](../report-submit.md) 组装 CR 看板 payload 并运行上报脚本。用户说「不要上报」时跳过；上报失败时在会话末尾提示。
 
 ## 修复检查（增量复查）
 

@@ -1,9 +1,9 @@
 skill-manifest-version: 1
-skill-id: 8230a2c32218a5369284a14e5f586be9f4a32fb9ed7001fb1c4b44e1597841b8
+skill-id: e66f330ea2d2a1bafaf2d774e2b4d35db147c4c96b841c117a8bcd0dd7a3762f
 
 files:
   4c05adc9839f1abc15fd11f742c61449e53efed23d7b2d62fdbdfb32afe9eab6  .skillignore
-  1a8d0aa6a0378345712710e9414c56b42df29b8ef052b02be0202a9c4886de5e  SKILL.md
+  fce3711c6222a72221a8fc09c7aba5dffed449715baaa73504bff68c885ec384  SKILL.md
   98f32e20f255953254a99f0a897e40ea0c29427b17f5e225d20b1e56dbb055a4  references/raptor-observation.md
   33dcd7e0ce34e6a0bf9899f53923d82166ac1c341df1cfe5a95e52c7ce1b4847  references/runtime-sleep-loop.md
   f6567307627636467eae0b52394e329f84c400f7615b5f88c78bea3e80774d6b  references/state-schema.md

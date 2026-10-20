@@ -1,6 +1,6 @@
 {
   "name": "@nibfe/mt-code-standards",
-  "version": "2.0.0",
+  "version": "2.0.1-beta.0",
   "description": "业务研发平台编码规范独立拉取 CLI",
   "type": "module",
   "bin": {
@@ -20,6 +20,7 @@
     "lint": "npm run check",
     "build": "npm run check",
     "check": "node scripts/check-package.mjs",
+    "skill:publish:setup": "node scripts/publish-setup-skill.mjs",
     "test": "node --test scripts/*.test.mjs bin/*.test.mjs"
   },
   "engines": {

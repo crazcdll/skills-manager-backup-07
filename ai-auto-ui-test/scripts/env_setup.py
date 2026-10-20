@@ -17,16 +17,20 @@
 本脚本本身只依赖 Python 标准库，零外部依赖。
 """
 
-import json
 import os
 import re
 import shutil
 import subprocess
 import sys
-import time
 
 SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 SKILL_DIR = os.path.dirname(SCRIPTS_DIR)
+# 同目录的 selfupdate.py（Skill 之间无法互相 import，三端各存一份，见该文件头说明）
+if SCRIPTS_DIR not in sys.path:
+    sys.path.insert(0, SCRIPTS_DIR)
+
+from selfupdate import sync_self  # noqa: E402
+
 MAIN_SKILL_NAME = "ai-auto-ui-test"
 REQUIRED_NODE_MAJOR = 20
 NPM_REGISTRY = "http://r.npm.sankuai.com"
@@ -97,8 +101,8 @@ def _find_workspace_root():
             cwd = parent
     return SKILL_DIR
 
-def find_skill_dir(name):
-    """在项目范围及全局范围内查找已安装的 Skill 目录。"""
+def find_skill_dirs(name):
+    """查找**所有**已安装的 Skill 目录（realpath 去重；命中判据：存在 SKILL.md）。"""
     root = _find_workspace_root()
     home = os.path.expanduser("~")
     search_dirs = [
@@ -116,15 +120,20 @@ def find_skill_dir(name):
         os.path.join(home, '.claude', 'skills', 'skills-market', name),
         os.path.join(home, '.cursor', 'skills', name),
     ]
-    seen = set()
+    seen, out = set(), []
     for d in search_dirs:
-        normalized = os.path.normpath(d)
-        if normalized in seen:
+        key = os.path.realpath(os.path.normpath(d))
+        if key in seen:
             continue
-        seen.add(normalized)
+        seen.add(key)
         if os.path.isfile(os.path.join(d, 'SKILL.md')):
-            return d
-    return None
+            out.append(os.path.normpath(d))
+    return out
+
+def find_skill_dir(name):
+    """第一个命中的安装目录（保留旧语义）。"""
+    dirs = find_skill_dirs(name)
+    return dirs[0] if dirs else None
 
 def get_skill_version(skill_dir):
     """从 SKILL.md 的 Frontmatter（--- 之间的 YAML 块）中读取 skillhub.version。"""
@@ -232,170 +241,67 @@ def _mtskills(args_str, timeout=120, capture=False):
 
 # ─── 步骤 1：自身更新 ─────────────────────────────────────────────────────────
 
-def _compare_versions(v1, v2):
-    """比较两个版本号，v1 < v2 返回 -1，相等返回 0，v1 > v2 返回 1。"""
-    if not v1 or not v2:
-        return 0
-    parts1 = re.sub(r'^v', '', v1).split('.')
-    parts2 = re.sub(r'^v', '', v2).split('.')
-    for i in range(max(len(parts1), len(parts2))):
-        p1 = int(parts1[i]) if i < len(parts1) and parts1[i].isdigit() else 0
-        p2 = int(parts2[i]) if i < len(parts2) and parts2[i].isdigit() else 0
-        if p1 < p2:
-            return -1
-        if p1 > p2:
-            return 1
-    return 0
-
 def _self_update():
-    """检查当前 Skill 是否有远端更新，有则自动更新。"""
+    """自更新：远端版本更高 → 自动更新（重新安装）。
+
+    统一逻辑见 selfupdate.py：本地 skillhub.version ↔ 远端 currentVisibleVersion。
+    """
     _step_header(1, 3, "当前 Skill 自身更新")
 
     if not _ensure_mtskills():
         _warn("mtskills 不可用，跳过自身更新")
         return
 
-    # 获取本地版本
-    local_version = get_skill_version(SKILL_DIR)
+    def _runner(cmd, timeout=120):
+        # 复用 Node 版本切换：_run_with_node 返回 (returncode, out, err)
+        rc, out, err = _run_with_node(cmd, timeout=timeout, capture=True)
+        return rc == 0, out, err
 
-    # 查询远端信息
-    rc, out, err = _mtskills(f"search {MAIN_SKILL_NAME}", timeout=30, capture=True)
-    if rc != 0:
-        _warn(f"无法查询远端版本信息（exit={rc}），跳过自身更新")
-        return
-
-    # 解析远端版本号
-    remote_version = None
-    for line in out.split("\n"):
-        if line.startswith("version:"):
-            remote_version = line.split(":", 1)[1].strip()
-            break
-
-    if remote_version and local_version != "未知":
-        if _compare_versions(local_version, remote_version) < 0:
-            _info(f"发现新版本: {local_version} → {remote_version}，正在更新...")
-            rc, _, _ = _mtskills(f"pull {MAIN_SKILL_NAME}", timeout=120)
-            if rc == 0:
-                new_ver = get_skill_version(SKILL_DIR)
-                _ok(f"更新完成: {local_version} → {new_ver}")
-                return
-            else:
-                _warn("自动更新失败，请手动执行: mtskills pull ai-auto-ui-test")
-                return
-        else:
-            _ok(f"已是最新版本 ({local_version})")
-            return
-
-    # 无 version 字段时，回退到时间戳比对
-    remote_ts = None
-    for line in out.split("\n"):
-        if line.startswith("updated:"):
-            try:
-                remote_ts = int(line.split(":", 1)[1].strip())
-            except ValueError:
-                pass
-            break
-
-    if remote_ts is None:
-        _ok(f"当前版本 {local_version}（无法比对远端，跳过更新）")
-        return
-
-    # 用本地 SKILL.md 修改时间做 fallback 比对
-    try:
-        local_mtime = int(os.path.getmtime(os.path.join(SKILL_DIR, 'SKILL.md')) * 1000)
-        if remote_ts > local_mtime:
-            _info("检测到远端有更新，正在更新...")
-            rc, _, _ = _mtskills(f"pull {MAIN_SKILL_NAME}", timeout=120)
-            if rc == 0:
-                new_ver = get_skill_version(SKILL_DIR)
-                _ok(f"更新完成，当前版本: {new_ver}")
-            else:
-                _warn("自动更新失败，请手动执行: mtskills pull ai-auto-ui-test")
-        else:
-            _ok(f"已是最新版本 ({local_version})")
-    except OSError:
-        _ok(f"当前版本 {local_version}")
+    res = sync_self(SKILL_DIR, MAIN_SKILL_NAME, runner=_runner, log=_info)
+    action = res["action"]
+    if action == "updated":
+        _ok(f"更新完成，当前版本 {get_skill_version(SKILL_DIR)}")
+    elif action == "up-to-date":
+        _ok(f"已是最新版本（{get_skill_version(SKILL_DIR)}）")
+    else:
+        _warn(f"{res['detail']}")
 
 # ─── 步骤 2：安装/更新依赖 Skill ──────────────────────────────────────────────
 
 def _install_or_update_skill(name):
-    """安装或更新单个 Skill。已存在时检查版本，有更新则自动升级。"""
-    skill_dir = find_skill_dir(name)
+    """安装或更新单个 Skill（覆盖**所有**安装位置，逐处走 selfupdate.sync_self）。"""
+    dirs = find_skill_dirs(name)
 
-    if not skill_dir:
-        # 不存在 → 安装
+    # 不存在 → 安装
+    if not dirs:
         _info(f"正在安装 {name}...")
         rc, out, err = _mtskills(f"i -y {name}", timeout=120)
         if rc != 0:
             _fail(f"{name} 安装失败（exit={rc}）")
             return False
-        skill_dir = find_skill_dir(name)
-        if skill_dir:
-            _ok(f"{name} 安装完成，版本 v{get_skill_version(skill_dir)}")
+        dirs = find_skill_dirs(name)
+        if dirs:
+            _ok(f"{name} 安装完成，版本 v{get_skill_version(dirs[0])}")
             return True
         _warn(f"{name} 安装命令已执行，但未找到安装目录")
         return False
 
-    # 已存在 → 检查版本
-    local_version = get_skill_version(skill_dir)
+    # 已安装 → 逐处更新（每处按自身来源记录定位，互不误伤）
+    def _runner(cmd, timeout=120):
+        rc, out, err = _run_with_node(cmd, timeout=timeout, capture=True)
+        return rc == 0, out, err
 
-    # 查询远端版本
-    rc, out, err = _mtskills(f"search {name}", timeout=30, capture=True)
-    if rc != 0:
-        _ok(f"{name} 已存在（v{local_version}），无法查询远端版本，跳过更新")
-        return True
-
-    # 从远端搜索结果解析 version 字段
-    remote_version = None
-    for line in out.split("\n"):
-        if line.startswith("version:"):
-            remote_version = line.split(":", 1)[1].strip()
-            break
-
-    if remote_version and local_version != "未知":
-        if _compare_versions(local_version, remote_version) < 0:
-            _info(f"{name} 发现新版本: v{local_version} → v{remote_version}，正在更新...")
-            rc, _, _ = _mtskills(f"pull {name}", timeout=120)
-            if rc == 0:
-                new_ver = get_skill_version(skill_dir)
-                _ok(f"{name} 更新完成: v{local_version} → v{new_ver}")
-                return True
-            else:
-                _warn(f"{name} 自动更新失败，请手动执行: mtskills pull {name}")
-                return True
+    for d in dirs:
+        res = sync_self(d, name, runner=_runner, log=_info)
+        action = res["action"]
+        if action == "up-to-date":
+            _ok(f"{name} 已是最新版本（v{get_skill_version(d)}）")
+        elif action == "updated":
+            _ok(f"{name} {res['detail']}")
         else:
-            _ok(f"{name} 已是最新版本（v{local_version}）")
-            return True
-
-    # 无 version 字段时，回退到时间戳比对
-    remote_ts = None
-    for line in out.split("\n"):
-        if line.startswith("updated:"):
-            try:
-                remote_ts = int(line.split(":", 1)[1].strip())
-            except ValueError:
-                pass
-            break
-
-    if remote_ts is None:
-        _ok(f"{name} 已存在（v{local_version}），无法比对远端，跳过更新")
-        return True
-
-    try:
-        local_mtime = int(os.path.getmtime(os.path.join(skill_dir, 'SKILL.md')) * 1000)
-        if remote_ts > local_mtime:
-            _info(f"{name} 检测到远端有更新，正在更新...")
-            rc, _, _ = _mtskills(f"pull {name}", timeout=120)
-            if rc == 0:
-                new_ver = get_skill_version(skill_dir)
-                _ok(f"{name} 更新完成，当前版本: v{new_ver}")
-            else:
-                _warn(f"{name} 自动更新失败，请手动执行: mtskills pull {name}")
-        else:
-            _ok(f"{name} 已是最新版本（v{local_version}）")
-    except OSError:
-        _ok(f"{name} 已存在（v{local_version}）")
-
+            _warn(f"{name} {res['detail']}")
+        if res.get("hint"):
+            _info(res["hint"])
     return True
 
 def _install_deps():
@@ -473,6 +379,34 @@ def _report():
 
     return all_ok
 
+# ─── 步骤 4：统一控制台 ───────────────────────────────────────────────────────
+
+def _start_console():
+    """启动/复用统一控制台服务，并打印访问链接（best-effort，不阻塞主流程）。
+
+    控制台跨会话共享、常驻：已启动则直接复用（其他会话据此跳过，绝不重启）。
+    """
+    engine = find_skill_dir("ai-ui-autotest-engine")
+    if not engine:
+        return
+    print()
+    print("=" * 55)
+    print("  🖥  实时控制台（多设备画面 + 动态日志）")
+    rc, out, err = run_cmd("python3 scripts/cli.py console ensure",
+                           cwd=engine, timeout=40, capture=True)
+    link = ""
+    for line in (out or "").splitlines():
+        m = re.search(r"https?://\S+", line)
+        if m:
+            link = m.group(0)
+            break
+    if link:
+        print(f"  {link}")
+    else:
+        print("  启动失败，可稍后手动执行: python3 scripts/cli.py console ensure")
+    print("=" * 55)
+
+
 # ─── 主流程 ───────────────────────────────────────────────────────────────────
 
 def main():
@@ -487,6 +421,7 @@ def main():
     _self_update()
     _install_deps()
     ok = _report()
+    _start_console()
 
     print()
     sys.exit(0 if ok else 1)

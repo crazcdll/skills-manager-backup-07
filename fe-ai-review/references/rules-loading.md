@@ -1,45 +1,52 @@
-# 规则加载策略
+# 规则加载
 
-规则分两类，加载方式不同：
+在本地模式或 PR-only 模式的 Step 2 读取本文件。
 
-- **审查规则**（`general-rules.md` / `trade-rules.md` / `stack/*.md`）：纯审查知识，不依赖执行流程，走本节的远程同步机制
-- **附加能力模块**（`dep-upgrade-rules.md` / `msi-api-review-rules.md`）：本身是一套 subagent 执行流程说明，与 Step 3 编排逻辑强耦合，固定读本 skill 自带的 `references/rules/base/`，**不参与**远程同步
+## 同步与读取
 
-Step 2「识别技术栈并加载规则」加载审查规则前，先执行完成本节的同步动作，确定这次用的是远程最新规则还是本地兜底规则。
-
-## 同步动作（仅审查规则）
-
-删除 `<skill_dir>/.rules-cache/`（如存在），重新执行：
+1. 确认审查对象对应的本地 Git 仓库；PR-only 使用已校验的本地 checkout。
+2. 读取 `mt-code-standards-setup`，再运行它的官方 Runner：
 
 ```bash
-git clone --depth 1 -b feature/rules-init ssh://git@git.sankuai.com/mcp/ai-cr.git <skill_dir>/.rules-cache
+node <skill_dir>/scripts/sync-effective-rules-with-sso.mjs \
+  --repo-root "<repo_root>" \
+  --execution-agent "<当前执行环境>"
 ```
 
-> ⚠️ 临时措施：规则内容当前维护在 `ai-cr` 仓库的 `feature/rules-init` 分支（尚未合并到默认分支 `master`）。
+3. 退出码为 `0`，且 receipt 的 `schema_version` 为 `mt-effective-rule-bundle-install/v1`、状态为 `installed` 或 `not_modified` 时，读取 L1/L2。
+4. 无论 Runner 结果如何，读取 `.mdp/rules/project/**/*.md` 中存在的 L3 项目规则。
+5. Runner 失败时，读取 [`rules/fallback-rules.md`](rules/fallback-rules.md)，继续使用 L3 和 fallback 规则审查；在 `rule_bundle.fallback.active` 标记 `true`。
 
-- **成功** → 本次审查规则读取根目录是 `<skill_dir>/.rules-cache/rules/frontend/`
-- **失败**（网络、权限、仓库不可达等任何原因）→ 本次审查规则读取根目录回退为本 skill 自带的 `references/rules/`，并在会话中提示一句：`ℹ️ 规则仓库拉取失败，本次使用本地兜底规则（可能非最新版本）`
+Runner 负责认证、下载、校验和原子写入。不要自行请求规则平台。
 
-两个来源的目录结构一一对应，Step 2 后续列出的审查规则路径按「读取根目录」替换前缀即可：
+## 规则范围
 
-| 规则用途 | 远程路径（读取根目录为 `.rules-cache/rules/frontend/`） | 本地兜底路径（读取根目录为 `references/rules/`） |
-|---|---|---|
-| 通用规则 | `base/general-rules.md` | `base/general-rules.md` |
-| 交易规则 | `base/trade-rules.md` | `base/trade-rules.md` |
-| MRN | `stack/mrn-rules.md` | `stack/mrn-rules.md` |
-| Max | `stack/max-rules.md` | `stack/max-rules.md` |
-| 小程序 | `stack/miniprogram-rules.md` | `stack/miniprogram-rules.md` |
-| DUO | `stack/duo-rules.md` | `stack/duo-rules.md` |
+- **L1**：manifest `managed_files` 中的 `company/*.md`。
+- **L2**：manifest `managed_files` 中的 `team/<规则集 ID>/*.md`。
+- **L3**：`.mdp/rules/project/**/*.md`。`project/` 下的首级目录作为 `rule_set_id`。
+- 审查范围排除 `.mdp/rules/**`，规则文件不属于业务变更。
 
-## 附加能力模块（固定本地路径，不走同步）
+先读每份规则的标题、适用范围和目录；再结合 diff、技术栈和调用链补读相关章节。
 
-- 依赖升级扫描：`references/rules/base/dep-upgrade-rules.md`
-- MSI API 契约核对：`references/rules/base/msi-api-review-rules.md`
+## 统一规则标识
 
-## 备注：已知限制（当前阶段刻意不做）
+两个看板共用 `rule_sources`。每个命中规则记录：
 
-- 不校验远程规则与本 skill 版本的兼容性，规则文件结构变化可能导致本 skill 引用失效
-- 本地兜底副本是 skill 发布时刻的快照，不随远程规则仓库自动保鲜，可能与远程内容存在差异
-- 每次会话全量重新 clone，不做增量 pull
+- `source_type`：`platform`、`project` 或 `fallback`
+- `scope_level`：`L1`、`L2`、`L3` 或 `FALLBACK`
+- `rule_set_id`
+- `rule_version`
+- `file`、`title`、`section`
+- `upstream_rule_id`：平台提供时填写
 
-这些是当前明确接受的短期风险，不在本次改动范围内。
+`rule_version` 取值：L1/L2 使用 `release_id`；L3 使用规则文件 `shasum -a 256` 的结果；fallback 使用 `fallback-rules.md` 顶部声明的版本。
+
+上报脚本按上述字段生成并校验 `rule_id`。两个看板都使用这个 `rule_id` 和完整的 `rule_sources`，不各自转换规则 ID。
+
+报告正文使用：
+
+```text
+【规则：<source_type>/<scope_level> / <rule_set_id>@<rule_version> / <file>#<title>】
+```
+
+上报 CR 看板前读取 [`report-submit.md`](report-submit.md)。质量门禁接口提供前，只上报现有看板；接口提供后复用同一份标准化 payload 发起第二个请求。

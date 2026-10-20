@@ -5,6 +5,7 @@
   "sort_order": 17,
   "tools": {
     "autoclaw": true,
+    "catpaw": true,
     "claude_code": true,
     "codex": true,
     "github_copilot": true,

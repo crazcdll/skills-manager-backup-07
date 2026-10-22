@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "7e41ba38-8697-484d-92ef-4193e874af5a",
+  "path": "trade-codex-session-review",
+  "path_key": "trade-codex-session-review",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "e37a775a-fd89-4a55-8012-f899fd1a251d",
+  "path": "mt-java-standards-setup",
+  "path_key": "mt-java-standards-setup",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

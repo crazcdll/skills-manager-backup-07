@@ -1,0 +1,34 @@
+skill-manifest-version: 1
+skill-id: 4b001b4145d1a01445cf7e04f0bfd52f1ab3dc8f6439a9af18045e3efbe1e913
+
+files:
+  7552c38f7917fefc3eb75aca53996d0b19be55c2300497713f32bb4f53ece87d  SKILL.md
+  889aef9d9122f2baa6d7fbcf6a246a836f9f07140c726e17453bf67162ca367c  references/rules-for-design-and-coding/DB-01-ORM规范.md
+  6887d6a1c105eee5cc787a915c24d587a32a67327fd46fff688b3d709272336e  references/rules-for-design-and-coding/DB-02-MySQL-SQL开发规范.md
+  eca18bc96655b8892805ee6f7b60b57f6bff739f380508fbf1eacaf37a9f31ec  references/rules-for-design-and-coding/DB-03-MySQL-建表规范.md
+  dab2da4cfb3198c7416e2704ae8f771750affc41ceaf9a2bf8e5cccdf3663ba6  references/rules-for-design-and-coding/DB-04-MySQL-索引规范.md
+  7705f943f7fa1115a9ce405f12b40c588e7105877802df5a8fa998576ec02bd4  references/rules-for-design-and-coding/DEP-01-依赖规范.md
+  a0e21c0fe6a70af5b73aded718efb8ed33134970a76e1de98963770c262ea7c2  references/rules-for-design-and-coding/HA-01-失败设计规范.md
+  b345565bbc06b542b0b93f3c21e28c601c1278a9f6d91922f191472ce532af52  references/rules-for-design-and-coding/HA-02-可观测性规范.md
+  4229bc8ce464a13ab05c9b69c5c46d5de72e815668ea09c6cc6ff8b6c2e39a76  references/rules-for-design-and-coding/HA-03-防御性编程规范.md
+  6446e439a87d6edf380ca7ebd2a1c4bfac99849e9f0febf05e89f3819156964b  references/rules-for-design-and-coding/HA-04-存储高可用规范.md
+  9d149c07a1379448154728a6afef6971194edebaaf0397f09cd1a72aa237ae90  references/rules-for-design-and-coding/HA-05-缓存高可用规范.md
+  fe99fb1fbf0d216823f694caca98b1eef6f00ab6fc4c95133596c0dc034bbc88  references/rules-for-design-and-coding/HA-06-消息队列高可用规范.md
+  4162b7574e5c0391534b8be7fa2251a1b53c56e8e6e987ab32bb630f19fae6ac  references/rules-for-design-and-coding/HA-07-JVM与线程池高可用规范.md
+  2cef764b29707d6710f89f6ef044755bbceca27b4c300084b163d927d7778ce8  references/rules-for-design-and-coding/HA-09-最终一致性规范.md
+  bb621845fb75f4046b3bd904068f055a1fbc07850caa91782e6a430121ed1996  references/rules-for-design-and-coding/HA-10-接口兼容性规范.md
+  90f939db93f01f10420f7564c143763629abc55c580cf35b15f6e2bef8a8ab3b  references/rules-for-design-and-coding/HA-11-配置安全规范.md
+  ab989597049e3ab1488caa3136979812273152bbbef0b44f5f9734cf41fb4fa6  references/rules-for-design-and-coding/HA-12-安全编码规范.md
+  134fd0ec6cef4c99b90aa31595960fc3ea3ca0c25f14f54405719d8df7b1e07c  references/rules-for-design-and-coding/HA-13-搜索引擎高可用规范.md
+  969fb00fe3d36f2c03084250c0fd02096caf93c09c18d7a0ff4bccfeff75026e  references/rules-for-design-and-coding/HA-14-HBase高可用规范.md
+  0751373ac882f3110fa1fb86fc081ddcf6c1dd1beca8082dd3cfc5b8c8e83b35  references/rules-for-design-and-coding/JAVA-01-常量定义规范.md
+  895efd32c951571037da97081e7bfe5b125c3ffa60ca6f315dcf806ca25265ba  references/rules-for-design-and-coding/JAVA-02-OOP设计规约.md
+  1c41fd6b3f4e30c97263b3b526ec280b6c8a2ac61b6015097b9871b906cf032b  references/rules-for-design-and-coding/JAVA-03-集合处理规范.md
+  67006e4865915dc4bcafd070a46fbf3d17027e9632e1bc70b03fe865f5843bce  references/rules-for-design-and-coding/JAVA-04-并发处理规范.md
+  351047024e495f2836a2c6ac7ca39c9d4580e1af6e5c7c057126d287988465b8  references/rules-for-design-and-coding/JAVA-05-异常处理规范.md
+  3a6a0f0ad0c768deb59b54a9ea8a8498842a7e377fb0580db4f88c4d6cca2471  references/rules-for-design-and-coding/JAVA-06-日志记录规范.md
+  f1cf3938cf714d6e470eaa908c980544850c68d600a9c84d0c4454de99bf4bf6  references/rules-for-design-and-coding/JAVA-07-单元测试编写规范.md
+  af7ccb578adb3da2f8d73161019c05ae30b4f0e9136b68a4a35a08a834a21486  references/rules-for-design-and-coding/JAVA-08-接口设计规范.md
+  2284ec6ba41e7824ecd7ae2b774638ef29ddafad04d0ecdffce15f37470d76fa  references/rules-for-design-and-coding/SEC-01-注入安全规范.md
+  7b0240d04a4b9a2334aa82e7d672e62ceba7e489b2588e001072dab7cd562bb3  references/rules-for-design-and-coding/SEC-02-数据保护规范.md
+  8183f28c2b0b5214d4f0887d4acf8ca03d5704fa542aea1fedeb3bc7f7e4ab61  references/rules-for-design-and-coding/SEC-03-访问控制与网络安全规范.md

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "fc7a4f1a-3f4f-4818-bb3d-1138312d020f",
+  "path": "trade-external-incident-record",
+  "path_key": "trade-external-incident-record",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

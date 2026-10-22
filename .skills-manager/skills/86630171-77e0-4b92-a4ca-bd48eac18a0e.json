@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "86630171-77e0-4b92-a4ca-bd48eac18a0e",
+  "path": "raptor-query-cli",
+  "path_key": "raptor-query-cli",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

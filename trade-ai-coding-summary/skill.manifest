@@ -1,0 +1,9 @@
+skill-manifest-version: 1
+skill-id: a925cb6e2c85a5a34359090692524b3119506934b0a85ae07e7b4fc3d5298691
+
+files:
+  f1f0c9e1d4427004819339a0351400797dca3e0c95088a1d2ba0bb2ff592166d  SKILL.md
+  ae7a2aa066059fe5845bdc713a164a2ba53c323bc7a5bfe5054d19e87df51922  scripts/daxiang_uid_map.json
+  e12e73e339cdfb5ffc7417cc4648c74def9388408c2a7fe2309d5170ba08696e  scripts/extract_requirements.py
+  1c5e54c56c00aac7208e7d698222016ed5131227e065548b3e1d7e036a83d2af  scripts/send_notification.py
+  661ae10d956024c96315787d87f280e90c2d1111e8c9721161817768de243436  scripts/sync_ai_coding.py

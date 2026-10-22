@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "9587e71d-510e-46f0-8ff5-70e1ea71c235",
+  "path": "trade-ai-coding-summary",
+  "path_key": "trade-ai-coding-summary",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

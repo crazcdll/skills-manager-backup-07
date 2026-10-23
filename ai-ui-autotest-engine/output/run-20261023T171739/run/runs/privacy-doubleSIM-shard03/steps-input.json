@@ -1,0 +1,214 @@
+{
+  "batch_name": "shard-03 隐私号弹窗文案增加双卡引导",
+  "device": {
+    "type": "sandbox",
+    "platform": "android",
+    "app": "meituan"
+  },
+  "env": {
+    "type": "A",
+    "auth_method": "password",
+    "account": "18510177674",
+    "password": "ZDRXFT@MT01.com()",
+    "ptest": false,
+    "bundle_lock": []
+  },
+  "cases": [
+    {
+      "case_id": "Flow05-订单详情页联系电话入口-商家号码保持现状",
+      "case_name": "Flow05-订单详情页联系电话入口-商家号码保持现状",
+      "landing_scheme": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail&mrn_component=hotelchannel-order-detail&order_id=5035036077836749951&biz_type=1",
+      "params": {
+        "order_id": "5035036077836749951"
+      },
+      "steps": [
+        {
+          "sid": "S1",
+          "kind": "ui",
+          "desc": "滚动到联系酒店入口区域",
+          "action": "scroll-until",
+          "action_arg": "联系酒店",
+          "direction": "down",
+          "step-type": "interaction",
+          "page_ready": false,
+          "asserts": [
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "联系酒店"
+            }
+          ]
+        },
+        {
+          "sid": "S2",
+          "kind": "ui",
+          "desc": "看：检查联系电话入口商家号码展示保持现状",
+          "action": "assert-text",
+          "step-type": "assert",
+          "asserts": [
+            {
+              "kind": "text",
+              "match": "gone",
+              "expect": "电话一"
+            },
+            {
+              "kind": "text",
+              "match": "gone",
+              "expect": "电话二"
+            },
+            {
+              "kind": "visual",
+              "expect": "联系酒店入口区域中商家号码保持现状展示（未隐去商家号码）"
+            }
+          ]
+        }
+      ],
+      "flow_source": "/Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/994718e0/inputs/flows/Flow05-订单详情页联系电话入口-商家号码保持现状.md"
+    },
+    {
+      "case_id": "Flow06-协商取消页呼出_修改弹窗-双卡引导文案双态展示",
+      "case_name": "Flow06-协商取消页呼出_修改弹窗-双卡引导文案双态展示",
+      "landing_scheme": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail&mrn_component=hotelchannel-order-detail&order_id=5035036077836749951&biz_type=1",
+      "params": {
+        "negotiation_order_id": "5035036077836749951"
+      },
+      "mock_ids": [
+        "19538157",
+        "19538201"
+      ],
+      "steps": [
+        {
+          "sid": "S1",
+          "kind": "ui",
+          "desc": "点击取消订单进入协商取消页",
+          "action": "tap-text",
+          "action_arg": "取消订单",
+          "step-type": "interaction",
+          "page_ready": true,
+          "asserts": [
+            {
+              "kind": "visual",
+              "expect": "协商取消页（取消流程页面）已展示"
+            }
+          ]
+        },
+        {
+          "sid": "S2",
+          "kind": "ui",
+          "desc": "协商取消页点击联系酒店唤起呼出弹窗",
+          "action": "tap-text",
+          "action_arg": "联系酒店",
+          "step-type": "interaction",
+          "page_ready": true,
+          "asserts": [
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "将使用该号码加密呼出"
+            }
+          ]
+        },
+        {
+          "sid": "S3",
+          "kind": "ui",
+          "desc": "看：校验呼出弹窗双卡引导文案",
+          "action": "assert-text",
+          "step-type": "assert",
+          "asserts": [
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "将使用该号码加密呼出"
+            },
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "双卡双待请确认，系统呼出号码和下方一致"
+            },
+            {
+              "kind": "visual",
+              "expect": "「双卡双待请确认，系统呼出号码和下方一致」位于弹窗标题正下方"
+            }
+          ]
+        },
+        {
+          "sid": "A1",
+          "kind": "api",
+          "desc": "queryuserinfo 接口返回校验",
+          "api_assert": {
+            "path": "/hotelorder/v1/queryuserinfo.json",
+            "expected_fields": [
+              {
+                "source": "response",
+                "field": "error.code",
+                "expected": "200"
+              },
+              {
+                "source": "response",
+                "field": "data.maskMobile",
+                "expected": "非空（正常返回掩码手机号）"
+              }
+            ]
+          }
+        },
+        {
+          "sid": "S4",
+          "kind": "ui",
+          "desc": "点击非本机号请修改进入编辑态弹窗",
+          "action": "tap-text",
+          "action_arg": "非本机号请修改",
+          "step-type": "interaction",
+          "page_ready": true,
+          "asserts": [
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "输入本机号码"
+            }
+          ]
+        },
+        {
+          "sid": "S5",
+          "kind": "ui",
+          "desc": "看：校验编辑态弹窗双卡引导文案",
+          "action": "assert-text",
+          "step-type": "assert",
+          "asserts": [
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "输入本机号码"
+            },
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "双卡双待请确认，系统呼出号码和下方一致"
+            },
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "请输入本机号码"
+            }
+          ]
+        },
+        {
+          "sid": "S6",
+          "kind": "ui",
+          "desc": "关：点击取消关闭弹窗",
+          "action": "tap-text",
+          "action_arg": "取消",
+          "step-type": "interaction",
+          "page_ready": false,
+          "asserts": [
+            {
+              "kind": "text",
+              "match": "gone",
+              "expect": "输入本机号码"
+            }
+          ]
+        }
+      ],
+      "flow_source": "/Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/994718e0/inputs/flows/Flow06-协商取消页呼出_修改弹窗-双卡引导文案双态展示.md"
+    }
+  ]
+}

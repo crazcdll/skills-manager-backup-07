@@ -1,0 +1,28 @@
+[device:setup] 注册设备到 imeituan session...
+[device:session] 注册设备 33.195.9.188:8080 (platform=android, timeout=30s)...
+[device:session] ⚠️ session 创建失败: 设备注册回滚仍有待清理资源：ADB_PORT_OWNERSHIP_CONFLICT: 当前监听 Server 没有可验证的网络隔离启动记录
+注册失败，等待 5s 后重试（1/3）...
+[device:session] 已重启 ADB Server（修复陈旧连接状态），准备重试注册...
+[device:session] 注册设备 33.195.9.188:8080 (platform=android, timeout=30s)...
+[device:session] ⚠️ session 创建失败: sess-33bafdbf
+transport-disconnect-33.195.9.188:8080: ADB_PORT_OWNERSHIP_CONFLICT: 当前监听 Server 没有可验证的网络隔离启动记录
+注册失败，等待 5s 后重试（2/3）...
+[device:session] 已重启 ADB Server（修复陈旧连接状态），准备重试注册...
+[device:session] 注册设备 33.195.9.188:8080 (platform=android, timeout=30s)...
+[device:session] ⚠️ session 创建失败: sess-33bafdbf
+transport-disconnect-33.195.9.188:8080: ADB_PORT_OWNERSHIP_CONFLICT: 当前监听 Server 没有可验证的网络隔离启动记录
+[device:setup] ✗ imeituan_register — sess-33bafdbf
+transport-disconnect-33.195.9.188:8080: ADB_PORT_OWNERSHIP_CONFLICT: 当前监听 Server 没有可验证的网络隔离启动记录
+❌ device 执行失败: imeituan 注册失败（3 次重试后仍失败），无法继续 setup: sess-33bafdbf
+transport-disconnect-33.195.9.188:8080: ADB_PORT_OWNERSHIP_CONFLICT: 当前监听 Server 没有可验证的网络隔离启动记录
+{
+  "ok": false,
+  "steps": [
+    {
+      "step": "imeituan_register",
+      "ok": false,
+      "detail": "sess-33bafdbf\ntransport-disconnect-33.195.9.188:8080: ADB_PORT_OWNERSHIP_CONFLICT: 当前监听 Server 没有可验证的网络隔离启动记录"
+    }
+  ],
+  "error": "imeituan 注册失败（3 次重试后仍失败），无法继续 setup: sess-33bafdbf\ntransport-disconnect-33.195.9.188:8080: ADB_PORT_OWNERSHIP_CONFLICT: 当前监听 Server 没有可验证的网络隔离启动记录"
+}

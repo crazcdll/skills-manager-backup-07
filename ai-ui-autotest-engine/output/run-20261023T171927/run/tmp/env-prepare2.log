@@ -1,0 +1,112 @@
+[env-prepare] 登录计划: auth=password env_type=A target_env=online bundles=0 ptest=False
+
+============================================================
+[env-prepare] Step 1/1: 登录编排（password / online）
+============================================================
+RESET-ENV: 开始执行前环境重置...
+[inspect_tree] 开始采集视图树 (wait_sec=3, timeout=15, attempt=1/2)...
+[inspect_tree] 焦点包含 uninspectable 标识，走 uiautomator. focus='mcurrentfocus=window{ee24b17 u0 com.sankuai.meituan/com.meituan.android.pt.homepage.activity.mainactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')
+[uiautomator] 开始 dump...
+[uiautomator] dump 完成: rc=0, stderr='', stdout='UI hierchary dumped to: /data/local/tmp/_ui.xml'
+[uiautomator] cat 完成: rc=0, stdout_len=40084
+[inspect_tree] 采集完成: rc=0, elapsed=3.6s
+[inspect_tree] 开始采集视图树 (wait_sec=3, timeout=15, attempt=1/2)...
+[inspect_tree] 焦点包含 uninspectable 标识，走 uiautomator. focus='mcurrentfocus=window{ee24b17 u0 com.sankuai.meituan/com.meituan.android.pt.homepage.activity.mainactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')
+[uiautomator] 开始 dump...
+[uiautomator] dump 完成: rc=0, stderr='', stdout='UI hierchary dumped to: /data/local/tmp/_ui.xml'
+[uiautomator] cat 完成: rc=0, stdout_len=40084
+[inspect_tree] 采集完成: rc=0, elapsed=3.3s
+[inspect_tree] 开始采集视图树 (wait_sec=3, timeout=15, attempt=1/2)...
+[inspect_tree] 焦点包含 uninspectable 标识，走 uiautomator. focus='mcurrentfocus=window{ee24b17 u0 com.sankuai.meituan/com.meituan.android.pt.homepage.activity.mainactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')
+[uiautomator] 开始 dump...
+[uiautomator] dump 完成: rc=0, stderr='', stdout='UI hierchary dumped to: /data/local/tmp/_ui.xml'
+[uiautomator] cat 完成: rc=0, stdout_len=40084
+[inspect_tree] 采集完成: rc=0, elapsed=3.4s
+[inspect_tree] 开始采集视图树 (wait_sec=3, timeout=15, attempt=1/2)...
+[inspect_tree] 焦点包含 uninspectable 标识，走 uiautomator. focus='mcurrentfocus=window{bdeeaac u0 com.sankuai.meituan/com.meituan.android.pt.homepage.activity.mainactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')
+[uiautomator] 开始 dump...
+[uiautomator] dump 完成: rc=0, stderr='', stdout='UI hierchary dumped to: /data/local/tmp/_ui.xml'
+[uiautomator] cat 完成: rc=0, stdout_len=46199
+[inspect_tree] 采集完成: rc=0, elapsed=4.3s
+[inspect_tree] 开始采集视图树 (wait_sec=4, timeout=20, attempt=1/2)...
+[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{d5169f4 u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')
+[inspect_tree] 采集完成: rc=0, elapsed=5.7s
+[inspect_tree] 开始采集视图树 (wait_sec=3, timeout=15, attempt=1/2)...
+[inspect_tree] 焦点包含 uninspectable 标识，走 uiautomator. focus='mcurrentfocus=window{9297d86 u0 com.sankuai.meituan/com.meituan.android.pt.homepage.activity.mainactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')
+[uiautomator] 开始 dump...
+[uiautomator] dump 完成: rc=0, stderr='', stdout='UI hierchary dumped to: /data/local/tmp/_ui.xml'
+[uiautomator] cat 完成: rc=0, stdout_len=52264
+[inspect_tree] 采集完成: rc=0, elapsed=6.7s
+[inspect_tree] 开始采集视图树 (wait_sec=3, timeout=15, attempt=1/2)...
+[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{1e34ccb u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')
+[inspect_tree] 采集完成: rc=0, elapsed=5.5s
+[inspect_tree] 开始采集视图树 (wait_sec=4, timeout=20, attempt=1/2)...
+[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{1e34ccb u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')
+[inspect_tree] 采集完成: rc=0, elapsed=4.8s
+[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{1e34ccb u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')
+[inspect_tree] 开始采集视图树 (wait_sec=6, timeout=30, attempt=1/2)...
+[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{1e34ccb u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')
+[inspect_tree] 采集完成: rc=0, elapsed=4.6s
+[inspect_tree] 命中缓存 (age=0.9s)
+[inspect_tree] 开始采集视图树 (wait_sec=3, timeout=15, attempt=1/2)...
+[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{1e34ccb u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')
+[inspect_tree] 采集完成: rc=0, elapsed=4.7s
+[inspect_tree] 开始采集视图树 (wait_sec=3, timeout=15, attempt=1/2)...
+[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{1e34ccb u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')
+[inspect_tree] 采集完成: rc=0, elapsed=4.6s
+APPMOCK LIST OK (yooz proxy): 0 rules
+  ℹ️  当前无生效的 Mock 规则
+[ptest-mock] 无已记录的 ptest 规则，跳过规则关闭
+[ptest-mock] ✅ htptest 设备开关已回滚
+URL_MAPPING LIST OK: 0 mapping(s) domain=ai_pub_0024
+  ℹ️  当前无域名映射记录
+URL_MAPPING CLEANUP: 无需清理（无自动创建的域名映射）
+SESSION SWIMLINE OFF OK
+  ✅ 泳道关闭
+SESSION ENV SET OK: env=online domain=ai_pub_0024
+  ✅ 环境重置为线上
+RESET-ENV: 完成（全部成功）
+[login:pre] step=reset_mock_env ok=True restart=none detail=reset-env 完成
+[restart] enable_appmock: cold_clear_data — 清除残留登录态并让 AppMock 代理生效：必须清数据后再预授权再冷启动，顺序不可互换（清数据会重置已授权限）
+APPMOCK ENABLE: 通过 ContentProvider 直连启用 AppMock (user=ai_pub_0024)...
+APPMOCK ENABLE OK (content call): user=ai_pub_0024
+APPMOCK ENABLE VERIFIED: 设备端 SDK 已确认启用
+SDK-ENABLE: ✅ AppMock SDK 已确认启用（第 1 轮）
+SDK-ENABLE: 清除 App 数据 + 重启 App 使网络栈完全走代理通道...
+COLD-RESTART: 清除 com.sankuai.meituan 数据（移除残留登录态）...
+COLD-RESTART: ✅ App 数据已清除
+COLD-RESTART: ✅ 已授予权限: POST_NOTIFICATIONS
+COLD-RESTART: ✅ 已授予权限: ACCESS_FINE_LOCATION
+COLD-RESTART: ✅ 已授予权限: ACCESS_COARSE_LOCATION
+COLD-RESTART: ✅ 运行时权限已全部预授予
+COLD-RESTART: 消除弹窗（隐私协议等）...
+  ⚪ 空文件已创建: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/aaee1ba0/runs/run-shard02/inspect_tree.json
+  ⚪ 空文件已创建: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/aaee1ba0/runs/run-shard02/inspect_tree.json
+  ⚪ 空文件已创建: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/aaee1ba0/runs/run-shard02/inspect_tree.json
+[COLD-RESTART] 环境澄清：无遮挡弹窗（none-found）
+COLD-RESTART: 隐私协议已同意，冷重启使状态生效...
+  ⚪ 空文件已创建: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/aaee1ba0/runs/run-shard02/inspect_tree.json
+[COLD-RESTART] 环境澄清：无遮挡弹窗（none-found）
+SDK-ENABLE: ✅ App 已冷启动完成（数据已清除）
+APPMOCK ENABLE: 通过 ContentProvider 直连启用 AppMock (user=ai_pub_0024)...
+APPMOCK ENABLE OK (content call): user=ai_pub_0024
+APPMOCK ENABLE VERIFIED: 设备端 SDK 已确认启用
+[login:pre] step=enable_appmock ok=True restart=cold_clear_data detail=已确认启用（第 1 轮）
+[restart] push_location: cold — 定位下发后需冷重启 App 才回到首页并让定位在首页生效（登录入口依赖定位）
+[login:pre] step=push_location ok=True restart=cold detail=定位(beijing) 已下发并冷重启回首页
+  ⚪ 空文件已创建: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/aaee1ba0/runs/run-shard02/inspect_tree.json
+[login:pre] 环境澄清：无遮挡弹窗（none-found）
+[login:pre] step=settle_popups ok=True restart=none detail=无遮挡弹窗
+[login] 执行认证动作: password（target_env=online）
+PASSWORD-LOGIN: 推送 signin scheme...
+PASSWORD-LOGIN: 等待 signin 完成（12s）...
+[PASSWORD-LOGIN] 环境澄清：无遮挡弹窗（none-found）
+[PASSWORD-LOGIN] 环境澄清：无遮挡弹窗（none-found）
+PASSWORD-LOGIN: 页面未见「登录成功」文案（可能仍在登录中或被遮挡），交登录态探针/读图判定；含「登录失败」则为失败。
+[login] 登录态判定：跳过程序化探测（ForegroundProbe 对凭证登录非权威，判据 = 读图 [NEEDS_VISUAL_CHECK]）
+[login] ⚠️ 探针结论为「不可完全确认」（Android 前台判定语义），最终以读图为准确认（[NEEDS_VISUAL_CHECK]）
+env-prepare: [NEEDS_VISUAL_CHECK] 该截图已自动拍摄（内部已等待渲染/操作完成），直接读取此文件判定即可，无需 sleep 等待或重新执行 screenshot 命令（已归档为此次 Case 的登录证据，直接读图确认登录结果即可）: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/aaee1ba0/runs/run-shard02/case_01/frames/login-result.png
+[env-prepare] ⚠️ 登录态判定为「前台判定」语义（Android 既定行为），最终结论以读图为准
+
+[env-prepare] ✅ 环境准备完成（online 环境，1/1 步）
+exit=0

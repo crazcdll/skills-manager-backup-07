@@ -1,0 +1,1070 @@
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "flow-create", "stream": "stdout", "line": "✅ 空文件已创建: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/8a61ca89/inputs/flows/Flow02-订单详情页修改弹窗-编辑态双卡引导文案展示.md"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "{"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "  \"derived_keys\": ["}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    \"app\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    \"device_type\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    \"platform\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "  ],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "  \"questions\": ["}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"id\": \"resource_mis\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"group\": \"identity\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"order\": 20,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"prompt\": \"资源 MIS（设备归属 / 报告 user_id）\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"input_type\": \"text\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"required\": false,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"options\": [],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"default\": null,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"depends_on\": [],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"source\": \"derived\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"sensitive\": false,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"note\": \"自动取自当前身份：zhangce07（如需改用其他 MIS，可用 input-seed 覆盖）\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"render\": {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"mode\": \"free_text\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"options\": ["}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__manual_input__\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"✏️ 手动输入\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__skip__\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"⏭️ 跳过（稍后再说）\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          }"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        ]"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"hint\": \"引擎自动派生（无需提问 / 无需作答）：自动取自当前身份：zhangce07（如需改用其他 MIS，可用 input-seed 覆盖）\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"id\": \"device_combo\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"group\": \"device\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"order\": 10,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"prompt\": \"选择设备组合（设备接入方式 × 平台 × App）\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"input_type\": \"single\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"required\": true,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"options\": ["}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"value\": \"sandbox-android-meituan\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"label\": \"云模拟器 - Android - 美团\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"value\": \"local-harmony-meituan\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"label\": \"本地真机 - 鸿蒙 - 美团\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"value\": \"local-android-meituan\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"label\": \"本地真机 - Android - 美团\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"value\": \"cloud-emulator-harmony-meituan\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"label\": \"云模拟器（Conan） - 鸿蒙 - 美团\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"value\": \"local-emulator-ios-meituan\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"label\": \"本地模拟器 - iOS - 美团\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        }"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      ],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"default\": \"sandbox-android-meituan\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"depends_on\": [],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"source\": \"ask\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"sensitive\": false,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"note\": null,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"render\": {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"mode\": \"choice\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"options\": ["}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"sandbox-android-meituan\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"云模拟器 - Android - 美团\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"local-harmony-meituan\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"本地真机 - 鸿蒙 - 美团\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"local-android-meituan\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"本地真机 - Android - 美团\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"cloud-emulator-harmony-meituan\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"云模拟器（Conan） - 鸿蒙 - 美团\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"local-emulator-ios-meituan\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"本地模拟器 - iOS - 美团\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          }"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        ],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"default\": \"sandbox-android-meituan\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"hint\": \"必填。把 render.options 原样交给 AskQuestion，用户选定后执行 input-answer --id device_combo --value <所选 value>\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"id\": \"env_type\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"group\": \"env\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"order\": 10,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"prompt\": \"选择测试环境类型\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"input_type\": \"single\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"required\": true,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"options\": ["}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"value\": \"A\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"label\": \"A — 线上环境\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"value\": \"B\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"label\": \"B — 泳道/域名映射环境\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"value\": \"C\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"label\": \"C — alpha 测试环境\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"value\": \"D\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"label\": \"D — 默认已登录环境\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        }"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      ],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"default\": null,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"depends_on\": [],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"source\": \"ask\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"sensitive\": false,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"note\": null,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"render\": {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"mode\": \"choice\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"options\": ["}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"A\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"A — 线上环境\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"B\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"B — 泳道/域名映射环境\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"C\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"C — alpha 测试环境\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"D\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"D — 默认已登录环境\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          }"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        ]"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"hint\": \"必填。把 render.options 原样交给 AskQuestion，用户选定后执行 input-answer --id env_type --value <所选 value>\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"id\": \"auth_method\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"group\": \"env\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"order\": 20,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"prompt\": \"登录方式（自动推断）\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"input_type\": \"text\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"required\": false,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"options\": [],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"default\": null,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"depends_on\": ["}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"env_type\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"device_type\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      ],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"source\": \"derived\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"sensitive\": false,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"note\": null,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"render\": {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"mode\": \"free_text\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"options\": ["}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__manual_input__\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"✏️ 手动输入\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__skip__\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"⏭️ 跳过（稍后再说）\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          }"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        ]"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"hint\": \"引擎自动派生（无需提问 / 无需作答）\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"id\": \"account\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"group\": \"identity\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"order\": 40,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"prompt\": \"登录账号（凭证登录）\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"input_type\": \"text\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"required\": true,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"options\": [],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"default\": null,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"depends_on\": ["}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"auth_method\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"auth_method == 'password'\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      ],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"source\": \"ask\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"sensitive\": false,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"note\": null,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"render\": {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"mode\": \"free_text\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"options\": ["}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__manual_input__\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"✏️ 手动输入\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__skip__\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"⏭️ 跳过（稍后再说）\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          }"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        ]"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"hint\": \"必填。把 render.options（手动输入/跳过）原样交给 AskQuestion；用户选『✏️ 手动输入』后在对话中收取真实值，再执行 input-answer --id account --value <值>（该题必填，跳过会被拒绝）\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"id\": \"test_account\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"group\": \"identity\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"order\": 41,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"prompt\": \"测试手机号（自动生成）\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"input_type\": \"text\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"required\": false,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"options\": [],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"default\": null,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"depends_on\": ["}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"auth_method\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"auth_method == 'qahome'\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      ],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"source\": \"derived\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"sensitive\": false,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"note\": \"按 workspace 确定性生成；如需指定号码，可用 input-seed 覆盖 test_account\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"render\": {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"mode\": \"free_text\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"options\": ["}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__manual_input__\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"✏️ 手动输入\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__skip__\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"⏭️ 跳过（稍后再说）\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          }"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        ]"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"hint\": \"引擎自动派生（无需提问 / 无需作答）：按 workspace 确定性生成；如需指定号码，可用 input-seed 覆盖 test_account\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"id\": \"password\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"group\": \"identity\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"order\": 42,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"prompt\": \"该账号的登录凭证\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"input_type\": \"text\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"required\": true,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"options\": [],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"default\": null,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"depends_on\": ["}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"auth_method\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"auth_method == 'password'\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      ],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"source\": \"ask\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"sensitive\": true,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"note\": null,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"render\": {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"mode\": \"free_text\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"options\": ["}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__manual_input__\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"✏️ 手动输入\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__skip__\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"⏭️ 跳过（稍后再说）\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          }"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        ]"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"hint\": \"必填。把 render.options（手动输入/跳过）原样交给 AskQuestion；用户选『✏️ 手动输入』后在对话中收取真实值，再执行 input-answer --id password --value <值>（该题必填，跳过会被拒绝）\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"id\": \"swim_lane_name\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"group\": \"scope\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"order\": 30,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"prompt\": \"泳道名称（仅 B 环境；不填=纯域名映射/按 alpha 处理）\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"input_type\": \"text\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"required\": false,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"options\": [],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"default\": null,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"depends_on\": ["}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"env_type == 'B'\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      ],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"source\": \"ask\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"sensitive\": false,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"note\": null,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"render\": {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"mode\": \"free_text\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"options\": ["}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__manual_input__\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"✏️ 手动输入\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__skip__\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"⏭️ 跳过（稍后再说）\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          }"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        ]"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"hint\": \"选填。把 render.options（手动输入/跳过）原样交给 AskQuestion；用户选『✏️ 手动输入』后在对话中收取真实值并 input-answer --id swim_lane_name --value <值>；选『⏭️ 跳过』则执行 input-answer --id swim_lane_name --value __skip__\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"id\": \"swim_url_mappings\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"group\": \"scope\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"order\": 31,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"prompt\": \"域名映射 JSON 数组（仅 B 环境；如 [{\\\"url\\\":\\\"域名\\\",\\\"betaUrl\\\":\\\"映射地址\\\"}]；不填=不配置）\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"input_type\": \"text\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"required\": false,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"options\": [],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"default\": null,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"depends_on\": ["}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"env_type == 'B'\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      ],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"source\": \"ask\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"sensitive\": false,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"note\": null,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"render\": {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"mode\": \"free_text\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"options\": ["}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__manual_input__\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"✏️ 手动输入\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__skip__\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"⏭️ 跳过（稍后再说）\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          }"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        ]"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"hint\": \"选填。把 render.options（手动输入/跳过）原样交给 AskQuestion；用户选『✏️ 手动输入』后在对话中收取真实值并 input-answer --id swim_url_mappings --value <值>；选『⏭️ 跳过』则执行 input-answer --id swim_url_mappings --value __skip__\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"id\": \"ptest\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"group\": \"config\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"order\": 50,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"prompt\": \"是否开启 ptest（注入 isPtest/isGreyTest/isDevBundle 参数）？\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"input_type\": \"single\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"required\": false,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"options\": ["}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"value\": true,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"label\": \"开启 ptest（线上环境 + partMock 注入）\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"value\": false,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"label\": \"不开（纯线上）\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        }"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      ],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"default\": false,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"depends_on\": ["}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"env_type == 'A'\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      ],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"source\": \"ask\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"sensitive\": false,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"note\": null,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"render\": {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"mode\": \"choice\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"options\": ["}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": true,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"开启 ptest（线上环境 + partMock 注入）\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": false,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"不开（纯线上）\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          }"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        ],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"default\": false"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"hint\": \"选填。把 render.options 原样交给 AskQuestion，用户选定后执行 input-answer --id ptest --value <所选 value>\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"id\": \"bundle_lock\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"group\": \"config\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"order\": 51,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"prompt\": \"是否需要锁定 MRN bundle？（仅声明包名不锁包；提供版本才会锁包；无需请跳过）\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"input_type\": \"text\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"required\": false,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"options\": [],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"default\": [],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"depends_on\": [],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"source\": \"ask\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"sensitive\": false,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"note\": null,"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"render\": {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"mode\": \"free_text\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"options\": ["}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__manual_input__\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"✏️ 手动输入\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__skip__\","}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"⏭️ 跳过（稍后再说）\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          }"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        ],"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"default\": []"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"hint\": \"选填。把 render.options（手动输入/跳过）原样交给 AskQuestion；用户选『✏️ 手动输入』后在对话中收取真实值并 input-answer --id bundle_lock --value <值>；选『⏭️ 跳过』则执行 input-answer --id bundle_lock --value __skip__\""}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    }"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "  ]"}
+{"ts": "2026-10-23T17:16:33", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "}"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "{"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "  \"derived_keys\": ["}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    \"app\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    \"device_type\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    \"platform\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "  ],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "  \"questions\": ["}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"id\": \"resource_mis\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"group\": \"identity\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"order\": 20,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"prompt\": \"资源 MIS（设备归属 / 报告 user_id）\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"input_type\": \"text\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"required\": false,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"options\": [],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"default\": null,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"depends_on\": [],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"source\": \"derived\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"sensitive\": false,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"note\": \"自动取自当前身份：zhangce07（如需改用其他 MIS，可用 input-seed 覆盖）\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"render\": {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"mode\": \"free_text\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"options\": ["}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__manual_input__\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"✏️ 手动输入\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__skip__\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"⏭️ 跳过（稍后再说）\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          }"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        ]"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"hint\": \"引擎自动派生（无需提问 / 无需作答）：自动取自当前身份：zhangce07（如需改用其他 MIS，可用 input-seed 覆盖）\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"id\": \"device_combo\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"group\": \"device\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"order\": 10,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"prompt\": \"选择设备组合（设备接入方式 × 平台 × App）\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"input_type\": \"single\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"required\": true,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"options\": ["}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"value\": \"sandbox-android-meituan\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"label\": \"云模拟器 - Android - 美团\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"value\": \"local-harmony-meituan\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"label\": \"本地真机 - 鸿蒙 - 美团\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"value\": \"local-android-meituan\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"label\": \"本地真机 - Android - 美团\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"value\": \"cloud-emulator-harmony-meituan\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"label\": \"云模拟器（Conan） - 鸿蒙 - 美团\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"value\": \"local-emulator-ios-meituan\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"label\": \"本地模拟器 - iOS - 美团\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        }"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      ],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"default\": \"sandbox-android-meituan\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"depends_on\": [],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"source\": \"ask\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"sensitive\": false,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"note\": null,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"render\": {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"mode\": \"choice\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"options\": ["}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"sandbox-android-meituan\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"云模拟器 - Android - 美团\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"local-harmony-meituan\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"本地真机 - 鸿蒙 - 美团\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"local-android-meituan\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"本地真机 - Android - 美团\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"cloud-emulator-harmony-meituan\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"云模拟器（Conan） - 鸿蒙 - 美团\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"local-emulator-ios-meituan\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"本地模拟器 - iOS - 美团\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          }"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        ],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"default\": \"sandbox-android-meituan\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"hint\": \"必填。把 render.options 原样交给 AskQuestion，用户选定后执行 input-answer --id device_combo --value <所选 value>\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"id\": \"env_type\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"group\": \"env\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"order\": 10,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"prompt\": \"选择测试环境类型\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"input_type\": \"single\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"required\": true,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"options\": ["}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"value\": \"A\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"label\": \"A — 线上环境\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"value\": \"B\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"label\": \"B — 泳道/域名映射环境\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"value\": \"C\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"label\": \"C — alpha 测试环境\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"value\": \"D\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"label\": \"D — 默认已登录环境\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        }"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      ],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"default\": null,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"depends_on\": [],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"source\": \"ask\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"sensitive\": false,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"note\": null,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"render\": {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"mode\": \"choice\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"options\": ["}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"A\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"A — 线上环境\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"B\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"B — 泳道/域名映射环境\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"C\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"C — alpha 测试环境\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"D\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"D — 默认已登录环境\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          }"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        ]"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"hint\": \"必填。把 render.options 原样交给 AskQuestion，用户选定后执行 input-answer --id env_type --value <所选 value>\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"id\": \"auth_method\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"group\": \"env\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"order\": 20,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"prompt\": \"登录方式（自动推断）\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"input_type\": \"text\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"required\": false,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"options\": [],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"default\": null,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"depends_on\": ["}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"env_type\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"device_type\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      ],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"source\": \"derived\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"sensitive\": false,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"note\": null,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"render\": {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"mode\": \"free_text\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"options\": ["}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__manual_input__\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"✏️ 手动输入\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__skip__\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"⏭️ 跳过（稍后再说）\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          }"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        ]"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"hint\": \"引擎自动派生（无需提问 / 无需作答）\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"id\": \"account\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"group\": \"identity\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"order\": 40,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"prompt\": \"登录账号（凭证登录）\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"input_type\": \"text\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"required\": true,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"options\": [],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"default\": null,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"depends_on\": ["}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"auth_method\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"auth_method == 'password'\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      ],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"source\": \"ask\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"sensitive\": false,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"note\": null,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"render\": {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"mode\": \"free_text\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"options\": ["}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__manual_input__\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"✏️ 手动输入\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__skip__\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"⏭️ 跳过（稍后再说）\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          }"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        ]"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"hint\": \"必填。把 render.options（手动输入/跳过）原样交给 AskQuestion；用户选『✏️ 手动输入』后在对话中收取真实值，再执行 input-answer --id account --value <值>（该题必填，跳过会被拒绝）\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"id\": \"test_account\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"group\": \"identity\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"order\": 41,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"prompt\": \"测试手机号（自动生成）\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"input_type\": \"text\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"required\": false,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"options\": [],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"default\": null,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"depends_on\": ["}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"auth_method\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"auth_method == 'qahome'\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      ],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"source\": \"derived\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"sensitive\": false,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"note\": \"按 workspace 确定性生成；如需指定号码，可用 input-seed 覆盖 test_account\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"render\": {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"mode\": \"free_text\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"options\": ["}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__manual_input__\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"✏️ 手动输入\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__skip__\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"⏭️ 跳过（稍后再说）\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          }"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        ]"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"hint\": \"引擎自动派生（无需提问 / 无需作答）：按 workspace 确定性生成；如需指定号码，可用 input-seed 覆盖 test_account\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"id\": \"password\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"group\": \"identity\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"order\": 42,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"prompt\": \"该账号的登录凭证\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"input_type\": \"text\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"required\": true,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"options\": [],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"default\": null,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"depends_on\": ["}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"auth_method\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"auth_method == 'password'\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      ],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"source\": \"ask\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"sensitive\": true,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"note\": null,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"render\": {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"mode\": \"free_text\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"options\": ["}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__manual_input__\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"✏️ 手动输入\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__skip__\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"⏭️ 跳过（稍后再说）\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          }"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        ]"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"hint\": \"必填。把 render.options（手动输入/跳过）原样交给 AskQuestion；用户选『✏️ 手动输入』后在对话中收取真实值，再执行 input-answer --id password --value <值>（该题必填，跳过会被拒绝）\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"id\": \"swim_lane_name\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"group\": \"scope\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"order\": 30,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"prompt\": \"泳道名称（仅 B 环境；不填=纯域名映射/按 alpha 处理）\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"input_type\": \"text\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"required\": false,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"options\": [],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"default\": null,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"depends_on\": ["}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"env_type == 'B'\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      ],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"source\": \"ask\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"sensitive\": false,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"note\": null,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"render\": {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"mode\": \"free_text\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"options\": ["}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__manual_input__\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"✏️ 手动输入\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__skip__\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"⏭️ 跳过（稍后再说）\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          }"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        ]"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"hint\": \"选填。把 render.options（手动输入/跳过）原样交给 AskQuestion；用户选『✏️ 手动输入』后在对话中收取真实值并 input-answer --id swim_lane_name --value <值>；选『⏭️ 跳过』则执行 input-answer --id swim_lane_name --value __skip__\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"id\": \"swim_url_mappings\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"group\": \"scope\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"order\": 31,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"prompt\": \"域名映射 JSON 数组（仅 B 环境；如 [{\\\"url\\\":\\\"域名\\\",\\\"betaUrl\\\":\\\"映射地址\\\"}]；不填=不配置）\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"input_type\": \"text\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"required\": false,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"options\": [],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"default\": null,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"depends_on\": ["}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"env_type == 'B'\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      ],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"source\": \"ask\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"sensitive\": false,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"note\": null,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"render\": {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"mode\": \"free_text\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"options\": ["}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__manual_input__\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"✏️ 手动输入\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__skip__\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"⏭️ 跳过（稍后再说）\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          }"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        ]"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"hint\": \"选填。把 render.options（手动输入/跳过）原样交给 AskQuestion；用户选『✏️ 手动输入』后在对话中收取真实值并 input-answer --id swim_url_mappings --value <值>；选『⏭️ 跳过』则执行 input-answer --id swim_url_mappings --value __skip__\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"id\": \"ptest\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"group\": \"config\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"order\": 50,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"prompt\": \"是否开启 ptest（注入 isPtest/isGreyTest/isDevBundle 参数）？\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"input_type\": \"single\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"required\": false,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"options\": ["}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"value\": true,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"label\": \"开启 ptest（线上环境 + partMock 注入）\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"value\": false,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          \"label\": \"不开（纯线上）\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        }"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      ],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"default\": false,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"depends_on\": ["}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"env_type == 'A'\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      ],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"source\": \"ask\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"sensitive\": false,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"note\": null,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"render\": {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"mode\": \"choice\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"options\": ["}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": true,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"开启 ptest（线上环境 + partMock 注入）\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": false,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"不开（纯线上）\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          }"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        ],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"default\": false"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"hint\": \"选填。把 render.options 原样交给 AskQuestion，用户选定后执行 input-answer --id ptest --value <所选 value>\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"id\": \"bundle_lock\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"group\": \"config\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"order\": 51,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"prompt\": \"是否需要锁定 MRN bundle？（仅声明包名不锁包；提供版本才会锁包；无需请跳过）\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"input_type\": \"text\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"required\": false,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"options\": [],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"default\": [],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"depends_on\": [],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"source\": \"ask\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"sensitive\": false,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"note\": null,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"render\": {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"mode\": \"free_text\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"options\": ["}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__manual_input__\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"✏️ 手动输入\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__skip__\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"⏭️ 跳过（稍后再说）\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          }"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        ],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"default\": []"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"hint\": \"选填。把 render.options（手动输入/跳过）原样交给 AskQuestion；用户选『✏️ 手动输入』后在对话中收取真实值并 input-answer --id bundle_lock --value <值>；选『⏭️ 跳过』则执行 input-answer --id bundle_lock --value __skip__\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"id\": \"order_id\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"group\": \"placeholder\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"order\": 60,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"prompt\": \"请提供占位符 {order_id} 的值（出现在：Flow01-订单详情页呼出弹窗-展示态双卡引导文案展示.md, Flow02-订单详情页修改弹窗-编辑态双卡引导文案展示.md）\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"input_type\": \"text\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"required\": true,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"options\": [],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"default\": null,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"depends_on\": [],"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"source\": \"ask\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"sensitive\": false,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"note\": null,"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"render\": {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"mode\": \"free_text\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        \"options\": ["}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__manual_input__\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"✏️ 手动输入\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          {"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"value\": \"__skip__\","}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "            \"label\": \"⏭️ 跳过（稍后再说）\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "          }"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "        ]"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "      \"hint\": \"必填。把 render.options（手动输入/跳过）原样交给 AskQuestion；用户选『✏️ 手动输入』后在对话中收取真实值，再执行 input-answer --id order_id --value <值>（该题必填，跳过会被拒绝）\""}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "    }"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "  ]"}
+{"ts": "2026-10-23T17:16:37", "task": "8a61ca89", "run": "", "cmd": "input-schema", "stream": "stdout", "line": "}"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "{"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "  \"done\": false,"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "  \"question\": {"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"id\": \"bundle_lock\","}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"group\": \"config\","}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"order\": 51,"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"prompt\": \"是否需要锁定 MRN bundle？（仅声明包名不锁包；提供版本才会锁包；无需请跳过）\","}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"input_type\": \"text\","}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"required\": false,"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"options\": [],"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"default\": [],"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"depends_on\": [],"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"source\": \"ask\","}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"sensitive\": false,"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"note\": null,"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"render\": {"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "      \"mode\": \"free_text\","}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "      \"options\": ["}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "          \"value\": \"__manual_input__\","}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "          \"label\": \"✏️ 手动输入\""}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "        },"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "          \"value\": \"__skip__\","}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "          \"label\": \"⏭️ 跳过（稍后再说）\""}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "        }"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "      ],"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "      \"default\": []"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"hint\": \"选填。把 render.options（手动输入/跳过）原样交给 AskQuestion；用户选『✏️ 手动输入』后在对话中收取真实值并 input-answer --id bundle_lock --value <值>；选『⏭️ 跳过』则执行 input-answer --id bundle_lock --value __skip__\""}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "  },"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "  \"progress\": {"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"total\": 7,"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"resolved\": 6,"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"pending\": 1,"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"group\": \"config\","}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"index\": 7"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "  },"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "  \"next\": {"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"kind\": \"ask\","}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"id\": \"bundle_lock\","}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"must_ask_only_this\": true,"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"ask\": {"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "      \"prompt\": \"是否需要锁定 MRN bundle？（仅声明包名不锁包；提供版本才会锁包；无需请跳过）\","}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "      \"render\": null"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"cmd\": \".run/ws/8a61ca89/cli input-answer --id bundle_lock --value '<用户所选的 value>'\","}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"note\": \"严格按本输出执行：只把 question.render.options 这 1 题交给 AskQuestion，再按其 cmd 提交；不得合并 / 跳答 / 自行编排。 提交后回到 input-next 取下一题。\""}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "  }"}
+{"ts": "2026-10-23T17:16:44", "task": "8a61ca89", "run": "", "cmd": "input-next", "stream": "stdout", "line": "}"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "📂 默认扫描目录: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/8a61ca89/inputs/flows"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "    · Flow01-订单详情页呼出弹窗-展示态双卡引导文案展示.md"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "    · Flow02-订单详情页修改弹窗-编辑态双卡引导文案展示.md"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "  ⚪ 空文件已创建: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/8a61ca89/tmp/metadata-shard01.json"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "============================================================"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "  flow-convert 元数据解析报告（轻量模式）"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "============================================================"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "  文件数: 2"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "    · Flow01-订单详情页呼出弹窗-展示态双卡引导文案展示.md — Flow01 · 订单详情页呼出弹窗-展示态双卡引导文案展示"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "      EC 用例: 4210287"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "    · Flow02-订单详情页修改弹窗-编辑态双卡引导文案展示.md — Flow02 · 订单详情页修改弹窗-编辑态双卡引导文案展示"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "      EC 用例: 4210286"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "  📄 Flow01-订单详情页呼出弹窗-展示态双卡引导文案展示.md"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "     标题: Flow01 · 订单详情页呼出弹窗-展示态双卡引导文案展示"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "     EC 用例: 4210287"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "     测试数据:"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "       EC 用例未提供具体订单号，执行时使用可联系酒店状态的国内酒店测试订单（订单构造见 workspace `testplan/testdata.md` 订单 #1）"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "    📌 默认场景 · 默认场景"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "       scheme: imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail..."}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "      [S1] 滚动到联系酒店入口"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        🖱 操作: 滚动到「联系酒店」。"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ⏳ 等待: 订单详情页加载完成，「联系酒店」入口可见。"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ✅ 校验: - 「联系酒店」 — 渲染就绪标志"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "      [S2] 点击联系酒店唤起号码呼出弹窗"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        🖱 操作: 点击「联系酒店」。"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ⏳ 等待: 号码呼出弹窗展示。"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ✅ 校验: - 「将使用该号码加密呼出」 — 文案断言"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ✅ 校验: - 「为保证服务质量，您的通话可能被录音」 — 文案断言"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        🌐 接口: `POST /hotelorder/v1/queryuserinfo.json`"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "- error.code=200，da"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "      [S3] 查看展示态弹窗双卡引导文案"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        🖱 操作: 无（已在页面）。"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ⏳ 等待: 弹窗内容渲染完成。"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ✅ 校验: - 「双卡双待请确认，系统呼出号码和下方一致」 — 文案断言"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ✅ 校验: - 「双卡双待请确认，系统呼出号码和下方一致」位于「将使用该号码加密呼出」正下方、号码区上方 — 视觉确认"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ✅ 校验: - 「双卡双待请确认，系统呼出号码和下方一致」字号/色值与 UI 稿一致（12pt/#999999/居中） — 视觉确认"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ... 还有 3 行"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "      [S4] 关闭弹窗"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        🖱 操作: 点击「取消」。"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ⏳ 等待: 弹窗关闭。"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ✅ 校验: - 「将使用该号码加密呼出」消失 — 文案消失"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "      [S5] 再次唤起弹窗检查文案常驻展示"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        🖱 操作: 点击「联系酒店」。"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ⏳ 等待: 号码呼出弹窗再次展示。"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ✅ 校验: - 「双卡双待请确认，系统呼出号码和下方一致」 — 文案断言"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "  📄 Flow02-订单详情页修改弹窗-编辑态双卡引导文案展示.md"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "     标题: Flow02 · 订单详情页修改弹窗-编辑态双卡引导文案展示"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "     EC 用例: 4210286"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "     测试数据:"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "       EC 用例未提供具体订单号，执行时使用可联系酒店状态的国内酒店测试订单（见 workspace `testplan/testdata.md` 订单 #1）"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "    📌 默认场景 · 默认场景"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "       scheme: imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail..."}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "      [S1] 点击联系酒店唤起呼出弹窗"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        🖱 操作: 点击「联系酒店」。"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ⏳ 等待: 号码呼出弹窗展示。"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ✅ 校验: - 「将使用该号码加密呼出」 — 渲染就绪标志"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "      [S2] 点击非本机号请修改进入编辑态"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        🖱 操作: 点击「非本机号请修改」。"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ⏳ 等待: 修改号码弹窗（编辑态）展示。"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ✅ 校验: - 「输入本机号码」 — 文案断言"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ✅ 校验: - 「请输入本机号码」 — 文案断言"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        🌐 接口: `POST /hotelorder/v1/queryuserinfo.json`"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "- error.code=200，da"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "      [S3] 查看编辑态弹窗双卡引导文案"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        🖱 操作: 无（已在页面）。"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ⏳ 等待: 编辑态弹窗内容渲染完成。"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ✅ 校验: - 「双卡双待请确认，系统呼出号码和下方一致」 — 文案断言"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ✅ 校验: - 「双卡双待请确认，系统呼出号码和下方一致」位于「输入本机号码」标题下方 — 视觉确认"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ✅ 校验: - 「立即呼叫」 — 文案断言"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ... 还有 1 行"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "      [S4] 关闭编辑态弹窗"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        🖱 操作: 点击「取消」。"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ⏳ 等待: 弹窗关闭。"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ✅ 校验: - 「输入本机号码」消失 — 文案消失"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "      [S5] 重新唤起弹窗切换回展示态检查文案"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        🖱 操作: 点击「联系酒店」。"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ⏳ 等待: 号码呼出弹窗（展示态）展示。"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ✅ 校验: - 「双卡双待请确认，系统呼出号码和下方一致」 — 文案断言"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ✅ 校验: - 「将使用该号码加密呼出」 — 文案断言"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "      [S6] 再次进入编辑态检查文案不丢失不重复"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        🖱 操作: 点击「非本机号请修改」。"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ⏳ 等待: 编辑态弹窗展示。"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ✅ 校验: - 「双卡双待请确认，系统呼出号码和下方一致」 — 文案断言"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "        ✅ 校验: - 「双卡双待请确认，系统呼出号码和下方一致」仅出现一次（不重复） — 视觉确认"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "  📋 下一步（AI 完成）:"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "    1. 根据以上元数据，为每个 Case 编写 steps 数组"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "    2. 参考 Action 选择映射表确定 action 字段"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "    3. 填充测试数据参数到 params 字段"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "    4. 【env 声明】把「可测性环境」表映射进 CASES.env："}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "       · 环境 → 与 env_type 保持一致；泳道/域名映射 → 对应 env 字段"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "       · AppMock → 无需写入 env：flow-init 自动派生到该 Case 的 mock_ids（case 级启用）"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "    5. 执行 <入口> steps-generate ... 固化"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "============================================================"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "✅ 元数据已写入: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/8a61ca89/tmp/metadata-shard01.json"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "  files=2 scenes=2 steps=11"}
+{"ts": "2026-10-23T17:16:49", "task": "8a61ca89", "run": "", "cmd": "flow-convert", "stream": "stdout", "line": "💡 请 AI 根据元数据编写 CASES（含 steps），然后执行 steps-generate 固化"}
+{"ts": "2026-10-23T17:16:52", "task": "8a61ca89", "run": "", "cmd": "cases-create", "stream": "stdout", "line": "✅ 空 CASES 文件已创建: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/8a61ca89/tmp/cases-shard01.json"}
+{"ts": "2026-10-23T17:16:52", "task": "8a61ca89", "run": "", "cmd": "cases-create", "stream": "stdout", "line": "   强制约定：AI 写入完整 CASES（device/env/cases/steps）并确认落盘后，再执行："}
+{"ts": "2026-10-23T17:16:52", "task": "8a61ca89", "run": "", "cmd": "cases-create", "stream": "stdout", "line": "   <入口> steps-generate --input 'cases-shard01.json' --tag shard01"}
+{"ts": "2026-10-23T17:17:52", "task": "8a61ca89", "run": "", "cmd": "steps-generate", "stream": "stdout", "line": "📄 占位符清单已输出: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/8a61ca89/tmp/steps-input-shard01.placeholders.json"}
+{"ts": "2026-10-23T17:17:52", "task": "8a61ca89", "run": "", "cmd": "steps-generate", "stream": "stdout", "line": "💡 逐题收集：<入口> input-next  （按返回的 next 指针用 input-answer 一题一答提交，禁止直接构造 input-answer）"}
+{"ts": "2026-10-23T17:17:52", "task": "8a61ca89", "run": "", "cmd": "steps-generate", "stream": "stdout", "line": "✅ steps-input 已生成: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/8a61ca89/tmp/steps-input-shard01.json"}
+{"ts": "2026-10-23T17:18:05", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-next", "stream": "stdout", "line": "FLOW-NEXT: 执行阶段 B0_mis_acquire: 领取虚拟 mis（AppMock 工作域）"}
+{"ts": "2026-10-23T17:18:05", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-next", "stream": "stdout", "line": "  CMD: .run/ws/8a61ca89/cli mis acquire"}
+{"ts": "2026-10-23T17:18:05", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-next", "stream": "stdout", "line": "  成功标志: \"ok\": true"}
+{"ts": "2026-10-23T17:18:05", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-next", "stream": "stdout", "line": "  失败策略: abort"}
+{"ts": "2026-10-23T17:18:05", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-next", "stream": "stdout", "line": "  [NOTE] 在任何 AppMock 操作之前领一个虚拟 mis（私有优先 → 公共兜底），写入 workspace 级 intake.mock_domain；后续 AppMock（规则/录制/环境/泳道）全部用它。池空即失败中止（fail-fast）。"}
+{"ts": "2026-10-23T17:18:05", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-next", "stream": "stdout", "line": "  完成后执行 .run/ws/8a61ca89/cli flow-advance 推进到下一阶段"}
+{"ts": "2026-10-23T17:18:07", "task": "8a61ca89", "run": "shard01-run1", "cmd": "mis", "stream": "stdout", "line": "{\"ok\": true, \"mis\": \"ai_pub_0023\", \"scope\": \"public\"}"}
+{"ts": "2026-10-23T17:18:11", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-advance", "stream": "stdout", "line": "FLOW-ADVANCE: 执行阶段 B1_device: 设备获取 + 初始化"}
+{"ts": "2026-10-23T17:18:11", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-advance", "stream": "stdout", "line": "  CMD（长任务·后台执行）: .run/ws/8a61ca89/cli device create"}
+{"ts": "2026-10-23T17:18:11", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-advance", "stream": "stdout", "line": "  CMD（长任务·后台执行）: .run/ws/8a61ca89/cli device setup"}
+{"ts": "2026-10-23T17:18:11", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-advance", "stream": "stdout", "line": "  CMD: .run/ws/8a61ca89/cli ack --key device_info_shown"}
+{"ts": "2026-10-23T17:18:11", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-advance", "stream": "stdout", "line": "  [长任务契约] 后台启动并轮询日志；超时/失败后先确认上一实例已终止，禁止在旧实例存活时重跑"}
+{"ts": "2026-10-23T17:18:11", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-advance", "stream": "stdout", "line": "  成功标志: \"ok\": true"}
+{"ts": "2026-10-23T17:18:11", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-advance", "stream": "stdout", "line": "  失败策略: abort"}
+{"ts": "2026-10-23T17:18:11", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-advance", "stream": "stdout", "line": "  [NOTE] create 完成后先向用户展示设备信息（sandboxId、adb 地址、围观链接 scrcpyUrl），再调用 ack 写入证据，否则 flow-advance 会被拦截。"}
+{"ts": "2026-10-23T17:18:11", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-advance", "stream": "stdout", "line": "  [ACK_REQUIRED] 完成后执行: .run/ws/8a61ca89/cli ack --key device_info_shown"}
+{"ts": "2026-10-23T17:18:11", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-advance", "stream": "stdout", "line": "    说明: 请先向用户展示 sandboxId/adb地址/围观链接，再调用 ack --key device_info_shown"}
+{"ts": "2026-10-23T17:18:11", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-advance", "stream": "stdout", "line": "  完成后执行 .run/ws/8a61ca89/cli flow-advance 推进到下一阶段"}
+{"ts": "2026-10-23T17:18:11", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-next", "stream": "stdout", "line": "FLOW-NEXT: 执行阶段 B1_device: 设备获取 + 初始化"}
+{"ts": "2026-10-23T17:18:11", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-next", "stream": "stdout", "line": "  CMD（长任务·后台执行）: .run/ws/8a61ca89/cli device create"}
+{"ts": "2026-10-23T17:18:11", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-next", "stream": "stdout", "line": "  CMD（长任务·后台执行）: .run/ws/8a61ca89/cli device setup"}
+{"ts": "2026-10-23T17:18:11", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-next", "stream": "stdout", "line": "  CMD: .run/ws/8a61ca89/cli ack --key device_info_shown"}
+{"ts": "2026-10-23T17:18:11", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-next", "stream": "stdout", "line": "  [长任务契约] 后台启动并轮询日志；超时/失败后先确认上一实例已终止，禁止在旧实例存活时重跑"}
+{"ts": "2026-10-23T17:18:11", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-next", "stream": "stdout", "line": "  成功标志: \"ok\": true"}
+{"ts": "2026-10-23T17:18:11", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-next", "stream": "stdout", "line": "  失败策略: abort"}
+{"ts": "2026-10-23T17:18:11", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-next", "stream": "stdout", "line": "  [NOTE] create 完成后先向用户展示设备信息（sandboxId、adb 地址、围观链接 scrcpyUrl），再调用 ack 写入证据，否则 flow-advance 会被拦截。"}
+{"ts": "2026-10-23T17:18:11", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-next", "stream": "stdout", "line": "  [ACK_REQUIRED] 完成后执行: .run/ws/8a61ca89/cli ack --key device_info_shown"}
+{"ts": "2026-10-23T17:18:11", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-next", "stream": "stdout", "line": "    说明: 请先向用户展示 sandboxId/adb地址/围观链接，再调用 ack --key device_info_shown"}
+{"ts": "2026-10-23T17:18:11", "task": "8a61ca89", "run": "shard01-run1", "cmd": "flow-next", "stream": "stdout", "line": "  完成后执行 .run/ws/8a61ca89/cli flow-advance 推进到下一阶段"}
+{"ts": "2026-10-23T17:18:14", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:api] POST /node/api/data/monitor/mis-pool/heartbeat (timeout=15s)..."}
+{"ts": "2026-10-23T17:18:14", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:api] POST /node/api/data/monitor/mis-pool/heartbeat 完成 (0.2s)"}
+{"ts": "2026-10-23T17:18:14", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:api] GET /node/api/data/monitor/sandbox/query (timeout=30s)..."}
+{"ts": "2026-10-23T17:20:08", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:setup] 注册设备到 imeituan session..."}
+{"ts": "2026-10-23T17:20:08", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] 注册设备 33.195.6.226:8080 (platform=android, timeout=30s)..."}
+{"ts": "2026-10-23T17:20:09", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] ⚠️ session 创建失败: 设备注册回滚仍有待清理资源：ADB_PORT_OWNERSHIP_CONFLICT: 当前监听 Server 没有可验证的网络隔离启动记录"}
+{"ts": "2026-10-23T17:20:09", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "注册失败，等待 5s 后重试（1/3）..."}
+{"ts": "2026-10-23T17:20:14", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] 已重启 ADB Server（修复陈旧连接状态），准备重试注册..."}
+{"ts": "2026-10-23T17:20:14", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] 注册设备 33.195.6.226:8080 (platform=android, timeout=30s)..."}
+{"ts": "2026-10-23T17:20:14", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] ⚠️ session 创建失败: sess-2c2f3662"}
+{"ts": "2026-10-23T17:20:14", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "transport-disconnect-33.195.6.226:8080: ADB_PORT_OWNERSHIP_CONFLICT: 当前监听 Server 没有可验证的网络隔离启动记录"}
+{"ts": "2026-10-23T17:20:14", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "注册失败，等待 5s 后重试（2/3）..."}
+{"ts": "2026-10-23T17:20:19", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] 已重启 ADB Server（修复陈旧连接状态），准备重试注册..."}
+{"ts": "2026-10-23T17:20:19", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] 注册设备 33.195.6.226:8080 (platform=android, timeout=30s)..."}
+{"ts": "2026-10-23T17:21:45", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:setup] 注册设备到 imeituan session..."}
+{"ts": "2026-10-23T17:21:45", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] 注册设备 33.195.6.226:8080 (platform=android, timeout=30s)..."}
+{"ts": "2026-10-23T17:21:45", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] ⚠️ session 创建失败: sess-2c2f3662"}
+{"ts": "2026-10-23T17:21:45", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "transport-disconnect-33.195.6.226:8080: ADB_PORT_OWNERSHIP_CONFLICT: 当前监听 Server 没有可验证的网络隔离启动记录"}
+{"ts": "2026-10-23T17:21:45", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "注册失败，等待 5s 后重试（1/3）..."}
+{"ts": "2026-10-23T17:21:50", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] 已重启 ADB Server（修复陈旧连接状态），准备重试注册..."}
+{"ts": "2026-10-23T17:21:50", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] 注册设备 33.195.6.226:8080 (platform=android, timeout=30s)..."}
+{"ts": "2026-10-23T17:21:51", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] ⚠️ session 创建失败: sess-2c2f3662"}
+{"ts": "2026-10-23T17:21:51", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "transport-disconnect-33.195.6.226:8080: ADB_PORT_OWNERSHIP_CONFLICT: 当前监听 Server 没有可验证的网络隔离启动记录"}
+{"ts": "2026-10-23T17:21:51", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "注册失败，等待 5s 后重试（2/3）..."}
+{"ts": "2026-10-23T17:21:56", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] 已重启 ADB Server（修复陈旧连接状态），准备重试注册..."}
+{"ts": "2026-10-23T17:21:56", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] 注册设备 33.195.6.226:8080 (platform=android, timeout=30s)..."}
+{"ts": "2026-10-23T17:23:57", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:setup] 注册设备到 imeituan session..."}
+{"ts": "2026-10-23T17:23:57", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] 注册设备 33.195.6.226:8080 (platform=android, timeout=30s)..."}
+{"ts": "2026-10-23T17:23:57", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] ⚠️ session 创建失败: 设备注册回滚仍有待清理资源：ADB_PORT_OWNERSHIP_CONFLICT: ADB_PORT_OWNERSHIP_CONFLICT: 当前监听 Server 没有可验证的网络隔离启动记录"}
+{"ts": "2026-10-23T17:23:57", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "注册失败，等待 5s 后重试（1/3）..."}
+{"ts": "2026-10-23T17:24:02", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] 已重启 ADB Server（修复陈旧连接状态），准备重试注册..."}
+{"ts": "2026-10-23T17:24:02", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] 注册设备 33.195.6.226:8080 (platform=android, timeout=30s)..."}
+{"ts": "2026-10-23T17:24:03", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] ⚠️ session 创建失败: sess-44704b84"}
+{"ts": "2026-10-23T17:24:03", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "transport-disconnect-33.195.6.226:8080: ADB_PORT_OWNERSHIP_CONFLICT: 当前监听 Server 没有可验证的网络隔离启动记录"}
+{"ts": "2026-10-23T17:24:03", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "注册失败，等待 5s 后重试（2/3）..."}
+{"ts": "2026-10-23T17:24:08", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] 已重启 ADB Server（修复陈旧连接状态），准备重试注册..."}
+{"ts": "2026-10-23T17:24:08", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] 注册设备 33.195.6.226:8080 (platform=android, timeout=30s)..."}
+{"ts": "2026-10-23T17:24:08", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] ⚠️ session 创建失败: sess-44704b84"}
+{"ts": "2026-10-23T17:25:10", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:setup] 注册设备到 imeituan session..."}
+{"ts": "2026-10-23T17:25:10", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] 注册设备 33.195.6.226:8080 (platform=android, timeout=30s)..."}
+{"ts": "2026-10-23T17:25:11", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] ⚠️ session 创建失败: 设备注册回滚仍有待清理资源：ADB_PORT_OWNERSHIP_CONFLICT: ADB_PORT_OWNERSHIP_CONFLICT: 当前监听 Server 没有可验证的网络隔离启动记录"}
+{"ts": "2026-10-23T17:25:11", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "注册失败，等待 5s 后重试（1/3）..."}
+{"ts": "2026-10-23T17:25:16", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] 已重启 ADB Server（修复陈旧连接状态），准备重试注册..."}
+{"ts": "2026-10-23T17:25:16", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] 注册设备 33.195.6.226:8080 (platform=android, timeout=30s)..."}
+{"ts": "2026-10-23T17:25:16", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] ⚠️ session 创建失败: sess-59371ee8"}
+{"ts": "2026-10-23T17:25:16", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "transport-disconnect-33.195.6.226:8080: ADB_PORT_OWNERSHIP_CONFLICT: 当前监听 Server 没有可验证的网络隔离启动记录"}
+{"ts": "2026-10-23T17:25:16", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "注册失败，等待 5s 后重试（2/3）..."}
+{"ts": "2026-10-23T17:25:21", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] 已重启 ADB Server（修复陈旧连接状态），准备重试注册..."}
+{"ts": "2026-10-23T17:25:21", "task": "8a61ca89", "run": "shard01-run1", "cmd": "device", "stream": "stderr", "line": "[device:session] 注册设备 33.195.6.226:8080 (platform=android, timeout=30s)..."}
+{"ts": "2026-10-23T17:27:30", "task": "8a61ca89", "run": "shard01-run1", "cmd": "report-error", "stream": "stdout", "line": "{\"ok\": true, \"reported\": true, \"event\": \"ai_diagnosis\", \"code\": \"ADB_OWNERSHIP_PROOF_BLOCKED\"}"}

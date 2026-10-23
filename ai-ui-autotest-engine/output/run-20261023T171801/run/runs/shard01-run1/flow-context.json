@@ -1,0 +1,715 @@
+{
+  "meta": {
+    "skill": "ai-ui-autotest-engine",
+    "batch_name": "privacy-number-double-sim-guide-shard01",
+    "batch_ts": "20261023T171801",
+    "batch_run_id": "run-20261023T171801",
+    "batch_output_dir": "/Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/output/run-20261023T171801",
+    "flow_name": "privacy-number-double-sim-guide-shard01",
+    "started_at": "2026-10-23T17:18:01",
+    "run_start_ts": 1792747081.731849,
+    "last_updated": "2026-10-23T17:27:33",
+    "device_serial": "33.195.6.226:8080",
+    "platform": "android",
+    "device_type": "sandbox",
+    "app": "meituan",
+    "device_auto_install": false,
+    "run_dir": "/Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/8a61ca89/runs/shard01-run1",
+    "steps_json_path": "/Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/8a61ca89/runs/shard01-run1/steps-input.json",
+    "user_mis": "wangshicheng05",
+    "device_info": "",
+    "mock_union": [],
+    "sandbox_id": "67369968-812d-4e6c-bc2c-1e59cb13cc8d",
+    "device_remote_address": "",
+    "sandbox_user": "wangshicheng05",
+    "scrcpyUrl": "https://8000-67369968-812d-4e6c-bc2c-1e59cb13cc8d.general-sandbox.sankuai.com"
+  },
+  "env": {
+    "type": "A",
+    "auth_method": "password",
+    "account": "18510177674",
+    "password": "ZDRXFT@MT01.com()",
+    "ptest": false,
+    "bundle_lock": [],
+    "app": "meituan",
+    "env_name": "online",
+    "_password_raw": "***"
+  },
+  "cases_manifest": [
+    {
+      "index": 0,
+      "case_id": "Flow01-订单详情页呼出弹窗-展示态双卡引导文案展示",
+      "case_name": "Flow01-订单详情页呼出弹窗-展示态双卡引导文案展示",
+      "dir": "Flow01-订单详情页呼出弹窗-展示态双卡引导文案展示",
+      "case_tag": "case_01",
+      "workspace_dir": "case_01",
+      "run_id": "run-20261023T171801",
+      "output_dir": "/Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/output/run-20261023T171801/case_01",
+      "landing_scheme": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail&mrn_component=hotelchannel-order-detail&order_id=5035036077836749951&biz_type=1&mrn_disable_debugview=true&disableRedBox=1&disableDebugView=true&__recce_dev_show__=false",
+      "flow_source": "/Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/8a61ca89/inputs/flows/Flow01-订单详情页呼出弹窗-展示态双卡引导文案展示.md",
+      "flow_source_name": "Flow01-订单详情页呼出弹窗-展示态双卡引导文案展示.md",
+      "mock_ids": [],
+      "flow_content": "# Flow01 · 订单详情页呼出弹窗-展示态双卡引导文案展示\n\n<!-- caseId = 4210287 -->\n\n> 关联 EC 用例：4210287（P0：【订单详情页】呼出弹窗-展示态双卡引导文案-文案常驻展示）\n> 执行类型：data-dependent\n> 前置条件：已预订国内酒店订单（已支付、未入住/未取消、可联系酒店状态），酒店已开通隐私号能力；覆盖矩阵：美团App/点评App × 安卓/iOS/鸿蒙（多端执行时替换 {order_id} 重复跑）\n\n> 测试数据参考：EC 用例未提供具体订单号，执行时使用可联系酒店状态的国内酒店测试订单（订单构造见 workspace `testplan/testdata.md` 订单 #1）\n\n## 落地入口\n\n```\nimeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail&mrn_component=hotelchannel-order-detail&order_id={order_id}&biz_type=1\n```\n\n## 执行步骤\n\n### S1. 滚动到联系酒店入口\n\n**操作**：滚动到「联系酒店」。\n\n**等待**：订单详情页加载完成，「联系酒店」入口可见。\n\n**校验**：\n- 「联系酒店」 — 渲染就绪标志\n\n### S2. 点击联系酒店唤起号码呼出弹窗\n\n**操作**：点击「联系酒店」。\n\n**等待**：号码呼出弹窗展示。\n\n**校验**：\n- 「将使用该号码加密呼出」 — 文案断言\n- 「为保证服务质量，您的通话可能被录音」 — 文案断言\n\n**接口断言**：`POST /hotelorder/v1/queryuserinfo.json`\n- error.code=200，data.maskMobile（掩码本机号，如 188****1234）正常返回供弹窗展示态使用\n\n### A1. queryuserinfo 接口返回校验\n\n- 接口 `POST https://apihotel.meituan.com/hotelorder/v1/queryuserinfo.json` 返回 error.code=200\n- data.maskMobile 非空，与弹窗号码区展示的掩码号码一致\n\n### S3. 查看展示态弹窗双卡引导文案\n\n**操作**：无（已在页面）。\n\n**等待**：弹窗内容渲染完成。\n\n**校验**：\n- 「双卡双待请确认，系统呼出号码和下方一致」 — 文案断言\n- 「双卡双待请确认，系统呼出号码和下方一致」位于「将使用该号码加密呼出」正下方、号码区上方 — 视觉确认\n- 「双卡双待请确认，系统呼出号码和下方一致」字号/色值与 UI 稿一致（12pt/#999999/居中） — 视觉确认\n- 「非本机号请修改」 — 文案断言\n- 「立即呼叫」 — 文案断言\n- 「取消」 — 文案断言\n\n**证据要求**：对展示态弹窗整体截图一张（含标题、双卡文案、号码区、按钮），供样式走查对照 UI 稿 https://imd.sankuai.com/goto/WXY9Zrqp\n\n### S4. 关闭弹窗\n\n**操作**：点击「取消」。\n\n**等待**：弹窗关闭。\n\n**校验**：\n- 「将使用该号码加密呼出」消失 — 文案消失\n\n### S5. 再次唤起弹窗检查文案常驻展示\n\n**操作**：点击「联系酒店」。\n\n**等待**：号码呼出弹窗再次展示。\n\n**校验**：\n- 「双卡双待请确认，系统呼出号码和下方一致」 — 文案断言\n"
+    },
+    {
+      "index": 1,
+      "case_id": "Flow02-订单详情页修改弹窗-编辑态双卡引导文案展示",
+      "case_name": "Flow02-订单详情页修改弹窗-编辑态双卡引导文案展示",
+      "dir": "Flow02-订单详情页修改弹窗-编辑态双卡引导文案展示",
+      "case_tag": "case_02",
+      "workspace_dir": "case_02",
+      "run_id": "run-20261023T171801",
+      "output_dir": "/Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/output/run-20261023T171801/case_02",
+      "landing_scheme": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail&mrn_component=hotelchannel-order-detail&order_id=5035036077836749951&biz_type=1&mrn_disable_debugview=true&disableRedBox=1&disableDebugView=true&__recce_dev_show__=false",
+      "flow_source": "/Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/8a61ca89/inputs/flows/Flow02-订单详情页修改弹窗-编辑态双卡引导文案展示.md",
+      "flow_source_name": "Flow02-订单详情页修改弹窗-编辑态双卡引导文案展示.md",
+      "mock_ids": [],
+      "flow_content": "# Flow02 · 订单详情页修改弹窗-编辑态双卡引导文案展示\n\n<!-- caseId = 4210286 -->\n\n> 关联 EC 用例：4210286（P0：【订单详情页】修改弹窗-编辑态双卡引导文案-双态均展示）\n> 执行类型：data-dependent\n> 前置条件：已预订国内酒店订单，订单详情页可唤起号码呼出弹窗且可进入修改号码流程；美团App / 点评App\n\n> 测试数据参考：EC 用例未提供具体订单号，执行时使用可联系酒店状态的国内酒店测试订单（见 workspace `testplan/testdata.md` 订单 #1）\n\n## 落地入口\n\n```\nimeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail&mrn_component=hotelchannel-order-detail&order_id={order_id}&biz_type=1\n```\n\n## 执行步骤\n\n### S1. 点击联系酒店唤起呼出弹窗\n\n**操作**：点击「联系酒店」。\n\n**等待**：号码呼出弹窗展示。\n\n**校验**：\n- 「将使用该号码加密呼出」 — 渲染就绪标志\n\n### S2. 点击非本机号请修改进入编辑态\n\n**操作**：点击「非本机号请修改」。\n\n**等待**：修改号码弹窗（编辑态）展示。\n\n**校验**：\n- 「输入本机号码」 — 文案断言\n- 「请输入本机号码」 — 文案断言\n\n**接口断言**：`POST /hotelorder/v1/queryuserinfo.json`\n- error.code=200，data.maskMobile 正常返回\n\n### A1. queryuserinfo 接口返回校验\n\n- 接口 `POST https://apihotel.meituan.com/hotelorder/v1/queryuserinfo.json` 返回 error.code=200\n\n### S3. 查看编辑态弹窗双卡引导文案\n\n**操作**：无（已在页面）。\n\n**等待**：编辑态弹窗内容渲染完成。\n\n**校验**：\n- 「双卡双待请确认，系统呼出号码和下方一致」 — 文案断言\n- 「双卡双待请确认，系统呼出号码和下方一致」位于「输入本机号码」标题下方 — 视觉确认\n- 「立即呼叫」 — 文案断言\n- 「取消」 — 文案断言\n\n**证据要求**：编辑态弹窗整体截图一张，供样式走查对照 UI 稿 https://imd.sankuai.com/goto/WXY9Zrqp\n\n### S4. 关闭编辑态弹窗\n\n**操作**：点击「取消」。\n\n**等待**：弹窗关闭。\n\n**校验**：\n- 「输入本机号码」消失 — 文案消失\n\n### S5. 重新唤起弹窗切换回展示态检查文案\n\n**操作**：点击「联系酒店」。\n\n**等待**：号码呼出弹窗（展示态）展示。\n\n**校验**：\n- 「双卡双待请确认，系统呼出号码和下方一致」 — 文案断言\n- 「将使用该号码加密呼出」 — 文案断言\n\n### S6. 再次进入编辑态检查文案不丢失不重复\n\n**操作**：点击「非本机号请修改」。\n\n**等待**：编辑态弹窗展示。\n\n**校验**：\n- 「双卡双待请确认，系统呼出号码和下方一致」 — 文案断言\n- 「双卡双待请确认，系统呼出号码和下方一致」仅出现一次（不重复） — 视觉确认\n"
+    }
+  ],
+  "cases_summary": [
+    {
+      "case_id": "Flow01-订单详情页呼出弹窗-展示态双卡引导文案展示",
+      "case_name": "Flow01-订单详情页呼出弹窗-展示态双卡引导文案展示",
+      "dir": "Flow01-订单详情页呼出弹窗-展示态双卡引导文案展示",
+      "status": "pending"
+    },
+    {
+      "case_id": "Flow02-订单详情页修改弹窗-编辑态双卡引导文案展示",
+      "case_name": "Flow02-订单详情页修改弹窗-编辑态双卡引导文案展示",
+      "dir": "Flow02-订单详情页修改弹窗-编辑态双卡引导文案展示",
+      "status": "pending"
+    }
+  ],
+  "current_case": {
+    "index": 0,
+    "case_id": "Flow01-订单详情页呼出弹窗-展示态双卡引导文案展示",
+    "case_name": "Flow01-订单详情页呼出弹窗-展示态双卡引导文案展示",
+    "dir": "Flow01-订单详情页呼出弹窗-展示态双卡引导文案展示",
+    "workspace_dir": "case_01",
+    "run_id": "run-20261023T171801",
+    "output_dir": "/Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/output/run-20261023T171801/case_01",
+    "landing_scheme": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail&mrn_component=hotelchannel-order-detail&order_id=5035036077836749951&biz_type=1&mrn_disable_debugview=true&disableRedBox=1&disableDebugView=true&__recce_dev_show__=false"
+  },
+  "runtime": {
+    "acks": {}
+  },
+  "sop": {
+    "current_stage": "aborted",
+    "stages": [
+      {
+        "id": "B0_mis_acquire",
+        "desc": "领取虚拟 mis（AppMock 工作域）",
+        "status": "completed",
+        "cmd": "python3 scripts/cli.py mis acquire",
+        "success_marker": "\"ok\": true",
+        "on_fail": {
+          "policy": "abort",
+          "generate_report": true,
+          "cleanup": true
+        },
+        "layer": "batch_head",
+        "notes": "在任何 AppMock 操作之前领一个虚拟 mis（私有优先 → 公共兜底），写入 workspace 级 intake.mock_domain；后续 AppMock（规则/录制/环境/泳道）全部用它。池空即失败中止（fail-fast）。",
+        "started_at": "2026-10-23T17:18:01",
+        "completed_at": "2026-10-23T17:18:11"
+      },
+      {
+        "id": "B0_mock_preflight",
+        "desc": "场景 Mock 预检（快照 union + 同 case 冲突检测 + 清场）",
+        "status": "skipped",
+        "cmd": "python3 scripts/cli.py mock-preflight",
+        "success_marker": "mock_preflight",
+        "on_fail": {
+          "policy": "abort",
+          "generate_report": true,
+          "cleanup": true
+        },
+        "condition": "meta.mock_union non-empty",
+        "layer": "batch_head",
+        "notes": "快照所有 case 声明的 mockId（union）到 run 级基线，并把它们全部置 OFF；同 case 内出现同接口两规则 → fail-fast。后续由 C1_mock_apply 逐 case 收敛开关。",
+        "skip_reason": "meta.mock_union 为空"
+      },
+      {
+        "id": "B1_device",
+        "desc": "设备获取 + 初始化",
+        "status": "failed",
+        "cmds": [
+          {
+            "cmd": "python3 scripts/cli.py device create",
+            "background": true
+          },
+          {
+            "cmd": "python3 scripts/cli.py device setup",
+            "background": true
+          },
+          "python3 scripts/cli.py ack --key device_info_shown"
+        ],
+        "success_marker": "\"ok\": true",
+        "on_fail": {
+          "policy": "abort",
+          "generate_report": true,
+          "cleanup": true
+        },
+        "notes": "create 完成后先向用户展示设备信息（sandboxId、adb 地址、围观链接 scrcpyUrl），再调用 ack 写入证据，否则 flow-advance 会被拦截。",
+        "completion_check": {
+          "type": "json_path_nonempty",
+          "path": "meta.device_serial"
+        },
+        "requires_ack": [
+          {
+            "key": "device_info_shown",
+            "hint": "请先向用户展示 sandboxId/adb地址/围观链接，再调用 ack --key device_info_shown"
+          }
+        ],
+        "layer": "batch_head",
+        "started_at": "2026-10-23T17:18:11",
+        "failed_at": "2026-10-23T17:27:33",
+        "error": "云模拟器 device register 失败：imeituan-cli 云 ADB 所有权校验需要 /bin/ps 读取 adb 守护进程出生时间与启动 nonce，当前 CatPaw 会话沙箱对 /bin/ps 返回 EPERM，proof 无法生成，注册在 ADB_PORT_OWNERSHIP_CONFLICT / SESSION_CLEANUP_PENDING / ADB_CLEANUP_SERVER_UNAVAILABLE 之间循环失败，环境不可恢复"
+      },
+      {
+        "id": "B2_login",
+        "desc": "环境配置 + 登录",
+        "status": "pending",
+        "cmd": {
+          "cmd": "python3 scripts/cli.py env-prepare",
+          "background": true
+        },
+        "success_markers": [
+          "login_input_code",
+          "QAHOME-LOGIN",
+          "[NEEDS_VISUAL_CHECK]"
+        ],
+        "on_fail": {
+          "policy": "abort",
+          "generate_report": true,
+          "cleanup": true
+        },
+        "notes": "凭证登录（A/C）输出 [NEEDS_VISUAL_CHECK] 需读图确认；验证码登录（B/D）由 env-prepare 内部自动验证。确认登录成功后调用 ack 写入证据，否则 flow-advance 会被拦截。",
+        "requires_ack": [
+          {
+            "key": "login_completed",
+            "hint": "请先确认 env-prepare 已成功登录（凭证登录需读图确认 [NEEDS_VISUAL_CHECK] 截图，验证码登录确认 QAHOME-LOGIN 成功标记）。MRN 锁包结果已由 env-prepare 自动通过 inspect-tree 验证——如果锁包失败，env-prepare 会直接报错退出，不会到达此 ack 环节。确认后直接 ack（凭证登录无需跳回首页，后续 open-url scheme 可直接覆盖当前页面）"
+          }
+        ],
+        "layer": "batch_head"
+      },
+      {
+        "id": "C0_case_init_0",
+        "desc": "切换到 Case 0: Flow01-订单详情页呼出弹窗-展示态双卡引导文案展示",
+        "status": "pending",
+        "cmd": "python3 scripts/cli.py case-init --case-index 0",
+        "success_marker": "CASE-INIT OK",
+        "on_fail": {
+          "policy": "skip_to_next_case"
+        },
+        "layer": "case_loop",
+        "case_index": 0
+      },
+      {
+        "id": "C1_mock_apply_0",
+        "desc": "收敛场景 Mock 到本 Case（差量开关 + body 回基线）",
+        "status": "pending",
+        "cmd": "python3 scripts/cli.py mock-apply --case-index 0",
+        "success_marker": "mock_apply",
+        "on_fail": {
+          "policy": "abort",
+          "generate_report": true,
+          "cleanup": true
+        },
+        "layer": "case_loop",
+        "case_index": 0,
+        "notes": "任一时刻 AppMock 开启的场景规则 = 本 Case 声明集合；同接口跳 Case 由差量开关隔离。"
+      },
+      {
+        "id": "C2_record_start_0",
+        "desc": "启动录制（在目标页打开之前，仅捕获业务事件）",
+        "status": "pending",
+        "cmd": "python3 scripts/cli.py mock record-start",
+        "success_marker": "APPMOCK RECORD START OK",
+        "on_fail": {
+          "policy": "log_and_continue"
+        },
+        "layer": "case_loop",
+        "case_index": 0
+      },
+      {
+        "id": "C3_landing_0",
+        "desc": "跳转目标页",
+        "status": "pending",
+        "cmd": "python3 scripts/cli.py open-url --url \"imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail&mrn_component=hotelchannel-order-detail&order_id=5035036077836749951&biz_type=1&mrn_disable_debugview=true&disableRedBox=1&disableDebugView=true&__recce_dev_show__=false\"",
+        "success_marker": "open_url",
+        "on_fail": {
+          "policy": "skip_to_next_case"
+        },
+        "needs_visual_check": true,
+        "visual_check_hint": "上面的 CMD（open-url）执行后会在输出中打印 [NEEDS_VISUAL_CHECK] 及截图绝对路径——该图已在页面渲染就绪后自动拍摄，直接读取该路径判定即可，不要 sleep 等待或另行调用 screenshot 命令重新截图。如截图中 Recce 浮层遮挡主体内容，调用 dismiss-recce 拖离后重拍截图再确认（走查步骤中 tap-text 遇 Recce 遮挡会自动处理）。如有系统弹窗可用 tap 处理。如果 CMD 执行失败（exit 1），可手动重试 open-url，最多 3 次。确认后调用 ack 写入证据，否则 flow-advance 会被拦截。",
+        "requires_ack": [
+          {
+            "key": "landing_page_opened_0",
+            "hint": "请先读图确认已成功跳转到目标落地页，再调用 ack"
+          }
+        ],
+        "layer": "case_loop",
+        "case_index": 0
+      },
+      {
+        "id": "C4_walkthrough_0",
+        "desc": "多步 UI 走查",
+        "status": "pending",
+        "steps_ref": "steps",
+        "on_fail": {
+          "policy": "log_and_continue"
+        },
+        "on_warn": {
+          "policy": "log_and_continue"
+        },
+        "layer": "case_loop",
+        "case_index": 0,
+        "completion_check": {
+          "type": "steps_all_done",
+          "hint": "还有走查步骤未完成，请继续用 flow-next 推进，不要用 flow-advance 跳过"
+        }
+      },
+      {
+        "id": "C5_report_0",
+        "desc": "生成 Case 报告（暂存本地）",
+        "status": "pending",
+        "cmd": "python3 scripts/cli.py gen-report",
+        "success_markers": [
+          "report.json 已生成"
+        ],
+        "completion_check": {
+          "type": "file_exists",
+          "base": "current_case_output_dir",
+          "glob": "report.json"
+        },
+        "on_fail": {
+          "policy": "skip_to_next_case"
+        },
+        "layer": "case_loop",
+        "case_index": 0
+      },
+      {
+        "id": "C0_case_init_1",
+        "desc": "切换到 Case 1: Flow02-订单详情页修改弹窗-编辑态双卡引导文案展示",
+        "status": "pending",
+        "cmd": "python3 scripts/cli.py case-init --case-index 1",
+        "success_marker": "CASE-INIT OK",
+        "on_fail": {
+          "policy": "skip_to_next_case"
+        },
+        "layer": "case_loop",
+        "case_index": 1
+      },
+      {
+        "id": "C1_mock_apply_1",
+        "desc": "收敛场景 Mock 到本 Case（差量开关 + body 回基线）",
+        "status": "pending",
+        "cmd": "python3 scripts/cli.py mock-apply --case-index 1",
+        "success_marker": "mock_apply",
+        "on_fail": {
+          "policy": "abort",
+          "generate_report": true,
+          "cleanup": true
+        },
+        "layer": "case_loop",
+        "case_index": 1,
+        "notes": "任一时刻 AppMock 开启的场景规则 = 本 Case 声明集合；同接口跳 Case 由差量开关隔离。"
+      },
+      {
+        "id": "C2_record_start_1",
+        "desc": "启动录制（在目标页打开之前，仅捕获业务事件）",
+        "status": "pending",
+        "cmd": "python3 scripts/cli.py mock record-start",
+        "success_marker": "APPMOCK RECORD START OK",
+        "on_fail": {
+          "policy": "log_and_continue"
+        },
+        "layer": "case_loop",
+        "case_index": 1
+      },
+      {
+        "id": "C3_landing_1",
+        "desc": "跳转目标页",
+        "status": "pending",
+        "cmd": "python3 scripts/cli.py open-url --url \"imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail&mrn_component=hotelchannel-order-detail&order_id=5035036077836749951&biz_type=1&mrn_disable_debugview=true&disableRedBox=1&disableDebugView=true&__recce_dev_show__=false\"",
+        "success_marker": "open_url",
+        "on_fail": {
+          "policy": "skip_to_next_case"
+        },
+        "needs_visual_check": true,
+        "visual_check_hint": "上面的 CMD（open-url）执行后会在输出中打印 [NEEDS_VISUAL_CHECK] 及截图绝对路径——该图已在页面渲染就绪后自动拍摄，直接读取该路径判定即可，不要 sleep 等待或另行调用 screenshot 命令重新截图。如截图中 Recce 浮层遮挡主体内容，调用 dismiss-recce 拖离后重拍截图再确认（走查步骤中 tap-text 遇 Recce 遮挡会自动处理）。如有系统弹窗可用 tap 处理。如果 CMD 执行失败（exit 1），可手动重试 open-url，最多 3 次。确认后调用 ack 写入证据，否则 flow-advance 会被拦截。",
+        "requires_ack": [
+          {
+            "key": "landing_page_opened_1",
+            "hint": "请先读图确认已成功跳转到目标落地页，再调用 ack"
+          }
+        ],
+        "layer": "case_loop",
+        "case_index": 1
+      },
+      {
+        "id": "C4_walkthrough_1",
+        "desc": "多步 UI 走查",
+        "status": "pending",
+        "steps_ref": "steps",
+        "on_fail": {
+          "policy": "log_and_continue"
+        },
+        "on_warn": {
+          "policy": "log_and_continue"
+        },
+        "layer": "case_loop",
+        "case_index": 1,
+        "completion_check": {
+          "type": "steps_all_done",
+          "hint": "还有走查步骤未完成，请继续用 flow-next 推进，不要用 flow-advance 跳过"
+        }
+      },
+      {
+        "id": "C5_report_1",
+        "desc": "生成 Case 报告（暂存本地）",
+        "status": "pending",
+        "cmd": "python3 scripts/cli.py gen-report",
+        "success_markers": [
+          "report.json 已生成"
+        ],
+        "completion_check": {
+          "type": "file_exists",
+          "base": "current_case_output_dir",
+          "glob": "report.json"
+        },
+        "on_fail": {
+          "policy": "skip_to_next_case"
+        },
+        "layer": "case_loop",
+        "case_index": 1
+      },
+      {
+        "id": "T0_mock_restore",
+        "desc": "Batch 级 Mock 回滚（把 union 恢复到执行前状态）",
+        "status": "pending",
+        "cmd": "python3 scripts/cli.py mock-restore",
+        "success_markers": [
+          "MOCK-RESTORE DONE",
+          "MOCK-RESTORE SKIP",
+          "MOCK-RESTORE PARTIAL"
+        ],
+        "on_fail": {
+          "policy": "best_effort"
+        },
+        "condition": "meta.mock_union non-empty",
+        "layer": "batch_tail"
+      },
+      {
+        "id": "T2_cleanup",
+        "desc": "收尾清理",
+        "status": "pending",
+        "cmds": [
+          "python3 scripts/cli.py mock record-stop",
+          "python3 scripts/cli.py mock reset-env",
+          "python3 scripts/cli.py device release",
+          "python3 scripts/cli.py mis release",
+          "python3 scripts/cli.py flow-finalize",
+          "python3 scripts/cli.py post-clean"
+        ],
+        "notes": "flow-finalize 必须在 post-clean 之前执行：它标记 T2 completed、执行唯一的 batch-upload（生成报告 + 入库 + archive_run）。archive_run 已将 本 workspace归档到 output/run-<ts>/run/，所以随后 post-clean 清空本 workspace 不会丢失执行产物。",
+        "on_fail": {
+          "policy": "best_effort"
+        },
+        "terminal": true,
+        "layer": "batch_tail"
+      }
+    ]
+  },
+  "current_step_index": 0,
+  "steps": [
+    {
+      "sid": "S1",
+      "kind": "ui",
+      "desc": "滚动到「联系酒店」入口",
+      "action": "scroll-until",
+      "action_arg": "联系酒店",
+      "direction": "down",
+      "action_anchor": null,
+      "action_x": null,
+      "action_y": null,
+      "asserts": [
+        {
+          "kind": "text",
+          "match": "present",
+          "expect": "联系酒店"
+        }
+      ],
+      "step-type": "interaction",
+      "screenshot": null,
+      "page_ready": false,
+      "status": "pending",
+      "ok": null,
+      "started_at": null,
+      "completed_at": null,
+      "hooks": [],
+      "action_type": null,
+      "fail_reason": null,
+      "track_assert": null,
+      "api_assert": null
+    },
+    {
+      "sid": "S2",
+      "kind": "ui",
+      "desc": "开：点击「联系酒店」唤起号码呼出弹窗",
+      "action": "tap-text",
+      "action_arg": "联系酒店",
+      "direction": null,
+      "action_anchor": null,
+      "action_x": null,
+      "action_y": null,
+      "asserts": [
+        {
+          "kind": "text",
+          "match": "present",
+          "expect": "将使用该号码加密呼出"
+        }
+      ],
+      "step-type": "interaction",
+      "screenshot": null,
+      "page_ready": true,
+      "status": "pending",
+      "ok": null,
+      "started_at": null,
+      "completed_at": null,
+      "hooks": [],
+      "action_type": null,
+      "fail_reason": null,
+      "track_assert": null,
+      "api_assert": null
+    },
+    {
+      "sid": "A1",
+      "kind": "api",
+      "desc": "queryuserinfo 接口返回校验",
+      "action": null,
+      "action_arg": null,
+      "direction": null,
+      "action_anchor": null,
+      "action_x": null,
+      "action_y": null,
+      "asserts": [],
+      "step-type": null,
+      "screenshot": null,
+      "page_ready": false,
+      "status": "pending",
+      "ok": null,
+      "started_at": null,
+      "completed_at": null,
+      "hooks": [],
+      "action_type": null,
+      "fail_reason": null,
+      "track_assert": null,
+      "api_assert": {
+        "path": "/hotelorder/v1/queryuserinfo.json",
+        "expected_fields": [
+          {
+            "source": "meta",
+            "field": "http_code",
+            "expected": "200"
+          },
+          {
+            "source": "response",
+            "field": "error.code",
+            "expected": "200"
+          },
+          {
+            "source": "response",
+            "field": "data.maskMobile",
+            "expected": "非空掩码本机号，与弹窗号码区展示一致"
+          }
+        ]
+      }
+    },
+    {
+      "sid": "S3",
+      "kind": "ui",
+      "desc": "看：展示态弹窗双卡引导文案与样式",
+      "action": "assert-text",
+      "action_arg": null,
+      "direction": null,
+      "action_anchor": null,
+      "action_x": null,
+      "action_y": null,
+      "asserts": [
+        {
+          "kind": "text",
+          "match": "present",
+          "expect": "双卡双待请确认，系统呼出号码和下方一致"
+        },
+        {
+          "kind": "text",
+          "match": "present",
+          "expect": "为保证服务质量，您的通话可能被录音"
+        },
+        {
+          "kind": "text",
+          "match": "present",
+          "expect": "非本机号请修改"
+        },
+        {
+          "kind": "text",
+          "match": "present",
+          "expect": "立即呼叫"
+        },
+        {
+          "kind": "text",
+          "match": "present",
+          "expect": "取消"
+        },
+        {
+          "kind": "visual",
+          "expect": "「双卡双待请确认，系统呼出号码和下方一致」位于「将使用该号码加密呼出」正下方、号码区上方"
+        },
+        {
+          "kind": "visual",
+          "expect": "「双卡双待请确认，系统呼出号码和下方一致」样式与 UI 稿一致：12pt、#999999、居中，且截图包含标题/双卡文案/号码区/按钮"
+        }
+      ],
+      "step-type": "assert",
+      "screenshot": null,
+      "page_ready": false,
+      "status": "pending",
+      "ok": null,
+      "started_at": null,
+      "completed_at": null,
+      "hooks": [],
+      "action_type": null,
+      "fail_reason": null,
+      "track_assert": null,
+      "api_assert": null
+    },
+    {
+      "sid": "S4",
+      "kind": "ui",
+      "desc": "关：点击「取消」关闭弹窗",
+      "action": "tap-text",
+      "action_arg": "取消",
+      "direction": null,
+      "action_anchor": null,
+      "action_x": null,
+      "action_y": null,
+      "asserts": [
+        {
+          "kind": "text",
+          "match": "gone",
+          "expect": "将使用该号码加密呼出"
+        }
+      ],
+      "step-type": "interaction",
+      "screenshot": null,
+      "page_ready": false,
+      "status": "pending",
+      "ok": null,
+      "started_at": null,
+      "completed_at": null,
+      "hooks": [],
+      "action_type": null,
+      "fail_reason": null,
+      "track_assert": null,
+      "api_assert": null
+    },
+    {
+      "sid": "S5",
+      "kind": "ui",
+      "desc": "开：再次点击「联系酒店」唤起弹窗",
+      "action": "tap-text",
+      "action_arg": "联系酒店",
+      "direction": null,
+      "action_anchor": null,
+      "action_x": null,
+      "action_y": null,
+      "asserts": [
+        {
+          "kind": "text",
+          "match": "present",
+          "expect": "将使用该号码加密呼出"
+        }
+      ],
+      "step-type": "interaction",
+      "screenshot": null,
+      "page_ready": true,
+      "status": "pending",
+      "ok": null,
+      "started_at": null,
+      "completed_at": null,
+      "hooks": [],
+      "action_type": null,
+      "fail_reason": null,
+      "track_assert": null,
+      "api_assert": null
+    },
+    {
+      "sid": "S5b",
+      "kind": "ui",
+      "desc": "看：再次唤起后双卡引导文案常驻展示",
+      "action": "assert-text",
+      "action_arg": null,
+      "direction": null,
+      "action_anchor": null,
+      "action_x": null,
+      "action_y": null,
+      "asserts": [
+        {
+          "kind": "text",
+          "match": "present",
+          "expect": "双卡双待请确认，系统呼出号码和下方一致"
+        }
+      ],
+      "step-type": "assert",
+      "screenshot": null,
+      "page_ready": false,
+      "status": "pending",
+      "ok": null,
+      "started_at": null,
+      "completed_at": null,
+      "hooks": [],
+      "action_type": null,
+      "fail_reason": null,
+      "track_assert": null,
+      "api_assert": null
+    }
+  ],
+  "rules": {
+    "forbid_back_key": false,
+    "forbid_rerun_step": true,
+    "forbid_code_modify": true,
+    "screenshot_required": true,
+    "on_step_fail": "log_and_continue",
+    "on_step_warn": "log_and_continue",
+    "max_retries_per_step": 1,
+    "password_mask": true,
+    "no_bare_imeituan_calls": true,
+    "coordinate_from_inspect_tree": true
+  },
+  "success_markers": {
+    "mock_preflight": "MOCK-PREFLIGHT OK",
+    "mock_apply": "MOCK-APPLY OK",
+    "mock_restore": "MOCK-RESTORE",
+    "bundle_lock": "BUNDLE-LOCK",
+    "flow_init": "FLOW-INIT OK",
+    "hook_done": "HOOK-DONE OK",
+    "flow_status": "FLOW-STATUS:",
+    "open_url": "OPEN-URL OPENED",
+    "record_start": "RECORD START OK",
+    "login_input_code": "LOGIN INPUT-CODE OK",
+    "swimline_add": "SWIMLINE ADD OK",
+    "swimline_switch": "SWIMLINE SWITCH OK",
+    "swimline_verify": "SWIMLINE VERIFY OK",
+    "env_set": "APPMOCK ENV SET OK",
+    "url_mapping_ensure": "ENSURE:"
+  },
+  "errors": [
+    {
+      "stage": "B1_device",
+      "error": "云模拟器 device register 失败：imeituan-cli 云 ADB 所有权校验需要 /bin/ps 读取 adb 守护进程出生时间与启动 nonce，当前 CatPaw 会话沙箱对 /bin/ps 返回 EPERM，proof 无法生成，注册在 ADB_PORT_OWNERSHIP_CONFLICT / SESSION_CLEANUP_PENDING / ADB_CLEANUP_SERVER_UNAVAILABLE 之间循环失败，环境不可恢复",
+      "ts": "2026-10-23T17:27:33"
+    }
+  ]
+}

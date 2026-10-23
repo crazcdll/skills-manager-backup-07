@@ -1,0 +1,37 @@
+[env-prepare] 登录计划: auth=password env_type=A target_env=online bundles=0 ptest=False
+
+============================================================
+[env-prepare] Step 1/1: 登录编排（password / online）
+============================================================
+RESET-ENV: 开始执行前环境重置...
+❌ env-prepare 执行失败: LOGIN FAILED: online 环境登录失败: 环境前置失败: enable_appmock — 3 轮后 AppMock 仍无法启用
+APPMOCK LIST OK (yooz proxy): 2 rules
+  ℹ️  当前域内 2 条 Mock 规则（交由 case 级生命周期管理，不 stop-all）
+[ptest-mock] 无已记录的 ptest 规则，跳过规则关闭
+[ptest-mock] ⚠️ htptest 回滚未生效: 推送失败（open-url 命令返回非零退出码）
+URL_MAPPING LIST OK: 0 mapping(s) domain=ai_pub_0011
+  ℹ️  当前无域名映射记录
+URL_MAPPING CLEANUP: 无需清理（无自动创建的域名映射）
+SESSION SWIMLINE OFF OK
+  ✅ 泳道关闭
+SESSION ENV SET OK: env=online domain=ai_pub_0011
+  ✅ 环境重置为线上
+RESET-ENV: 完成（全部成功）
+[login:pre] step=reset_mock_env ok=True restart=none detail=reset-env 完成
+[restart] enable_appmock: cold_clear_data — 清除残留登录态并让 AppMock 代理生效：必须清数据后再预授权再冷启动，顺序不可互换（清数据会重置已授权限）
+APPMOCK ENABLE: 通过 ContentProvider 直连启用 AppMock (user=ai_pub_0011)...
+APPMOCK ENABLE FAIL (content call): session sess-cbc459a2 does not exist
+SDK-ENABLE: ⚠️ 第 1 轮启用失败，冷重启后重试...
+COLD-RESTART: ⚠️ force_stop 失败
+COLD-RESTART: ⚠️ launch_app 失败
+APPMOCK ENABLE: 通过 ContentProvider 直连启用 AppMock (user=ai_pub_0011)...
+APPMOCK ENABLE FAIL (content call): session sess-cbc459a2 does not exist
+SDK-ENABLE: ⚠️ 第 2 轮启用失败，冷重启后重试...
+COLD-RESTART: ⚠️ force_stop 失败
+COLD-RESTART: ⚠️ launch_app 失败
+APPMOCK ENABLE: 通过 ContentProvider 直连启用 AppMock (user=ai_pub_0011)...
+APPMOCK ENABLE FAIL (content call): session sess-cbc459a2 does not exist
+[login:pre] step=enable_appmock ok=False restart=cold_clear_data detail=3 轮后 AppMock 仍无法启用
+
+[login-hook] 登录异常已登记 AI 介入指引: resolve_appmock_unconfirmed
+[login-hook] 获取完整处置指引: python3 scripts/cli.py hook-info --hook-id resolve_appmock_unconfirmed --dir /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/994718e0/runs/privacy-doubleSIM-shard03

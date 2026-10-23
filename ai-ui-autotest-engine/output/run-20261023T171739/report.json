@@ -1,0 +1,728 @@
+{
+  "id": "run-20261023T171739",
+  "title": "[环境准备失败] shard-03 隐私号弹窗文案增加双卡引导",
+  "timestamp": "2026-10-23 17:42:52",
+  "duration_ms": 1513392,
+  "device": "云模拟器",
+  "mis": "wangshicheng05",
+  "platform": "Android",
+  "app": "美团",
+  "env_config": {
+    "type": "A",
+    "auth_method": "password",
+    "ptest": false,
+    "bundle_lock": [],
+    "env_name": "online"
+  },
+  "cases": [
+    {
+      "case_id": "Flow05-订单详情页联系电话入口-商家号码保持现状",
+      "case_name": "Flow05-订单详情页联系电话入口-商家号码保持现状",
+      "case_index": 0,
+      "status": "pending",
+      "skill_version": "V179",
+      "landing_scheme": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail&mrn_component=hotelchannel-order-detail&order_id=5035036077836749951&biz_type=1&mrn_disable_debugview=true&disableRedBox=1&disableDebugView=true&__recce_dev_show__=false",
+      "timeline": [
+        {
+          "_type": "sop_stage",
+          "id": "B0_mis_acquire",
+          "desc": "领取虚拟 mis（AppMock 工作域）",
+          "layer": "batch_head",
+          "case_index": null,
+          "status": "completed",
+          "started_at": "2026-10-23T17:17:39",
+          "completed_at": "2026-10-23T17:17:49",
+          "failed_at": null,
+          "duration_ms": 10000,
+          "error": null,
+          "skip_reason": null,
+          "command": null
+        },
+        {
+          "_type": "sop_stage",
+          "id": "B0_mock_preflight",
+          "desc": "场景 Mock 预检（快照 union + 同 case 冲突检测 + 清场）",
+          "layer": "batch_head",
+          "case_index": null,
+          "status": "completed",
+          "started_at": "2026-10-23T17:17:49",
+          "completed_at": "2026-10-23T17:17:56",
+          "failed_at": null,
+          "duration_ms": 7000,
+          "error": null,
+          "skip_reason": null,
+          "command": null
+        },
+        {
+          "_type": "sop_stage",
+          "id": "B1_device",
+          "desc": "设备获取 + 初始化",
+          "layer": "batch_head",
+          "case_index": null,
+          "status": "completed",
+          "started_at": "2026-10-23T17:17:56",
+          "completed_at": "2026-10-23T17:31:26",
+          "failed_at": null,
+          "duration_ms": 810000,
+          "error": null,
+          "skip_reason": null,
+          "command": null
+        },
+        {
+          "_type": "sop_stage",
+          "id": "B2_login",
+          "desc": "环境配置 + 登录",
+          "layer": "batch_head",
+          "case_index": null,
+          "status": "failed",
+          "started_at": "2026-10-23T17:31:26",
+          "completed_at": null,
+          "failed_at": "2026-10-23T17:42:52",
+          "duration_ms": 686000,
+          "error": "凭证登录失败：signin 返回「账号或密码错误，请重新输入」（原始密码与去括号变体各 1 次均失败），无法建立登录态；订单详情页 MRN 页面依赖登录态，Flow05/Flow06 不可执行",
+          "skip_reason": null,
+          "command": null
+        },
+        {
+          "_type": "sop_stage",
+          "id": "C0_case_init_0",
+          "desc": "切换到 Case 0: Flow05-订单详情页联系电话入口-商家号码保持现状",
+          "layer": "case_loop",
+          "case_index": 0,
+          "status": "pending",
+          "started_at": null,
+          "completed_at": null,
+          "failed_at": null,
+          "duration_ms": null,
+          "error": null,
+          "skip_reason": null,
+          "command": null
+        },
+        {
+          "_type": "sop_stage",
+          "id": "C1_mock_apply_0",
+          "desc": "收敛场景 Mock 到本 Case（差量开关 + body 回基线）",
+          "layer": "case_loop",
+          "case_index": 0,
+          "status": "pending",
+          "started_at": null,
+          "completed_at": null,
+          "failed_at": null,
+          "duration_ms": null,
+          "error": null,
+          "skip_reason": null,
+          "command": null
+        },
+        {
+          "_type": "sop_stage",
+          "id": "C2_record_start_0",
+          "desc": "启动录制（在目标页打开之前，仅捕获业务事件）",
+          "layer": "case_loop",
+          "case_index": 0,
+          "status": "pending",
+          "started_at": null,
+          "completed_at": null,
+          "failed_at": null,
+          "duration_ms": null,
+          "error": null,
+          "skip_reason": null,
+          "command": null
+        },
+        {
+          "_type": "sop_stage",
+          "id": "C3_landing_0",
+          "desc": "跳转目标页",
+          "layer": "case_loop",
+          "case_index": 0,
+          "status": "pending",
+          "started_at": null,
+          "completed_at": null,
+          "failed_at": null,
+          "duration_ms": null,
+          "error": null,
+          "skip_reason": null,
+          "command": null
+        },
+        {
+          "_type": "sop_stage",
+          "id": "C4_walkthrough_0",
+          "desc": "多步 UI 走查",
+          "layer": "case_loop",
+          "case_index": 0,
+          "status": "pending",
+          "started_at": null,
+          "completed_at": null,
+          "failed_at": null,
+          "duration_ms": null,
+          "error": null,
+          "skip_reason": null,
+          "command": null
+        },
+        {
+          "_type": "sop_stage",
+          "id": "C5_report_0",
+          "desc": "生成 Case 报告（暂存本地）",
+          "layer": "case_loop",
+          "case_index": 0,
+          "status": "pending",
+          "started_at": null,
+          "completed_at": null,
+          "failed_at": null,
+          "duration_ms": null,
+          "error": null,
+          "skip_reason": null,
+          "command": null
+        },
+        {
+          "_type": "sop_stage",
+          "id": "T0_mock_restore",
+          "desc": "Batch 级 Mock 回滚（把 union 恢复到执行前状态）",
+          "layer": "batch_tail",
+          "case_index": null,
+          "status": "pending",
+          "started_at": null,
+          "completed_at": null,
+          "failed_at": null,
+          "duration_ms": null,
+          "error": null,
+          "skip_reason": null,
+          "command": null
+        },
+        {
+          "_type": "sop_stage",
+          "id": "T2_cleanup",
+          "desc": "收尾清理",
+          "layer": "batch_tail",
+          "case_index": null,
+          "status": "pending",
+          "started_at": null,
+          "completed_at": null,
+          "failed_at": null,
+          "duration_ms": null,
+          "error": null,
+          "skip_reason": null,
+          "command": null
+        },
+        {
+          "_type": "audit_event",
+          "event": "run.initialized",
+          "desc": "运行初始化完成",
+          "ts": "2026-10-23T17:17:39",
+          "details": {
+            "expected_cases": 2
+          },
+          "severity": "info"
+        },
+        {
+          "_type": "audit_event",
+          "event": "acknowledged",
+          "desc": "门禁确认: B0_mis_acquire",
+          "ts": "2026-10-23T17:17:48",
+          "details": {
+            "key": "B0_mis_acquire"
+          },
+          "severity": "info"
+        },
+        {
+          "_type": "audit_event",
+          "event": "acknowledged",
+          "desc": "门禁确认: B0_mock_preflight",
+          "ts": "2026-10-23T17:17:55",
+          "details": {
+            "key": "B0_mock_preflight"
+          },
+          "severity": "info"
+        },
+        {
+          "_type": "audit_event",
+          "event": "acknowledged",
+          "desc": "门禁确认: device_info_shown",
+          "ts": "2026-10-23T17:18:49",
+          "details": {
+            "key": "device_info_shown"
+          },
+          "severity": "info"
+        },
+        {
+          "_type": "audit_event",
+          "event": "error.raised",
+          "desc": "错误终止: CONTRACT_VIOLATION [script] FileNotFoundError: [Errno 2] No such file or directory: 'imeituan'",
+          "ts": "2026-10-23T17:18:51",
+          "details": {
+            "code": "CONTRACT_VIOLATION",
+            "category": "script",
+            "stage": "",
+            "message": "FileNotFoundError: [Errno 2] No such file or directory: 'imeituan'",
+            "detail": "",
+            "retryable": false
+          },
+          "severity": "fatal"
+        },
+        {
+          "_type": "check_deps",
+          "event": "check_deps_result",
+          "desc": "前置依赖检测通过: 12/12 项通过",
+          "ts": "2026-10-23T17:20:30",
+          "ok": true,
+          "total": 12,
+          "passed": 12,
+          "failed": 0,
+          "checks": [
+            {
+              "name": "python-version",
+              "ok": true,
+              "detail": "Python 3.12.13"
+            },
+            {
+              "name": "node-version",
+              "ok": true,
+              "detail": "Node 24（满足 >= 18 要求）"
+            },
+            {
+              "name": "py:requests",
+              "ok": true,
+              "detail": "已安装"
+            },
+            {
+              "name": "py:websocket-client",
+              "ok": true,
+              "detail": "已安装"
+            },
+            {
+              "name": "imeituan",
+              "ok": true,
+              "detail": "/Users/crazcdll07/.catdesk/runtimes/node/versions/24.18.0/bin/imeituan（0.6.5（已是最新））"
+            },
+            {
+              "name": "adb",
+              "ok": true,
+              "detail": "adb（当前会话可用）"
+            },
+            {
+              "name": "hdc",
+              "ok": true,
+              "detail": "/Users/crazcdll07/.imeituan/bin/hdc（3.2.0b，当前会话可用）"
+            },
+            {
+              "name": "conan-cli",
+              "ok": true,
+              "detail": "/Users/crazcdll07/.local/bin/conan-cli（1.9.0）"
+            },
+            {
+              "name": "sso-auth-cli",
+              "ok": true,
+              "detail": "/Users/crazcdll07/.local/bin/sso-auth-cli"
+            },
+            {
+              "name": "appmock-sso-cookie",
+              "ok": true,
+              "detail": "SSO Cookie 已就绪（缓存有效或已重新获取）"
+            },
+            {
+              "name": "adb-keyboard-apk",
+              "ok": true,
+              "detail": "/Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/references/ADBKeyboard.apk（17374 bytes）"
+            },
+            {
+              "name": "skill-self-version",
+              "ok": true,
+              "detail": "ai-ui-autotest-engine 本地 V179，无法安全定位本安装（缺 mtskills 来源记录）"
+            }
+          ],
+          "severity": "info"
+        },
+        {
+          "_type": "audit_event",
+          "event": "error.raised",
+          "desc": "错误终止: DEVICE_FAILED [device] imeituan 注册失败（3 次重试后仍失败），无法继续 setup: sess-3fcc1eb8\ntransport-disconnect-33.195.3.15:8080: ADB_PORT_OWNERSHIP_CONFLICT: 当前监听 Server 没有可验证的网络隔离启动记录",
+          "ts": "2026-10-23T17:20:44",
+          "details": {
+            "code": "DEVICE_FAILED",
+            "category": "device",
+            "stage": "",
+            "message": "imeituan 注册失败（3 次重试后仍失败），无法继续 setup: sess-3fcc1eb8\ntransport-disconnect-33.195.3.15:8080: ADB_PORT_OWNERSHIP_CONFLICT: 当前监听 Server 没有可验证的网络隔离启动记录",
+            "detail": "",
+            "retryable": false
+          },
+          "severity": "error"
+        },
+        {
+          "_type": "audit_event",
+          "event": "error.raised",
+          "desc": "错误终止: DEVICE_FAILED [device] imeituan 注册失败（3 次重试后仍失败），无法继续 setup: sess-3fcc1eb8\ntransport-disconnect-33.195.3.15:8080: ADB_PORT_OWNERSHIP_CONFLICT: 当前监听 Server 没有可验证的网络隔离启动记录",
+          "ts": "2026-10-23T17:22:38",
+          "details": {
+            "code": "DEVICE_FAILED",
+            "category": "device",
+            "stage": "",
+            "message": "imeituan 注册失败（3 次重试后仍失败），无法继续 setup: sess-3fcc1eb8\ntransport-disconnect-33.195.3.15:8080: ADB_PORT_OWNERSHIP_CONFLICT: 当前监听 Server 没有可验证的网络隔离启动记录",
+            "detail": "",
+            "retryable": false
+          },
+          "severity": "error"
+        },
+        {
+          "_type": "audit_event",
+          "event": "error.raised",
+          "desc": "错误终止: DEVICE_FAILED [device] imeituan 注册失败（3 次重试后仍失败），无法继续 setup: sess-3fcc1eb8\ntransport-disconnect-33.195.3.15:8080: ADB_CLEANUP_SERVER_UNAVAILABLE: 历史清理 Server 未监听，保留清理记录",
+          "ts": "2026-10-23T17:24:25",
+          "details": {
+            "code": "DEVICE_FAILED",
+            "category": "device",
+            "stage": "",
+            "message": "imeituan 注册失败（3 次重试后仍失败），无法继续 setup: sess-3fcc1eb8\ntransport-disconnect-33.195.3.15:8080: ADB_CLEANUP_SERVER_UNAVAILABLE: 历史清理 Server 未监听，保留清理记录",
+            "detail": "",
+            "retryable": false
+          },
+          "severity": "error"
+        },
+        {
+          "_type": "audit_event",
+          "event": "error.raised",
+          "desc": "错误终止: DEVICE_FAILED [device] imeituan 注册失败（3 次重试后仍失败），无法继续 setup: sess-3fcc1eb8\ntransport-disconnect-33.195.3.15:8080: ADB_PORT_OWNERSHIP_CONFLICT: 当前监听 Server 没有可验证的网络隔离启动记录",
+          "ts": "2026-10-23T17:25:49",
+          "details": {
+            "code": "DEVICE_FAILED",
+            "category": "device",
+            "stage": "",
+            "message": "imeituan 注册失败（3 次重试后仍失败），无法继续 setup: sess-3fcc1eb8\ntransport-disconnect-33.195.3.15:8080: ADB_PORT_OWNERSHIP_CONFLICT: 当前监听 Server 没有可验证的网络隔离启动记录",
+            "detail": "",
+            "retryable": false
+          },
+          "severity": "error"
+        },
+        {
+          "_type": "audit_event",
+          "event": "error.raised",
+          "desc": "错误终止: DEVICE_FAILED [device] imeituan 注册失败（3 次重试后仍失败），无法继续 setup: sess-ac348cb8\ntransport-disconnect-33.195.3.15:8080: ADB_PORT_OWNERSHIP_CONFLICT: 当前监听 Server 没有可验证的网络隔离启动记录",
+          "ts": "2026-10-23T17:27:19",
+          "details": {
+            "code": "DEVICE_FAILED",
+            "category": "device",
+            "stage": "",
+            "message": "imeituan 注册失败（3 次重试后仍失败），无法继续 setup: sess-ac348cb8\ntransport-disconnect-33.195.3.15:8080: ADB_PORT_OWNERSHIP_CONFLICT: 当前监听 Server 没有可验证的网络隔离启动记录",
+            "detail": "",
+            "retryable": false
+          },
+          "severity": "error"
+        },
+        {
+          "_type": "audit_event",
+          "event": "acknowledged",
+          "desc": "门禁确认: B1_device",
+          "ts": "2026-10-23T17:31:25",
+          "details": {
+            "key": "B1_device"
+          },
+          "severity": "info"
+        },
+        {
+          "_type": "audit_event",
+          "event": "login.failed",
+          "desc": "登录失败: password 环境 online",
+          "ts": "2026-10-23T17:31:38",
+          "details": {
+            "env": "online",
+            "method": "password",
+            "account": "ai_pub_0011",
+            "detail": "环境前置失败: enable_appmock — 3 轮后 AppMock 仍无法启用",
+            "hook_ids": [
+              "resolve_appmock_unconfirmed"
+            ]
+          },
+          "severity": "info"
+        },
+        {
+          "_type": "audit_event",
+          "event": "error.raised",
+          "desc": "错误终止: APP_FAILED [app] LOGIN FAILED: online 环境登录失败: 环境前置失败: enable_appmock — 3 轮后 AppMock 仍无法启用",
+          "ts": "2026-10-23T17:31:38",
+          "details": {
+            "code": "APP_FAILED",
+            "category": "app",
+            "stage": "",
+            "message": "LOGIN FAILED: online 环境登录失败: 环境前置失败: enable_appmock — 3 轮后 AppMock 仍无法启用",
+            "detail": "",
+            "retryable": false
+          },
+          "severity": "error"
+        },
+        {
+          "_type": "evidence",
+          "event": "evidence_registered",
+          "desc": "证据: login (password_visual)",
+          "ts": "2026-10-23T17:36:23",
+          "evidence_type": "login",
+          "method": "password_visual",
+          "status": "pending",
+          "stage": "B2_login",
+          "artifacts": [
+            "case_01/frames/login-result.png"
+          ],
+          "details": {
+            "artifacts": [
+              "case_01/frames/login-result.png"
+            ],
+            "evidence_type": "login",
+            "method": "password_visual",
+            "evidence_status": "pending",
+            "stage": "B2_login"
+          },
+          "severity": "info"
+        },
+        {
+          "_type": "audit_event",
+          "event": "environment.prepared",
+          "desc": "环境准备完成: online 环境 (password)",
+          "ts": "2026-10-23T17:36:23",
+          "details": {
+            "env": "online",
+            "auth_method": "password",
+            "account_type": "A",
+            "target_env": "online",
+            "restart_policies": [
+              "reset_mock_env:none",
+              "enable_appmock:cold_clear_data",
+              "push_location:cold",
+              "settle_popups:none",
+              "auth:password:none"
+            ]
+          },
+          "severity": "info"
+        },
+        {
+          "_type": "evidence",
+          "event": "evidence_registered",
+          "desc": "证据: login (password_visual)",
+          "ts": "2026-10-23T17:39:51",
+          "evidence_type": "login",
+          "method": "password_visual",
+          "status": "pending",
+          "stage": "B2_login",
+          "artifacts": [
+            "case_01/frames/login-result.png"
+          ],
+          "details": {
+            "artifacts": [
+              "case_01/frames/login-result.png"
+            ],
+            "evidence_type": "login",
+            "method": "password_visual",
+            "evidence_status": "pending",
+            "stage": "B2_login"
+          },
+          "severity": "info"
+        },
+        {
+          "_type": "audit_event",
+          "event": "environment.prepared",
+          "desc": "环境准备完成: online 环境 (password)",
+          "ts": "2026-10-23T17:39:51",
+          "details": {
+            "env": "online",
+            "auth_method": "password",
+            "account_type": "A",
+            "target_env": "online",
+            "restart_policies": [
+              "reset_mock_env:none",
+              "enable_appmock:cold_clear_data",
+              "push_location:cold",
+              "settle_popups:none",
+              "auth:password:none"
+            ]
+          },
+          "severity": "info"
+        },
+        {
+          "_type": "evidence",
+          "event": "evidence_registered",
+          "desc": "证据: login (password_visual)",
+          "ts": "2026-10-23T17:42:27",
+          "evidence_type": "login",
+          "method": "password_visual",
+          "status": "pending",
+          "stage": "B2_login",
+          "artifacts": [
+            "case_01/frames/login-result.png"
+          ],
+          "details": {
+            "artifacts": [
+              "case_01/frames/login-result.png"
+            ],
+            "evidence_type": "login",
+            "method": "password_visual",
+            "evidence_status": "pending",
+            "stage": "B2_login"
+          },
+          "severity": "info"
+        },
+        {
+          "_type": "audit_event",
+          "event": "environment.prepared",
+          "desc": "环境准备完成: online 环境 (password)",
+          "ts": "2026-10-23T17:42:27",
+          "details": {
+            "env": "online",
+            "auth_method": "password",
+            "account_type": "A",
+            "target_env": "online",
+            "restart_policies": [
+              "reset_mock_env:none",
+              "enable_appmock:cold_clear_data",
+              "push_location:cold",
+              "settle_popups:none",
+              "auth:password:none"
+            ]
+          },
+          "severity": "info"
+        },
+        {
+          "_type": "error",
+          "event": "stage_error",
+          "desc": "凭证登录失败：signin 返回「账号或密码错误，请重新输入」（原始密码与去括号变体各 1 次均失败），无法建立登录态；订单详情页 MRN 页面依赖登录态，Flow05/Flow06 不可执行",
+          "ts": "2026-10-23T17:42:52",
+          "stage": "B2_login",
+          "severity": "error"
+        }
+      ],
+      "steps": [
+        {
+          "sid": "S1",
+          "kind": "ui",
+          "desc": "滚动到联系酒店入口区域",
+          "action": "scroll-until",
+          "action_arg": "联系酒店",
+          "action_anchor": null,
+          "step_type": "interaction",
+          "status": "pending",
+          "hooks": [],
+          "ok": null,
+          "ok_label": null,
+          "needs_review": false,
+          "note": null,
+          "started_at": null,
+          "completed_at": null,
+          "duration_ms": null,
+          "duration_ms_inferred": false,
+          "screenshot": null,
+          "screenshots": [],
+          "evidence": null,
+          "fields_grouped": {
+            "groups": [],
+            "highlighted": []
+          },
+          "attempts": [],
+          "attempts_unjudged": [],
+          "retry_count": 0,
+          "annotations": []
+        },
+        {
+          "sid": "S2",
+          "kind": "ui",
+          "desc": "看：检查联系电话入口商家号码展示保持现状",
+          "action": "assert-text",
+          "action_arg": null,
+          "action_anchor": null,
+          "step_type": "assert",
+          "status": "pending",
+          "hooks": [],
+          "ok": null,
+          "ok_label": null,
+          "needs_review": false,
+          "note": null,
+          "started_at": null,
+          "completed_at": null,
+          "duration_ms": null,
+          "duration_ms_inferred": false,
+          "screenshot": null,
+          "screenshots": [],
+          "evidence": null,
+          "fields_grouped": {
+            "groups": [],
+            "highlighted": []
+          },
+          "attempts": [],
+          "attempts_unjudged": [],
+          "retry_count": 0,
+          "annotations": []
+        }
+      ],
+      "raw_records": [],
+      "findings": [],
+      "notes": [],
+      "summary": {
+        "total": 0,
+        "pass": 0,
+        "warn": 0,
+        "fail": 0,
+        "pass_rate": null,
+        "total_steps": 0,
+        "total_findings": 0,
+        "findings": {
+          "total": 0,
+          "pass": 0,
+          "warn": 0,
+          "fail": 0
+        },
+        "duration_ms": 0,
+        "steps_exec_duration_ms": 0,
+        "kind_counts": {
+          "ui": 2,
+          "api": 0,
+          "track": 0
+        },
+        "detail_stats": {
+          "ui": {
+            "null": 2
+          },
+          "api": {},
+          "track": {}
+        },
+        "assert_results": {
+          "pass": 0,
+          "fail": 0,
+          "pending": 0
+        },
+        "assert_verdicts": {
+          "exact": 0,
+          "semantic": 0,
+          "visual": 0
+        },
+        "assert_needs_review": 0,
+        "step_needs_review": 0
+      }
+    }
+  ],
+  "batch_summary": {
+    "total_cases": 2,
+    "reported_cases": 1,
+    "failed_cases": 0,
+    "blocked_cases": 0,
+    "total_steps": 0,
+    "total_findings": 0,
+    "pass": 0,
+    "warn": 0,
+    "fail": 0,
+    "assert_results": {
+      "pass": 0,
+      "fail": 0,
+      "pending": 0
+    },
+    "assert_verdicts": {
+      "exact": 0,
+      "semantic": 0,
+      "visual": 0
+    },
+    "assert_needs_review": 0,
+    "step_needs_review": 0,
+    "missing_cases": [
+      {
+        "case_id": "Flow06-协商取消页呼出_修改弹窗-双卡引导文案双态展示",
+        "case_name": "Flow06-协商取消页呼出_修改弹窗-双卡引导文案双态展示"
+      }
+    ]
+  },
+  "skill_version": "V179",
+  "run_status": "aborted",
+  "archive_dir": "/Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/output/run-20261023T171739/run"
+}

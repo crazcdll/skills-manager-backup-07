@@ -1,0 +1,16 @@
+{
+  "root_cause": "imeituan-cli 在 darwin 上通过 /bin/ps 读取 adb 守护进程的出生时间与 IMEITUAN_ADB_OWNER_NONCE 环境变量，用于证明云 ADB Server 归属；当前 CatPaw 会话沙箱统一拒绝进程表访问，proof 永远无法写入，assertOwner / reconcileOwnedServer 因此恒定判定 ADB_PORT_OWNERSHIP_CONFLICT",
+  "evidence": [
+    "bash: ps -p <pid> -o command= -> operation not permitted",
+    "python3 subprocess.run([/bin/ps,...]) -> PermissionError [Errno 1] Operation not permitted",
+    "osascript do shell script /bin/ps ... -> sh: /bin/ps: Operation not permitted (126)",
+    "~/.imeituan/adb-control/port-15037.json 仅有 launchIntent 无 proof 字段",
+    "并行 shard-04 报告 output/run-20261023T171747/report.json 记录同一根因"
+  ],
+  "attempts": [
+    "杀掉无主 adb server(15037) 后重试 3 次",
+    "删除悬挂 launchIntent 状态文件 port-15037.json 后重试",
+    "归档 SESSION_CLEANUP_PENDING / ADB_CLEANUP_SERVER_UNAVAILABLE 的会话记录后重试"
+  ],
+  "solution": "在允许读取进程表（或关闭该沙箱限制）的宿主会话中重跑本分片；或改用不依赖云 ADB proof 的设备接入方式（如本地真机 local-android-meituan）"
+}

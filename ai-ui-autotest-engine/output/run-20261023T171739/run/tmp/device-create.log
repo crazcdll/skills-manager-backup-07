@@ -1,0 +1,19 @@
+[device:api] POST /node/api/data/monitor/mis-pool/heartbeat (timeout=15s)...
+[device:api] POST /node/api/data/monitor/mis-pool/heartbeat 完成 (0.1s)
+[device:api] GET /node/api/data/monitor/sandbox/query (timeout=30s)...
+[device:api] GET /node/api/data/monitor/sandbox/query 完成 (0.3s)
+[device] 复用池中空闲模拟器 (db3f035a-bc46-4103-b729-931a41b1824d @ 33.195.3.15:8080)
+[device:api] POST /node/api/data/monitor/device/occupy (timeout=8s)...
+[device:api] POST /node/api/data/monitor/device/occupy 完成 (0.1s)
+{
+  "ok": true,
+  "reused": true,
+  "leaseOwner": "privacy-doubleSIM-shard03#994718e0",
+  "sandboxId": "db3f035a-bc46-4103-b729-931a41b1824d",
+  "serialNumber": "33.195.3.15:8080",
+  "remoteConnectAddress": "33.195.3.15:8080",
+  "ip": "33.195.3.15",
+  "adbPort": 8080,
+  "scrcpyUrl": "https://8000-db3f035a-bc46-4103-b729-931a41b1824d.general-sandbox.sankuai.com",
+  "device_type": "sandbox"
+}

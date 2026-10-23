@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "36994d9e-21d9-44bf-a8ad-057a9319d997",
+  "path": "trade-duo-dev-master",
+  "path_key": "trade-duo-dev-master",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

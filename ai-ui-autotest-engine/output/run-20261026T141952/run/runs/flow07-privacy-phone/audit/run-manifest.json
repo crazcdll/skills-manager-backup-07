@@ -1,0 +1,14 @@
+{
+  "run_id": "run-20261026T141952",
+  "state": "archived",
+  "created_at": "2026-10-26T14:19:52",
+  "flow_name": "隐私号弹窗双卡引导-Flow07",
+  "expected_cases": 1,
+  "cases": [
+    {
+      "case_id": "Flow07-协商取消页隐私号拨打-物料升版链路回归",
+      "case_name": "Flow07-协商取消页隐私号拨打-物料升版链路回归"
+    }
+  ],
+  "archived_at": "2026-10-26T14:24:14"
+}

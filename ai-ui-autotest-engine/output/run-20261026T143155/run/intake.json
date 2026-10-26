@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "task_id": "148cba3b",
+  "answers": {
+    "resource_mis": "wangshicheng05",
+    "device_combo": "sandbox-android-meituan",
+    "env_type": "A",
+    "ptest": false,
+    "bundle_lock": "",
+    "negotiation_order_id": "5035036077836749951",
+    "device_type": "sandbox",
+    "platform": "android",
+    "app": "meituan",
+    "auth_method": "password",
+    "account": "18510177674",
+    "password": "ZXCasd@MT01()",
+    "mock_domain": "ai_pub_0011"
+  },
+  "pending_seeds": {},
+  "pinned": [
+    "resource_mis"
+  ],
+  "updated_at": "2026-10-26T14:36:37"
+}

@@ -1,0 +1,62 @@
+{"ts": "2026-10-26T14:50:29", "event": "run.initialized", "severity": "info", "details": {"expected_cases": 2}}
+{"ts": "2026-10-26T14:50:48", "event": "soft_failure", "severity": "warning", "details": {"code": "DEVICE_OCCUPY_RECORD_FAILED", "category": "infra", "detail": "API /node/api/data/monitor/device/occupy HTTP 404: Not Found"}}
+{"ts": "2026-10-26T14:51:36", "event": "acknowledged", "severity": "info", "details": {"key": "device_info_shown"}}
+{"ts": "2026-10-26T14:53:10", "event": "evidence.registered", "severity": "info", "details": {"artifacts": ["case_01/frames/login-result.png"], "evidence_type": "login", "method": "password_visual", "evidence_status": "pending", "stage": "B2_login"}}
+{"ts": "2026-10-26T14:53:10", "event": "environment.prepared", "severity": "info", "details": {"env": "online", "auth_method": "password", "account_type": "A", "target_env": "online", "restart_policies": ["reset_mock_env:none", "enable_appmock:cold_clear_data", "push_location:cold", "settle_popups:none", "auth:password:none"]}}
+{"ts": "2026-10-26T14:53:19", "event": "evidence.registered", "severity": "info", "details": {"artifacts": ["case_01/frames/login-result.png"], "evidence_type": "login", "method": "password_visual", "evidence_status": "verified", "stage": "B2_login"}}
+{"ts": "2026-10-26T14:53:19", "event": "acknowledged", "severity": "info", "details": {"key": "login_completed"}}
+{"ts": "2026-10-26T14:53:23", "event": "case.initialized", "severity": "info", "details": {"index": 0, "case_id": "Flow05-订单详情页联系电话入口-商家号码保持现状"}}
+{"ts": "2026-10-26T14:53:33", "event": "command.executed", "severity": "info", "details": {"cmd": "open-url", "url": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail&mrn_component=hotelchannel-order-detail&order_id=5035036077836749951&biz_type=1&mrn_disable_debugview=true&disableRedBox=1&disableDebugView=true&__recce_dev_show__=false"}}
+{"ts": "2026-10-26T14:53:57", "event": "acknowledged", "severity": "info", "details": {"key": "landing_page_opened_0"}}
+{"ts": "2026-10-26T14:54:01", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S1"}}
+{"ts": "2026-10-26T14:54:01", "event": "step.started", "severity": "info", "details": {"case_index": 0, "sid": "S1"}}
+{"ts": "2026-10-26T14:54:24", "event": "step.completed", "severity": "info", "details": {"case_index": 0, "sid": "S1", "result": 1, "screenshot": "case_01_S1.png"}}
+{"ts": "2026-10-26T14:54:31", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S2"}}
+{"ts": "2026-10-26T14:54:31", "event": "step.started", "severity": "info", "details": {"case_index": 0, "sid": "S2"}}
+{"ts": "2026-10-26T14:54:46", "event": "step.completed", "severity": "info", "details": {"case_index": 0, "sid": "S2", "result": null, "screenshot": "case_01_S2.png"}}
+{"ts": "2026-10-26T14:55:06", "event": "command.executed", "severity": "info", "details": {"cmd": "step"}}
+{"ts": "2026-10-26T14:55:06", "event": "step.started", "severity": "info", "details": {"case_index": 0, "sid": "S2"}}
+{"ts": "2026-10-26T14:55:17", "event": "step.fallback", "severity": "info", "details": {"case_index": 0, "sid": "S2", "action": "tap-text", "result": 1, "screenshot": "case_01_fallback_S2_3.png"}}
+{"ts": "2026-10-26T14:55:47", "event": "case.initialized", "severity": "info", "details": {"index": 1, "case_id": "Flow06-协商取消页呼出_修改弹窗-双卡引导文案双态展示"}}
+{"ts": "2026-10-26T14:56:01", "event": "command.executed", "severity": "info", "details": {"cmd": "open-url", "url": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail&mrn_component=hotelchannel-order-detail&order_id=5035036077836749951&biz_type=1&mrn_disable_debugview=true&disableRedBox=1&disableDebugView=true&__recce_dev_show__=false"}}
+{"ts": "2026-10-26T14:56:26", "event": "acknowledged", "severity": "info", "details": {"key": "landing_page_opened_1"}}
+{"ts": "2026-10-26T14:56:30", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S1"}}
+{"ts": "2026-10-26T14:56:30", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S1"}}
+{"ts": "2026-10-26T14:57:13", "event": "step.completed", "severity": "info", "details": {"case_index": 1, "sid": "S1", "result": null, "screenshot": "case_02_S1.png"}}
+{"ts": "2026-10-26T14:57:27", "event": "command.executed", "severity": "info", "details": {"cmd": "step"}}
+{"ts": "2026-10-26T14:57:27", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S1"}}
+{"ts": "2026-10-26T14:57:38", "event": "step.fallback", "severity": "info", "details": {"case_index": 1, "sid": "S1", "action": "tap-text", "result": 1, "screenshot": "case_02_fallback_S1_2.png"}}
+{"ts": "2026-10-26T14:57:54", "event": "command.executed", "severity": "info", "details": {"cmd": "screenshot"}}
+{"ts": "2026-10-26T14:58:21", "event": "command.executed", "severity": "info", "details": {"cmd": "open-url", "url": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail&mrn_component=hotelchannel-order-detail&order_id=5035036077836749951&biz_type=1&mrn_disable_debugview=true&disableRedBox=1&disableDebugView=true&__recce_dev_show__=false"}}
+{"ts": "2026-10-26T14:59:18", "event": "command.executed", "severity": "info", "details": {"cmd": "step"}}
+{"ts": "2026-10-26T14:59:18", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S1"}}
+{"ts": "2026-10-26T14:59:31", "event": "step.fallback", "severity": "info", "details": {"case_index": 1, "sid": "S1", "action": "tap", "result": 1, "screenshot": "case_02_fallback_S1_5.png"}}
+{"ts": "2026-10-26T14:59:50", "event": "command.executed", "severity": "info", "details": {"cmd": "screenshot"}}
+{"ts": "2026-10-26T15:00:14", "event": "hook.completed", "severity": "info", "details": {"sid": "S1", "hook_id": "resolve_text_not_found", "remaining": 0}}
+{"ts": "2026-10-26T15:00:20", "event": "command.executed", "severity": "info", "details": {"cmd": "open-url", "url": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail&mrn_component=hotelchannel-order-detail&order_id=5035036077836749951&biz_type=1&mrn_disable_debugview=true&disableRedBox=1&disableDebugView=true&__recce_dev_show__=false"}}
+{"ts": "2026-10-26T15:00:44", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S2"}}
+{"ts": "2026-10-26T15:00:44", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S2"}}
+{"ts": "2026-10-26T15:01:18", "event": "step.completed", "severity": "info", "details": {"case_index": 1, "sid": "S2", "result": null, "screenshot": "case_02_S2.png"}}
+{"ts": "2026-10-26T15:01:44", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S3"}}
+{"ts": "2026-10-26T15:01:44", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S3"}}
+{"ts": "2026-10-26T15:02:00", "event": "step.completed", "severity": "info", "details": {"case_index": 1, "sid": "S3", "result": null, "screenshot": "case_02_S3.png"}}
+{"ts": "2026-10-26T15:02:35", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "A1"}}
+{"ts": "2026-10-26T15:02:35", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "A1"}}
+{"ts": "2026-10-26T15:02:47", "event": "step.completed", "severity": "info", "details": {"case_index": 1, "sid": "A1", "result": 0, "kind": "api"}}
+{"ts": "2026-10-26T15:02:47", "event": "error.raised", "severity": "error", "details": {"code": "STEP_ASSERTION_FAILED", "category": "assertion", "stage": "", "message": "API STEP [A1] 未匹配到接口", "detail": "", "retryable": false}}
+{"ts": "2026-10-26T15:03:10", "event": "command.executed", "severity": "info", "details": {"cmd": "screenshot"}}
+{"ts": "2026-10-26T15:03:29", "event": "hook.completed", "severity": "info", "details": {"sid": "A1", "hook_id": "read_screenshot_and_analyze", "remaining": 0}}
+{"ts": "2026-10-26T15:03:34", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S4"}}
+{"ts": "2026-10-26T15:03:34", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S4"}}
+{"ts": "2026-10-26T15:04:18", "event": "step.completed", "severity": "info", "details": {"case_index": 1, "sid": "S4", "result": null, "screenshot": "case_02_S4.png"}}
+{"ts": "2026-10-26T15:04:33", "event": "hook.completed", "severity": "info", "details": {"sid": "S4", "hook_id": "resolve_text_not_found", "remaining": 0}}
+{"ts": "2026-10-26T15:04:39", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S5"}}
+{"ts": "2026-10-26T15:04:39", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S5"}}
+{"ts": "2026-10-26T15:04:54", "event": "step.completed", "severity": "info", "details": {"case_index": 1, "sid": "S5", "result": null, "screenshot": "case_02_S5.png"}}
+{"ts": "2026-10-26T15:05:20", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S6"}}
+{"ts": "2026-10-26T15:05:20", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S6"}}
+{"ts": "2026-10-26T15:05:48", "event": "step.completed", "severity": "info", "details": {"case_index": 1, "sid": "S6", "result": null, "screenshot": "case_02_S6.png"}}
+{"ts": "2026-10-26T15:06:10", "event": "evidence.registered", "severity": "info", "details": {"mock_ids": ["19538157", "19538201"], "mock_state": "both ON (mock-apply case=1 已确认)", "mock_19538157": {"rule": "/hotelorder/hotelorderorderdetail.json$", "hit": "已命中（页面酒店名变为 测试测试mumuxixi1122、¥1，与未开mock时 朗丽兹酒店/¥364 不同）", "payload_flags": {"StatusInfo.statusCode": 5130, "StatusInfo.OrderStatus": "已取消", "CanCancel": false, "ShowCancelBtn": false, "canCancelOrder": false, "privacyOrder": false, "entranceIM.canOperate": false, "PhoneList": ["15904071558", "15811223344"]}}, "mock_19538201": {"rule": "/nib/trade/c/serviceorder/v1/preview$", "hit": "未触发（协商取消页/服务单预览接口无请求）", "payload": "协商取消态：商家审核中/发起协商取消/撤销申请/追加凭证/联系商家"}, "conclusion": "订单详情被 mock 成已取消终态，页面无「取消订单」入口，协商取消页不可达；备选路径（我要申请退款→美团客服自助页提示退款已到账、顶部退款进度行→退款状态H5一直加载）均非协商取消页", "screenshots": [".run/tasks/a498de9a/runs/shard03-run/case_02/frames/case_02_S1.png", ".run/tasks/a498de9a/runs/shard03-run/case_02/frames/case_02_fallback_S1_2.png", ".run/tasks/a498de9a/runs/shard03-run/case_02/frames/case_02_probe_refunding.png"], "evidence_type": "", "method": "appmock_get", "evidence_status": "fail", "stage": "C4_walkthrough", "case_index": 1}}
+{"ts": "2026-10-26T15:06:15", "event": "hook.completed", "severity": "info", "details": {"sid": "S6", "hook_id": "resolve_text_not_found", "remaining": 0}}
+{"ts": "2026-10-26T15:06:43", "event": "soft_failure", "severity": "warning", "details": {"code": "DEVICE_RELEASE_RECORD_FAILED", "category": "infra", "detail": "device_id / owner are required"}}
+{"ts": "2026-10-26T15:06:50", "event": "run.archived", "severity": "info", "details": {"archive_dir": "/Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/output/run-20261026T145029/run"}}

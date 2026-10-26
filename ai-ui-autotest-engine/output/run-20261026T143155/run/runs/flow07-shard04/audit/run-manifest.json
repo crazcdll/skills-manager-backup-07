@@ -1,0 +1,14 @@
+{
+  "run_id": "run-20261026T143155",
+  "state": "archived",
+  "created_at": "2026-10-26T14:31:55",
+  "flow_name": "Flow07-协商取消页隐私号拨打-物料升版链路回归",
+  "expected_cases": 1,
+  "cases": [
+    {
+      "case_id": "Flow07-协商取消页隐私号拨打-物料升版链路回归",
+      "case_name": "Flow07-协商取消页隐私号拨打-物料升版链路回归"
+    }
+  ],
+  "archived_at": "2026-10-26T14:47:47"
+}

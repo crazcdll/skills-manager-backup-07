@@ -1,0 +1,85 @@
+{
+  "ok": true,
+  "platform": "android",
+  "platforms": [
+    "android",
+    "harmony"
+  ],
+  "checks": [
+    {
+      "name": "python-version",
+      "ok": true,
+      "detail": "Python 3.12.13",
+      "hint": null
+    },
+    {
+      "name": "node-version",
+      "ok": true,
+      "detail": "Node 24（满足 >= 18 要求）",
+      "hint": null
+    },
+    {
+      "name": "py:requests",
+      "ok": true,
+      "detail": "已安装",
+      "hint": null
+    },
+    {
+      "name": "py:websocket-client",
+      "ok": true,
+      "detail": "已安装",
+      "hint": null
+    },
+    {
+      "name": "imeituan",
+      "ok": true,
+      "detail": "/Users/crazcdll07/.catdesk/runtimes/node/versions/24.18.0/bin/imeituan（0.6.6（已是最新））",
+      "hint": null
+    },
+    {
+      "name": "adb",
+      "ok": true,
+      "detail": "adb（当前会话可用）",
+      "status": "session_available",
+      "hint": null
+    },
+    {
+      "name": "hdc",
+      "ok": true,
+      "detail": "/Users/crazcdll07/.imeituan/bin/hdc（3.2.0b，当前会话可用）",
+      "status": "session_available",
+      "hint": null
+    },
+    {
+      "name": "conan-cli",
+      "ok": true,
+      "detail": "/Users/crazcdll07/.local/bin/conan-cli（1.9.0）",
+      "hint": null
+    },
+    {
+      "name": "sso-auth-cli",
+      "ok": true,
+      "detail": "/Users/crazcdll07/.local/bin/sso-auth-cli",
+      "hint": null
+    },
+    {
+      "name": "appmock-sso-cookie",
+      "ok": true,
+      "detail": "SSO Cookie 已就绪（缓存有效或已重新获取）",
+      "hint": null
+    },
+    {
+      "name": "adb-keyboard-apk",
+      "ok": true,
+      "detail": "/Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/references/ADBKeyboard.apk（17374 bytes）",
+      "hint": null
+    },
+    {
+      "name": "skill-self-version",
+      "ok": true,
+      "detail": "ai-ui-autotest-engine 本地 V179，无法安全定位本安装（缺 mtskills 来源记录）",
+      "hint": "请手动执行: mtskills pull ai-ui-autotest-engine"
+    }
+  ],
+  "checked_at": "2026-10-26T14:49:08"
+}

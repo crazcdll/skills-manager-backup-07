@@ -1,0 +1,372 @@
+{
+  "batch_name": "shard-01-隐私号双卡引导文案",
+  "device": {
+    "type": "sandbox",
+    "platform": "android",
+    "app": "meituan",
+    "auto_install": false
+  },
+  "env": {
+    "type": "A",
+    "auth_method": "password",
+    "account": "18510177674",
+    "password": "ZXCasd@MT01()",
+    "ptest": false,
+    "bundle_lock": []
+  },
+  "cases": [
+    {
+      "case_id": "Flow01-订单详情页呼出弹窗-展示态双卡引导文案展示",
+      "case_name": "Flow01-订单详情页呼出弹窗-展示态双卡引导文案展示",
+      "landing_scheme": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail&mrn_component=hotelchannel-order-detail&order_id={order_id}&biz_type=1",
+      "params": {
+        "order_id": "5035036077836749951"
+      },
+      "steps": [
+        {
+          "sid": "S1",
+          "kind": "ui",
+          "desc": "滚动到联系酒店入口",
+          "action": "scroll-until",
+          "action_arg": "联系酒店",
+          "direction": "down",
+          "step-type": "interaction",
+          "page_ready": false,
+          "asserts": [
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "联系酒店"
+            }
+          ]
+        },
+        {
+          "sid": "S2",
+          "kind": "ui",
+          "desc": "点击联系酒店唤起号码呼出弹窗",
+          "action": "tap-text",
+          "action_arg": "联系酒店",
+          "step-type": "interaction",
+          "page_ready": true,
+          "asserts": [
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "将使用该号码加密呼出"
+            }
+          ]
+        },
+        {
+          "sid": "A1",
+          "kind": "api",
+          "desc": "queryuserinfo 接口返回校验",
+          "api_assert": {
+            "path": "/hotelorder/v1/queryuserinfo.json",
+            "expected_fields": [
+              {
+                "source": "response",
+                "field": "error.code",
+                "expected": "200"
+              }
+            ]
+          }
+        },
+        {
+          "sid": "S3",
+          "kind": "ui",
+          "desc": "查看展示态弹窗双卡引导文案",
+          "action": "assert-text",
+          "step-type": "assert",
+          "asserts": [
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "双卡双待请确认，系统呼出号码和下方一致"
+            },
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "将使用该号码加密呼出"
+            },
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "为保证服务质量，您的通话可能被录音"
+            },
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "非本机号请修改"
+            },
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "立即呼叫"
+            },
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "取消"
+            },
+            {
+              "kind": "visual",
+              "expect": "「双卡双待请确认，系统呼出号码和下方一致」位于「将使用该号码加密呼出」正下方、号码区上方",
+              "targets": [
+                "双卡引导文案位置在「将使用该号码加密呼出」正下方、号码区上方"
+              ]
+            }
+          ]
+        },
+        {
+          "sid": "S3b",
+          "kind": "ui",
+          "desc": "视觉走查双卡引导文案样式（12pt/#999999/居中）",
+          "action": "assert-text",
+          "step-type": "assert",
+          "asserts": [
+            {
+              "kind": "visual",
+              "expect": "双卡引导文案样式与 UI 稿一致（小字号、灰色 #999999、水平居中）",
+              "targets": [
+                "双卡引导文案字号色值与居中"
+              ]
+            }
+          ]
+        },
+        {
+          "sid": "S4",
+          "kind": "ui",
+          "desc": "点击取消关闭弹窗",
+          "action": "tap-text",
+          "action_arg": "取消",
+          "step-type": "interaction",
+          "page_ready": false,
+          "asserts": [
+            {
+              "kind": "text",
+              "match": "gone",
+              "expect": "将使用该号码加密呼出"
+            }
+          ]
+        },
+        {
+          "sid": "S5",
+          "kind": "ui",
+          "desc": "再次点击联系酒店唤起弹窗检查文案常驻",
+          "action": "tap-text",
+          "action_arg": "联系酒店",
+          "step-type": "interaction",
+          "page_ready": true,
+          "asserts": [
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "将使用该号码加密呼出"
+            }
+          ]
+        },
+        {
+          "sid": "S6",
+          "kind": "ui",
+          "desc": "断言双卡引导文案常驻展示",
+          "action": "assert-text",
+          "step-type": "assert",
+          "asserts": [
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "双卡双待请确认，系统呼出号码和下方一致"
+            }
+          ]
+        }
+      ],
+      "flow_source": "/Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/a35d8d2c/inputs/flows/Flow01-订单详情页呼出弹窗-展示态双卡引导文案展示.md"
+    },
+    {
+      "case_id": "Flow02-订单详情页修改弹窗-编辑态双卡引导文案展示",
+      "case_name": "Flow02-订单详情页修改弹窗-编辑态双卡引导文案展示",
+      "landing_scheme": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail&mrn_component=hotelchannel-order-detail&order_id={order_id}&biz_type=1",
+      "params": {
+        "order_id": "5035036077836749951"
+      },
+      "steps": [
+        {
+          "sid": "S1",
+          "kind": "ui",
+          "desc": "点击联系酒店唤起呼出弹窗",
+          "action": "tap-text",
+          "action_arg": "联系酒店",
+          "step-type": "interaction",
+          "page_ready": true,
+          "asserts": [
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "将使用该号码加密呼出"
+            }
+          ]
+        },
+        {
+          "sid": "S2",
+          "kind": "ui",
+          "desc": "点击非本机号请修改进入编辑态",
+          "action": "tap-text",
+          "action_arg": "非本机号请修改",
+          "step-type": "interaction",
+          "page_ready": true,
+          "asserts": [
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "输入本机号码"
+            }
+          ]
+        },
+        {
+          "sid": "S2b",
+          "kind": "ui",
+          "desc": "断言编辑态输入框提示文案",
+          "action": "assert-text",
+          "step-type": "assert",
+          "asserts": [
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "请输入本机号码"
+            }
+          ]
+        },
+        {
+          "sid": "A1",
+          "kind": "api",
+          "desc": "queryuserinfo 接口返回校验",
+          "api_assert": {
+            "path": "/hotelorder/v1/queryuserinfo.json",
+            "expected_fields": [
+              {
+                "source": "response",
+                "field": "error.code",
+                "expected": "200"
+              }
+            ]
+          }
+        },
+        {
+          "sid": "S3",
+          "kind": "ui",
+          "desc": "查看编辑态弹窗双卡引导文案",
+          "action": "assert-text",
+          "step-type": "assert",
+          "asserts": [
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "双卡双待请确认，系统呼出号码和下方一致"
+            },
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "立即呼叫"
+            },
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "取消"
+            },
+            {
+              "kind": "visual",
+              "expect": "「双卡双待请确认，系统呼出号码和下方一致」位于「输入本机号码」标题下方",
+              "targets": [
+                "双卡引导文案位于输入本机号码标题下方"
+              ]
+            }
+          ]
+        },
+        {
+          "sid": "S4",
+          "kind": "ui",
+          "desc": "点击取消关闭编辑态弹窗",
+          "action": "tap-text",
+          "action_arg": "取消",
+          "step-type": "interaction",
+          "page_ready": false,
+          "asserts": [
+            {
+              "kind": "text",
+              "match": "gone",
+              "expect": "输入本机号码"
+            }
+          ]
+        },
+        {
+          "sid": "S5",
+          "kind": "ui",
+          "desc": "重新点击联系酒店唤起展示态弹窗",
+          "action": "tap-text",
+          "action_arg": "联系酒店",
+          "step-type": "interaction",
+          "page_ready": true,
+          "asserts": [
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "将使用该号码加密呼出"
+            }
+          ]
+        },
+        {
+          "sid": "S5b",
+          "kind": "ui",
+          "desc": "断言展示态双卡引导文案",
+          "action": "assert-text",
+          "step-type": "assert",
+          "asserts": [
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "双卡双待请确认，系统呼出号码和下方一致"
+            }
+          ]
+        },
+        {
+          "sid": "S6",
+          "kind": "ui",
+          "desc": "再次点击非本机号请修改进入编辑态",
+          "action": "tap-text",
+          "action_arg": "非本机号请修改",
+          "step-type": "interaction",
+          "page_ready": true,
+          "asserts": [
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "输入本机号码"
+            }
+          ]
+        },
+        {
+          "sid": "S7",
+          "kind": "ui",
+          "desc": "断言编辑态双卡引导文案不丢失不重复",
+          "action": "assert-text",
+          "step-type": "assert",
+          "asserts": [
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "双卡双待请确认，系统呼出号码和下方一致"
+            },
+            {
+              "kind": "visual",
+              "expect": "「双卡双待请确认，系统呼出号码和下方一致」在弹窗内仅出现一次，不重复",
+              "targets": [
+                "双卡引导文案仅出现一次"
+              ]
+            }
+          ]
+        }
+      ],
+      "flow_source": "/Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/a35d8d2c/inputs/flows/Flow02-订单详情页修改弹窗-编辑态双卡引导文案展示.md"
+    }
+  ]
+}

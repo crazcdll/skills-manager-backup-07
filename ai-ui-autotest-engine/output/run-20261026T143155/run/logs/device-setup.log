@@ -1,0 +1,99 @@
+[device:setup] 注册设备到 imeituan session...
+[device:session] 注册设备 33.195.3.15:8080 (platform=android, timeout=30s)...
+[device:session] 选中 session 目标包: com.sankuai.meituan...
+[device:session] ✅ session 创建成功: sess-c523aaf3（已绑定本 run，后续设备命令路由到该会话）
+[device:setup] ✓ imeituan_register
+session_id 已写入 flow-context.json: sess-c523aaf3
+[device:setup] 🧹 停止残留运行 App 1 个: com.sankuai.meituan
+[device:setup] 🧹 无临时遗留
+[device:setup] 🧹 无需卸载的无用 App
+[device:setup] ✓ stop_stale_apps — 停止残留运行 App 1 个（com.sankuai.meituan）
+[device:setup] ✓ clean_device_temp — 清理 0 文件 / 0 目录，释放 0.0MB，保留 0 项本 Skill 缓存
+[device:setup] ✓ clean_device_apps — 卸载无用 App 0 个（无）；保留可测性 App 0 个（无）
+[device:setup] 检测 App 版本...
+[device:install] 目标可测性安装包（android/emulator）: 12.66.400（来源: apk_sources.json，更新于 2026-07-01）
+[device:setup] ✓ version_check — installed=True current=12.66.402 target=12.66.400 reason=已是目标版本或更新
+[device:setup] 按需安装/升级（可能需要 30-60s）...
+[device:install] 目标可测性安装包（android/emulator）: 12.66.400（来源: apk_sources.json，更新于 2026-07-01）
+[device:install] 目标可测性安装包（android/emulator）: 12.66.400（来源: apk_sources.json，更新于 2026-07-01）
+[device:install] 已是目标版本 12.66.402，跳过卸载重装
+[device:setup] ✓ install_or_upgrade — 已是目标版本，跳过卸载重装
+[device:setup] ✓ launch_app — 复用现有安装，拉起 App
+[device:setup] ✓ settle_first_run_popups — 复用现有安装，跳过首启弹窗收敛
+[device:setup] ✓ adb_keyboard — 已安装并设为默认输入法
+[device:setup] ✓ ensure_foreground — App 在前台
+[inspect_tree] 焦点包含 uninspectable 标识，走 uiautomator. focus='mcurrentfocus=window{24e3772 u0 com.sankuai.meituan/com.meituan.android.pt.homepage.activity.mainactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')
+[uiautomator] 开始 dump...
+[uiautomator] dump 完成: rc=0, stderr='', stdout='UI hierchary dumped to: /data/local/tmp/_ui.xml'
+[uiautomator] cat 完成: rc=0, stdout_len=45313
+[device:setup] ✓ capability_probe — appmock_state=available(ContentProvider getStatus 可用（Result: Bundle[{enabled=true, result=AppMock status: enabled）)；runtime_grant=available(pm 支持 grant)；foreground_query=available(焦点串: mcurrentfocus=window{24e3772 u0 com.sankuai.meituan/com.meituan.android.pt.homep)；view_tree_dump=degraded(采集输出缺少 attributes（设备端实现差异）)；resource_id=degraded(采集输出缺少 attributes（设备端实现差异）)；ime_control=available(ADBKeyboar
+[device:setup] 能力: appmock_state=available(ContentProvider getStatus 可用（Result: Bundle[{enabled=true, result=AppMock status: enabled）)
+[device:setup] 能力: runtime_grant=available(pm 支持 grant)
+[device:setup] 能力: foreground_query=available(焦点串: mcurrentfocus=window{24e3772 u0 com.sankuai.meituan/com.meituan.android.pt.homep)
+[device:setup] 能力: view_tree_dump=degraded(采集输出缺少 attributes（设备端实现差异）)
+[device:setup] 能力: resource_id=degraded(采集输出缺少 attributes（设备端实现差异）)
+[device:setup] 能力: ime_control=available(ADBKeyboard 广播输入（无可见键盘）)
+  ⚪ 空文件已创建: /var/folders/wv/k7zz744d53v5pjt274x7qbcm0000gn/T/_ai_uitest_cap_probe_tree.json
+  ⚪ 空文件已创建: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/148cba3b/capabilities.json
+{
+  "ok": true,
+  "steps": [
+    {
+      "step": "imeituan_register",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "step": "stop_stale_apps",
+      "ok": true,
+      "detail": "停止残留运行 App 1 个（com.sankuai.meituan）"
+    },
+    {
+      "step": "clean_device_temp",
+      "ok": true,
+      "detail": "清理 0 文件 / 0 目录，释放 0.0MB，保留 0 项本 Skill 缓存"
+    },
+    {
+      "step": "clean_device_apps",
+      "ok": true,
+      "detail": "卸载无用 App 0 个（无）；保留可测性 App 0 个（无）"
+    },
+    {
+      "step": "version_check",
+      "ok": true,
+      "detail": "installed=True current=12.66.402 target=12.66.400 reason=已是目标版本或更新"
+    },
+    {
+      "step": "install_or_upgrade",
+      "ok": true,
+      "detail": "已是目标版本，跳过卸载重装"
+    },
+    {
+      "step": "launch_app",
+      "ok": true,
+      "detail": "复用现有安装，拉起 App"
+    },
+    {
+      "step": "settle_first_run_popups",
+      "ok": true,
+      "detail": "复用现有安装，跳过首启弹窗收敛"
+    },
+    {
+      "step": "adb_keyboard",
+      "ok": true,
+      "detail": "已安装并设为默认输入法"
+    },
+    {
+      "step": "ensure_foreground",
+      "ok": true,
+      "detail": "App 在前台"
+    },
+    {
+      "step": "capability_probe",
+      "ok": true,
+      "detail": "appmock_state=available(ContentProvider getStatus 可用（Result: Bundle[{enabled=true, result=AppMock status: enabled）)；runtime_grant=available(pm 支持 grant)；foreground_query=available(焦点串: mcurrentfocus=window{24e3772 u0 com.sankuai.meituan/com.meituan.android.pt.homep)；view_tree_dump=degraded(采集输出缺少 attributes（设备端实现差异）)；resource_id=degraded(采集输出缺少 attributes（设备端实现差异）)；ime_control=available(ADBKeyboar"
+    }
+  ],
+  "adbAddress": "33.195.3.15:8080",
+  "sandboxId": "db3f035a-bc46-4103-b729-931a41b1824d"
+}

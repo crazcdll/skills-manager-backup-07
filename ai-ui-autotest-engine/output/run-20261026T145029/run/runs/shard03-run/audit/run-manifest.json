@@ -1,0 +1,18 @@
+{
+  "run_id": "run-20261026T145029",
+  "state": "archived",
+  "created_at": "2026-10-26T14:50:29",
+  "flow_name": "shard-03 隐私号双卡引导 Flow05/Flow06",
+  "expected_cases": 2,
+  "cases": [
+    {
+      "case_id": "Flow05-订单详情页联系电话入口-商家号码保持现状",
+      "case_name": "Flow05-订单详情页联系电话入口-商家号码保持现状"
+    },
+    {
+      "case_id": "Flow06-协商取消页呼出_修改弹窗-双卡引导文案双态展示",
+      "case_name": "Flow06-协商取消页呼出_修改弹窗-双卡引导文案双态展示"
+    }
+  ],
+  "archived_at": "2026-10-26T15:06:50"
+}

@@ -1,0 +1,51 @@
+{
+  "task_id": "orch-20261026T172846-7060b0",
+  "created_at": "2026-10-26T17:28:46",
+  "source": "/Users/crazcdll07/.catpaw/skills/ai-app-flow/.docs/隐私号弹窗文案增加双卡引导/flows",
+  "cases_dir": "/Users/crazcdll07/.skills-manager/skills/ai-auto-ui-test/.orchestration/orch-20261026T172846-7060b0/cases",
+  "case_count": 7,
+  "shard_count": 4,
+  "max_cases_per_agent": 2,
+  "concurrency": 4,
+  "env": {
+    "device_combo": "sandbox-android-meituan",
+    "env_type": "A",
+    "resource_mis": "wangshicheng05",
+    "account": "18510177674",
+    "password": "ZXCasd@MT01()",
+    "ptest": false
+  },
+  "shards": [
+    {
+      "shard_id": "shard-01",
+      "case_count": 2,
+      "case_ids": [
+        "Flow01-订单详情页呼出弹窗-展示态双卡引导文案展示",
+        "Flow02-订单详情页修改弹窗-编辑态双卡引导文案展示"
+      ]
+    },
+    {
+      "shard_id": "shard-02",
+      "case_count": 2,
+      "case_ids": [
+        "Flow03-订单详情页弹窗新增文案行-布局与交互无遮挡",
+        "Flow04-订单详情页隐私号拨打-主链路与降级回归"
+      ]
+    },
+    {
+      "shard_id": "shard-03",
+      "case_count": 2,
+      "case_ids": [
+        "Flow05-订单详情页联系电话入口-商家号码保持现状",
+        "Flow06-协商取消页呼出_修改弹窗-双卡引导文案双态展示"
+      ]
+    },
+    {
+      "shard_id": "shard-04",
+      "case_count": 1,
+      "case_ids": [
+        "Flow07-协商取消页隐私号拨打-物料升版链路回归"
+      ]
+    }
+  ]
+}

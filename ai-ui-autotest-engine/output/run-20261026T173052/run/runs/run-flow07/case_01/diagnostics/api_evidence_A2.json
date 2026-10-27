@@ -1,0 +1,99 @@
+{
+  "source": {
+    "request": {
+      "orderId": "5035036077836749951",
+      "useDefaultUserMobile": true,
+      "poiId": "52786813",
+      "merchantMobile": "15904071558"
+    },
+    "response": {
+      "error": {
+        "code": 500,
+        "message": "订单与poi不匹配：orderId=5035036077836749951, poiId=52786813"
+      },
+      "traceId": "8254068295482350426"
+    },
+    "query": {
+      "wtt_region_type": "nib",
+      "wtt_region_id": "1000110100",
+      "wtt_region_version": "1793007316765",
+      "cn_pt": "RN",
+      "utm_source": "meituaninternaltest",
+      "utm_medium": "android",
+      "utm_term": "1200660402",
+      "version_name": "12.66.402",
+      "utm_content": "2928766a21e34e4ca81de05a02bbb1c5a178994318738424357",
+      "utm_campaign": "AgroupBgroupC0D100E0Ghomepage",
+      "ci": "1",
+      "msid": "2928766a21e34e4ca81de05a02bbb1c5a1789943187384243571793007198246",
+      "uuid": "0000000000000EF884E5FCD174249B097E99E1F084A12A178994318736869377",
+      "token": "AgGGIaL7Smx1a0ncnfTLUrb2hMdy07K6ca7LE8FFMp_dNTcc4wWSR07dSy8y9_O4BYh94ciPHWE9ngAAAACnPAAA_eFvSt_0VBUSKiKtFtHNPCqa7nUFmN0q_ckoMMADQA54d2z1ehdZj8JpeR3yvT91",
+      "userid": "5538456018",
+      "p_appid": "10",
+      "__reqTraceID": "b9540164-f2a9-441e-9845-b514e7a54dfa",
+      "csecplatform": "1",
+      "csecversionname": "12.66.402",
+      "csecpkgname": "com.sankuai.meituan",
+      "csecversion": "1.0.0.61"
+    },
+    "http_code": 200,
+    "host": "apihotel.meituan.com",
+    "path": "/hotelorder/v1/bindvirtualnumber.json",
+    "method": "POST",
+    "req_headers": {
+      "userid": "5538456018",
+      "csecuuid": "0000000000000EF884E5FCD174249B097E99E1F084A12A178994318736869377"
+    },
+    "resp_headers": {
+      "M-TraceId": "8254068295482350426",
+      "M-Appkey": "com.sankuai.mptrade.hotel.apic"
+    }
+  },
+  "extracted_fields": {
+    "query.wtt_region_type": "nib",
+    "query.wtt_region_id": "1000110100",
+    "query.wtt_region_version": "1793007316765",
+    "query.cn_pt": "RN",
+    "query.utm_source": "meituaninternaltest",
+    "query.utm_medium": "android",
+    "query.utm_term": "1200660402",
+    "query.version_name": "12.66.402",
+    "query.utm_content": "2928766a21e34e4ca81de05a02bbb1c5a178994318738424357",
+    "query.utm_campaign": "AgroupBgroupC0D100E0Ghomepage",
+    "query.ci": "1",
+    "query.msid": "2928766a21e34e4ca81de05a02bbb1c5a1789943187384243571793007198246",
+    "query.uuid": "0000000000000EF884E5FCD174249B097E99E1F084A12A178994318736869377",
+    "query.token": "AgGGIaL7Smx1a0ncnfTLUrb2hMdy07K6ca7LE8FFMp_dNTcc4wWSR07dSy8y9_O4BYh94ciPHWE9ngAAAACnPAAA_eFvSt_0VBUSKiKtFtHNPCqa7nUFmN0q_ckoMMADQA54d2z1ehdZj8JpeR3yvT91",
+    "query.userid": "5538456018",
+    "query.p_appid": "10",
+    "query.__reqTraceID": "b9540164-f2a9-441e-9845-b514e7a54dfa",
+    "query.csecplatform": "1",
+    "query.csecversionname": "12.66.402",
+    "query.csecpkgname": "com.sankuai.meituan",
+    "query.csecversion": "1.0.0.61",
+    "request.orderId": "5035036077836749951",
+    "request.useDefaultUserMobile": true,
+    "request.poiId": "52786813",
+    "request.merchantMobile": "15904071558",
+    "req_headers.userid": "5538456018",
+    "req_headers.csecuuid": "0000000000000EF884E5FCD174249B097E99E1F084A12A178994318736869377",
+    "resp_headers.M-TraceId": "8254068295482350426",
+    "resp_headers.M-Appkey": "com.sankuai.mptrade.hotel.apic",
+    "meta.http_code": 200,
+    "meta.method": "POST",
+    "meta.path": "/hotelorder/v1/bindvirtualnumber.json",
+    "meta.host": "apihotel.meituan.com"
+  },
+  "expected_fields": [
+    {
+      "source": "meta",
+      "field": "http_code",
+      "expected": "200"
+    },
+    {
+      "source": "response",
+      "field": "error.code",
+      "expected": "200"
+    }
+  ]
+}

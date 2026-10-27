@@ -1,0 +1,457 @@
+[
+ {
+  "cls": "j",
+  "id": "0x557",
+  "rect": [
+   63,
+   658,
+   217,
+   693
+  ],
+  "clickable": null,
+  "text": "退款金额与预订的金额不一致",
+  "desc": ""
+ },
+ {
+  "cls": "j",
+  "id": "0x55f",
+  "rect": [
+   283,
+   658,
+   437,
+   693
+  ],
+  "clickable": null,
+  "text": "我要申请退款",
+  "desc": ""
+ },
+ {
+  "cls": "j",
+  "id": "0x567",
+  "rect": [
+   502,
+   658,
+   656,
+   693
+  ],
+  "clickable": null,
+  "text": "开发票",
+  "desc": ""
+ },
+ {
+  "cls": "c",
+  "id": "0x11d",
+  "rect": [
+   152,
+   780,
+   661,
+   823
+  ],
+  "clickable": null,
+  "text": "朗丽兹酒店（北京会议中心来广营店）0",
+  "desc": ""
+ },
+ {
+  "cls": "c",
+  "id": "0x127",
+  "rect": [
+   152,
+   823,
+   613,
+   885
+  ],
+  "clickable": null,
+  "text": "朝阳区来北家园小区西北配套(公建 A 座)地上 1-4 层",
+  "desc": ""
+ },
+ {
+  "cls": "j",
+  "id": "0x12b",
+  "rect": [
+   621,
+   854,
+   676,
+   885
+  ],
+  "clickable": null,
+  "text": "复制",
+  "desc": ""
+ },
+ {
+  "cls": "j",
+  "id": "0x4f5",
+  "rect": [
+   131,
+   935,
+   185,
+   972
+  ],
+  "clickable": null,
+  "text": "打车",
+  "desc": ""
+ },
+ {
+  "cls": "j",
+  "id": "0x505",
+  "rect": [
+   352,
+   935,
+   406,
+   972
+  ],
+  "clickable": null,
+  "text": "地图",
+  "desc": ""
+ },
+ {
+  "cls": "j",
+  "id": "0x513",
+  "rect": [
+   546,
+   935,
+   654,
+   972
+  ],
+  "clickable": null,
+  "text": "联系酒店",
+  "desc": ""
+ },
+ {
+  "cls": "c",
+  "id": "0x249",
+  "rect": [
+   76,
+   1052,
+   103,
+   1091
+  ],
+  "clickable": null,
+  "text": "特",
+  "desc": ""
+ },
+ {
+  "cls": "c",
+  "id": "0x24d",
+  "rect": [
+   103,
+   1052,
+   130,
+   1091
+  ],
+  "clickable": null,
+  "text": "惠",
+  "desc": ""
+ },
+ {
+  "cls": "c",
+  "id": "0x253",
+  "rect": [
+   130,
+   1052,
+   157,
+   1091
+  ],
+  "clickable": null,
+  "text": "大",
+  "desc": ""
+ },
+ {
+  "cls": "c",
+  "id": "0x257",
+  "rect": [
+   157,
+   1052,
+   184,
+   1091
+  ],
+  "clickable": null,
+  "text": "床",
+  "desc": ""
+ },
+ {
+  "cls": "c",
+  "id": "0x25d",
+  "rect": [
+   184,
+   1052,
+   211,
+   1091
+  ],
+  "clickable": null,
+  "text": "房",
+  "desc": ""
+ },
+ {
+  "cls": "c",
+  "id": "0x261",
+  "rect": [
+   211,
+   1052,
+   218,
+   1091
+  ],
+  "clickable": null,
+  "text": " ",
+  "desc": ""
+ },
+ {
+  "cls": "c",
+  "id": "0x267",
+  "rect": [
+   218,
+   1052,
+   233,
+   1091
+  ],
+  "clickable": null,
+  "text": "1",
+  "desc": ""
+ },
+ {
+  "cls": "c",
+  "id": "0x26b",
+  "rect": [
+   233,
+   1052,
+   260,
+   1091
+  ],
+  "clickable": null,
+  "text": "间",
+  "desc": ""
+ },
+ {
+  "cls": "j",
+  "id": "0x273",
+  "rect": [
+   613,
+   1056,
+   661,
+   1089
+  ],
+  "clickable": null,
+  "text": "详情",
+  "desc": ""
+ },
+ {
+  "cls": "j",
+  "id": "0x285",
+  "rect": [
+   76,
+   1099,
+   124,
+   1132
+  ],
+  "clickable": null,
+  "text": "大床",
+  "desc": ""
+ },
+ {
+  "cls": "j",
+  "id": "0x28d",
+  "rect": [
+   140,
+   1099,
+   212,
+   1132
+  ],
+  "clickable": null,
+  "text": "无早餐",
+  "desc": ""
+ },
+ {
+  "cls": "j",
+  "id": "0x293",
+  "rect": [
+   229,
+   1099,
+   314,
+   1132
+  ],
+  "clickable": null,
+  "text": "2人入住",
+  "desc": ""
+ },
+ {
+  "cls": "j",
+  "id": "0x29b",
+  "rect": [
+   330,
+   1099,
+   419,
+   1132
+  ],
+  "clickable": null,
+  "text": "20-22m²",
+  "desc": ""
+ },
+ {
+  "cls": "j",
+  "id": "0x2a3",
+  "rect": [
+   435,
+   1099,
+   483,
+   1132
+  ],
+  "clickable": null,
+  "text": "禁烟",
+  "desc": ""
+ },
+ {
+  "cls": "j",
+  "id": "0x2ab",
+  "rect": [
+   500,
+   1099,
+   601,
+   1132
+  ],
+  "clickable": null,
+  "text": "Wi-Fi免费",
+  "desc": ""
+ },
+ {
+  "cls": "j",
+  "id": "0x4c1",
+  "rect": [
+   129,
+   1100,
+   245,
+   1141
+  ],
+  "clickable": null,
+  "text": "删除订单",
+  "desc": ""
+ },
+ {
+  "cls": "j",
+  "id": "0x4d1",
+  "rect": [
+   474,
+   1100,
+   590,
+   1141
+  ],
+  "clickable": null,
+  "text": "再次预订",
+  "desc": ""
+ },
+ {
+  "cls": "j",
+  "id": "0xa43",
+  "rect": [
+   292,
+   656,
+   428,
+   702
+  ],
+  "clickable": null,
+  "text": "联系酒店",
+  "desc": ""
+ },
+ {
+  "cls": "j",
+  "id": "0xa57",
+  "rect": [
+   24,
+   738,
+   696,
+   781
+  ],
+  "clickable": null,
+  "text": "咨询酒店（设施 早餐 入住退房时间等问题）",
+  "desc": ""
+ },
+ {
+  "cls": "j",
+  "id": "0xa5d",
+  "rect": [
+   24,
+   821,
+   168,
+   859
+  ],
+  "clickable": null,
+  "text": "在线联系",
+  "desc": ""
+ },
+ {
+  "cls": "j",
+  "id": "0xa61",
+  "rect": [
+   24,
+   869,
+   168,
+   902
+  ],
+  "clickable": null,
+  "text": "酒店在线客服",
+  "desc": ""
+ },
+ {
+  "cls": "j",
+  "id": "0xa75",
+  "rect": [
+   24,
+   950,
+   363,
+   988
+  ],
+  "clickable": null,
+  "text": "电话联系",
+  "desc": ""
+ },
+ {
+  "cls": "j",
+  "id": "0xa7d",
+  "rect": [
+   25,
+   998,
+   295,
+   1031
+  ],
+  "clickable": null,
+  "text": "酒店电话：010-53913316",
+  "desc": ""
+ },
+ {
+  "cls": "j",
+  "id": "0xa81",
+  "rect": [
+   305,
+   998,
+   353,
+   1031
+  ],
+  "clickable": null,
+  "text": "复制",
+  "desc": ""
+ },
+ {
+  "cls": "j",
+  "id": "0xa8f",
+  "rect": [
+   25,
+   1051,
+   291,
+   1084
+  ],
+  "clickable": null,
+  "text": "酒店电话：18519274883",
+  "desc": ""
+ },
+ {
+  "cls": "j",
+  "id": "0xa93",
+  "rect": [
+   301,
+   1051,
+   349,
+   1084
+  ],
+  "clickable": null,
+  "text": "复制",
+  "desc": ""
+ }
+]

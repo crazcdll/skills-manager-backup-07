@@ -1,6 +1,6 @@
 interface:
   display_name: "统一编码规范接入工具"
-  short_description: "按仓库名称或 Git 地址同步有效 L1 与 L2 规则包"
-  default_prompt: "Use $mt-code-standards-setup to identify the repository I provide, or discover the current Git repository, and safely synchronize its platform-authorized L1 and L2 rule bundle into my chosen output directory."
+  short_description: "按领域和阶段同步 L1 与可获取的 L2，无仓库地址也可使用"
+  default_prompt: "Use $mt-code-standards-setup to synchronize the L1 rules for my explicit domain and development stage, including available repository L2 rules, into my chosen output directory. A missing repository or association should return L1 in the same request; ask only for missing domain or stage."
 policy:
   allow_implicit_invocation: true

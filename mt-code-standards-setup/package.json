@@ -12,6 +12,7 @@
     "references/mtcli-integration.md",
     "scripts/mtcli-transport.mjs",
     "scripts/portable-user-auth.mjs",
+    "scripts/agents-index.mjs",
     "scripts/resolve-effective-rules.mjs",
     "scripts/sync-effective-rules-with-sso.mjs",
     "README.md"
@@ -21,6 +22,7 @@
     "build": "npm run check",
     "check": "node scripts/check-package.mjs",
     "skill:publish:setup": "node scripts/publish-setup-skill.mjs",
+    "ps": "npm run skill:publish:setup --",
     "test": "node --test scripts/*.test.mjs bin/*.test.mjs"
   },
   "engines": {

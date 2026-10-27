@@ -1,0 +1,21 @@
+{"ts": "2026-10-26T17:02:41", "event": "run.initialized", "severity": "info", "details": {"expected_cases": 1}}
+{"ts": "2026-10-26T17:02:44", "event": "soft_failure", "severity": "warning", "details": {"code": "DEVICE_OCCUPY_RECORD_FAILED", "category": "infra", "detail": "API /node/api/data/monitor/device/occupy HTTP 404: Not Found"}}
+{"ts": "2026-10-26T17:04:44", "event": "evidence.registered", "severity": "info", "details": {"artifacts": ["case_01/frames/login-result.png"], "evidence_type": "login", "method": "password_visual", "evidence_status": "pending", "stage": "B2_login"}}
+{"ts": "2026-10-26T17:04:44", "event": "environment.prepared", "severity": "info", "details": {"env": "online", "auth_method": "password", "account_type": "A", "target_env": "online", "restart_policies": ["reset_mock_env:none", "enable_appmock:cold_clear_data", "push_location:cold", "settle_popups:none", "auth:password:none"]}}
+{"ts": "2026-10-26T17:05:20", "event": "command.executed", "severity": "info", "details": {"cmd": "open-url", "url": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail&mrn_component=hotelchannel-order-detail&order_id=5035036077836749951&biz_type=1"}}
+{"ts": "2026-10-26T17:05:44", "event": "command.executed", "severity": "info", "details": {"cmd": "find-text", "text": "联系酒店"}}
+{"ts": "2026-10-26T17:05:55", "event": "command.executed", "severity": "info", "details": {"cmd": "tap-text", "text": "联系酒店"}}
+{"ts": "2026-10-26T17:06:07", "event": "command.executed", "severity": "info", "details": {"cmd": "screenshot"}}
+{"ts": "2026-10-26T17:06:15", "event": "command.executed", "severity": "info", "details": {"cmd": "find-text", "text": "010-53913316"}}
+{"ts": "2026-10-26T17:06:37", "event": "command.executed", "severity": "info", "details": {"cmd": "find-text", "text": "18519274883"}}
+{"ts": "2026-10-26T17:06:59", "event": "command.executed", "severity": "info", "details": {"cmd": "find-text", "text": "复制"}}
+{"ts": "2026-10-26T17:07:06", "event": "command.executed", "severity": "info", "details": {"cmd": "find-text", "text": "在线联系"}}
+{"ts": "2026-10-26T17:07:13", "event": "command.executed", "severity": "info", "details": {"cmd": "find-text", "text": "酒店在线客服"}}
+{"ts": "2026-10-26T17:07:20", "event": "command.executed", "severity": "info", "details": {"cmd": "find-text", "text": "电话联系"}}
+{"ts": "2026-10-26T17:07:27", "event": "command.executed", "severity": "info", "details": {"cmd": "find-text", "text": "酒店电话"}}
+{"ts": "2026-10-26T17:07:54", "event": "command.executed", "severity": "info", "details": {"cmd": "find-text", "text": "53913316"}}
+{"ts": "2026-10-26T17:08:15", "event": "command.executed", "severity": "info", "details": {"cmd": "find-text", "text": "5391"}}
+{"ts": "2026-10-26T17:08:37", "event": "command.executed", "severity": "info", "details": {"cmd": "find-text", "text": "1919274883"}}
+{"ts": "2026-10-26T17:08:58", "event": "command.executed", "severity": "info", "details": {"cmd": "find-text", "text": "1013"}}
+{"ts": "2026-10-26T17:09:24", "event": "command.executed", "severity": "info", "details": {"cmd": "inspect-tree"}}
+{"ts": "2026-10-26T17:09:41", "event": "command.executed", "severity": "info", "details": {"cmd": "find-text", "text": "酒店电话：010-53913316"}}

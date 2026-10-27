@@ -1,0 +1,608 @@
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "{"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "  \"done\": false,"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "  \"question\": {"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"id\": \"bundle_lock\","}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"group\": \"config\","}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"order\": 51,"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"prompt\": \"是否需要锁定 MRN bundle？（仅声明包名不锁包；提供版本才会锁包；无需请跳过）\","}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"input_type\": \"text\","}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"required\": false,"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"options\": [],"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"default\": [],"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"depends_on\": [],"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"source\": \"ask\","}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"sensitive\": false,"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"note\": null,"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"render\": {"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "      \"mode\": \"free_text\","}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "      \"options\": ["}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "          \"value\": \"__manual_input__\","}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "          \"label\": \"✏️ 手动输入\""}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "        },"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "        {"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "          \"value\": \"__skip__\","}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "          \"label\": \"⏭️ 跳过（稍后再说）\""}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "        }"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "      ],"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "      \"default\": []"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"hint\": \"选填。把 render.options（手动输入/跳过）原样交给 AskQuestion；用户选『✏️ 手动输入』后在对话中收取真实值并 input-answer --id bundle_lock --value <值>；选『⏭️ 跳过』则执行 input-answer --id bundle_lock --value __skip__\""}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "  },"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "  \"progress\": {"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"total\": 6,"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"resolved\": 5,"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"pending\": 1,"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"group\": \"config\","}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"index\": 6"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "  },"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "  \"next\": {"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"kind\": \"ask\","}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"id\": \"bundle_lock\","}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"must_ask_only_this\": true,"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"ask\": {"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "      \"prompt\": \"是否需要锁定 MRN bundle？（仅声明包名不锁包；提供版本才会锁包；无需请跳过）\","}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "      \"render\": null"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"cmd\": \".run/ws/9fb1ef1b/cli input-answer --id bundle_lock --value '<用户所选的 value>'\","}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "    \"note\": \"严格按本输出执行：只把 question.render.options 这 1 题交给 AskQuestion，再按其 cmd 提交；不得合并 / 跳答 / 自行编排。 提交后回到 input-next 取下一题。\""}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "  }"}
+{"ts": "2026-10-26T17:11:06", "task": "9fb1ef1b", "run": "", "cmd": "input-next", "stream": "stdout", "line": "}"}
+{"ts": "2026-10-26T17:11:12", "task": "9fb1ef1b", "run": "", "cmd": "cases-create", "stream": "stdout", "line": "✅ 空 CASES 文件已创建: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/9fb1ef1b/tmp/cases-probe.json"}
+{"ts": "2026-10-26T17:11:12", "task": "9fb1ef1b", "run": "", "cmd": "cases-create", "stream": "stdout", "line": "   强制约定：AI 写入完整 CASES（device/env/cases/steps）并确认落盘后，再执行："}
+{"ts": "2026-10-26T17:11:12", "task": "9fb1ef1b", "run": "", "cmd": "cases-create", "stream": "stdout", "line": "   <入口> steps-generate --input 'cases-probe.json' --tag probe"}
+{"ts": "2026-10-26T17:13:08", "task": "9fb1ef1b", "run": "", "cmd": "steps-generate", "stream": "stdout", "line": "✅ 所有占位符已解析，无需收集。"}
+{"ts": "2026-10-26T17:13:08", "task": "9fb1ef1b", "run": "", "cmd": "steps-generate", "stream": "stdout", "line": "✅ steps-input 已生成: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/9fb1ef1b/tmp/steps-input-probe.json"}
+{"ts": "2026-10-26T17:13:14", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "FLOW-NEXT: 执行阶段 B0_mis_acquire: 领取虚拟 mis（AppMock 工作域）"}
+{"ts": "2026-10-26T17:13:14", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "  CMD: .run/ws/9fb1ef1b/cli mis acquire"}
+{"ts": "2026-10-26T17:13:14", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "  成功标志: \"ok\": true"}
+{"ts": "2026-10-26T17:13:14", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "  失败策略: abort"}
+{"ts": "2026-10-26T17:13:14", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "  [NOTE] 在任何 AppMock 操作之前领一个虚拟 mis（私有优先 → 公共兜底），写入 workspace 级 intake.mock_domain；后续 AppMock（规则/录制/环境/泳道）全部用它。池空即失败中止（fail-fast）。"}
+{"ts": "2026-10-26T17:13:14", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "  完成后执行 .run/ws/9fb1ef1b/cli flow-advance 推进到下一阶段"}
+{"ts": "2026-10-26T17:13:17", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mis", "stream": "stderr", "line": "[device:api] POST /node/api/data/monitor/mis-pool/acquire (timeout=20s)..."}
+{"ts": "2026-10-26T17:13:17", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mis", "stream": "stderr", "line": "[device:api] POST /node/api/data/monitor/mis-pool/acquire 完成 (0.3s)"}
+{"ts": "2026-10-26T17:13:21", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "FLOW-NEXT: 执行阶段 B1_device: 设备获取 + 初始化"}
+{"ts": "2026-10-26T17:13:21", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "  CMD（长任务·后台执行）: .run/ws/9fb1ef1b/cli device create"}
+{"ts": "2026-10-26T17:13:21", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "  CMD（长任务·后台执行）: .run/ws/9fb1ef1b/cli device setup"}
+{"ts": "2026-10-26T17:13:21", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "  CMD: .run/ws/9fb1ef1b/cli ack --key device_info_shown"}
+{"ts": "2026-10-26T17:13:21", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "  [长任务契约] 后台启动并轮询日志；超时/失败后先确认上一实例已终止，禁止在旧实例存活时重跑"}
+{"ts": "2026-10-26T17:13:21", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "  成功标志: \"ok\": true"}
+{"ts": "2026-10-26T17:13:21", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "  失败策略: abort"}
+{"ts": "2026-10-26T17:13:21", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "  [NOTE] create 完成后先向用户展示设备信息（sandboxId、adb 地址、围观链接 scrcpyUrl），再调用 ack 写入证据，否则 flow-advance 会被拦截。"}
+{"ts": "2026-10-26T17:13:21", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "  [ACK_REQUIRED] 完成后执行: .run/ws/9fb1ef1b/cli ack --key device_info_shown"}
+{"ts": "2026-10-26T17:13:21", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "    说明: 请先向用户展示 sandboxId/adb地址/围观链接，再调用 ack --key device_info_shown"}
+{"ts": "2026-10-26T17:13:21", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "  完成后执行 .run/ws/9fb1ef1b/cli flow-advance 推进到下一阶段"}
+{"ts": "2026-10-26T17:13:24", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:api] POST /node/api/data/monitor/mis-pool/heartbeat (timeout=15s)..."}
+{"ts": "2026-10-26T17:13:24", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:api] POST /node/api/data/monitor/mis-pool/heartbeat 完成 (0.3s)"}
+{"ts": "2026-10-26T17:13:24", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:api] GET /node/api/data/monitor/sandbox/query (timeout=30s)..."}
+{"ts": "2026-10-26T17:13:25", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:api] GET /node/api/data/monitor/sandbox/query 完成 (0.3s)"}
+{"ts": "2026-10-26T17:13:49", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:setup] 注册设备到 imeituan session..."}
+{"ts": "2026-10-26T17:13:49", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:session] 注册设备 33.195.9.188:8080 (platform=android, timeout=30s)..."}
+{"ts": "2026-10-26T17:13:51", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:session] 选中 session 目标包: com.sankuai.meituan..."}
+{"ts": "2026-10-26T17:13:51", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:session] ✅ session 创建成功: sess-d943912d（已绑定本 run，后续设备命令路由到该会话）"}
+{"ts": "2026-10-26T17:13:51", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:setup] ✓ imeituan_register"}
+{"ts": "2026-10-26T17:13:51", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "session_id 已写入 flow-context.json: sess-d943912d"}
+{"ts": "2026-10-26T17:13:53", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:setup] 🧹 停止残留运行 App 1 个: com.sankuai.meituan"}
+{"ts": "2026-10-26T17:13:53", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:setup] 🧹 无临时遗留"}
+{"ts": "2026-10-26T17:13:54", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:setup] 🧹 无需卸载的无用 App"}
+{"ts": "2026-10-26T17:13:54", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:setup] ✓ stop_stale_apps — 停止残留运行 App 1 个（com.sankuai.meituan）"}
+{"ts": "2026-10-26T17:13:54", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:setup] ✓ clean_device_temp — 清理 0 文件 / 0 目录，释放 0.0MB，保留 0 项本 Skill 缓存"}
+{"ts": "2026-10-26T17:13:54", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:setup] ✓ clean_device_apps — 卸载无用 App 0 个（无）；保留可测性 App 0 个（无）"}
+{"ts": "2026-10-26T17:13:54", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:setup] 检测 App 版本..."}
+{"ts": "2026-10-26T17:13:54", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:install] 目标可测性安装包（android/emulator）: 12.66.400（来源: apk_sources.json，更新于 2026-07-01）"}
+{"ts": "2026-10-26T17:13:55", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:setup] ✓ version_check — installed=True current=12.66.402 target=12.66.400 reason=已是目标版本或更新"}
+{"ts": "2026-10-26T17:13:55", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:setup] 按需安装/升级（可能需要 30-60s）..."}
+{"ts": "2026-10-26T17:13:55", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:install] 目标可测性安装包（android/emulator）: 12.66.400（来源: apk_sources.json，更新于 2026-07-01）"}
+{"ts": "2026-10-26T17:13:55", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:install] 目标可测性安装包（android/emulator）: 12.66.400（来源: apk_sources.json，更新于 2026-07-01）"}
+{"ts": "2026-10-26T17:13:58", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:install] 已是目标版本 12.66.402，跳过卸载重装"}
+{"ts": "2026-10-26T17:13:58", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:setup] ✓ install_or_upgrade — 已是目标版本，跳过卸载重装"}
+{"ts": "2026-10-26T17:13:59", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:setup] ✓ launch_app — 复用现有安装，拉起 App"}
+{"ts": "2026-10-26T17:13:59", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:setup] ✓ settle_first_run_popups — 复用现有安装，跳过首启弹窗收敛"}
+{"ts": "2026-10-26T17:14:01", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:setup] ✓ adb_keyboard — 已安装并设为默认输入法"}
+{"ts": "2026-10-26T17:14:03", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:setup] ✓ ensure_foreground — App 在前台"}
+{"ts": "2026-10-26T17:14:03", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[inspect_tree] 焦点包含 uninspectable 标识，走 uiautomator. focus='mcurrentfocus=window{84f2df u0 com.sankuai.meituan/com.meituan.android.pt.homepage.activity.mainactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:14:03", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[uiautomator] 开始 dump..."}
+{"ts": "2026-10-26T17:14:06", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[uiautomator] dump 完成: rc=0, stderr='', stdout='UI hierchary dumped to: /data/local/tmp/_ui.xml'"}
+{"ts": "2026-10-26T17:14:07", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[uiautomator] cat 完成: rc=0, stdout_len=63515"}
+{"ts": "2026-10-26T17:14:07", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "  ⚪ 空文件已创建: /var/folders/wv/k7zz744d53v5pjt274x7qbcm0000gn/T/_ai_uitest_cap_probe_tree.json"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "  ⚪ 空文件已创建: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/9fb1ef1b/capabilities.json"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:setup] ✓ capability_probe — appmock_state=available(ContentProvider getStatus 可用（Result: Bundle[{enabled=true, result=AppMock status: enabled）)；runtime_grant=available(pm 支持 grant)；foreground_query=available(焦点串: mcurrentfocus=window{84f2df u0 com.sankuai.meituan/com.meituan.android.pt.homepa)；view_tree_dump=degraded(采集输出缺少 attributes（设备端实现差异）)；resource_id=degraded(采集输出缺少 attributes（设备端实现差异）)；ime_control=available(ADBKeyboar"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:setup] 能力: appmock_state=available(ContentProvider getStatus 可用（Result: Bundle[{enabled=true, result=AppMock status: enabled）)"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:setup] 能力: runtime_grant=available(pm 支持 grant)"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:setup] 能力: foreground_query=available(焦点串: mcurrentfocus=window{84f2df u0 com.sankuai.meituan/com.meituan.android.pt.homepa)"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:setup] 能力: view_tree_dump=degraded(采集输出缺少 attributes（设备端实现差异）)"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:setup] 能力: resource_id=degraded(采集输出缺少 attributes（设备端实现差异）)"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device:setup] 能力: ime_control=available(ADBKeyboard 广播输入（无可见键盘）)"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "{"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "  \"ok\": true,"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "  \"steps\": ["}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"step\": \"imeituan_register\","}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"ok\": true,"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"detail\": \"\""}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"step\": \"stop_stale_apps\","}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"ok\": true,"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"detail\": \"停止残留运行 App 1 个（com.sankuai.meituan）\""}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"step\": \"clean_device_temp\","}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"ok\": true,"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"detail\": \"清理 0 文件 / 0 目录，释放 0.0MB，保留 0 项本 Skill 缓存\""}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"step\": \"clean_device_apps\","}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"ok\": true,"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"detail\": \"卸载无用 App 0 个（无）；保留可测性 App 0 个（无）\""}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"step\": \"version_check\","}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"ok\": true,"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"detail\": \"installed=True current=12.66.402 target=12.66.400 reason=已是目标版本或更新\""}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"step\": \"install_or_upgrade\","}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"ok\": true,"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"detail\": \"已是目标版本，跳过卸载重装\""}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"step\": \"launch_app\","}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"ok\": true,"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"detail\": \"复用现有安装，拉起 App\""}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"step\": \"settle_first_run_popups\","}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"ok\": true,"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"detail\": \"复用现有安装，跳过首启弹窗收敛\""}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"step\": \"adb_keyboard\","}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"ok\": true,"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"detail\": \"已安装并设为默认输入法\""}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"step\": \"ensure_foreground\","}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"ok\": true,"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"detail\": \"App 在前台\""}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"step\": \"capability_probe\","}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"ok\": true,"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "      \"detail\": \"appmock_state=available(ContentProvider getStatus 可用（Result: Bundle[{enabled=true, result=AppMock status: enabled）)；runtime_grant=available(pm 支持 grant)；foreground_query=available(焦点串: mcurrentfocus=window{84f2df u0 com.sankuai.meituan/com.meituan.android.pt.homepa)；view_tree_dump=degraded(采集输出缺少 attributes（设备端实现差异）)；resource_id=degraded(采集输出缺少 attributes（设备端实现差异）)；ime_control=available(ADBKeyboar\""}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "    }"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "  ],"}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "  \"adbAddress\": \"33.195.9.188:8080\","}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "  \"sandboxId\": \"1d85deba-4827-4536-ac9c-30c8cc4e5811\""}
+{"ts": "2026-10-26T17:14:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "}"}
+{"ts": "2026-10-26T17:14:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "ack", "stream": "stdout", "line": "ACK OK: 已记录 device_info_shown 完成证据"}
+{"ts": "2026-10-26T17:14:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-advance", "stream": "stdout", "line": "FLOW-ADVANCE: 执行阶段 B2_login: 环境配置 + 登录"}
+{"ts": "2026-10-26T17:14:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-advance", "stream": "stdout", "line": "  CMD（长任务·后台执行）: .run/ws/9fb1ef1b/cli env-prepare"}
+{"ts": "2026-10-26T17:14:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-advance", "stream": "stdout", "line": "  [长任务契约] 后台启动并轮询日志；超时/失败后先确认上一实例已终止，禁止在旧实例存活时重跑"}
+{"ts": "2026-10-26T17:14:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-advance", "stream": "stdout", "line": "  成功标志: LOGIN INPUT-CODE OK, QAHOME-LOGIN, [NEEDS_VISUAL_CHECK]"}
+{"ts": "2026-10-26T17:14:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-advance", "stream": "stdout", "line": "  失败策略: abort"}
+{"ts": "2026-10-26T17:14:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-advance", "stream": "stdout", "line": "  [NOTE] 凭证登录（A/C）输出 [NEEDS_VISUAL_CHECK] 需读图确认；验证码登录（B/D）由 env-prepare 内部自动验证。确认登录成功后调用 ack 写入证据，否则 flow-advance 会被拦截。"}
+{"ts": "2026-10-26T17:14:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-advance", "stream": "stdout", "line": "  [ACK_REQUIRED] 完成后执行: .run/ws/9fb1ef1b/cli ack --key login_completed"}
+{"ts": "2026-10-26T17:14:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-advance", "stream": "stdout", "line": "    说明: 请先确认 env-prepare 已成功登录（凭证登录需读图确认 [NEEDS_VISUAL_CHECK] 截图，验证码登录确认 QAHOME-LOGIN 成功标记）。MRN 锁包结果已由 env-prepare 自动通过 inspect-tree 验证——如果锁包失败，env-prepare 会直接报错退出，不会到达此 ack 环节。确认后直接 ack（凭证登录无需跳回首页，后续 open-url scheme 可直接覆盖当前页面）"}
+{"ts": "2026-10-26T17:14:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-advance", "stream": "stdout", "line": "  完成后执行 .run/ws/9fb1ef1b/cli flow-advance 推进到下一阶段"}
+{"ts": "2026-10-26T17:14:29", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "[env-prepare] 登录计划: auth=password env_type=A target_env=online bundles=0 ptest=False"}
+{"ts": "2026-10-26T17:14:29", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "============================================================"}
+{"ts": "2026-10-26T17:14:29", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "[env-prepare] Step 1/1: 登录编排（password / online）"}
+{"ts": "2026-10-26T17:14:29", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "============================================================"}
+{"ts": "2026-10-26T17:14:29", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "RESET-ENV: 开始执行前环境重置..."}
+{"ts": "2026-10-26T17:14:29", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "APPMOCK LIST OK (yooz proxy): 2 rules"}
+{"ts": "2026-10-26T17:14:29", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "  ℹ️  当前域内 2 条 Mock 规则（交由 case 级生命周期管理，不 stop-all）"}
+{"ts": "2026-10-26T17:14:29", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "[ptest-mock] 无已记录的 ptest 规则，跳过规则关闭"}
+{"ts": "2026-10-26T17:14:30", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "[ptest-mock] ✅ htptest 设备开关已回滚"}
+{"ts": "2026-10-26T17:14:31", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "URL_MAPPING LIST OK: 0 mapping(s) domain=ai_pub_0022"}
+{"ts": "2026-10-26T17:14:31", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "  ℹ️  当前无域名映射记录"}
+{"ts": "2026-10-26T17:14:31", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "URL_MAPPING CLEANUP: 无需清理（无自动创建的域名映射）"}
+{"ts": "2026-10-26T17:14:31", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "SESSION SWIMLINE OFF OK"}
+{"ts": "2026-10-26T17:14:31", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "  ✅ 泳道关闭"}
+{"ts": "2026-10-26T17:14:31", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "SESSION ENV SET OK: env=online domain=ai_pub_0022"}
+{"ts": "2026-10-26T17:14:31", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "  ✅ 环境重置为线上"}
+{"ts": "2026-10-26T17:14:31", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "RESET-ENV: 完成（全部成功）"}
+{"ts": "2026-10-26T17:14:31", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "[login:pre] step=reset_mock_env ok=True restart=none detail=reset-env 完成"}
+{"ts": "2026-10-26T17:14:31", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "[restart] enable_appmock: cold_clear_data — 清除残留登录态并让 AppMock 代理生效：必须清数据后再预授权再冷启动，顺序不可互换（清数据会重置已授权限）"}
+{"ts": "2026-10-26T17:14:31", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "APPMOCK ENABLE: 通过 ContentProvider 直连启用 AppMock (user=ai_pub_0022)..."}
+{"ts": "2026-10-26T17:14:33", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "APPMOCK ENABLE OK (content call): user=ai_pub_0022"}
+{"ts": "2026-10-26T17:14:34", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "APPMOCK ENABLE VERIFIED: 设备端 SDK 已确认启用"}
+{"ts": "2026-10-26T17:14:36", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "SDK-ENABLE: ✅ AppMock SDK 已确认启用（第 1 轮）"}
+{"ts": "2026-10-26T17:14:36", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "SDK-ENABLE: 清除 App 数据 + 重启 App 使网络栈完全走代理通道..."}
+{"ts": "2026-10-26T17:14:36", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "COLD-RESTART: 清除 com.sankuai.meituan 数据（移除残留登录态）..."}
+{"ts": "2026-10-26T17:14:37", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "COLD-RESTART: ✅ App 数据已清除"}
+{"ts": "2026-10-26T17:14:39", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "COLD-RESTART: ✅ 已授予权限: POST_NOTIFICATIONS"}
+{"ts": "2026-10-26T17:14:39", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "COLD-RESTART: ✅ 已授予权限: ACCESS_FINE_LOCATION"}
+{"ts": "2026-10-26T17:14:39", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "COLD-RESTART: ✅ 已授予权限: ACCESS_COARSE_LOCATION"}
+{"ts": "2026-10-26T17:14:39", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "COLD-RESTART: ✅ 运行时权限已全部预授予"}
+{"ts": "2026-10-26T17:14:42", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "COLD-RESTART: 消除弹窗（隐私协议等）..."}
+{"ts": "2026-10-26T17:14:42", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=3, timeout=15, attempt=1/2)..."}
+{"ts": "2026-10-26T17:14:42", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 焦点包含 uninspectable 标识，走 uiautomator. focus='mcurrentfocus=window{c760d6a u0 com.sankuai.meituan/com.meituan.android.pt.homepage.activity.mainactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:14:42", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[uiautomator] 开始 dump..."}
+{"ts": "2026-10-26T17:14:45", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[uiautomator] dump 完成: rc=0, stderr='', stdout='UI hierchary dumped to: /data/local/tmp/_ui.xml'"}
+{"ts": "2026-10-26T17:14:46", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[uiautomator] cat 完成: rc=0, stdout_len=5971"}
+{"ts": "2026-10-26T17:14:46", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "  ⚪ 空文件已创建: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/9fb1ef1b/runs/probe-three-layer/inspect_tree.json"}
+{"ts": "2026-10-26T17:14:46", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=3.9s"}
+{"ts": "2026-10-26T17:14:47", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "[popup] 第 1 轮命中「隐私协议（温馨提示）」→ 点击 (360, 983)"}
+{"ts": "2026-10-26T17:14:50", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=3, timeout=15, attempt=1/2)..."}
+{"ts": "2026-10-26T17:14:50", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 焦点包含 uninspectable 标识，走 uiautomator. focus='mcurrentfocus=window{3b5c938 u0 com.sankuai.meituan/com.meituan.android.pt.homepage.activity.mainactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:14:50", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[uiautomator] 开始 dump..."}
+{"ts": "2026-10-26T17:14:53", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[uiautomator] dump 完成: rc=0, stderr='', stdout='UI hierchary dumped to: /data/local/tmp/_ui.xml'"}
+{"ts": "2026-10-26T17:14:53", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[uiautomator] cat 完成: rc=0, stdout_len=40084"}
+{"ts": "2026-10-26T17:14:53", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "  ⚪ 空文件已创建: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/9fb1ef1b/runs/probe-three-layer/inspect_tree.json"}
+{"ts": "2026-10-26T17:14:53", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=3.7s"}
+{"ts": "2026-10-26T17:14:55", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "[COLD-RESTART] 环境澄清：已消除 1 个遮挡弹窗（隐私协议（温馨提示））"}
+{"ts": "2026-10-26T17:14:55", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "COLD-RESTART: 隐私协议已同意，冷重启使状态生效..."}
+{"ts": "2026-10-26T17:14:57", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=3, timeout=15, attempt=1/2)..."}
+{"ts": "2026-10-26T17:14:58", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 焦点包含 uninspectable 标识，走 uiautomator. focus='mcurrentfocus=window{b0faf1b u0 com.sankuai.meituan/com.meituan.android.pt.homepage.activity.mainactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:14:58", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[uiautomator] 开始 dump..."}
+{"ts": "2026-10-26T17:15:01", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[uiautomator] dump 完成: rc=0, stderr='', stdout='UI hierchary dumped to: /data/local/tmp/_ui.xml'"}
+{"ts": "2026-10-26T17:15:02", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[uiautomator] cat 完成: rc=0, stdout_len=46965"}
+{"ts": "2026-10-26T17:15:02", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "  ⚪ 空文件已创建: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/9fb1ef1b/runs/probe-three-layer/inspect_tree.json"}
+{"ts": "2026-10-26T17:15:02", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=4.9s"}
+{"ts": "2026-10-26T17:15:03", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "[COLD-RESTART] 环境澄清：无遮挡弹窗（none-found）"}
+{"ts": "2026-10-26T17:15:03", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "SDK-ENABLE: ✅ App 已冷启动完成（数据已清除）"}
+{"ts": "2026-10-26T17:15:03", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "APPMOCK ENABLE: 通过 ContentProvider 直连启用 AppMock (user=ai_pub_0022)..."}
+{"ts": "2026-10-26T17:15:04", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "APPMOCK ENABLE OK (content call): user=ai_pub_0022"}
+{"ts": "2026-10-26T17:15:06", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "APPMOCK ENABLE VERIFIED: 设备端 SDK 已确认启用"}
+{"ts": "2026-10-26T17:15:06", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "[login:pre] step=enable_appmock ok=True restart=cold_clear_data detail=已确认启用（第 1 轮）"}
+{"ts": "2026-10-26T17:15:06", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "[restart] push_location: cold — 定位下发后需冷重启 App 才回到首页并让定位在首页生效（登录入口依赖定位）"}
+{"ts": "2026-10-26T17:15:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=4, timeout=20, attempt=1/2)..."}
+{"ts": "2026-10-26T17:15:10", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{af637ac u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:15:15", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=5.8s"}
+{"ts": "2026-10-26T17:15:19", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "[login:pre] step=push_location ok=True restart=cold detail=定位(beijing) 已下发并冷重启回首页"}
+{"ts": "2026-10-26T17:15:19", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=3, timeout=15, attempt=1/2)..."}
+{"ts": "2026-10-26T17:15:19", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 焦点包含 uninspectable 标识，走 uiautomator. focus='mcurrentfocus=window{6dbe11e u0 com.sankuai.meituan/com.meituan.android.pt.homepage.activity.mainactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:15:19", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[uiautomator] 开始 dump..."}
+{"ts": "2026-10-26T17:15:25", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[uiautomator] dump 完成: rc=0, stderr='', stdout='UI hierchary dumped to: /data/local/tmp/_ui.xml'"}
+{"ts": "2026-10-26T17:15:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[uiautomator] cat 完成: rc=0, stdout_len=51246"}
+{"ts": "2026-10-26T17:15:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "  ⚪ 空文件已创建: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/9fb1ef1b/runs/probe-three-layer/inspect_tree.json"}
+{"ts": "2026-10-26T17:15:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=6.7s"}
+{"ts": "2026-10-26T17:15:27", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "[login:pre] 环境澄清：无遮挡弹窗（none-found）"}
+{"ts": "2026-10-26T17:15:27", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "[login:pre] step=settle_popups ok=True restart=none detail=无遮挡弹窗"}
+{"ts": "2026-10-26T17:15:27", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "[login] 执行认证动作: password（target_env=online）"}
+{"ts": "2026-10-26T17:15:27", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "PASSWORD-LOGIN: 推送 signin scheme..."}
+{"ts": "2026-10-26T17:15:27", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "PASSWORD-LOGIN: 等待 signin 完成（12s）..."}
+{"ts": "2026-10-26T17:15:39", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=3, timeout=15, attempt=1/2)..."}
+{"ts": "2026-10-26T17:15:40", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{72c00bf u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:15:46", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=6.5s"}
+{"ts": "2026-10-26T17:15:47", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "[PASSWORD-LOGIN] 环境澄清：无遮挡弹窗（none-found）"}
+{"ts": "2026-10-26T17:15:47", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=4, timeout=20, attempt=1/2)..."}
+{"ts": "2026-10-26T17:15:47", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{72c00bf u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:15:52", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=4.8s"}
+{"ts": "2026-10-26T17:15:54", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{72c00bf u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:15:58", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=6, timeout=30, attempt=1/2)..."}
+{"ts": "2026-10-26T17:15:58", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{72c00bf u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:16:03", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=4.8s"}
+{"ts": "2026-10-26T17:16:04", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stderr", "line": "[inspect_tree] 命中缓存 (age=1.0s)"}
+{"ts": "2026-10-26T17:16:05", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "env-prepare", "stream": "stdout", "line": "PASSWORD-LOGIN: ✅ 页面文案确认「登录成功」（语义命中）"}
+{"ts": "2026-10-26T17:16:53", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-advance", "stream": "stdout", "line": "FLOW-ADVANCE: 执行阶段 C0_case_init_0: 切换到 Case 0: 订单详情-联系酒店-电话联系-号码-隐私号弹窗探针"}
+{"ts": "2026-10-26T17:16:53", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-advance", "stream": "stdout", "line": "  CMD: .run/ws/9fb1ef1b/cli case-init --case-index 0"}
+{"ts": "2026-10-26T17:16:53", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-advance", "stream": "stdout", "line": "  成功标志: CASE-INIT OK"}
+{"ts": "2026-10-26T17:16:53", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-advance", "stream": "stdout", "line": "  失败策略: skip_to_next_case"}
+{"ts": "2026-10-26T17:16:53", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-advance", "stream": "stdout", "line": "  完成后执行 .run/ws/9fb1ef1b/cli flow-advance 推进到下一阶段"}
+{"ts": "2026-10-26T17:17:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-advance", "stream": "stdout", "line": "FLOW-ADVANCE: 执行阶段 C1_mock_apply_0: 收敛场景 Mock 到本 Case（差量开关 + body 回基线）"}
+{"ts": "2026-10-26T17:17:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-advance", "stream": "stdout", "line": "  CMD: .run/ws/9fb1ef1b/cli mock-apply --case-index 0"}
+{"ts": "2026-10-26T17:17:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-advance", "stream": "stdout", "line": "  成功标志: MOCK-APPLY OK"}
+{"ts": "2026-10-26T17:17:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-advance", "stream": "stdout", "line": "  失败策略: abort"}
+{"ts": "2026-10-26T17:17:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-advance", "stream": "stdout", "line": "  [NOTE] 任一时刻 AppMock 开启的场景规则 = 本 Case 声明集合；同接口跳 Case 由差量开关隔离。"}
+{"ts": "2026-10-26T17:17:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-advance", "stream": "stdout", "line": "  完成后执行 .run/ws/9fb1ef1b/cli flow-advance 推进到下一阶段"}
+{"ts": "2026-10-26T17:17:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "FLOW-NEXT: 执行阶段 C1_mock_apply_0: 收敛场景 Mock 到本 Case（差量开关 + body 回基线）"}
+{"ts": "2026-10-26T17:17:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "  CMD: .run/ws/9fb1ef1b/cli mock-apply --case-index 0"}
+{"ts": "2026-10-26T17:17:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "  成功标志: MOCK-APPLY OK"}
+{"ts": "2026-10-26T17:17:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "  失败策略: abort"}
+{"ts": "2026-10-26T17:17:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "  [NOTE] 任一时刻 AppMock 开启的场景规则 = 本 Case 声明集合；同接口跳 Case 由差量开关隔离。"}
+{"ts": "2026-10-26T17:17:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "  完成后执行 .run/ws/9fb1ef1b/cli flow-advance 推进到下一阶段"}
+{"ts": "2026-10-26T17:17:13", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock-apply", "stream": "stdout", "line": "MOCK-APPLY OK: case=0 on=[]"}
+{"ts": "2026-10-26T17:17:20", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "open-url", "stream": "stdout", "line": "  OPEN-URL: imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail&mrn_component=hotelchannel-order-detail&order_id=5035036077836749951&biz_type=1"}
+{"ts": "2026-10-26T17:17:22", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "open-url", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=2, timeout=15, attempt=1/1)..."}
+{"ts": "2026-10-26T17:17:23", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "open-url", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{686e24 u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:17:30", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "open-url", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=7.4s"}
+{"ts": "2026-10-26T17:17:33", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "open-url", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=2, timeout=15, attempt=1/1)..."}
+{"ts": "2026-10-26T17:17:33", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "open-url", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{686e24 u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:17:42", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "open-url", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=9.2s"}
+{"ts": "2026-10-26T17:17:44", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "open-url", "stream": "stdout", "line": "  SHOT -> /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/9fb1ef1b/runs/probe-three-layer/case_01/frames/case_01_diag_open_url_2.png"}
+{"ts": "2026-10-26T17:17:44", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "open-url", "stream": "stdout", "line": "OPEN-URL DONE: imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail&mrn_component=hotelchannel-order-detail&order_id=5035036077836749951&biz_type=1"}
+{"ts": "2026-10-26T17:17:44", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "open-url", "stream": "stdout", "line": "OPEN-URL: [NEEDS_VISUAL_CHECK] 该截图已自动拍摄（内部已等待渲染/操作完成），直接读取此文件判定即可，无需 sleep 等待或重新执行 screenshot 命令（判定是否已进入目标页，而非仍停留在原页面/出现报错弹窗/加载失败兜底页）: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/9fb1ef1b/runs/probe-three-layer/case_01/frames/case_01_diag_open_url_2.png"}
+{"ts": "2026-10-26T17:17:52", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=3, timeout=15, attempt=1/2)..."}
+{"ts": "2026-10-26T17:17:53", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{686e24 u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:18:02", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=10.0s"}
+{"ts": "2026-10-26T17:18:03", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "FIND-TEXT OK: '联系酒店' 匹配 1 处 [native]"}
+{"ts": "2026-10-26T17:18:03", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "     cx    cy  匹配级别                     可点击    文案"}
+{"ts": "2026-10-26T17:18:03", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    600   953  精确(mText)                False  联系酒店"}
+{"ts": "2026-10-26T17:18:06", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap-text", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=6, timeout=30, attempt=1/2)..."}
+{"ts": "2026-10-26T17:18:07", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap-text", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{686e24 u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:18:17", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap-text", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=10.3s"}
+{"ts": "2026-10-26T17:18:32", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=3, timeout=15, attempt=1/2)..."}
+{"ts": "2026-10-26T17:18:33", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{686e24 u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:18:42", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=10.5s"}
+{"ts": "2026-10-26T17:18:44", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "FIND-TEXT OK: '电话联系' 匹配 1 处 [native]"}
+{"ts": "2026-10-26T17:18:44", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "     cx    cy  匹配级别                     可点击    文案"}
+{"ts": "2026-10-26T17:18:44", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    193   969  精确(mText)                False  电话联系"}
+{"ts": "2026-10-26T17:18:44", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=3, timeout=15, attempt=1/2)..."}
+{"ts": "2026-10-26T17:18:45", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{686e24 u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:18:54", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=9.4s"}
+{"ts": "2026-10-26T17:18:55", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stderr", "line": "[inspect_tree] 命中缓存 (age=1.1s)"}
+{"ts": "2026-10-26T17:18:57", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{686e24 u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:19:08", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "FIND-TEXT NOT_FOUND: '咨询酒店'"}
+{"ts": "2026-10-26T17:19:08", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=3, timeout=15, attempt=1/2)..."}
+{"ts": "2026-10-26T17:19:08", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{686e24 u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:19:18", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=9.9s"}
+{"ts": "2026-10-26T17:19:19", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "  页面现有文案（探针链聚合，前 12 条）:"}
+{"ts": "2026-10-26T17:19:19", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    MRN"}
+{"ts": "2026-10-26T17:19:19", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    已取消"}
+{"ts": "2026-10-26T17:19:19", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    364"}
+{"ts": "2026-10-26T17:19:19", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    点击可查看退款去向"}
+{"ts": "2026-10-26T17:19:19", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    退款成功"}
+{"ts": "2026-10-26T17:19:19", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    ¥"}
+{"ts": "2026-10-26T17:19:19", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    在线支付"}
+{"ts": "2026-10-26T17:19:19", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    明细"}
+{"ts": "2026-10-26T17:19:19", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    遇到下列问题？"}
+{"ts": "2026-10-26T17:19:19", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    查看全部问题"}
+{"ts": "2026-10-26T17:19:19", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    Mock"}
+{"ts": "2026-10-26T17:19:19", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    咨询退款进度"}
+{"ts": "2026-10-26T17:19:19", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "  若目标是无文案图标，改用 find-icon --anchor <邻近文案>"}
+{"ts": "2026-10-26T17:19:28", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-icon", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=3, timeout=15, attempt=1/2)..."}
+{"ts": "2026-10-26T17:19:28", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-icon", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{686e24 u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:19:38", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-icon", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=10.3s"}
+{"ts": "2026-10-26T17:19:40", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-icon", "stream": "stdout", "line": "FIND-ICON OK: 锚点 '电话联系' 周边结构与候选如下："}
+{"ts": "2026-10-26T17:19:40", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-icon", "stream": "stdout", "line": "   锚点「电话联系」（e81，文本）祖先链: e1 → e2 → e44 → e54 → e80"}
+{"ts": "2026-10-26T17:19:40", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-icon", "stream": "stdout", "line": "   锚点行候选（同一视觉行，✅=可点击）："}
+{"ts": "2026-10-26T17:19:40", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-icon", "stream": "stdout", "line": "   [1]   【文本】「电话联系」 @ center=(193,969) tap=(193,969)"}
+{"ts": "2026-10-26T17:19:40", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-icon", "stream": "stdout", "line": "   [2] ✅【按钮】<无文案 view.g> @ center=(360,592) tap=(360,592)"}
+{"ts": "2026-10-26T17:19:40", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-icon", "stream": "stdout", "line": "   [3] ✅【按钮】「在线联系酒店在线客服」 @ center=(360,861) tap=(360,861)"}
+{"ts": "2026-10-26T17:19:40", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-icon", "stream": "stdout", "line": "   [4] ✅【按钮】<无文案 view.g> @ center=(139,953) tap=(139,953)"}
+{"ts": "2026-10-26T17:19:40", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-icon", "stream": "stdout", "line": "   [5] ✅【按钮】<无文案 view.g> @ center=(360,953) tap=(360,953)"}
+{"ts": "2026-10-26T17:19:40", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-icon", "stream": "stdout", "line": "   [6] ✅【按钮】<无文案 view.g> @ center=(581,953) tap=(581,953)"}
+{"ts": "2026-10-26T17:19:40", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-icon", "stream": "stdout", "line": "   [7] ✅【按钮】「电话联系酒店电话：010-53913316酒店电话：18519274883」 @ center=(360,1022) tap=(360,1022)"}
+{"ts": "2026-10-26T17:19:40", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-icon", "stream": "stdout", "line": "   [8] ✅【按钮】「复制」 @ center=(329,1014) tap=(329,1014)"}
+{"ts": "2026-10-26T17:20:06", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "screenshot", "stream": "stdout", "line": "SHOT -> /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/9fb1ef1b/runs/probe-three-layer/case_01/frames/layer1_check.png"}
+{"ts": "2026-10-26T17:20:06", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "inspect-tree", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=20, timeout=100, attempt=1/2)..."}
+{"ts": "2026-10-26T17:20:07", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "inspect-tree", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{686e24 u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:20:16", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "inspect-tree", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=9.7s"}
+{"ts": "2026-10-26T17:20:17", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "inspect-tree", "stream": "stdout", "line": "INSPECT-TREE OK:"}
+{"ts": "2026-10-26T17:21:02", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap-text", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=6, timeout=30, attempt=1/2)..."}
+{"ts": "2026-10-26T17:21:03", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap-text", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{686e24 u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:21:13", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap-text", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=11.2s"}
+{"ts": "2026-10-26T17:21:19", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "screenshot", "stream": "stdout", "line": "SHOT -> /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/9fb1ef1b/runs/probe-three-layer/case_01/frames/layer2_after_tap_phonerow.png"}
+{"ts": "2026-10-26T17:21:27", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "inspect-tree", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=20, timeout=100, attempt=1/2)..."}
+{"ts": "2026-10-26T17:21:27", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "inspect-tree", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{b339212 u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:21:36", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "inspect-tree", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=9.1s"}
+{"ts": "2026-10-26T17:21:37", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "inspect-tree", "stream": "stdout", "line": "INSPECT-TREE OK:"}
+{"ts": "2026-10-26T17:21:50", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=3, timeout=15, attempt=1/2)..."}
+{"ts": "2026-10-26T17:21:51", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{b339212 u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:22:00", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=9.7s"}
+{"ts": "2026-10-26T17:22:01", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stderr", "line": "[inspect_tree] 命中缓存 (age=1.2s)"}
+{"ts": "2026-10-26T17:22:03", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{b339212 u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:22:12", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "FIND-TEXT NOT_FOUND: '010-53913316'"}
+{"ts": "2026-10-26T17:22:12", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=3, timeout=15, attempt=1/2)..."}
+{"ts": "2026-10-26T17:22:13", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{b339212 u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:22:21", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=8.8s"}
+{"ts": "2026-10-26T17:22:22", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "  页面现有文案（探针链聚合，前 12 条）:"}
+{"ts": "2026-10-26T17:22:22", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    MRN"}
+{"ts": "2026-10-26T17:22:22", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    已取消"}
+{"ts": "2026-10-26T17:22:22", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    364"}
+{"ts": "2026-10-26T17:22:22", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    点击可查看退款去向"}
+{"ts": "2026-10-26T17:22:22", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    退款成功"}
+{"ts": "2026-10-26T17:22:22", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    ¥"}
+{"ts": "2026-10-26T17:22:22", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    在线支付"}
+{"ts": "2026-10-26T17:22:22", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    明细"}
+{"ts": "2026-10-26T17:22:22", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    遇到下列问题？"}
+{"ts": "2026-10-26T17:22:22", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    查看全部问题"}
+{"ts": "2026-10-26T17:22:22", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    Mock"}
+{"ts": "2026-10-26T17:22:22", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "    咨询退款进度"}
+{"ts": "2026-10-26T17:22:22", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "find-text", "stream": "stdout", "line": "  若目标是无文案图标，改用 find-icon --anchor <邻近文案>"}
+{"ts": "2026-10-26T17:23:03", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "APPMOCK RECORD START OK: mis=ai_pub_0022 (接口录制已启动)"}
+{"ts": "2026-10-26T17:23:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "TAP @ (360,900)"}
+{"ts": "2026-10-26T17:23:09", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=1, timeout=15, attempt=1/2)..."}
+{"ts": "2026-10-26T17:23:10", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{686e24 u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:23:25", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=15.6s"}
+{"ts": "2026-10-26T17:23:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "  [TAP-HIT] (360,900) 命中 3 个节点:"}
+{"ts": "2026-10-26T17:23:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "    → com.facebook.react.views.view.g id=0x241  "}
+{"ts": "2026-10-26T17:23:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "       center=(360,892) bounds=[16,751,704,1034]"}
+{"ts": "2026-10-26T17:23:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "    → com.android.internal.policy.DecorView id=None  "}
+{"ts": "2026-10-26T17:23:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "       center=(360,640) bounds=[0,0,720,1280]"}
+{"ts": "2026-10-26T17:23:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "    → android.widget.LinearLayout id=None  "}
+{"ts": "2026-10-26T17:23:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "       center=(360,592) bounds=[0,0,720,1184]"}
+{"ts": "2026-10-26T17:23:40", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "APPMOCK RECORD STOP OK: mis=ai_pub_0022 (接口录制已停止)"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "APPMOCK RECORD DATA: 已过滤 17 条日志/监控上报"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "APPMOCK RECORD DATA OK: mis=ai_pub_0022, count=2 (原始 19)"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "  ⚪ 空文件已创建: .run/tasks/9fb1ef1b/runs/probe-three-layer/case_01/record_data.json"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "APPMOCK RECORD DATA SAVED: .run/tasks/9fb1ef1b/runs/probe-three-layer/case_01/record_data.json (覆盖 0, 新增 2, 总计 2)"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "{"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "  \"items\": ["}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"host\": \"lx0.meituan.com\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"timestamp\": 1793006594665,"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"reqUrl\": \"/?\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"reqHeaders\": {"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"from-appmock\": \"true\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"content-length\": \"1780\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"M-TraceId\": \"-5183420068019739963\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"X-CAT-TRACE-MODE\": \"true\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"mkunionid\": \"0000000000000EF884E5FCD174249B097E99E1F084A12A178994318736869377\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"content-encoding\": \"gzip\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"x-forwarded-for\": \"10.71.134.20\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"accept-charset\": \"UTF-8\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"x-real-ip\": \"10.71.134.20\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"mkappid\": \"10\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"host\": \"lx0.meituan.com\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"mkoriginhost\": \"lx0.meituan.com\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"mktunneltype\": \"http\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"connection\": \"Upgrade\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"content-type\": \"application/json;charset=UTF-8\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"accept-encoding\": \"gzip, deflate\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"mkscheme\": \"https\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"user-agent\": \"com.sankuai.meituan/1200660402 (Linux; U; Android 13; en_US; redroid13_x86_64; Build/TQ3A.230805.001.S1; Cronet/90.0.4402.0)\""}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"reqBody\": \"[{\\\"ps\\\":\\\"7\\\",\\\"cnfver\\\":\\\"6\\\",\\\"dpid\\\":\\\"7b7e3f9d4b334c7baca52630438806d2a178994318713062169\\\",\\\"dm\\\":\\\"redroid13_x86_64\\\",\\\"scale\\\":\\\"2.0\\\",\\\"buildid\\\":\\\"584862\\\",\\\"osn\\\":\\\"build1\\\",\\\"uuid\\\":\\\"0000000000000EF884E5FCD174249B097E99E1F084A12A178994318736869377\\\",\\\"localId\\\":\\\"a7b2e7827a21bfba322304d441855ef107d65cfce205a7abe8\\\",\\\"ad_tracking_enabled\\\":\\\"-1\\\",\\\"lch\\\":\\\"group\\\",\\\"sc\\\":\\\"1184*720\\\",\\\"uid\\\":\\\"5538456018\\\",\\\"micro_msid\\\":\\\"5DF06379-41AF-4496-8242-B890C613700B\\\",\\\"union_id\\\":\\\"2928766a21e34e4ca81de05a02bbb1c5a178994318738424357\\\",\\\"brand\\\":\\\"redroid\\\",\\\"app\\\":\\\"12.66.402\\\",\\\"app_session\\\":\\\"a3344573-209b-437a-bb0e-a1bf01b4854e1793006119209142\\\",\\\"locate_city_id\\\":\\\"1\\\",\\\"os\\\":\\\"13\\\",\\\"ch\\\":\\\"meituaninternaltest\\\",\\\"app_arch\\\":\\\"true\\\",\\\"version_code\\\":\\\"1200660402\\\",\\\"appnm\\\":\\\"group\\\",\\\"cityid\\\":\\\"1\\\",\\\"pushid\\\":\\\"0\\\",\\\"svs\\\":\\\"89CA9E49\\\",\\\"ct\\\":\\\"android\\\",\\\"msid\\\":\\\"a3344573-209b-437a-bb0e-a1bf01b4854e1793006119207895\\\",\\\"logintype\\\":\\\"100\\\",\\\"district_id\\\":\\\"0\\\",\\\"sdk_ver\\\":\\\"4.133.0\\\",\\\"pn\\\":\\\"com.sankuai.meituan\\\",\\\"category\\\":\\\"data_sdk_hotel\\\",\\\"package_tm\\\":\\\"1793006594306.644409\\\",\\\"checksum\\\":\\\"85F730E60EBE0CE2E05DC9A6FB987920D814500825E720D1DE635AC09C89DED277E19ED677831717A3B5EABB597A3B592BD2C063F86C6E48E98AD76D96363DBC3D4EFFEE252BA5D8ECFDC268CDEBFF6E37652CBEC5AE76A5253DFA4DC98754C4102866DA4AC5EDECD85A025BCC75B3AEB6D9350D0008B91BED8FEEB2E92F1E95F4D3288F57D609A043EA834D073C005AA64BB38B89E9FB4C046C068B79B6EF2263864D1A336996D51B50B3C124B0222765ED916CB5CA4D9C37F2451B0951605DAFD2B77648F212A609CC18F6315D1338ED36F361ADDC77A60F1C92F24A57AAD58421FE9828792F858FCD807C197098A9B614A6935999BCDBF954913E0FB3EFA2B7308522EB9AA3842BB834743CDE4E1C6DB263B2B3F0E9816DD897C24806DE781C7A087476BDB8E4AF5C6C99099559A5DA0FF0E412C878EF63CF2E1D4270092976DCA50F8E37F28FE19FC87D28A0D4EC46237375FEC6D5FBA7BCD29C104364DF9F4809E54DB56BA128A30907B640F876\\\",\\\"lx_dict\\\":\\\"true\\\",\\\"evs\\\":[{\\\"isauto\\\":7,\\\"nt\\\":10,\\\"tm\\\":\\\"1793006590864.836301\\\",\\\"stm\\\":1793006591788,\\\"nm\\\":\\\"MV\\\",\\\"val_cid\\\":\\\"hotel_orderdetail\\\",\\\"val_lab\\\":{\\\"entry_source\\\":\\\"2\\\"},\\\"lx_val_lab\\\":{\\\"englishmode_show\\\":\\\"0\\\"},\\\"val_bid\\\":\\\"b_hotel_8ope3ydg_mv\\\",\\\"seq\\\":80,\\\"lx_inner_data\\\":{\\\"pn\\\":\\\"com.sankuai.meituan\\\",\\\"mrn_info\\\":{\\\"from_lxmrn_js\\\":\\\"1.9.1\\\",\\\"lxmrn_launch_id\\\":\\\"MRN_launchID_1793006241941_96616\\\",\\\"lxmrn_seq\\\":3,\\\"lxmrn_msi_type\\\":1,\\\"lxmrn_batch_type\\\":0,\\\"from_lxmrn\\\":\\\"1\\\",\\\"from_lxmrn_nt\\\":\\\"12.65.200\\\",\\\"mrn_bundle_name\\\":\\\"rn_hotel_hotelchannel-order-detail\\\",\\\"mrn_bundle_version\\\":\\\"3.1266.401\\\",\\\"msi_env\\\":\\\"mrn\\\"},\\\"cid_quality\\\":33,\\\"gseq\\\":146,\\\"gseq_id\\\":\\\"1a78b1b2-4178-4aa1-901e-930d79fb7c171793006088540\\\",\\\"app_launch_id\\\":\\\"83c09443-f5d5-460d-8165-0a8bef9771f0\\\",\\\"bid_blacklist\\\":[],\\\"write_db_tm\\\":1793006590871,\\\"rtm\\\":1793006595224,\\\"stm_sync\\\":true,\\\"trace_id\\\":\\\"149015c4-25f7-4f47-8fb7-8d5fba1e4c66\\\",\\\"report_tm\\\":1793006594307,\\\"read_db_tm\\\":1793006594306},\\\"val_ref\\\":\\\"c_group_kyoigzal\\\",\\\"req_id\\\":\\\"DA698C09-0959-42D3-BD4E-739F4644DECF\\\",\\\"refer_req_id\\\":\\\"197E0B51-9767-4356-AEE7-C4AF1F06EFE4\\\",\\\"ji\\\":0,\\\"jf\\\":\\\"\\\",\\\"wi\\\":0,\\\"wf\\\":\\\"\\\"},{\\\"isauto\\\":7,\\\"nt\\\":10,\\\"tm\\\":\\\"1793006590866.448353\\\",\\\"stm\\\":1793006591789,\\\"nm\\\":\\\"MV\\\",\\\"val_cid\\\":\\\"hotel_orderdetail\\\",\\\"lx_val_lab\\\":{\\\"englishmode_show\\\":\\\"0\\\"},\\\"val_bid\\\":\\\"b_hotel_7rogutx8_mv\\\",\\\"seq\\\":81,\\\"lx_inner_data\\\":{\\\"pn\\\":\\\"com.sankuai.meituan\\\",\\\"mrn_info\\\":{\\\"from_lxmrn_js\\\":\\\"1.9.1\\\",\\\"lxmrn_launch_id\\\":\\\"MRN_launchID_1793006241941_96616\\\",\\\"lxmrn_seq\\\":4,\\\"lxmrn_msi_type\\\":1,\\\"lxmrn_batch_type\\\":0,\\\"from_lxmrn\\\":\\\"1\\\",\\\"from_lxmrn_nt\\\":\\\"12.65.200\\\",\\\"mrn_bundle_name\\\":\\\"rn_hotel_hotelchannel-order-detail\\\",\\\"mrn_bundle_version\\\":\\\"3.1266.401\\\",\\\"msi_env\\\":\\\"mrn\\\"},\\\"cid_quality\\\":33,\\\"gseq\\\":147,\\\"gseq_id\\\":\\\"1a78b1b2-4178-4aa1-901e-930d79fb7c171793006088540\\\",\\\"app_launch_id\\\":\\\"83c09443-f5d5-460d-8165-0a8bef9771f0\\\",\\\"bid_blacklist\\\":[],\\\"write_db_tm\\\":1793006590877,\\\"rtm\\\":1793006595224,\\\"stm_sync\\\":true,\\\"trace_id\\\":\\\"149015c4-25f7-4f47-8fb7-8d5fba1e4c66\\\",\\\"report_tm\\\":1793006594307,\\\"read_db_tm\\\":1793006594306},\\\"val_ref\\\":\\\"c_group_kyoigzal\\\",\\\"req_id\\\":\\\"DA698C09-0959-42D3-BD4E-739F4644DECF\\\",\\\"refer_req_id\\\":\\\"197E0B51-9767-4356-AEE7-C4AF1F06EFE4\\\",\\\"ji\\\":0,\\\"jf\\\":\\\"\\\",\\\"wi\\\":0,\\\"wf\\\":\\\"\\\"}]}]\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"X-CAT-ROOT-ID\": \"com.sankuai.dataflow.realtime.service-0ab83b38-498057-992\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"Connection\": \"close\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"Date\": \"Mon, 26 Oct 2026 09:23:14 GMT\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"Cache-Control\": \"no-cache\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"Access-Control-Allow-Credentials\": \"true\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"Content-Length\": \"14\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"Content-Type\": \"text/plain;charset=utf-8\""}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"respBody\": \"{\\\"status\\\":200}\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"costTime\": 122,"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"msgId\": 38600241682,"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"mock\": false,"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"mockId\": 0"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "    },"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "    {"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"host\": \"apihotel.meituan.com\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"timestamp\": 1793006590654,"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"reqUrl\": \"/hotelorder/v1/queryuserinfo.json?wtt_region_type=nib&wtt_region_id=1000110100&wtt_region_version=1793006242669&cn_pt=RN&utm_source=meituaninternaltest&utm_medium=android&utm_term=1200660402&version_name=12.66.402&utm_content=2928766a21e34e4ca81de05a02bbb1c5a178994318738424357&utm_campaign=AgroupBgroupC0D100E0Ghomepage&ci=1&msid=2928766a21e34e4ca81de05a02bbb1c5a1789943187384243571793006119873&uuid=0000000000000EF884E5FCD174249B097E99E1F084A12A178994318736869377&token=AgFmJXxJ4h8fUwamFPu7wl0iXc085W3DUAY6Nx-r3A7zPCTwvNgJkteaAfnni2IR1x6aY1995T0fcwAAAACnPAAAQTOmxw7aZanmqfbLt06Xwr-2j0oezYbujmP0sxW_xEF_4yukn3T7ezpNLPeSRdZh&userid=5538456018&p_appid=10&__reqTraceID=785a6cd5-6bc9-432a-95f1-431efb611ba8&csecplatform=1&csecversionname=12.66.402&csecpkgname=com.sankuai.meituan&csecversion=1.0.0.61\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"reqHeaders\": {"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"content-length\": \"14\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"m-shark-traceid\": \"1010000000000000EF884E5FCD174249B097E99E1F084A12A178994318736869377b761d9179300658981281a8bd\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"X-CAT-TRACE-MODE\": \"true\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"userid\": \"5538456018\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"csecuuid\": \"0000000000000EF884E5FCD174249B097E99E1F084A12A178994318736869377\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"yodaready\": \"native\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"yodaversion\": \"1.18.0.388\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"host\": \"apihotel.meituan.com\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"mkoriginhost\": \"apihotel.meituan.com\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"connection\": \"Upgrade\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"content-type\": \"application/json; charset=UTF-8\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"csecuserid\": \"5538456018\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"from-appmock\": \"true\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"mtgsig\": \"{\\\"a0\\\":\\\"3.0\\\",\\\"a1\\\":\\\"9b69f861-e054-4bc4-9daf-d36ae205ed3e\\\",\\\"a3\\\":26,\\\"a4\\\":1793006589,\\\"a5\\\":\\\"C2m+osJkTgAJJjCnDvus3JbCBvF83hlA6X7CwDMcxxJtb2r2x9WoeBoU7jqi9yx8oHicXbUKasJ4w/AHhNCVNtLyPYc1Vy2E1U7e4SgQisYcdTp+4VfzycF/hGgVP27PFAQLkJWC3FCLiW2JTTP2H1OjX5sRarfcoOevT98mnqyqpVQZ+v0ellasxyJjBDWRXq7+TTLcZLsxBpx9sypl3SgCzBXWaJr8amzO+pwkZn6d5xBQfoiva4JmuKrky7oeiAag03XQ/qeXDuJFsx6Beesx+xDKftWbpUbIww2mlQZx9mrSoI6mE7ChHFon6S+q5uaRpsblffQF5ktKnakRf4p6XuNmQvYgLDFcn8TRPKXV5oiBxqoAq8xEKojJ1ET8+Zjzm6TROrb/SdC5ViIcgWp3yBZZCnK0p3Vcem9dI7h8k/vu76+RpUgLuSCCUbrwUA==\\\",\\\"a6\\\":0,\\\"a7\\\":\\\"1:AwQAAAAbBktNUwwiDJK9003FOruAJUfypCiy6vLcAwgBAAAAX_lIH1dByTVmoVLwfuO2TEi4jiO0LgbSGUCXx5M7MEWp__J0j7dds7JOZbfwdUyTS9_kxkvVVLegntn8jtevjvh3jE6U6LCMuTbu0TeTJPebdocLwTGNG41Q_ZhmUYwD\\\",\\\"a8\\\":\\\"5e27ae8f2aba39a63cab91484f94efeb3bc0f098e6bde82f544787cb\\\",\\\"a9\\\":\\\"4dd3a0f3bC/xV3lEQUAhioEC2tT7Cl3ouqXniRTcY6iovH74a5m+HR72pbBDZYIYWxW+Q/JxvSnmb0klSUGP2vTdpCFRK99AJVR7IsGjENRx7rgKfEXEwLcMN2/Nv1Z6dQ2yNxpN2qt7oIoLf6S+KEIMybZwN4fwaiFymfVuh8xXu7UQXVWZesyk/ZDBiM01x4Gn48ONIw/j233Po3EKnGWbhxkrHLJSwbERDL5nUHnPho99kYdOXOmE+TN33Ygh+wfM2c6UNimTUDF4oOPNQcTdRoW0yALENFRTQRIxiSGz8sIT8PwX1ei2rqPHZiGemul/e17f2EhvcaWG6OWt1fE1HPYJepV6NvBaWumMlgxbZwDbmpuV6GF37mV4ghGEkBvk9s0I4vxt9kISmV6AkaOWyRlj8bpKUp3AMpGzzmfX7/fa2MobQtIIlho3Y0aO9yJOgJdNl6mQwX+hy0OXogcXYzFhRdIAL1XOT2LlOJiQK7qLGwbTx1jpnx9wTCOPY9lpq17hBTSWkm1Y/S/d+WTEGBqiewmMZtcyeiXSnAImHsa0h8wztZWIUnW8635ND/ht6+D2BSDfbytjQUWe90X+uvtwQRmiz0Z+esh1nFfVObvmEZd8im7hZMGpvSI8CWJGcvHIkPlJG4fUSmUIpVyFF0J7cBSuhfiEyZJpjPeHNg3WsMhjiWMb09HSiMVUfi8dFEMlFAFPLGuQqW1ux4KcMtXT0+lw38FgFFgmka20boBSWbrej1Q0FxkU67Yj+/kXVenMKAktrXlRLED0OHsdRQNxzrHhR80bPAAyWzsha1vPbjk=\\\",\\\"a10\\\":\\\"6,240,1.1.1\\\",\\\"x0\\\":1,\\\"a2\\\":\\\"0b406383adf8cdba4d690720765e3e7c\\\"}\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"M-TraceId\": \"2807128476887451129\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"method\": \"POST\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"httpCode\": 200,"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"respHeaders\": {"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"M-Appkey\": \"com.sankuai.dataflow.realtime.service\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"X-CAT-SERVER\": \"10.197.48.73:8080,10.230.115.28:8080,10.241.253.38:8080\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"M-TraceId\": \"-5183420068019739963\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"Server\": \"openresty\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"Access-Control-Allow-Origin\": \"*\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"Access-Control-Allow-Methods\": \"POST, GET, OPTIONS\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"M-SpanName\": \"FlowSplitController.reportpostv2\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"mkunionid\": \"0000000000000EF884E5FCD174249B097E99E1F084A12A178994318736869377\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"x-forwarded-for\": \"10.71.134.20\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"token\": \"AgFmJXxJ4h8fUwamFPu7wl0iXc085W3DUAY6Nx-r3A7zPCTwvNgJkteaAfnni2IR1x6aY1995T0fcwAAAACnPAAAQTOmxw7aZanmqfbLt06Xwr-2j0oezYbujmP0sxW_xEF_4yukn3T7ezpNLPeSRdZh\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"x-real-ip\": \"10.71.134.20\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"pragma-os\": \"MApi 1.1 com.sankuai.meituan 12.66.402 meituaninternaltest redroid13_x86_64; Android 13\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"pragma-mtid\": \"2928766a21e34e4ca81de05a02bbb1c5a178994318738424357\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"mktunneltype\": \"http\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"accept-encoding\": \"gzip\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"user-agent\": \"AiMeiTuan /redroid-13-redroid13_x86_64-1184-720-320-12.66.402-1200660402-DeviceId0-meituaninternaltest\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"mkscheme\": \"https\""}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"reqBody\": \"{\\\"fields\\\":[1]}\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"method\": \"POST\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"httpCode\": 200,"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"respHeaders\": {"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"M-Appkey\": \"com.sankuai.mptrade.hotel.apic\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"X-CAT-SERVER\": \"10.241.18.167:8080,10.251.14.161:8080,33.17.98.154:8080\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"M-TraceId\": \"2807128476887451129\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"Server\": \"openresty\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"M-SpanName\": \"UserInfoController.queryUserInfo\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"X-CAT-ROOT-ID\": \"com.sankuai.mptrade.hotel.apic-0a1b2135-498057-1281357\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"Connection\": \"close\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"Vary\": \"Accept-Encoding\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"Date\": \"Mon, 26 Oct 2026 09:23:10 GMT\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "        \"Content-Type\": \"application/json;charset=utf-8\""}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      },"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"respBody\": \"{\\\"data\\\":{\\\"maskMobile\\\":\\\"185****7674\\\"},\\\"serverResponseTime\\\":\\\"1793006590783\\\",\\\"traceId\\\":\\\"2807128476887451129\\\"}\","}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"costTime\": 146,"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"msgId\": 38600240330,"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"mock\": false,"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "      \"mockId\": 0"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "    }"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "  ],"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "  \"hasNext\": false"}
+{"ts": "2026-10-26T17:23:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "}"}
+{"ts": "2026-10-26T17:24:19", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "TAP @ (223,659)"}
+{"ts": "2026-10-26T17:24:19", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=1, timeout=15, attempt=1/2)..."}
+{"ts": "2026-10-26T17:24:20", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{686e24 u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:24:25", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=5.9s"}
+{"ts": "2026-10-26T17:24:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "  [TAP-HIT] (223,659) 命中 3 个节点:"}
+{"ts": "2026-10-26T17:24:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "    → com.facebook.react.views.view.g id=0x559 ✅可点击"}
+{"ts": "2026-10-26T17:24:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "       center=(140,676) bounds=[38,647,242,705]"}
+{"ts": "2026-10-26T17:24:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "    → com.android.internal.policy.DecorView id=None  "}
+{"ts": "2026-10-26T17:24:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "       center=(360,640) bounds=[0,0,720,1280]"}
+{"ts": "2026-10-26T17:24:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "    → com.facebook.react.views.view.g id=0x573  "}
+{"ts": "2026-10-26T17:24:26", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "       center=(360,607) bounds=[15,482,705,732]"}
+{"ts": "2026-10-26T17:24:29", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "screenshot", "stream": "stdout", "line": "SHOT -> /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/9fb1ef1b/runs/probe-three-layer/case_01/frames/layer4_after_cancel.png"}
+{"ts": "2026-10-26T17:24:40", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap-text", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=6, timeout=30, attempt=1/2)..."}
+{"ts": "2026-10-26T17:24:41", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap-text", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{686e24 u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:24:46", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap-text", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=6.5s"}
+{"ts": "2026-10-26T17:24:48", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap-text", "stream": "stdout", "line": "TAP 联系酒店 @ (600, 953)"}
+{"ts": "2026-10-26T17:24:50", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap-text", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=6, timeout=30, attempt=1/2)..."}
+{"ts": "2026-10-26T17:24:51", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap-text", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{686e24 u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:24:56", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap-text", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=6.0s"}
+{"ts": "2026-10-26T17:25:11", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "TAP @ (360,1015)"}
+{"ts": "2026-10-26T17:25:11", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=1, timeout=15, attempt=1/2)..."}
+{"ts": "2026-10-26T17:25:12", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{686e24 u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:25:17", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=6.1s"}
+{"ts": "2026-10-26T17:25:18", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "  [TAP-HIT] (360,1015) 命中 3 个节点:"}
+{"ts": "2026-10-26T17:25:18", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "    → com.facebook.react.views.view.g id=0x23f  "}
+{"ts": "2026-10-26T17:25:18", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "       center=(360,1021) bounds=[16,1008,704,1035]"}
+{"ts": "2026-10-26T17:25:18", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "    → com.facebook.react.views.view.g id=0x241  "}
+{"ts": "2026-10-26T17:25:18", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "       center=(360,892) bounds=[16,751,704,1034]"}
+{"ts": "2026-10-26T17:25:18", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "    → com.android.internal.policy.DecorView id=None  "}
+{"ts": "2026-10-26T17:25:18", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "       center=(360,640) bounds=[0,0,720,1280]"}
+{"ts": "2026-10-26T17:25:23", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "screenshot", "stream": "stdout", "line": "SHOT -> /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/9fb1ef1b/runs/probe-three-layer/case_01/frames/layer3_round2_privacy_popup_num2.png"}
+{"ts": "2026-10-26T17:26:02", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "log-record", "stream": "stderr", "line": "  → 未绑定 SID（将作为独立 finding 计入统计）"}
+{"ts": "2026-10-26T17:26:02", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "log-record", "stream": "stdout", "line": "LOG-RECORD: 探针L2：点「电话联系」行 → 号码选择弹窗（联系酒店/010-53913316/18519274883/取消） → 📝 NOTE (0ms)"}
+{"ts": "2026-10-26T17:26:02", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "log-record", "stream": "stdout", "line": "  ℹ️  无判定备注：不计入通过/失败统计（作为Case notes展示）"}
+{"ts": "2026-10-26T17:26:02", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "log-record", "stream": "stderr", "line": "  → 未绑定 SID（将作为独立 finding 计入统计）"}
+{"ts": "2026-10-26T17:26:02", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "log-record", "stream": "stdout", "line": "LOG-RECORD: 探针L3：点号码 010-53913316 → 隐私号呼出弹窗出现（含双卡双待文案） → 📝 NOTE (0ms)"}
+{"ts": "2026-10-26T17:26:02", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "log-record", "stream": "stdout", "line": "  ℹ️  无判定备注：不计入通过/失败统计（作为Case notes展示）"}
+{"ts": "2026-10-26T17:26:02", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "log-record", "stream": "stderr", "line": "  → 未绑定 SID（将作为独立 finding 计入统计）"}
+{"ts": "2026-10-26T17:26:03", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "log-record", "stream": "stdout", "line": "LOG-RECORD: 探针L4：取消后复走三层，用 18519274883 验证双卡文案常驻 → 📝 NOTE (0ms)"}
+{"ts": "2026-10-26T17:26:03", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "log-record", "stream": "stdout", "line": "  ℹ️  无判定备注：不计入通过/失败统计（作为Case notes展示）"}
+{"ts": "2026-10-26T17:26:03", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "log-record", "stream": "stderr", "line": "  → 未绑定 SID（将作为独立 finding 计入统计）"}
+{"ts": "2026-10-26T17:26:10", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "TAP @ (223,659)"}
+{"ts": "2026-10-26T17:26:10", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stderr", "line": "[inspect_tree] 开始采集视图树 (wait_sec=1, timeout=15, attempt=1/2)..."}
+{"ts": "2026-10-26T17:26:10", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stderr", "line": "[inspect_tree] 走 imeituan CLI. focus='mcurrentfocus=window{686e24 u0 com.sankuai.meituan/com.meituan.android.mrn.container.mrnbaseactivity}', uninspectable=('mainactivity', 'upgradedialogactivity')"}
+{"ts": "2026-10-26T17:26:16", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stderr", "line": "[inspect_tree] 采集完成: rc=0, elapsed=6.0s"}
+{"ts": "2026-10-26T17:26:17", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "  [TAP-HIT] (223,659) 命中 3 个节点:"}
+{"ts": "2026-10-26T17:26:17", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "    → com.facebook.react.views.view.g id=0x559 ✅可点击"}
+{"ts": "2026-10-26T17:26:17", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "       center=(140,676) bounds=[38,647,242,705]"}
+{"ts": "2026-10-26T17:26:17", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "    → com.android.internal.policy.DecorView id=None  "}
+{"ts": "2026-10-26T17:26:17", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "       center=(360,640) bounds=[0,0,720,1280]"}
+{"ts": "2026-10-26T17:26:17", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "    → com.facebook.react.views.view.g id=0x573  "}
+{"ts": "2026-10-26T17:26:17", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "tap", "stream": "stdout", "line": "       center=(360,607) bounds=[15,482,705,732]"}
+{"ts": "2026-10-26T17:26:19", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "step", "stream": "stdout", "line": "  BACK pressed"}
+{"ts": "2026-10-26T17:26:22", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "step", "stream": "stdout", "line": "  SHOT -> /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/9fb1ef1b/runs/probe-three-layer/case_01/frames/case_01_step.png"}
+{"ts": "2026-10-26T17:26:28", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-case-status", "stream": "stdout", "line": "CASE-STATUS: Case 1/1"}
+{"ts": "2026-10-26T17:26:28", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-case-status", "stream": "stdout", "line": "  → Case 0: 订单详情-联系酒店-电话联系-号码-隐私号弹窗探针 [进行中]"}
+{"ts": "2026-10-26T17:26:39", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "skip-case", "stream": "stdout", "line": "SKIP-CASE: 当前 case 已结束（blocked）: 订单详情-联系酒店-电话联系-号码-隐私号弹窗探针"}
+{"ts": "2026-10-26T17:26:39", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "skip-case", "stream": "stdout", "line": "  原因: 探针任务：仅验证隐私号呼出弹窗唤起路径与双卡文案，不做完整用例判定"}
+{"ts": "2026-10-26T17:26:39", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "skip-case", "stream": "stdout", "line": "  执行 <入口> flow-next 进入 C4 生成报告并推进到下一个 case"}
+{"ts": "2026-10-26T17:26:44", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "FLOW-NEXT: 执行阶段 C5_report_0: 生成 Case 报告（暂存本地）"}
+{"ts": "2026-10-26T17:26:44", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "  CMD: .run/ws/9fb1ef1b/cli gen-report"}
+{"ts": "2026-10-26T17:26:44", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "  成功标志: report.json 已生成"}
+{"ts": "2026-10-26T17:26:44", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "  失败策略: skip_to_next_case"}
+{"ts": "2026-10-26T17:26:44", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-next", "stream": "stdout", "line": "  完成后执行 .run/ws/9fb1ef1b/cli flow-advance 推进到下一阶段"}
+{"ts": "2026-10-26T17:26:50", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "gen-report", "stream": "stdout", "line": "  ⚪ 空文件已创建: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/output/run-20261026T171311/case_01/report.json"}
+{"ts": "2026-10-26T17:27:00", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "APPMOCK RECORD STOP OK: mis=ai_pub_0022 (接口录制已停止)"}
+{"ts": "2026-10-26T17:27:01", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "RESET-ENV: 开始执行前环境重置..."}
+{"ts": "2026-10-26T17:27:01", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "APPMOCK LIST OK (yooz proxy): 2 rules"}
+{"ts": "2026-10-26T17:27:01", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "  ℹ️  当前域内 2 条 Mock 规则（交由 case 级生命周期管理，不 stop-all）"}
+{"ts": "2026-10-26T17:27:01", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "[ptest-mock] 无已记录的 ptest 规则，跳过规则关闭"}
+{"ts": "2026-10-26T17:27:02", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "[ptest-mock] ✅ htptest 设备开关已回滚"}
+{"ts": "2026-10-26T17:27:02", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "URL_MAPPING LIST OK: 0 mapping(s) domain=ai_pub_0022"}
+{"ts": "2026-10-26T17:27:02", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "  ℹ️  当前无域名映射记录"}
+{"ts": "2026-10-26T17:27:02", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "URL_MAPPING CLEANUP: 无需清理（无自动创建的域名映射）"}
+{"ts": "2026-10-26T17:27:02", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "SESSION SWIMLINE OFF OK"}
+{"ts": "2026-10-26T17:27:02", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "SESSION ENV SET OK: env=online domain=ai_pub_0022"}
+{"ts": "2026-10-26T17:27:02", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "  ✅ 环境重置为线上"}
+{"ts": "2026-10-26T17:27:02", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mock", "stream": "stdout", "line": "RESET-ENV: 完成（全部成功）"}
+{"ts": "2026-10-26T17:27:08", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stderr", "line": "[device] 归还登记失败（已忽略，不影响收尾）: device_id / owner are required"}
+{"ts": "2026-10-26T17:27:08", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "{"}
+{"ts": "2026-10-26T17:27:08", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "  \"ok\": true,"}
+{"ts": "2026-10-26T17:27:08", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "  \"owner\": \"probe-three-layer#9fb1ef1b\","}
+{"ts": "2026-10-26T17:27:08", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "  \"released\": 1,"}
+{"ts": "2026-10-26T17:27:08", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "  \"cloudReleased\": false"}
+{"ts": "2026-10-26T17:27:08", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "device", "stream": "stdout", "line": "}"}
+{"ts": "2026-10-26T17:27:08", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mis", "stream": "stderr", "line": "[device:api] POST /node/api/data/monitor/mis-pool/release 完成 (0.1s)"}
+{"ts": "2026-10-26T17:27:08", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "mis", "stream": "stdout", "line": "{\"ok\": true, \"mis\": \"ai_pub_0022\", \"released\": 1}"}
+{"ts": "2026-10-26T17:27:14", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-finalize", "stream": "stdout", "line": "FLOW-FINALIZE OK: 阶段 T2_cleanup 已标记完成，current_stage=done"}
+{"ts": "2026-10-26T17:27:14", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "gen-report", "stream": "stdout", "line": "  ✅ Case 报告已生成: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/output/run-20261026T171311/case_01/report.json"}
+{"ts": "2026-10-26T17:27:14", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "gen-report", "stream": "stdout", "line": "  📊 订单详情-联系酒店-电话联系-号码-隐私号弹窗探针 · 步骤 1 · 通过 1 · 警告 0 · 失败 0"}
+{"ts": "2026-10-26T17:27:14", "task": "9fb1ef1b", "run": "probe-three-layer", "cmd": "flow-finalize", "stream": "stdout", "line": "✅ Case 报告已生成: /Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/output/run-20261026T171311/case_01/report.json"}

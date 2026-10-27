@@ -1,0 +1,35 @@
+{"ts": "2026-10-26T17:13:11", "event": "run.initialized", "severity": "info", "details": {"expected_cases": 1}}
+{"ts": "2026-10-26T17:13:25", "event": "soft_failure", "severity": "warning", "details": {"code": "DEVICE_OCCUPY_RECORD_FAILED", "category": "infra", "detail": "API /node/api/data/monitor/device/occupy HTTP 404: Not Found"}}
+{"ts": "2026-10-26T17:14:26", "event": "acknowledged", "severity": "info", "details": {"key": "device_info_shown"}}
+{"ts": "2026-10-26T17:16:05", "event": "evidence.registered", "severity": "info", "details": {"artifacts": ["case_01/frames/login-result.png"], "evidence_type": "login", "method": "password_visual", "evidence_status": "pending", "stage": "B2_login"}}
+{"ts": "2026-10-26T17:16:05", "event": "environment.prepared", "severity": "info", "details": {"env": "online", "auth_method": "password", "account_type": "A", "target_env": "online", "restart_policies": ["reset_mock_env:none", "enable_appmock:cold_clear_data", "push_location:cold", "settle_popups:none", "auth:password:none"]}}
+{"ts": "2026-10-26T17:16:53", "event": "evidence.registered", "severity": "info", "details": {"artifacts": ["case_01/frames/login-result.png"], "evidence_type": "login", "method": "password_visual", "evidence_status": "verified", "stage": "B2_login"}}
+{"ts": "2026-10-26T17:16:53", "event": "acknowledged", "severity": "info", "details": {"key": "login_completed"}}
+{"ts": "2026-10-26T17:17:05", "event": "case.initialized", "severity": "info", "details": {"index": 0, "case_id": "probe-three-layer"}}
+{"ts": "2026-10-26T17:17:20", "event": "command.executed", "severity": "info", "details": {"cmd": "open-url", "url": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail&mrn_component=hotelchannel-order-detail&order_id=5035036077836749951&biz_type=1"}}
+{"ts": "2026-10-26T17:17:52", "event": "command.executed", "severity": "info", "details": {"cmd": "find-text", "text": "联系酒店"}}
+{"ts": "2026-10-26T17:18:06", "event": "command.executed", "severity": "info", "details": {"cmd": "tap-text", "text": "联系酒店"}}
+{"ts": "2026-10-26T17:18:22", "event": "command.executed", "severity": "info", "details": {"cmd": "screenshot"}}
+{"ts": "2026-10-26T17:18:32", "event": "command.executed", "severity": "info", "details": {"cmd": "find-text", "text": "电话联系"}}
+{"ts": "2026-10-26T17:18:44", "event": "command.executed", "severity": "info", "details": {"cmd": "find-text", "text": "咨询酒店"}}
+{"ts": "2026-10-26T17:19:28", "event": "command.executed", "severity": "info", "details": {"cmd": "find-icon"}}
+{"ts": "2026-10-26T17:20:05", "event": "command.executed", "severity": "info", "details": {"cmd": "screenshot"}}
+{"ts": "2026-10-26T17:20:06", "event": "command.executed", "severity": "info", "details": {"cmd": "inspect-tree"}}
+{"ts": "2026-10-26T17:21:02", "event": "command.executed", "severity": "info", "details": {"cmd": "tap-text", "text": "电话联系"}}
+{"ts": "2026-10-26T17:21:18", "event": "command.executed", "severity": "info", "details": {"cmd": "screenshot"}}
+{"ts": "2026-10-26T17:21:27", "event": "command.executed", "severity": "info", "details": {"cmd": "inspect-tree"}}
+{"ts": "2026-10-26T17:21:50", "event": "command.executed", "severity": "info", "details": {"cmd": "find-text", "text": "010-53913316"}}
+{"ts": "2026-10-26T17:23:08", "event": "command.executed", "severity": "info", "details": {"cmd": "tap"}}
+{"ts": "2026-10-26T17:23:30", "event": "command.executed", "severity": "info", "details": {"cmd": "screenshot"}}
+{"ts": "2026-10-26T17:24:19", "event": "command.executed", "severity": "info", "details": {"cmd": "tap"}}
+{"ts": "2026-10-26T17:24:29", "event": "command.executed", "severity": "info", "details": {"cmd": "screenshot"}}
+{"ts": "2026-10-26T17:24:40", "event": "command.executed", "severity": "info", "details": {"cmd": "tap-text", "text": "联系酒店"}}
+{"ts": "2026-10-26T17:24:50", "event": "command.executed", "severity": "info", "details": {"cmd": "tap-text", "text": "电话联系"}}
+{"ts": "2026-10-26T17:25:00", "event": "command.executed", "severity": "info", "details": {"cmd": "screenshot"}}
+{"ts": "2026-10-26T17:25:11", "event": "command.executed", "severity": "info", "details": {"cmd": "tap"}}
+{"ts": "2026-10-26T17:25:22", "event": "command.executed", "severity": "info", "details": {"cmd": "screenshot"}}
+{"ts": "2026-10-26T17:26:09", "event": "command.executed", "severity": "info", "details": {"cmd": "tap"}}
+{"ts": "2026-10-26T17:26:18", "event": "command.executed", "severity": "info", "details": {"cmd": "step"}}
+{"ts": "2026-10-26T17:26:22", "event": "step.completed", "severity": "info", "details": {"case_index": 0, "sid": "", "result": 1, "screenshot": "case_01_step.png"}}
+{"ts": "2026-10-26T17:27:08", "event": "soft_failure", "severity": "warning", "details": {"code": "DEVICE_RELEASE_RECORD_FAILED", "category": "infra", "detail": "device_id / owner are required"}}
+{"ts": "2026-10-26T17:27:14", "event": "run.archived", "severity": "info", "details": {"archive_dir": "/Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/output/run-20261026T171311/run"}}

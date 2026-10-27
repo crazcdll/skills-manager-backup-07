@@ -1,0 +1,14 @@
+{
+  "run_id": "run-20261026T171311",
+  "state": "archived",
+  "created_at": "2026-10-26T17:13:11",
+  "flow_name": "隐私号呼出弹窗三层点击探针",
+  "expected_cases": 1,
+  "cases": [
+    {
+      "case_id": "probe-three-layer",
+      "case_name": "订单详情-联系酒店-电话联系-号码-隐私号弹窗探针"
+    }
+  ],
+  "archived_at": "2026-10-26T17:27:14"
+}

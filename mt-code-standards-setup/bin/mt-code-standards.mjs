@@ -9,16 +9,17 @@ import { fileURLToPath } from "node:url";
 
 import {
   RuleBundleError,
-  prepareSyncRequest,
+  EXECUTION_AGENTS,
+  prepareUnifiedSyncRequest as prepareSyncRequest,
   readLocalGitMis,
-  syncEffectiveRuleBundle,
+  syncUnifiedRuleBundle as syncEffectiveRuleBundle,
 } from "../scripts/resolve-effective-rules.mjs";
 import {
   createMtcliTransport,
   DEFAULT_MTCLI_SERVICE,
   validateMtcliService,
 } from "../scripts/mtcli-transport.mjs";
-import { EXTERNAL_AUTH_AGENTS, syncWithOfficialSso } from "../scripts/sync-effective-rules-with-sso.mjs";
+import { EXTERNAL_AUTH_AGENTS, detectExecutionAgent, syncWithOfficialSso } from "../scripts/sync-effective-rules-with-sso.mjs";
 
 const packageInfo = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 
@@ -30,24 +31,24 @@ const HELP = `mt-code-standards ${packageInfo.version}
   mt-code-standards --version
 
 pull 选项：
-  --repository <名称或地址>  唯一仓库名、namespace/repository、HTTPS 或 SSH 地址
+  --repository <名称或地址>  完整 namespace/repository 或线上 MCode Git 地址
   --output-dir <目录>        输出基目录；规则写入 <目录>/.mdp/rules（默认当前目录）
   --repo-root <目录>         兼容参数：Git 探测目录；未提供 --output-dir 时也作为输出基目录
-  --mis <MIS>               direct 模式登录提示；也可使用 SSO_USER_ID
+  --mis <标识>              public 可选自报调用方；direct 登录提示
   --transport <方式>        远端调用方式：public（默认）、direct 或 mtcli
   --mtcli-service <名称>    mtcli 服务名（默认 ${DEFAULT_MTCLI_SERVICE}）
   --gateway-url <URL>       受信任的规则分发网关（高级选项）
   --pull-id <UUID>          本次拉取幂等 ID（高级选项）
   --auth-agent <标识>       direct 模式的认证宿主提示
-  --skill-version <版本>    覆盖审计中的 Skill 版本（高级选项）
-  --bootstrap               未登记仓库显式拉取公开 L1（仅 direct/mtcli，需精确仓库地址）
-  --domain <领域>            bootstrap 领域：frontend 或 backend
+  --skill-version <版本>    兼容参数；实际版本从发行元数据读取
+  --domain <领域>            规范领域：frontend 或 backend
   --stage <阶段>             规则阶段：design、coding 或 cr
   --non-interactive         禁止 MIS 交互提示
   --json                     输出机器可读 JSON
   --help                     显示帮助
 
-public 仅访问显式开放的仓库规则，不发送用户身份；direct 使用用户 CIBA 票据；mtcli 使用官方 SSO 登录。
+正式 public 拉取不发送用户身份；正式 direct 使用用户 CIBA 票据；mtcli 使用官方 SSO 登录。
+未登记、无仓库地址或没有可用 L2 时，一次请求直接返回 L1；阶段必须明确。
 `;
 
 const argumentError = (message) => new RuleBundleError("RULE_BUNDLE_ARGUMENT_INVALID", message);
@@ -102,17 +103,15 @@ export const parseCliArgs = (argv) => {
     }
     else if (key === "--skill-version") options.skillVersion = value;
     else if (key === "--execution-agent") {
-      if (value !== "cli") throw argumentError("独立 CLI 的 --execution-agent 只能是 cli");
+      if (!EXECUTION_AGENTS.has(value)) throw argumentError("--execution-agent 必须是支持的执行工具标识");
       options.agent = value;
     }
     index += 1;
   }
-  if (options.transport !== "direct" && (options.mis || options.authAgent)) {
-    throw argumentError("mtcli/public 模式不接受 --mis 或 --auth-agent");
+  if (options.transport !== "direct" && options.authAgent) {
+    throw argumentError("--auth-agent 仅支持 direct 模式");
   }
-  if (options.transport === "public" && options.bootstrap) {
-    throw argumentError("public 模式不接受 --bootstrap");
-  }
+  if (options.transport === "mtcli" && options.mis) throw argumentError("mtcli 使用已认证身份，不接受自报 --mis");
   if (options.transport !== "mtcli" && mtcliServiceProvided) {
     throw argumentError("--mtcli-service 仅能与 --transport mtcli 一起使用");
   }
@@ -143,8 +142,8 @@ const promptForMis = async (environment, nonInteractive = false) => {
 const printError = (error, json) => {
   const code = error instanceof RuleBundleError ? error.code : "RULE_BUNDLE_UNEXPECTED";
   const message = error instanceof RuleBundleError ? error.message : "规则拉取发生未预期错误。";
-  if (json) process.stdout.write(`${JSON.stringify({ ok: false, error: { code, message } })}\n`);
-  else process.stderr.write(`${code}: ${message}\n`);
+  if (json) process.stdout.write(`${JSON.stringify({ ok: false, error: { code, message, ...(error.issues ? { issues: error.issues } : {}), ...(error.request_id ? { request_id: error.request_id } : {}), ...(typeof error.retryable === "boolean" ? { retryable: error.retryable } : {}) } })}\n`);
+  else process.stderr.write(`${code}: ${message}${error.request_id ? `（request_id: ${error.request_id}）` : ""}${error.issues?.length ? `\n${JSON.stringify(error.issues)}` : ""}\n`);
 };
 
 export const runCli = async ({
@@ -163,7 +162,10 @@ export const runCli = async ({
     if (parsed.action === "help") { process.stdout.write(HELP); return 0; }
     if (parsed.action === "version") { process.stdout.write(`${packageInfo.version}\n`); return 0; }
     const options = parsed.options;
-    const skillVersion = options.skillVersion || packageInfo.version;
+    const detected = detectExecutionAgent(environment);
+    const agent = options.agent || (detected.agent === "unknown" ? "cli" : detected.agent);
+    const execution = { agent, source: options.agent || detected.agent === "unknown" ? "runner_explicit_v1" : detected.source,
+      skillName: null, skillVersion: null, clientType: "cli", clientName: packageInfo.name, clientVersion: packageInfo.version };
     const pullId = options.pullId || randomUUID();
     const prepared = await prepare({
       gatewayUrl: options.gatewayUrl,
@@ -174,7 +176,7 @@ export const runCli = async ({
       domain: options.domain,
       stage: options.stage,
       bootstrap: options.bootstrap,
-      execution: { pullId, agent: "cli", source: "runner_explicit_v1", skillVersion },
+      execution: { ...execution, pullId },
     });
     if (options.transport === "public") {
       const receipt = await syncBundle({
@@ -184,15 +186,14 @@ export const runCli = async ({
         outputDir: options.outputDir,
         cwd,
         domain: options.domain,
-        bootstrap: false,
+        bootstrap: options.bootstrap,
+        mis: options.mis,
         stage: options.stage,
         publicPull: true,
         fetchImpl,
         execution: {
           pullId,
-          agent: "cli",
-          source: "runner_explicit_v1",
-          skillVersion,
+          ...execution,
         },
       });
       const result = { ok: true, receipt: {
@@ -222,9 +223,7 @@ export const runCli = async ({
         }),
         execution: {
           pullId,
-          agent: "cli",
-          source: "runner_explicit_v1",
-          skillVersion,
+          ...execution,
         },
       });
       const result = { ok: true, receipt: {
@@ -248,9 +247,10 @@ export const runCli = async ({
         ...options,
         cwd,
         mis,
-        agent: "cli",
+        agent,
         standaloneCli: true,
-        skillVersion,
+        clientName: packageInfo.name,
+        clientVersion: packageInfo.version,
         pullId,
       },
     });

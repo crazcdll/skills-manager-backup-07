@@ -1,0 +1,114 @@
+{"ts": "2026-10-26T17:31:15", "event": "run.initialized", "severity": "info", "details": {"expected_cases": 2}}
+{"ts": "2026-10-26T17:31:28", "event": "soft_failure", "severity": "warning", "details": {"code": "DEVICE_OCCUPY_RECORD_FAILED", "category": "infra", "detail": "API /node/api/data/monitor/device/occupy HTTP 404: Not Found"}}
+{"ts": "2026-10-26T17:32:43", "event": "acknowledged", "severity": "info", "details": {"key": "device_info_shown"}}
+{"ts": "2026-10-26T17:34:18", "event": "evidence.registered", "severity": "info", "details": {"artifacts": ["case_01/frames/login-result.png"], "evidence_type": "login", "method": "password_visual", "evidence_status": "pending", "stage": "B2_login"}}
+{"ts": "2026-10-26T17:34:18", "event": "environment.prepared", "severity": "info", "details": {"env": "online", "auth_method": "password", "account_type": "A", "target_env": "online", "restart_policies": ["reset_mock_env:none", "enable_appmock:cold_clear_data", "push_location:cold", "settle_popups:none", "auth:password:none"]}}
+{"ts": "2026-10-26T17:34:46", "event": "evidence.registered", "severity": "info", "details": {"artifacts": ["case_01/frames/login-result.png"], "evidence_type": "login", "method": "password_visual", "evidence_status": "verified", "stage": "B2_login"}}
+{"ts": "2026-10-26T17:34:46", "event": "acknowledged", "severity": "info", "details": {"key": "login_completed"}}
+{"ts": "2026-10-26T17:34:49", "event": "case.initialized", "severity": "info", "details": {"index": 0, "case_id": "Flow01-订单详情页呼出弹窗-展示态双卡引导文案展示"}}
+{"ts": "2026-10-26T17:35:00", "event": "command.executed", "severity": "info", "details": {"cmd": "open-url", "url": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail&mrn_component=hotelchannel-order-detail&order_id=5035036077836749951&biz_type=1&mrn_disable_debugview=true&disableRedBox=1&disableDebugView=true&__recce_dev_show__=false"}}
+{"ts": "2026-10-26T17:35:24", "event": "acknowledged", "severity": "info", "details": {"key": "landing_page_opened_0"}}
+{"ts": "2026-10-26T17:35:28", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S1"}}
+{"ts": "2026-10-26T17:35:28", "event": "step.started", "severity": "info", "details": {"case_index": 0, "sid": "S1"}}
+{"ts": "2026-10-26T17:35:51", "event": "step.completed", "severity": "info", "details": {"case_index": 0, "sid": "S1", "result": 1, "screenshot": "case_01_S1.png"}}
+{"ts": "2026-10-26T17:35:59", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S2"}}
+{"ts": "2026-10-26T17:35:59", "event": "step.started", "severity": "info", "details": {"case_index": 0, "sid": "S2"}}
+{"ts": "2026-10-26T17:36:34", "event": "step.completed", "severity": "info", "details": {"case_index": 0, "sid": "S2", "result": null, "screenshot": "case_01_S2.png"}}
+{"ts": "2026-10-26T17:36:50", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S3"}}
+{"ts": "2026-10-26T17:36:50", "event": "step.started", "severity": "info", "details": {"case_index": 0, "sid": "S3"}}
+{"ts": "2026-10-26T17:37:24", "event": "step.completed", "severity": "info", "details": {"case_index": 0, "sid": "S3", "result": null, "screenshot": "case_01_S3.png"}}
+{"ts": "2026-10-26T17:37:38", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S4"}}
+{"ts": "2026-10-26T17:37:38", "event": "step.started", "severity": "info", "details": {"case_index": 0, "sid": "S4"}}
+{"ts": "2026-10-26T17:38:09", "event": "step.completed", "severity": "info", "details": {"case_index": 0, "sid": "S4", "result": null, "screenshot": "case_01_S4.png"}}
+{"ts": "2026-10-26T17:38:23", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S5"}}
+{"ts": "2026-10-26T17:38:24", "event": "step.started", "severity": "info", "details": {"case_index": 0, "sid": "S5"}}
+{"ts": "2026-10-26T17:38:35", "event": "step.completed", "severity": "info", "details": {"case_index": 0, "sid": "S5", "result": null, "screenshot": "case_01_S5.png"}}
+{"ts": "2026-10-26T17:39:11", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "A1"}}
+{"ts": "2026-10-26T17:39:11", "event": "step.started", "severity": "info", "details": {"case_index": 0, "sid": "A1"}}
+{"ts": "2026-10-26T17:39:12", "event": "step.completed", "severity": "info", "details": {"case_index": 0, "sid": "A1", "result": 1, "kind": "api"}}
+{"ts": "2026-10-26T17:39:36", "event": "hook.completed", "severity": "info", "details": {"sid": "A1", "hook_id": "verify_api_fields", "remaining": 0}}
+{"ts": "2026-10-26T17:39:45", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S6"}}
+{"ts": "2026-10-26T17:39:45", "event": "step.started", "severity": "info", "details": {"case_index": 0, "sid": "S6"}}
+{"ts": "2026-10-26T17:40:02", "event": "step.completed", "severity": "info", "details": {"case_index": 0, "sid": "S6", "result": null, "screenshot": "case_01_S6.png"}}
+{"ts": "2026-10-26T17:40:19", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S7"}}
+{"ts": "2026-10-26T17:40:19", "event": "step.started", "severity": "info", "details": {"case_index": 0, "sid": "S7"}}
+{"ts": "2026-10-26T17:40:33", "event": "step.completed", "severity": "info", "details": {"case_index": 0, "sid": "S7", "result": null, "screenshot": "case_01_S7.png"}}
+{"ts": "2026-10-26T17:40:49", "event": "hook.completed", "severity": "info", "details": {"sid": "S7", "hook_id": "verify_visual_assertion", "remaining": 0}}
+{"ts": "2026-10-26T17:41:18", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S9"}}
+{"ts": "2026-10-26T17:41:18", "event": "step.started", "severity": "info", "details": {"case_index": 0, "sid": "S9"}}
+{"ts": "2026-10-26T17:41:53", "event": "step.completed", "severity": "info", "details": {"case_index": 0, "sid": "S9", "result": null, "screenshot": "case_01_S9.png"}}
+{"ts": "2026-10-26T17:42:09", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S10"}}
+{"ts": "2026-10-26T17:42:09", "event": "step.started", "severity": "info", "details": {"case_index": 0, "sid": "S10"}}
+{"ts": "2026-10-26T17:42:43", "event": "step.completed", "severity": "info", "details": {"case_index": 0, "sid": "S10", "result": null, "screenshot": "case_01_S10.png"}}
+{"ts": "2026-10-26T17:43:01", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S11"}}
+{"ts": "2026-10-26T17:43:01", "event": "step.started", "severity": "info", "details": {"case_index": 0, "sid": "S11"}}
+{"ts": "2026-10-26T17:43:31", "event": "step.completed", "severity": "info", "details": {"case_index": 0, "sid": "S11", "result": null, "screenshot": "case_01_S11.png"}}
+{"ts": "2026-10-26T17:43:50", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S12"}}
+{"ts": "2026-10-26T17:43:50", "event": "step.started", "severity": "info", "details": {"case_index": 0, "sid": "S12"}}
+{"ts": "2026-10-26T17:44:00", "event": "step.completed", "severity": "info", "details": {"case_index": 0, "sid": "S12", "result": null, "screenshot": "case_01_S12.png"}}
+{"ts": "2026-10-26T17:44:30", "event": "case.initialized", "severity": "info", "details": {"index": 1, "case_id": "Flow02-订单详情页修改弹窗-编辑态双卡引导文案展示"}}
+{"ts": "2026-10-26T17:44:48", "event": "command.executed", "severity": "info", "details": {"cmd": "open-url", "url": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail&mrn_component=hotelchannel-order-detail&order_id=5035036077836749951&biz_type=1&mrn_disable_debugview=true&disableRedBox=1&disableDebugView=true&__recce_dev_show__=false"}}
+{"ts": "2026-10-26T17:45:16", "event": "acknowledged", "severity": "info", "details": {"key": "landing_page_opened_1"}}
+{"ts": "2026-10-26T17:45:22", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S1"}}
+{"ts": "2026-10-26T17:45:22", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S1"}}
+{"ts": "2026-10-26T17:45:56", "event": "step.completed", "severity": "info", "details": {"case_index": 1, "sid": "S1", "result": null, "screenshot": "case_02_S1.png"}}
+{"ts": "2026-10-26T17:46:14", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S2"}}
+{"ts": "2026-10-26T17:46:14", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S2"}}
+{"ts": "2026-10-26T17:46:48", "event": "step.completed", "severity": "info", "details": {"case_index": 1, "sid": "S2", "result": null, "screenshot": "case_02_S2.png"}}
+{"ts": "2026-10-26T17:47:05", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S3"}}
+{"ts": "2026-10-26T17:47:05", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S3"}}
+{"ts": "2026-10-26T17:47:33", "event": "step.completed", "severity": "info", "details": {"case_index": 1, "sid": "S3", "result": null, "screenshot": "case_02_S3.png"}}
+{"ts": "2026-10-26T17:47:50", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S4"}}
+{"ts": "2026-10-26T17:47:50", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S4"}}
+{"ts": "2026-10-26T17:48:00", "event": "step.completed", "severity": "info", "details": {"case_index": 1, "sid": "S4", "result": null, "screenshot": "case_02_S4.png"}}
+{"ts": "2026-10-26T17:48:18", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S5"}}
+{"ts": "2026-10-26T17:48:18", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S5"}}
+{"ts": "2026-10-26T17:48:47", "event": "step.completed", "severity": "info", "details": {"case_index": 1, "sid": "S5", "result": null, "screenshot": "case_02_S5.png"}}
+{"ts": "2026-10-26T17:49:00", "event": "command.executed", "severity": "info", "details": {"cmd": "step"}}
+{"ts": "2026-10-26T17:49:00", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S5"}}
+{"ts": "2026-10-26T17:49:13", "event": "step.fallback", "severity": "info", "details": {"case_index": 1, "sid": "S5", "action": "tap", "result": 1, "screenshot": "case_02_fallback_S5_6.png"}}
+{"ts": "2026-10-26T17:49:43", "event": "hook.completed", "severity": "info", "details": {"sid": "S5", "hook_id": "resolve_tap_anchor_ambiguous", "remaining": 0}}
+{"ts": "2026-10-26T17:49:48", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S6"}}
+{"ts": "2026-10-26T17:49:48", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S6"}}
+{"ts": "2026-10-26T17:49:59", "event": "step.completed", "severity": "info", "details": {"case_index": 1, "sid": "S6", "result": null, "screenshot": "case_02_S6.png"}}
+{"ts": "2026-10-26T17:50:17", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "A1"}}
+{"ts": "2026-10-26T17:50:17", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "A1"}}
+{"ts": "2026-10-26T17:50:19", "event": "step.completed", "severity": "info", "details": {"case_index": 1, "sid": "A1", "result": 1, "kind": "api"}}
+{"ts": "2026-10-26T17:50:25", "event": "hook.completed", "severity": "info", "details": {"sid": "A1", "hook_id": "verify_api_fields", "remaining": 0}}
+{"ts": "2026-10-26T17:50:35", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S7"}}
+{"ts": "2026-10-26T17:50:35", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S7"}}
+{"ts": "2026-10-26T17:50:50", "event": "step.completed", "severity": "info", "details": {"case_index": 1, "sid": "S7", "result": null, "screenshot": "case_02_S7.png"}}
+{"ts": "2026-10-26T17:51:08", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S8"}}
+{"ts": "2026-10-26T17:51:08", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S8"}}
+{"ts": "2026-10-26T17:51:21", "event": "step.completed", "severity": "info", "details": {"case_index": 1, "sid": "S8", "result": null, "screenshot": "case_02_S8.png"}}
+{"ts": "2026-10-26T17:51:33", "event": "command.executed", "severity": "info", "details": {"cmd": "step"}}
+{"ts": "2026-10-26T17:51:33", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S8"}}
+{"ts": "2026-10-26T17:51:47", "event": "step.fallback", "severity": "info", "details": {"case_index": 1, "sid": "S8", "action": "tap", "result": 1, "screenshot": "case_02_fallback_S8_9.png"}}
+{"ts": "2026-10-26T17:51:59", "event": "hook.completed", "severity": "info", "details": {"sid": "S8", "hook_id": "resolve_tap_anchor_ambiguous", "remaining": 0}}
+{"ts": "2026-10-26T17:52:04", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S9"}}
+{"ts": "2026-10-26T17:52:04", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S9"}}
+{"ts": "2026-10-26T17:52:15", "event": "step.completed", "severity": "info", "details": {"case_index": 1, "sid": "S9", "result": null, "screenshot": "case_02_S9.png"}}
+{"ts": "2026-10-26T17:52:32", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S10"}}
+{"ts": "2026-10-26T17:52:32", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S10"}}
+{"ts": "2026-10-26T17:53:04", "event": "step.completed", "severity": "info", "details": {"case_index": 1, "sid": "S10", "result": null, "screenshot": "case_02_S10.png"}}
+{"ts": "2026-10-26T17:53:21", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S11"}}
+{"ts": "2026-10-26T17:53:21", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S11"}}
+{"ts": "2026-10-26T17:53:56", "event": "step.completed", "severity": "info", "details": {"case_index": 1, "sid": "S11", "result": null, "screenshot": "case_02_S11.png"}}
+{"ts": "2026-10-26T17:54:31", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S12"}}
+{"ts": "2026-10-26T17:54:31", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S12"}}
+{"ts": "2026-10-26T17:55:03", "event": "step.completed", "severity": "info", "details": {"case_index": 1, "sid": "S12", "result": null, "screenshot": "case_02_S12.png"}}
+{"ts": "2026-10-26T17:55:22", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S13"}}
+{"ts": "2026-10-26T17:55:22", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S13"}}
+{"ts": "2026-10-26T17:55:33", "event": "step.completed", "severity": "info", "details": {"case_index": 1, "sid": "S13", "result": null, "screenshot": "case_02_S13.png"}}
+{"ts": "2026-10-26T17:55:53", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S14"}}
+{"ts": "2026-10-26T17:55:53", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S14"}}
+{"ts": "2026-10-26T17:56:21", "event": "step.completed", "severity": "info", "details": {"case_index": 1, "sid": "S14", "result": null, "screenshot": "case_02_S14.png"}}
+{"ts": "2026-10-26T17:56:27", "event": "command.executed", "severity": "info", "details": {"cmd": "step"}}
+{"ts": "2026-10-26T17:56:27", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S14"}}
+{"ts": "2026-10-26T17:56:41", "event": "step.fallback", "severity": "info", "details": {"case_index": 1, "sid": "S14", "action": "tap", "result": 1, "screenshot": "case_02_fallback_S14_15.png"}}
+{"ts": "2026-10-26T17:56:53", "event": "hook.completed", "severity": "info", "details": {"sid": "S14", "hook_id": "resolve_tap_anchor_ambiguous", "remaining": 0}}
+{"ts": "2026-10-26T17:56:59", "event": "command.executed", "severity": "info", "details": {"cmd": "step", "sid": "S15"}}
+{"ts": "2026-10-26T17:56:59", "event": "step.started", "severity": "info", "details": {"case_index": 1, "sid": "S15"}}
+{"ts": "2026-10-26T17:57:10", "event": "step.completed", "severity": "info", "details": {"case_index": 1, "sid": "S15", "result": null, "screenshot": "case_02_S15.png"}}
+{"ts": "2026-10-26T17:57:47", "event": "soft_failure", "severity": "warning", "details": {"code": "DEVICE_RELEASE_RECORD_FAILED", "category": "infra", "detail": "device_id / owner are required"}}
+{"ts": "2026-10-26T17:57:54", "event": "run.archived", "severity": "info", "details": {"archive_dir": "/Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/output/run-20261026T173115/run"}}

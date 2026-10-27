@@ -4,14 +4,15 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { randomUUID } from "node:crypto";
 import { realpathSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 import {
   RuleBundleError,
   EXECUTION_AGENTS,
-  prepareSyncRequest,
+  prepareUnifiedSyncRequest as prepareSyncRequest,
   readLocalGitMis,
-  syncEffectiveRuleBundle,
+  syncUnifiedRuleBundle as syncEffectiveRuleBundle,
 } from "./resolve-effective-rules.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -48,6 +49,26 @@ const INTERNAL_AUTH_ENV_PREFIXES = [
 ];
 
 const text = (value) => String(value ?? "").trim();
+// Read the executing distribution, not the project receiving the rules. The
+// setup publisher rewrites this frontmatter; no canonical-name fallback is safe.
+export const readSkillMetadata = async (skillUrl = new URL("../SKILL.md", import.meta.url)) => {
+  try {
+    const contents = await readFile(skillUrl, "utf8");
+    const frontmatter = contents.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/u)?.[1];
+    if (!frontmatter) return { skillName: null, skillVersion: null };
+    const field = key => {
+      const matches = [...frontmatter.matchAll(new RegExp(`^${key}:\\s*["']?([^"'\\r\\n]+?)["']?\\s*$`, "gm"))];
+      return matches.length === 1 ? matches[0][1].trim() : null;
+    };
+    const name = field("name");
+    const version = field("version");
+    return {
+      skillName: ["mt-code-standards", "mt-code-standards-setup"].includes(name) ? name : null,
+      skillVersion: version && /^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$/u.test(version) ? version : null,
+    };
+  } catch { return { skillName: null, skillVersion: null }; }
+};
+
 export const parseArgs = (argv) => {
   const result = { transport: "public", transportExplicit: false };
   const valued = new Set([
@@ -82,8 +103,8 @@ export const parseArgs = (argv) => {
     }
     index += 1;
   }
-  if (result.transport === "public" && (result.mis || result.authAgent || result.bootstrap)) {
-    throw new RuleBundleError("RULE_BUNDLE_ARGUMENT_INVALID", "public 模式不接受 --mis、--auth-agent 或 --bootstrap");
+  if (result.transport === "public" && result.authAgent) {
+    throw new RuleBundleError("RULE_BUNDLE_ARGUMENT_INVALID", "public 拉取不接受 --auth-agent；可选 --mis 仅为自报调用方");
   }
   return result;
 };
@@ -331,6 +352,10 @@ const selectRunnerAuthenticationRoute = ({ environment, options, executionAgent 
 export const syncWithOfficialSso = async ({
   options = {}, environment = process.env, execute, fetchImpl,
 } = {}) => {
+  const skill = options.standaloneCli ? { skillName: null, skillVersion: null } : await readSkillMetadata();
+  const client = options.standaloneCli
+    ? { clientType: "cli", clientName: options.clientName ?? null, clientVersion: options.clientVersion ?? null }
+    : { clientType: "skill", clientName: skill.skillName, clientVersion: skill.skillVersion };
   const detected = detectExecutionAgent(environment);
   const explicitAgent = text(options.agent);
   const transport = text(options.transport) || "public";
@@ -340,8 +365,8 @@ export const syncWithOfficialSso = async ({
   if (explicitAgent && !EXECUTION_AGENTS.has(explicitAgent)) {
     throw new RuleBundleError("RULE_BUNDLE_EXECUTION_INVALID", "执行 Agent 必须是受支持的平台标识。");
   }
-  if (transport === "public" && (options.mis || options.authAgent || options.bootstrap)) {
-    throw new RuleBundleError("RULE_BUNDLE_ARGUMENT_INVALID", "public 模式不接受 --mis、--auth-agent 或 --bootstrap");
+  if (transport === "public" && options.authAgent) {
+    throw new RuleBundleError("RULE_BUNDLE_ARGUMENT_INVALID", "public 拉取不接受 --auth-agent；可选 --mis 仅为自报调用方");
   }
   if (transport === "public") {
     const pullId = options.pullId || randomUUID();
@@ -352,7 +377,8 @@ export const syncWithOfficialSso = async ({
       outputDir: options.outputDir,
       cwd: options.cwd,
       domain: options.domain,
-      bootstrap: false,
+      bootstrap: options.bootstrap,
+      mis: options.mis,
       stage: options.stage,
       publicPull: true,
       fetchImpl,
@@ -360,7 +386,7 @@ export const syncWithOfficialSso = async ({
         pullId,
         agent: explicitAgent || detected.agent,
         source: explicitAgent ? "runner_explicit_v1" : detected.source,
-        skillVersion: options.skillVersion,
+        ...skill, ...client,
       },
     });
     return {
@@ -385,7 +411,7 @@ export const syncWithOfficialSso = async ({
       pullId: options.pullId,
       agent: explicitAgent || detected.agent,
       source: explicitAgent ? "runner_explicit_v1" : detected.source,
-      skillVersion: options.skillVersion,
+      ...skill, ...client,
     },
   });
   let selection = selectRunnerAuthenticationRoute({
@@ -409,7 +435,7 @@ export const syncWithOfficialSso = async ({
       pullId,
       agent: explicitAgent || detected.agent,
       source: explicitAgent ? "runner_explicit_v1" : detected.source,
-      skillVersion: options.skillVersion,
+      ...skill, ...client,
     },
   });
   const mis = text(options.mis || environment.SSO_USER_ID || readLocalGitMis(prepared.sourceRoot));
@@ -461,7 +487,7 @@ const isDirectExecution = () => {
 if (isDirectExecution()) {
   main().catch((error) => {
     const code = error instanceof RuleBundleError ? error.code : "RULE_BUNDLE_UNEXPECTED";
-    process.stderr.write(`${code}: ${error.message}\n`);
+    process.stderr.write(`${code}: ${error.message}${error.request_id ? `（request_id: ${error.request_id}）` : ""}${error.issues?.length ? `\n${JSON.stringify(error.issues)}` : ""}\n`);
     process.exitCode = 2;
   });
 }

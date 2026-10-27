@@ -19,6 +19,7 @@ import {
 import { isIP } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { AGENTS_INDEX_CONTRACT, validateAgentsIndexes, renderAgentsIndexes, agentsManifestFields, validateAgentsManifest, agentsIndexDestinations } from "./agents-index.mjs";
 
 const DEFAULT_GATEWAY =
   "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-distribution";
@@ -28,10 +29,21 @@ const LEGACY_GATEWAY_PATHNAME = "/functions/v1/rule-observability";
 const LEGACY_BUNDLE_SCHEMA = "effective-rule-bundle/v1";
 const BUNDLE_SCHEMA = "effective-rule-bundle/v2";
 const STAGED_BUNDLE_SCHEMA = "effective-rule-bundle/v3";
+const LAYOUT_BUNDLE_SCHEMA = "effective-rule-bundle/v4";
+export const LOCAL_LAYOUT = "scope-domain-ruleset/v1";
+const LEGACY_LAYOUT_LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v5";
+const PREVIOUS_LAYOUT_LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v6";
+const LAYOUT_LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v7";
+const LAYOUT_BOOTSTRAP_BUNDLE_SCHEMA = "l1-bootstrap-bundle/v3";
+const LEGACY_LAYOUT_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA = "mt-l1-bootstrap-manifest/v3";
+const LAYOUT_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA = "mt-l1-bootstrap-manifest/v4";
 const LEGACY_LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v1";
 const LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v2";
 const LEGACY_FLAT_LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v3";
 const FLAT_LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v4";
+const LEGACY_AGENTS_LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v5";
+const AGENTS_LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v6";
+const AGENTS_BOOTSTRAP_MANIFEST_SCHEMA = "mt-l1-bootstrap-manifest/v3";
 const FLAT_LOCAL_LAYOUT = "company-team/v1";
 const RECEIPT_SCHEMA = "mt-effective-rule-bundle-install/v1";
 const MANIFEST_NAME = ".mt-effective-rule-bundle.json";
@@ -43,6 +55,7 @@ const BOOTSTRAP_RECEIPT_SCHEMA = "mt-l1-bootstrap-install/v1";
 const BOOTSTRAP_MANIFEST_NAME = ".mt-l1-bootstrap.json";
 const MAX_LOCATOR_BYTES = 8 * 1024;
 export const MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
+export const MAX_AGENTS_INDEX_RESPONSE_BYTES = 64 * 1024 * 1024;
 const MAX_FILE_BYTES = 512 * 1024;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const DOMAINS = new Set(["frontend", "backend"]);
@@ -64,10 +77,13 @@ const pathKey = (value) => value.normalize("NFC").toUpperCase().toLowerCase().no
 const binaryPathOrder = (left, right) => left < right ? -1 : left > right ? 1 : 0;
 
 export class RuleBundleError extends Error {
-  constructor(code, message) {
+  constructor(code, message, details = {}) {
     super(message);
     this.name = "RuleBundleError";
     this.code = code;
+    for (const key of ["issues", "request_id", "retryable"]) {
+      if (details[key] !== undefined) this[key] = details[key];
+    }
   }
 }
 
@@ -407,8 +423,15 @@ export const prepareSyncRequest = async ({
       "非 Git 目录执行 L1 bootstrap 时必须使用 --domain frontend|backend 明确仓库领域",
     );
   }
+  const normalizedGateway = validateGatewayUrl(gatewayUrl);
+  if (bootstrap && new URL(normalizedGateway).pathname === LEGACY_GATEWAY_PATHNAME) {
+    fail(
+      "RULE_BUNDLE_BOOTSTRAP_GATEWAY_UNSUPPORTED",
+      "旧 rule-observability 网关不支持免 SSO 的 L1 引导安装；请移除 --gateway-url 使用默认 rule-distribution 网关，或将受信任网关路径改为 /functions/v1/rule-distribution。",
+    );
+  }
   return Object.freeze({
-    gatewayUrl: validateGatewayUrl(gatewayUrl),
+    gatewayUrl: normalizedGateway,
     repositoryLocator: normalizedLocator,
     sourceRoot: gitRoot || sourceDirectory,
     targetRoot,
@@ -434,6 +457,24 @@ export const normalizePullExecution = (value = {}) => {
   return Object.freeze({ pullId, agent, source, skillName, skillVersion });
 };
 
+// Index attachments have an independent budget; negotiating them never enlarges
+// the existing rule/body budget. Validate integrity separately before any write.
+export const assertRuleResponseBudget = (body, { allowAgentsIndexes = false, serviceLabel = "规则包服务" } = {}) => {
+  const totalLimit = allowAgentsIndexes ? MAX_AGENTS_INDEX_RESPONSE_BYTES : MAX_RESPONSE_BYTES;
+  if (Buffer.byteLength(JSON.stringify(body), "utf8") > totalLimit) {
+    fail("RULE_BUNDLE_RESPONSE_TOO_LARGE", `${serviceLabel}响应超过 ${totalLimit / 1024 / 1024} MiB 安全上限`);
+  }
+  const withIndexes = allowAgentsIndexes && isObject(body) && Array.isArray(body.agents_indexes);
+  let baseBody = withIndexes ? Object.fromEntries(Object.entries(body).filter(([key]) => key !== "agents_indexes")) : body;
+  if (allowAgentsIndexes && body?.schema_version === "rule-bundle-resolution/v1" && isObject(body.bundle)) {
+    assertRuleResponseBudget(body.bundle, { allowAgentsIndexes: true, serviceLabel });
+    baseBody = { ...body, bundle: Object.fromEntries(Object.entries(body.bundle).filter(([key]) => key !== "agents_indexes")) };
+  }
+  if (Buffer.byteLength(JSON.stringify(baseBody), "utf8") > MAX_RESPONSE_BYTES) {
+    fail("RULE_BUNDLE_RESPONSE_TOO_LARGE", `${serviceLabel}非索引响应超过 4 MiB 安全上限`);
+  }
+};
+
 const serviceRequest = async ({
   gatewayUrl,
   token,
@@ -445,6 +486,8 @@ const serviceRequest = async ({
   publicRequest = false,
 }) => {
   const trustedGateway = validateGatewayUrl(gatewayUrl);
+  const allowAgentsIndexes = body?.agents_index_contract === AGENTS_INDEX_CONTRACT;
+  const maxResponseBytes = allowAgentsIndexes ? MAX_AGENTS_INDEX_RESPONSE_BYTES : MAX_RESPONSE_BYTES;
   const request = Object.freeze({
     gatewayUrl: trustedGateway,
     resourcePath,
@@ -456,7 +499,7 @@ const serviceRequest = async ({
       "X-Rule-Protocol-Version": "1.0",
     }),
     body,
-    maxResponseBytes: MAX_RESPONSE_BYTES,
+    maxResponseBytes,
   });
   if (requestTransport) {
     let result;
@@ -476,9 +519,10 @@ const serviceRequest = async ({
     } catch {
       fail("RULE_BUNDLE_RESPONSE_NOT_JSON", `${serviceLabel}返回了非 JSON 内容`);
     }
-    if (Buffer.byteLength(encoded, "utf8") > MAX_RESPONSE_BYTES) {
-      fail("RULE_BUNDLE_RESPONSE_TOO_LARGE", `${serviceLabel}响应超过 4 MiB 安全上限`);
+    if (Buffer.byteLength(encoded, "utf8") > maxResponseBytes) {
+      fail("RULE_BUNDLE_RESPONSE_TOO_LARGE", `${serviceLabel}响应超过 ${maxResponseBytes / 1024 / 1024} MiB 安全上限`);
     }
+    assertRuleResponseBudget(result.body, { allowAgentsIndexes, serviceLabel });
     return { status, ok: status >= 200 && status < 300, body: result.body };
   }
   let response;
@@ -496,8 +540,8 @@ const serviceRequest = async ({
     fail("RULE_BUNDLE_NETWORK_FAILED", `${serviceLabel}不可用：${error.message}`);
   }
   const rawBody = await response.text().catch(() => "");
-  if (Buffer.byteLength(rawBody, "utf8") > MAX_RESPONSE_BYTES) {
-    fail("RULE_BUNDLE_RESPONSE_TOO_LARGE", `${serviceLabel}响应超过 4 MiB 安全上限`);
+  if (Buffer.byteLength(rawBody, "utf8") > maxResponseBytes) {
+    fail("RULE_BUNDLE_RESPONSE_TOO_LARGE", `${serviceLabel}响应超过 ${maxResponseBytes / 1024 / 1024} MiB 安全上限`);
   }
   let parsed = {};
   try {
@@ -505,6 +549,7 @@ const serviceRequest = async ({
   } catch {
     fail("RULE_BUNDLE_RESPONSE_NOT_JSON", `${serviceLabel}返回了非 JSON 内容`);
   }
+  assertRuleResponseBudget(parsed, { allowAgentsIndexes, serviceLabel });
   return { status: response.status, ok: response.ok, body: parsed };
 };
 
@@ -520,6 +565,8 @@ const requestBundle = async ({
       : "/v1/effective-rule-bundles/resolve",
     body: {
       repository_locator: repositoryLocator,
+      bundle_contract: LOCAL_LAYOUT,
+      agents_index_contract: AGENTS_INDEX_CONTRACT,
       ...(stage ? { stage } : {}),
       ...(knownSnapshotId ? { known_snapshot_id: knownSnapshotId } : {}),
       execution: {
@@ -543,15 +590,25 @@ const requestBundle = async ({
 };
 
 const requestBootstrapBundle = async ({
-  gatewayUrl, token, canonicalKey, standardDomain, knownSnapshotId, stage, fetchImpl, requestTransport,
+  gatewayUrl, canonicalKey, standardDomain, knownSnapshotId, stage, mis, execution, fetchImpl, requestTransport,
 }) => {
   const result = await serviceRequest({
     gatewayUrl,
-    token,
-    resourcePath: "/v1/l1-rule-bundles/bootstrap",
+    publicRequest: true,
+    resourcePath: "/v1/public/l1-rule-bundles/bootstrap",
     body: {
         repository_locator: canonicalKey,
+        bundle_contract: LOCAL_LAYOUT,
+        agents_index_contract: AGENTS_INDEX_CONTRACT,
         standard_domain: standardDomain,
+        mis,
+        execution: {
+          pull_id: execution.pullId,
+          execution_agent: execution.agent,
+          execution_agent_source: execution.source,
+          skill_name: execution.skillName,
+          skill_version: execution.skillVersion,
+        },
         ...(stage ? { stage } : {}),
         ...(knownSnapshotId ? { known_snapshot_id: knownSnapshotId } : {}),
     },
@@ -592,7 +649,17 @@ const normalizeRelativePath = (value, versionTwo = true) => {
   return relativePath;
 };
 
-const normalizeReleaseRefs = (releaseRefs) => {
+const normalizeLocalRuleSetName = (value) => {
+  if (typeof value !== "string" || !value || value !== value.trim() || value !== value.normalize("NFC")
+    || value.startsWith(".") || /[\/\\<>:"|?*\p{Cc}\p{Cf}\uD800-\uDFFF]/u.test(value) || /[. ]$/u.test(value)
+    || /^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:[.]|$)/iu.test(value)
+    || Buffer.byteLength(value, "utf8") > 200) {
+    fail("RULE_BUNDLE_RULE_SET_NAME_INVALID", "规则集名称缺失或不能安全作为目录名，请联系规则集维护者修正规则集名称");
+  }
+  return value;
+};
+
+const normalizeReleaseRefs = (releaseRefs, layout = false) => {
   if (!Array.isArray(releaseRefs) || !releaseRefs.length) {
     fail("RULE_BUNDLE_RELEASE_REFS_INVALID", "规则包缺少已发布 release 引用");
   }
@@ -635,7 +702,12 @@ const normalizeReleaseRefs = (releaseRefs) => {
     const key = `${ruleSetId}\0${releaseId}\0${scopeLevel}`;
     if (seen.has(key)) fail("RULE_BUNDLE_RELEASE_REFS_INVALID", `release 引用重复：${releaseId}`);
     seen.add(key);
+    const localName = layout ? normalizeLocalRuleSetName(value.local_rule_set_name) : "";
+    if (layout && !DOMAINS.has(value.standard_domain)) {
+      fail("RULE_BUNDLE_RELEASE_DOMAIN_INVALID", `release ${releaseId} 缺少有效的规则集领域`);
+    }
     return {
+      ...(layout ? { standard_domain: value.standard_domain, local_rule_set_name: localName } : {}),
       rule_set_id: ruleSetId,
       release_id: releaseId,
       scope_level: scopeLevel,
@@ -689,11 +761,13 @@ const assertCanonicalL2PathBindings = (releaseRefs, relativePaths) => {
   }
 };
 
-const validateBundle = (body, knownSnapshotId, expectedStage = "") => {
-  const expectedSchema = expectedStage ? STAGED_BUNDLE_SCHEMA : BUNDLE_SCHEMA;
+const validateBundle = (body, knownSnapshotId, expectedStage = "", requireLayout = false) => {
+  const layout = body?.schema_version === LAYOUT_BUNDLE_SCHEMA;
+  if (requireLayout && !layout) fail("RULE_BUNDLE_LAYOUT_UNSUPPORTED", "规则包服务尚未支持 scope-domain-ruleset/v1 新目录合同，请先升级服务端；本地规则未修改");
+  const expectedSchema = requireLayout ? LAYOUT_BUNDLE_SCHEMA : expectedStage ? STAGED_BUNDLE_SCHEMA : BUNDLE_SCHEMA;
   const acceptedSchemas = expectedStage
-    ? [STAGED_BUNDLE_SCHEMA]
-    : [LEGACY_BUNDLE_SCHEMA, BUNDLE_SCHEMA];
+    ? [STAGED_BUNDLE_SCHEMA, LAYOUT_BUNDLE_SCHEMA]
+    : [LEGACY_BUNDLE_SCHEMA, BUNDLE_SCHEMA, LAYOUT_BUNDLE_SCHEMA];
   if (!isObject(body) || !acceptedSchemas.includes(body.schema_version)) {
     fail("RULE_BUNDLE_RESPONSE_INVALID", `规则包响应必须为 ${expectedSchema}`);
   }
@@ -725,16 +799,18 @@ const validateBundle = (body, knownSnapshotId, expectedStage = "") => {
   if (!SHA256_PATTERN.test(text(snapshot.snapshot_id)) || !SHA256_PATTERN.test(text(snapshot.manifest_hash))) {
     fail("RULE_BUNDLE_HASH_INVALID", "规则包 snapshot_id 或 manifest_hash 非法");
   }
-  const releaseRefs = normalizeReleaseRefs(snapshot.release_refs);
+  const releaseRefs = normalizeReleaseRefs(snapshot.release_refs, layout);
   if (!Number.isSafeInteger(snapshot.total_bytes) || snapshot.total_bytes < 0) {
     fail("RULE_BUNDLE_TOTAL_BYTES_INVALID", "规则包总字节数非法");
   }
+  const hasAgentsIndexes = validateAgentsIndexes(body, releaseRefs, fail);
   const snapshotProjection = {
     ...(currentVersion ? { resolver_version: body.schema_version } : {}),
     repository_id: repository.repository_id,
     canonical_key: repository.canonical_key,
     standard_domain: repository.standard_domain,
     manifest_hash: snapshot.manifest_hash,
+    ...(snapshot.agents_indexes_hash ? { agents_indexes_hash: snapshot.agents_indexes_hash } : {}),
     release_refs: releaseRefs,
     ...(expectedStage ? {
       stage: expectedStage,
@@ -749,7 +825,7 @@ const validateBundle = (body, knownSnapshotId, expectedStage = "") => {
     if (!knownSnapshotId || snapshot.snapshot_id !== knownSnapshotId || files.length) {
       fail("RULE_BUNDLE_NOT_MODIFIED_INVALID", "not_modified 与本地已校验快照不一致");
     }
-    return { status: body.status, snapshot: { ...snapshot, repository, release_refs: releaseRefs }, files: [] };
+    return { status: body.status, snapshot: { ...snapshot, repository, release_refs: releaseRefs }, files: [], ...(hasAgentsIndexes ? { agents_indexes: body.agents_indexes } : {}) };
   }
   if (!files.length) fail("RULE_BUNDLE_FILES_MISSING", "ready 规则包没有文件");
 
@@ -782,7 +858,15 @@ const validateBundle = (body, knownSnapshotId, expectedStage = "") => {
     if (actualBytes !== byteSize || actualHash !== declaredHash) {
       fail("RULE_BUNDLE_FILE_HASH_MISMATCH", `规则文件内容校验失败：${relativePath}`);
     }
-    return { relative_path: relativePath, content, sha256: actualHash, byte_size: actualBytes };
+    let identity = {};
+    if (layout) {
+      const owners = releaseRefs.filter((ref) => ref.rule_set_id === file.rule_set_id && ref.release_id === file.release_id);
+      if (owners.length !== 1 || relativePath.split("/")[0] !== owners[0].scope_level.toLowerCase()) {
+        fail("RULE_BUNDLE_FILE_RELEASE_INVALID", `规则文件没有唯一匹配的 release：${relativePath}`);
+      }
+      identity = { rule_set_id: file.rule_set_id, release_id: file.release_id };
+    }
+    return { relative_path: relativePath, ...identity, content, sha256: actualHash, byte_size: actualBytes };
   }).sort((left, right) => pathOrder(left.relative_path, right.relative_path));
 
   if (currentVersion) {
@@ -791,8 +875,9 @@ const validateBundle = (body, knownSnapshotId, expectedStage = "") => {
 
   const totalBytes = normalizedFiles.reduce((sum, file) => sum + file.byte_size, 0);
   if (snapshot.total_bytes !== totalBytes) fail("RULE_BUNDLE_TOTAL_BYTES_MISMATCH", "规则包总字节数校验失败");
-  const projection = normalizedFiles.map(({ relative_path, sha256, byte_size }) => ({
+  const projection = normalizedFiles.map(({ relative_path, rule_set_id, release_id, sha256, byte_size }) => ({
     relative_path,
+    ...(layout ? { rule_set_id, release_id } : {}),
     sha256,
     byte_size,
   }));
@@ -802,11 +887,14 @@ const validateBundle = (body, knownSnapshotId, expectedStage = "") => {
     status: body.status,
     snapshot: { ...snapshot, repository, release_refs: releaseRefs, total_bytes: totalBytes },
     files: normalizedFiles,
+    ...(hasAgentsIndexes ? { agents_indexes: body.agents_indexes } : {}),
   };
 };
 
-const validateBootstrapBundle = (body, knownSnapshotId, expectedStage = "") => {
-  const expectedSchema = expectedStage ? STAGED_BOOTSTRAP_BUNDLE_SCHEMA : BOOTSTRAP_BUNDLE_SCHEMA;
+const validateBootstrapBundle = (body, knownSnapshotId, expectedStage = "", requireLayout = false) => {
+  const layout = body?.schema_version === LAYOUT_BOOTSTRAP_BUNDLE_SCHEMA;
+  if (requireLayout && !layout) fail("RULE_BUNDLE_LAYOUT_UNSUPPORTED", "L1 bootstrap 服务尚未支持 scope-domain-ruleset/v1 新目录合同，请先升级服务端；本地规则未修改");
+  const expectedSchema = layout ? LAYOUT_BOOTSTRAP_BUNDLE_SCHEMA : expectedStage ? STAGED_BOOTSTRAP_BUNDLE_SCHEMA : BOOTSTRAP_BUNDLE_SCHEMA;
   if (!isObject(body) || body.schema_version !== expectedSchema
     || !new Set(["ready", "not_modified"]).has(body.status) || !isObject(body.snapshot)) {
     fail("RULE_BUNDLE_BOOTSTRAP_RESPONSE_INVALID", `L1 bootstrap 响应必须为 ${expectedSchema}`);
@@ -825,14 +913,16 @@ const validateBootstrapBundle = (body, knownSnapshotId, expectedStage = "") => {
   } else if (snapshot.stage != null || snapshot.dependency_hash != null) {
     fail("RULE_BUNDLE_BOOTSTRAP_RESPONSE_INVALID", "旧版 L1 bootstrap 响应不得携带阶段上下文");
   }
-  const releaseRefs = normalizeReleaseRefs(snapshot.release_refs);
-  if (releaseRefs.some((release) => release.scope_level !== "L1")) {
-    fail("RULE_BUNDLE_BOOTSTRAP_RESPONSE_INVALID", "L1 bootstrap 响应包含非 L1 release");
+  const releaseRefs = normalizeReleaseRefs(snapshot.release_refs, layout);
+  if (releaseRefs.some((release) => release.scope_level !== "L1" || (layout && release.standard_domain !== snapshot.standard_domain))) {
+    fail("RULE_BUNDLE_BOOTSTRAP_RESPONSE_INVALID", "L1 bootstrap 响应包含非 L1 或其他领域的 release");
   }
+  const hasAgentsIndexes = validateAgentsIndexes(body, releaseRefs, fail);
   const snapshotProjection = {
     bootstrap_version: expectedSchema,
     standard_domain: snapshot.standard_domain,
     manifest_hash: snapshot.manifest_hash,
+    ...(snapshot.agents_indexes_hash ? { agents_indexes_hash: snapshot.agents_indexes_hash } : {}),
     release_refs: releaseRefs,
     ...(expectedStage ? {
       stage: expectedStage,
@@ -851,6 +941,7 @@ const validateBootstrapBundle = (body, knownSnapshotId, expectedStage = "") => {
       status: body.status,
       snapshot: { ...snapshot, release_refs: releaseRefs },
       files: [],
+      ...(hasAgentsIndexes ? { agents_indexes: body.agents_indexes } : {}),
     };
   }
   const syntheticRepository = {
@@ -858,13 +949,14 @@ const validateBootstrapBundle = (body, knownSnapshotId, expectedStage = "") => {
     canonical_key: `l1-bootstrap/${snapshot.standard_domain}`,
     standard_domain: snapshot.standard_domain,
   };
-  const syntheticBundleSchema = expectedStage ? STAGED_BUNDLE_SCHEMA : BUNDLE_SCHEMA;
+  const syntheticBundleSchema = layout ? LAYOUT_BUNDLE_SCHEMA : expectedStage ? STAGED_BUNDLE_SCHEMA : BUNDLE_SCHEMA;
   const syntheticProjection = {
     resolver_version: syntheticBundleSchema,
     repository_id: syntheticRepository.repository_id,
     canonical_key: syntheticRepository.canonical_key,
     standard_domain: syntheticRepository.standard_domain,
     manifest_hash: snapshot.manifest_hash,
+    ...(snapshot.agents_indexes_hash ? { agents_indexes_hash: snapshot.agents_indexes_hash } : {}),
     release_refs: releaseRefs,
     ...(expectedStage ? {
       stage: expectedStage,
@@ -880,6 +972,7 @@ const validateBootstrapBundle = (body, knownSnapshotId, expectedStage = "") => {
       repository: syntheticRepository,
       release_refs: releaseRefs,
       manifest_hash: snapshot.manifest_hash,
+      ...(snapshot.agents_indexes_hash ? { agents_indexes_hash: snapshot.agents_indexes_hash } : {}),
       total_bytes: snapshot.total_bytes,
       ...(expectedStage ? {
         stage: expectedStage,
@@ -887,6 +980,7 @@ const validateBootstrapBundle = (body, knownSnapshotId, expectedStage = "") => {
       } : {}),
     },
     files: body.files,
+    ...(hasAgentsIndexes ? { agents_indexes: body.agents_indexes } : {}),
   }, "", expectedStage);
   if (validated.files.some((file) => !file.relative_path.startsWith("l1/"))) {
     fail("RULE_BUNDLE_BOOTSTRAP_RESPONSE_INVALID", "L1 bootstrap 响应包含非 L1 文件");
@@ -895,6 +989,7 @@ const validateBootstrapBundle = (body, knownSnapshotId, expectedStage = "") => {
     status: "ready",
     snapshot: { ...snapshot, release_refs: releaseRefs },
     files: validated.files,
+    ...(hasAgentsIndexes ? { agents_indexes: body.agents_indexes } : {}),
   };
 };
 
@@ -937,9 +1032,28 @@ const readBootstrapManifest = async (repoRoot) => {
   }
 };
 
+const isNamedLocalManifest = (manifest) => manifest?.local_layout === LOCAL_LAYOUT
+  && [LEGACY_LAYOUT_LOCAL_MANIFEST_SCHEMA, PREVIOUS_LAYOUT_LOCAL_MANIFEST_SCHEMA, LAYOUT_LOCAL_MANIFEST_SCHEMA, UNIFIED_LOCAL_SCHEMA].includes(manifest.schema_version);
+const isNamedBootstrapManifest = (manifest) => manifest?.local_layout === LOCAL_LAYOUT
+  && [LEGACY_LAYOUT_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA, LAYOUT_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA, UNIFIED_L1_LOCAL_SCHEMA].includes(manifest.schema_version);
+const hasAgentsManifestFields = (manifest) => ["agents_index_contract", "agents_indexes_hash", "agents_indexes",
+  "managed_agents_indexes", "managed_agents_index_hashes", "managed_agents_index_sizes", "agents_index_warnings"]
+  .some((key) => Object.hasOwn(manifest, key));
+const manifestIndexPlacement = (manifest) => [LAYOUT_LOCAL_MANIFEST_SCHEMA, UNIFIED_LOCAL_SCHEMA].includes(manifest.schema_version) && isNamedLocalManifest(manifest)
+  ? "named-team"
+  : manifest.schema_version === AGENTS_LOCAL_MANIFEST_SCHEMA && manifest.local_layout === FLAT_LOCAL_LAYOUT
+    ? "flat-team" : "separate";
+const validateOptionalAgentsManifest = (manifest, required = false) =>
+  required || hasAgentsManifestFields(manifest)
+    ? validateAgentsManifest(manifest, { indexPlacement: manifestIndexPlacement(manifest) }) : true;
+
 const isFlatLocalManifest = (manifest) => [
   LEGACY_FLAT_LOCAL_MANIFEST_SCHEMA,
   FLAT_LOCAL_MANIFEST_SCHEMA,
+  LEGACY_AGENTS_LOCAL_MANIFEST_SCHEMA,
+  AGENTS_LOCAL_MANIFEST_SCHEMA,
+  LAYOUT_LOCAL_MANIFEST_SCHEMA,
+  UNIFIED_LOCAL_SCHEMA,
 ].includes(manifest?.schema_version);
 
 const manifestBundleSchema = (manifest) => {
@@ -983,42 +1097,71 @@ const suffixFileName = (fileName, sourcePath, attempt = 0) => {
   return `${stem}--${sha256Hex(`${sourcePath}\0${attempt}`).slice(0, 16)}${extension}`;
 };
 
-const localFilesForBundle = (bundle) => {
-  const versionTwo = [BUNDLE_SCHEMA, STAGED_BUNDLE_SCHEMA].includes(bundle.snapshot.resolver_version);
+const isLayoutManagedPath = (value) => {
+  const pathValue = normalizeRelativePath(value, true);
+  const parts = pathValue.split("/");
+  return parts.length === 4 && ["company", "team"].includes(parts[0])
+    && ["fe", "java"].includes(parts[1]) && normalizeLocalRuleSetName(parts[2]) === parts[2];
+};
+
+const localFilesForBundle = (bundle, { indexPlacement = "named-team" } = {}) => {
+  const layout = bundle.snapshot.resolver_version === LAYOUT_BUNDLE_SCHEMA;
+  const versionTwo = bundle.snapshot.resolver_version !== LEGACY_BUNDLE_SCHEMA;
+  const directoryOwners = new Map();
+  const refs = normalizeReleaseRefs(bundle.snapshot.release_refs, layout);
+  if (layout) for (const ref of refs) {
+    const dir = `${ref.scope_level === "L1" ? "company" : "team"}/${ref.standard_domain === "frontend" ? "fe" : "java"}/${ref.local_rule_set_name}`;
+    const key = pathKey(dir);
+    if (directoryOwners.has(key)) fail("RULE_BUNDLE_RULE_SET_NAME_COLLISION", `同层级和领域的规则集目录名称冲突：${ref.local_rule_set_name}`);
+    directoryOwners.set(key, ref.rule_set_id);
+  }
   const candidates = bundle.files.map((file) => {
     const sourcePath = normalizeRelativePath(file.relative_path, versionTwo);
     const parts = sourcePath.split("/");
     const scope = parts[0];
     const fileName = parts.at(-1);
-    if ((scope !== "l1" && scope !== "l2") || !fileName) {
-      fail("RULE_BUNDLE_FILE_PATH_INVALID", `规则文件层级非法：${sourcePath}`);
-    }
-    const inferredRuleSetId = parts.length > 2
-      ? parts[1]
-      : fileName.replace(/[.]md$/iu, "");
-    const candidate = scope === "l1"
-      ? `company/${fileName}`
-      : `team/${inferredRuleSetId}/${fileName}`;
+    if ((scope !== "l1" && scope !== "l2") || !fileName) fail("RULE_BUNDLE_FILE_PATH_INVALID", `规则文件层级非法：${sourcePath}`);
+    const owners = layout ? refs.filter((ref) => ref.rule_set_id === file.rule_set_id && ref.release_id === file.release_id) : [];
+    if (layout && (owners.length !== 1 || owners[0].scope_level.toLowerCase() !== scope)) fail("RULE_BUNDLE_FILE_RELEASE_INVALID", `规则文件没有唯一匹配的 release：${sourcePath}`);
+    const owner = owners[0];
+    const inferredRuleSetId = parts.length > 2 ? parts[1] : fileName.replace(/[.]md$/iu, "");
+    const candidate = layout
+      ? `${scope === "l1" ? "company" : "team"}/${owner.standard_domain === "frontend" ? "fe" : "java"}/${owner.local_rule_set_name}/${fileName}`
+      : scope === "l1" ? `company/${fileName}` : `team/${inferredRuleSetId}/${fileName}`;
     return { ...file, source_relative_path: sourcePath, local_relative_path: candidate };
   });
-  const occupied = new Set();
+  const reservedIndexPaths = agentsIndexDestinations(bundle.agents_indexes, refs, { indexPlacement });
+  if (indexPlacement !== "separate") for (const entry of bundle.agents_indexes || []) {
+    const ref = refs.find(item => item.rule_set_id === entry.rule_set_id && item.release_id === entry.release_id);
+    if (ref?.scope_level !== "L2") continue;
+    const expectedDirectory = path.posix.dirname(reservedIndexPaths.get(entry.rule_set_id));
+    const sourceDirectories = new Set([ref.rule_set_name || ref.rule_set_id, ref.rule_set_id]);
+    for (const file of candidates.filter(item => item.source_relative_path.startsWith("l2/"))) {
+      const parts = file.source_relative_path.split("/");
+      const sourceDirectory = parts.length > 2 ? parts[1] : parts[1].replace(/[.]md$/iu, "");
+      const owned = layout ? file.rule_set_id === ref.rule_set_id && file.release_id === ref.release_id : sourceDirectories.has(sourceDirectory);
+      if (owned && path.posix.dirname(file.local_relative_path) !== expectedDirectory) {
+        fail("RULE_BUNDLE_FILE_PATH_INVALID", "L2 索引所属规则集目录与实际规则文件不一致");
+      }
+    }
+  }
+  const occupied = new Set([...reservedIndexPaths.values()].map(pathKey));
   return candidates.map((file) => {
     let localPath = file.local_relative_path;
     let attempt = 0;
     while (occupied.has(pathKey(localPath))) {
       const parts = localPath.split("/");
-      const fileName = parts.at(-1);
-      localPath = [...parts.slice(0, -1), suffixFileName(fileName, file.source_relative_path, attempt++)].join("/");
+      localPath = [...parts.slice(0, -1), suffixFileName(parts.at(-1), file.source_relative_path, attempt++)].join("/");
     }
-    if (!isFlatManagedPath(localPath, versionTwo)) {
-      fail("RULE_BUNDLE_FILE_PATH_INVALID", `规则本地路径非法：${localPath}`);
-    }
+    if (!(layout ? isLayoutManagedPath(localPath) : isFlatManagedPath(localPath, versionTwo))) fail("RULE_BUNDLE_FILE_PATH_INVALID", `规则本地路径非法：${localPath}`);
     occupied.add(pathKey(localPath));
     return { ...file, local_relative_path: localPath };
   }).sort((left, right) => binaryPathOrder(left.local_relative_path, right.local_relative_path));
 };
 
 const validateLocalManifestStructure = (manifest) => {
+  if (manifest?.schema_version === UNIFIED_LOCAL_SCHEMA) return validateResolutionManifest(manifest)
+    && validateLocalManifestStructure({ ...manifest, schema_version: LAYOUT_LOCAL_MANIFEST_SCHEMA });
   if (
     !manifest
     || ![
@@ -1026,6 +1169,9 @@ const validateLocalManifestStructure = (manifest) => {
       LOCAL_MANIFEST_SCHEMA,
       LEGACY_FLAT_LOCAL_MANIFEST_SCHEMA,
       FLAT_LOCAL_MANIFEST_SCHEMA,
+      LEGACY_AGENTS_LOCAL_MANIFEST_SCHEMA,
+      AGENTS_LOCAL_MANIFEST_SCHEMA,
+      LAYOUT_LOCAL_MANIFEST_SCHEMA,
     ].includes(manifest.schema_version)
     || !SHA256_PATTERN.test(text(manifest.snapshot_id))
     || !SHA256_PATTERN.test(text(manifest.manifest_hash))
@@ -1039,19 +1185,23 @@ const validateLocalManifestStructure = (manifest) => {
     || !isObject(manifest.managed_file_sizes)
   ) return false;
   const flat = isFlatLocalManifest(manifest);
+  const layout = isNamedLocalManifest(manifest);
+  if (manifest.schema_version === LAYOUT_LOCAL_MANIFEST_SCHEMA && !layout) return false;
   const bundleSchema = manifestBundleSchema(manifest);
-  if (![LEGACY_BUNDLE_SCHEMA, BUNDLE_SCHEMA, STAGED_BUNDLE_SCHEMA].includes(bundleSchema)) return false;
+  if (![LEGACY_BUNDLE_SCHEMA, BUNDLE_SCHEMA, STAGED_BUNDLE_SCHEMA, LAYOUT_BUNDLE_SCHEMA].includes(bundleSchema)) return false;
+  if (!layout && bundleSchema === LAYOUT_BUNDLE_SCHEMA) return false;
   if (!flat && (manifest.schema_version === LOCAL_MANIFEST_SCHEMA
     ? manifest.resolver_version !== BUNDLE_SCHEMA
     : manifest.resolver_version != null)) return false;
   if (flat && (
-    manifest.local_layout !== FLAT_LOCAL_LAYOUT
+    manifest.local_layout !== (layout ? LOCAL_LAYOUT : FLAT_LOCAL_LAYOUT)
     || !isObject(manifest.managed_file_sources)
+    || (layout && (!isObject(manifest.managed_file_releases) || bundleSchema !== LAYOUT_BUNDLE_SCHEMA))
   )) return false;
-  const stage = manifest.schema_version === FLAT_LOCAL_MANIFEST_SCHEMA
+  const stage = [FLAT_LOCAL_MANIFEST_SCHEMA, LEGACY_AGENTS_LOCAL_MANIFEST_SCHEMA, AGENTS_LOCAL_MANIFEST_SCHEMA, LAYOUT_LOCAL_MANIFEST_SCHEMA].includes(manifest.schema_version)
     ? normalizeDeliveryStage(manifest.stage)
     : "";
-  if (bundleSchema === STAGED_BUNDLE_SCHEMA) {
+  if (bundleSchema === STAGED_BUNDLE_SCHEMA || (layout && stage)) {
     if (!stage || !SHA256_PATTERN.test(text(manifest.dependency_hash))) return false;
   } else if (stage || manifest.dependency_hash != null) return false;
   if (manifest.schema_version === LEGACY_FLAT_LOCAL_MANIFEST_SCHEMA
@@ -1065,20 +1215,22 @@ const validateLocalManifestStructure = (manifest) => {
   for (const managedPath of [...uniquePaths].sort(pathOrder)) {
     if (typeof managedPath !== "string") return false;
     if (!flat && !managedPath.startsWith(`${manifest.standard_domain}/`)) return false;
-    if (flat && !isFlatManagedPath(managedPath, bundleSchema)) return false;
+    if (flat && !(layout ? isLayoutManagedPath(managedPath) : isFlatManagedPath(managedPath, bundleSchema))) return false;
     const sourcePath = manifestSourcePath(manifest, managedPath);
     if (flat && !Object.hasOwn(manifest.managed_file_sources, managedPath)) return false;
     const fileHash = manifest.managed_file_hashes[managedPath];
     const fileSize = manifest.managed_file_sizes[managedPath];
     if (!SHA256_PATTERN.test(text(fileHash)) || !Number.isSafeInteger(fileSize) || fileSize < 0) return false;
-    projection.push({ relative_path: sourcePath, sha256: fileHash, byte_size: fileSize });
+    const identity = layout ? manifest.managed_file_releases[managedPath] : {};
+    if (layout && (!isObject(identity) || !text(identity.rule_set_id) || !text(identity.release_id))) return false;
+    projection.push({ relative_path: sourcePath, ...(layout ? { rule_set_id: identity.rule_set_id, release_id: identity.release_id } : {}), sha256: fileHash, byte_size: fileSize });
   }
   // Flattening and collision suffixes can change local filename order. The
   // server manifest hash always uses the original source paths.
   if (flat) projection.sort((left, right) => pathOrder(left.relative_path, right.relative_path));
   if (sha256Hex(canonicalJson(projection)) !== manifest.manifest_hash) return false;
   if (projection.reduce((sum, file) => sum + file.byte_size, 0) !== manifest.total_bytes) return false;
-  const releaseRefs = normalizeReleaseRefs(manifest.release_refs);
+  const releaseRefs = normalizeReleaseRefs(manifest.release_refs, layout);
   if (versionTwo) {
     try {
       assertCanonicalL2PathBindings(releaseRefs, projection.map((file) => file.relative_path));
@@ -1086,15 +1238,28 @@ const validateLocalManifestStructure = (manifest) => {
       return false;
     }
   }
+  const indexPlacement = manifestIndexPlacement(manifest);
+  if (layout || indexPlacement === "flat-team") {
+    if (layout && Object.keys(manifest.managed_file_releases).length !== uniquePaths.size) return false;
+    const derived = localFilesForBundle({ snapshot: { resolver_version: bundleSchema, release_refs: releaseRefs },
+      files: projection, agents_indexes: manifest.agents_indexes }, { indexPlacement });
+    if (canonicalJson(Object.fromEntries(derived.map(file => [file.local_relative_path, file.source_relative_path])))
+      !== canonicalJson(manifest.managed_file_sources)) return false;
+  }
   const snapshotProjection = {
     ...(bundleSchema !== LEGACY_BUNDLE_SCHEMA ? { resolver_version: bundleSchema } : {}),
     repository_id: manifest.repository.repository_id,
     canonical_key: manifest.repository.canonical_key,
     standard_domain: manifest.repository.standard_domain,
     manifest_hash: manifest.manifest_hash,
+    ...(manifest.agents_indexes_hash ? { agents_indexes_hash: manifest.agents_indexes_hash } : {}),
     release_refs: releaseRefs,
     ...(stage ? { stage, dependency_hash: manifest.dependency_hash } : {}),
   };
+  const indexCapable = layout
+    ? [PREVIOUS_LAYOUT_LOCAL_MANIFEST_SCHEMA, LAYOUT_LOCAL_MANIFEST_SCHEMA].includes(manifest.schema_version)
+    : [LEGACY_AGENTS_LOCAL_MANIFEST_SCHEMA, AGENTS_LOCAL_MANIFEST_SCHEMA].includes(manifest.schema_version);
+  if (indexCapable ? !validateOptionalAgentsManifest(manifest, !layout) : hasAgentsManifestFields(manifest)) return false;
   return sha256Hex(canonicalJson(snapshotProjection)) === manifest.snapshot_id;
 };
 
@@ -1112,16 +1277,34 @@ const validateLocalManifestFiles = async (repoRoot, manifest) => {
       || content.byteLength !== manifest.managed_file_sizes[managedPath]
     ) return false;
   }
+  return validateLocalAgentsIndexFiles(rulesRoot, manifest);
+};
+
+const validateLocalAgentsIndexFiles = async (rulesRoot, manifest) => {
+  for (const name of manifest.managed_agents_indexes || []) {
+    const fullPath = path.join(rulesRoot, ...name.split("/"));
+    await assertNoSymlink(fullPath, rulesRoot);
+    if (!await exists(fullPath)) return false;
+    const content = await readFile(fullPath);
+    if (sha256Hex(content) !== manifest.managed_agents_index_hashes[name]
+      || content.byteLength !== manifest.managed_agents_index_sizes[name]) return false;
+  }
   return true;
 };
 
 const validateBootstrapManifestStructure = (manifest) => {
+  if (manifest?.schema_version === UNIFIED_L1_LOCAL_SCHEMA) return validateResolutionManifest(manifest)
+    && ["user_explicit", "repository_configuration"].includes(manifest.domain_source)
+    && manifest.domain_source === manifest.resolution.domain_source
+    && validateBootstrapManifestStructure({ ...manifest, schema_version: LAYOUT_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA, domain_source: "user_explicit" });
   if (!manifest || ![
     LEGACY_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA,
     BOOTSTRAP_LOCAL_MANIFEST_SCHEMA,
+    AGENTS_BOOTSTRAP_MANIFEST_SCHEMA,
+    LAYOUT_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA,
   ].includes(manifest.schema_version)
-    || ![BOOTSTRAP_BUNDLE_SCHEMA, STAGED_BOOTSTRAP_BUNDLE_SCHEMA].includes(manifest.bundle_schema)
-    || manifest.local_layout !== FLAT_LOCAL_LAYOUT
+    || ![BOOTSTRAP_BUNDLE_SCHEMA, STAGED_BOOTSTRAP_BUNDLE_SCHEMA, LAYOUT_BOOTSTRAP_BUNDLE_SCHEMA].includes(manifest.bundle_schema)
+    || manifest.local_layout !== (isNamedBootstrapManifest(manifest) ? LOCAL_LAYOUT : FLAT_LOCAL_LAYOUT)
     || !SHA256_PATTERN.test(text(manifest.snapshot_id))
     || !SHA256_PATTERN.test(text(manifest.manifest_hash))
     || !DOMAINS.has(manifest.standard_domain)
@@ -1130,10 +1313,14 @@ const validateBootstrapManifestStructure = (manifest) => {
     || !isObject(manifest.managed_file_sources)
     || !isObject(manifest.managed_file_hashes)
     || !isObject(manifest.managed_file_sizes)) return false;
-  const stage = manifest.schema_version === BOOTSTRAP_LOCAL_MANIFEST_SCHEMA
+  const layout = isNamedBootstrapManifest(manifest);
+  if (manifest.schema_version === LAYOUT_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA && !layout) return false;
+  if (!layout && manifest.bundle_schema === LAYOUT_BOOTSTRAP_BUNDLE_SCHEMA) return false;
+  if (layout && (manifest.bundle_schema !== LAYOUT_BOOTSTRAP_BUNDLE_SCHEMA || !isObject(manifest.managed_file_releases))) return false;
+  const stage = [BOOTSTRAP_LOCAL_MANIFEST_SCHEMA, AGENTS_BOOTSTRAP_MANIFEST_SCHEMA, LAYOUT_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA].includes(manifest.schema_version)
     ? normalizeDeliveryStage(manifest.stage)
     : "";
-  if (manifest.bundle_schema === STAGED_BOOTSTRAP_BUNDLE_SCHEMA) {
+  if (manifest.bundle_schema === STAGED_BOOTSTRAP_BUNDLE_SCHEMA || (layout && stage)) {
     if (!stage || !SHA256_PATTERN.test(text(manifest.dependency_hash))) return false;
   } else if (stage || manifest.dependency_hash != null) return false;
   if (manifest.schema_version === LEGACY_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA
@@ -1143,7 +1330,7 @@ const validateBootstrapManifestStructure = (manifest) => {
     || Object.keys(manifest.managed_file_sources).length !== uniquePaths.size) return false;
   const projection = [];
   for (const managedPath of [...uniquePaths].sort(binaryPathOrder)) {
-    if (typeof managedPath !== "string" || !isFlatManagedPath(managedPath, BUNDLE_SCHEMA)
+    if (typeof managedPath !== "string" || !(layout ? isLayoutManagedPath(managedPath) : isFlatManagedPath(managedPath, BUNDLE_SCHEMA))
       || !managedPath.startsWith("company/")
       || !Object.hasOwn(manifest.managed_file_sources, managedPath)) return false;
     const sourcePath = normalizeRelativePath(manifest.managed_file_sources[managedPath], true);
@@ -1151,17 +1338,28 @@ const validateBootstrapManifestStructure = (manifest) => {
     const fileHash = text(manifest.managed_file_hashes[managedPath]);
     const fileSize = manifest.managed_file_sizes[managedPath];
     if (!SHA256_PATTERN.test(fileHash) || !Number.isSafeInteger(fileSize) || fileSize < 0) return false;
-    projection.push({ relative_path: sourcePath, sha256: fileHash, byte_size: fileSize });
+    const identity = layout ? manifest.managed_file_releases[managedPath] : {};
+    if (layout && (!isObject(identity) || !text(identity.rule_set_id) || !text(identity.release_id))) return false;
+    projection.push({ relative_path: sourcePath, ...(layout ? { rule_set_id: identity.rule_set_id, release_id: identity.release_id } : {}), sha256: fileHash, byte_size: fileSize });
   }
   projection.sort((left, right) => binaryPathOrder(left.relative_path, right.relative_path));
   if (sha256Hex(canonicalJson(projection)) !== manifest.manifest_hash
     || projection.reduce((sum, file) => sum + file.byte_size, 0) !== manifest.total_bytes) return false;
-  const releaseRefs = normalizeReleaseRefs(manifest.release_refs);
-  if (releaseRefs.some((release) => release.scope_level !== "L1")) return false;
+  const releaseRefs = normalizeReleaseRefs(manifest.release_refs, layout);
+  if (releaseRefs.some((release) => release.scope_level !== "L1" || (layout && release.standard_domain !== manifest.standard_domain))) return false;
+  if (layout) {
+    if (Object.keys(manifest.managed_file_releases).length !== uniquePaths.size) return false;
+    const derived = localFilesForBundle({ snapshot: { resolver_version: LAYOUT_BUNDLE_SCHEMA, release_refs: releaseRefs }, files: projection }, { indexPlacement: "separate" });
+    if (derived.some((file) => !uniquePaths.has(file.local_relative_path) || manifest.managed_file_sources[file.local_relative_path] !== file.relative_path)) return false;
+  }
+  const indexCapable = manifest.schema_version === LAYOUT_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA
+    || (manifest.schema_version === AGENTS_BOOTSTRAP_MANIFEST_SCHEMA && !layout);
+  if (indexCapable ? !validateOptionalAgentsManifest(manifest, !layout) : hasAgentsManifestFields(manifest)) return false;
   return sha256Hex(canonicalJson({
     bootstrap_version: manifest.bundle_schema,
     standard_domain: manifest.standard_domain,
     manifest_hash: manifest.manifest_hash,
+    ...(manifest.agents_indexes_hash ? { agents_indexes_hash: manifest.agents_indexes_hash } : {}),
     release_refs: releaseRefs,
     ...(stage ? { stage, dependency_hash: manifest.dependency_hash } : {}),
   })) === manifest.snapshot_id;
@@ -1178,7 +1376,7 @@ const validateBootstrapManifestFiles = async (repoRoot, manifest) => {
     if (sha256Hex(content) !== manifest.managed_file_hashes[managedPath]
       || content.byteLength !== manifest.managed_file_sizes[managedPath]) return false;
   }
-  return true;
+  return validateLocalAgentsIndexFiles(rulesRoot, manifest);
 };
 
 const buildLocalManifest = (bundle) => {
@@ -1186,8 +1384,8 @@ const buildLocalManifest = (bundle) => {
   const localFiles = localFilesForBundle(bundle);
   const managedFiles = localFiles.map((file) => file.local_relative_path);
   return {
-    schema_version: FLAT_LOCAL_MANIFEST_SCHEMA,
-    local_layout: FLAT_LOCAL_LAYOUT,
+    schema_version: LAYOUT_LOCAL_MANIFEST_SCHEMA,
+    local_layout: LOCAL_LAYOUT,
     resolver_version: bundle.snapshot.resolver_version || LEGACY_BUNDLE_SCHEMA,
     snapshot_id: bundle.snapshot.snapshot_id,
     manifest_hash: bundle.snapshot.manifest_hash,
@@ -1204,6 +1402,9 @@ const buildLocalManifest = (bundle) => {
     release_refs: bundle.snapshot.release_refs,
     total_bytes: bundle.snapshot.total_bytes,
     managed_files: managedFiles,
+    managed_file_releases: Object.fromEntries(localFiles.map((file) => [
+      file.local_relative_path, { rule_set_id: file.rule_set_id, release_id: file.release_id },
+    ])),
     managed_file_sources: Object.fromEntries(localFiles.map((file) => [
       file.local_relative_path,
       file.source_relative_path,
@@ -1216,6 +1417,7 @@ const buildLocalManifest = (bundle) => {
       file.local_relative_path,
       file.byte_size,
     ])),
+    ...agentsManifestFields(bundle, localFiles, { indexPlacement: "named-team" }),
     installed_at: new Date().toISOString(),
   };
 };
@@ -1225,15 +1427,15 @@ const buildBootstrapManifest = (bundle, domainSource, domainEvidence) => {
     ...bundle,
     snapshot: {
       ...bundle.snapshot,
-      resolver_version: bundle.snapshot.stage ? STAGED_BUNDLE_SCHEMA : BUNDLE_SCHEMA,
+      resolver_version: LAYOUT_BUNDLE_SCHEMA,
       repository: { standard_domain: bundle.snapshot.standard_domain },
     },
-  });
+  }, { indexPlacement: "separate" });
   const managedFiles = localFiles.map((file) => file.local_relative_path);
   return {
-    schema_version: BOOTSTRAP_LOCAL_MANIFEST_SCHEMA,
+    schema_version: LAYOUT_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA,
     bundle_schema: bundle.snapshot.bootstrap_version,
-    local_layout: FLAT_LOCAL_LAYOUT,
+    local_layout: LOCAL_LAYOUT,
     snapshot_id: bundle.snapshot.snapshot_id,
     manifest_hash: bundle.snapshot.manifest_hash,
     standard_domain: bundle.snapshot.standard_domain,
@@ -1246,6 +1448,9 @@ const buildBootstrapManifest = (bundle, domainSource, domainEvidence) => {
     release_refs: bundle.snapshot.release_refs,
     total_bytes: bundle.snapshot.total_bytes,
     managed_files: managedFiles,
+    managed_file_releases: Object.fromEntries(localFiles.map((file) => [
+      file.local_relative_path, { rule_set_id: file.rule_set_id, release_id: file.release_id },
+    ])),
     managed_file_sources: Object.fromEntries(localFiles.map((file) => [
       file.local_relative_path, file.source_relative_path,
     ])),
@@ -1255,6 +1460,7 @@ const buildBootstrapManifest = (bundle, domainSource, domainEvidence) => {
     managed_file_sizes: Object.fromEntries(localFiles.map((file) => [
       file.local_relative_path, file.byte_size,
     ])),
+    ...agentsManifestFields(bundle, localFiles, { indexPlacement: "separate" }),
     installed_at: new Date().toISOString(),
   };
 };
@@ -1315,7 +1521,15 @@ const removeEmptyManagedParents = async (filePath, boundary) => {
   }
 };
 
-const installReadyBundle = async (repoRoot, bundle, previousManifest, bootstrapManifest = null) => {
+const agentsReceipt = (manifest) => ({
+  managed_agents_indexes: manifest.managed_agents_indexes || [],
+  agents_index_warnings: manifest.agents_indexes_hash ? manifest.agents_index_warnings : [{
+    code: "agents_index_contract_unavailable",
+    message: "服务未返回 AGENTS.md 索引合同，本次未交付规则集索引",
+  }],
+});
+
+const installReadyBundle = async (repoRoot, bundle, previousManifest, bootstrapManifest = null, resolution = null) => {
   const mdpRoot = path.join(repoRoot, ".mdp");
   const rulesRoot = path.join(repoRoot, ".mdp", "rules");
   const domain = bundle.snapshot.repository.standard_domain;
@@ -1340,11 +1554,14 @@ const installReadyBundle = async (repoRoot, bundle, previousManifest, bootstrapM
       ? [...previousManaged].map((name) => manifestPhysicalPath(previousManifest, name))
       : []),
     ...(bootstrapManifest?.managed_files || []),
+    ...(previousManifest?.managed_agents_indexes || []),
+    ...(bootstrapManifest?.managed_agents_indexes || []),
   ]);
   const previousManagedNfc = new Set([...previousPhysicalPaths].map((name) => name.normalize("NFC")));
   const localFiles = localFilesForBundle(bundle);
+  const indexFiles = renderAgentsIndexes(bundle.agents_indexes, localFiles, bundle.snapshot.release_refs, { indexPlacement: "named-team" }).files;
   const directoryCache = new Map();
-  for (const file of localFiles) {
+  for (const file of [...localFiles, ...indexFiles]) {
     const currentPath = path.join(rulesRoot, ...file.local_relative_path.split("/"));
     await assertNoSymlink(currentPath, rulesRoot);
     const existing = await existingPortablePath(
@@ -1381,14 +1598,20 @@ const installReadyBundle = async (repoRoot, bundle, previousManifest, bootstrapM
       await rm(stagedOldPath, { force: true });
       await removeEmptyManagedParents(stagedOldPath, stagedRulesRoot);
     }
+    for (const name of [...(previousManifest?.managed_agents_indexes || []), ...(bootstrapManifest?.managed_agents_indexes || [])]) {
+      const oldPath = path.join(stagedRulesRoot, ...name.split("/"));
+      await assertNoSymlink(oldPath, stagedRulesRoot);
+      await rm(oldPath, { force: true });
+      await removeEmptyManagedParents(oldPath, stagedRulesRoot);
+    }
     await rm(path.join(stagedRulesRoot, BOOTSTRAP_MANIFEST_NAME), { force: true });
-    for (const file of localFiles) {
+    for (const file of [...localFiles, ...indexFiles]) {
       const outputPath = path.join(stagedRulesRoot, ...file.local_relative_path.split("/"));
       await assertNoSymlink(outputPath, stagedRulesRoot);
       await mkdir(path.dirname(outputPath), { recursive: true });
       await writeFile(outputPath, file.content, "utf8");
     }
-    const manifest = buildLocalManifest(bundle);
+    const manifest = { ...buildLocalManifest(bundle), ...(resolution ? { schema_version: UNIFIED_LOCAL_SCHEMA, resolution, resolution_hash: resolutionDigest(resolution, bundle.snapshot.snapshot_id) } : {}) };
     await writeFile(stagedManifest, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 
     if (await exists(rulesRoot)) {
@@ -1416,7 +1639,7 @@ const installReadyBundle = async (repoRoot, bundle, previousManifest, bootstrapM
 };
 
 const installBootstrapBundle = async ({
-  repoRoot, bundle, previousManifest, domainSource, domainEvidence,
+  repoRoot, bundle, previousManifest, domainSource, domainEvidence, formalManifest = null, resolution = null,
 }) => {
   const mdpRoot = path.join(repoRoot, ".mdp");
   const rulesRoot = path.join(mdpRoot, "rules");
@@ -1434,14 +1657,18 @@ const installBootstrapBundle = async ({
     ...bundle,
     snapshot: {
       ...bundle.snapshot,
-      resolver_version: bundle.snapshot.stage ? STAGED_BUNDLE_SCHEMA : BUNDLE_SCHEMA,
+      resolver_version: LAYOUT_BUNDLE_SCHEMA,
       repository: { standard_domain: bundle.snapshot.standard_domain },
     },
-  });
-  const previousManaged = new Set(previousManifest?.managed_files || []);
+  }, { indexPlacement: "separate" });
+  const indexFiles = renderAgentsIndexes(bundle.agents_indexes, localFiles, bundle.snapshot.release_refs, { indexPlacement: "separate" }).files;
+  const previousManaged = new Set([...(previousManifest?.managed_files || []), ...(previousManifest?.managed_agents_indexes || []),
+    ...(formalManifest?.managed_files || []).map(name => manifestPhysicalPath(formalManifest, name)),
+    ...(formalManifest?.managed_agents_indexes || []),
+  ]);
   const previousManagedKeys = new Set([...previousManaged].map(pathKey));
   const directoryCache = new Map();
-  for (const file of localFiles) {
+  for (const file of [...localFiles, ...indexFiles]) {
     const currentPath = path.join(rulesRoot, ...file.local_relative_path.split("/"));
     await assertNoSymlink(currentPath, rulesRoot);
     const existing = await existingPortablePath(
@@ -1469,13 +1696,14 @@ const installBootstrapBundle = async ({
       await rm(stagedOldPath, { force: true });
       await removeEmptyManagedParents(stagedOldPath, stagedRulesRoot);
     }
-    for (const file of localFiles) {
+    for (const file of [...localFiles, ...indexFiles]) {
       const outputPath = path.join(stagedRulesRoot, ...file.local_relative_path.split("/"));
       await assertNoSymlink(outputPath, stagedRulesRoot);
       await mkdir(path.dirname(outputPath), { recursive: true });
       await writeFile(outputPath, file.content, "utf8");
     }
-    const manifest = buildBootstrapManifest(bundle, domainSource, domainEvidence);
+    const manifest = { ...buildBootstrapManifest(bundle, domainSource, domainEvidence), ...(resolution ? { schema_version: UNIFIED_L1_LOCAL_SCHEMA, resolution, resolution_hash: resolutionDigest(resolution, bundle.snapshot.snapshot_id) } : {}) };
+    if (formalManifest) await rm(path.join(stagedRulesRoot, MANIFEST_NAME), { force: true });
     await writeFile(
       path.join(stagedRulesRoot, BOOTSTRAP_MANIFEST_NAME),
       `${JSON.stringify(manifest, null, 2)}\n`,
@@ -1505,6 +1733,223 @@ const installBootstrapBundle = async ({
   }
 };
 
+
+export const UNIFIED_RESOLVE_SCHEMA = "rule-bundle-resolve/v1";
+export const UNIFIED_RESPONSE_SCHEMA = "rule-bundle-resolution/v1";
+const UNIFIED_LOCAL_SCHEMA = "mt-effective-rule-bundle-manifest/v8";
+const UNIFIED_L1_LOCAL_SCHEMA = "mt-l1-bootstrap-manifest/v5";
+const SELECTION_REASONS = new Set(["repository_identity_unavailable", "repository_not_registered", "l2_not_accessible", "no_effective_l2", "repository_effective", "explicit_l1"]);
+const safeMetadata = (value, max = 128) => typeof value === "string" && value.trim().length <= max
+  && !/[\p{Cc}\p{Cf}]/u.test(value) ? value.trim() || null : null;
+
+export const normalizeUnifiedExecution = (value = {}) => {
+  const result = {
+    pull_id: text(value.pullId) || randomUUID(),
+    execution_agent: text(value.agent) || "unknown",
+    execution_agent_source: text(value.source) || "legacy_unknown_v1",
+    client_type: value.clientType === "cli" ? "cli" : "skill",
+    client_name: safeMetadata(value.clientName),
+    client_version: safeMetadata(value.clientVersion),
+    skill_name: EXECUTION_SKILL_NAMES.has(value.skillName) ? value.skillName : null,
+    skill_version: safeMetadata(value.skillVersion),
+  };
+  if (!UUID_PATTERN.test(result.pull_id) || !EXECUTION_AGENTS.has(result.execution_agent)
+    || !EXECUTION_AGENT_SOURCES.has(result.execution_agent_source)) {
+    fail("RULE_BUNDLE_EXECUTION_INVALID", "pull_id、execution_agent 或 execution_agent_source 不合法");
+  }
+  if (result.client_type === "cli") { result.skill_name = null; result.skill_version = null; }
+  return Object.freeze(result);
+};
+
+export const prepareUnifiedSyncRequest = async ({ gatewayUrl = DEFAULT_GATEWAY, repositoryLocator,
+  repoRoot = "", outputDir = "", cwd = process.cwd(), domain = "", stage, bootstrap = false, execution,
+} = {}) => {
+  const sourceDirectory = path.resolve(cwd, text(repoRoot) || ".");
+  const sourceRoot = repositoryRootFromGit(sourceDirectory) || sourceDirectory;
+  const targetRoot = await canonicalizeOutputRoot(path.resolve(cwd, text(outputDir) || text(repoRoot) || "."));
+  if (repositoryLocator !== undefined && !text(repositoryLocator)) {
+    throw new RuleBundleError("repository_locator_invalid", "显式仓库地址不能为空；请提供完整仓库地址，或省略 --repository 自动定位。", {
+      issues: [{ field: "repository_locator", code: "invalid", message: "显式 --repository 不能为空或仅包含空白" }], retryable: false,
+    });
+  }
+  const rawLocator = repositoryLocator === undefined ? repositoryLocatorFromGit(sourceRoot) : text(repositoryLocator);
+  let canonicalKey = null;
+  if (rawLocator) {
+    // An automatically discovered remote is only an identity hint. Never send
+    // requests to its host or reinterpret a foreign path as an MCode identity.
+    try { canonicalKey = canonicalRepositoryKey(rawLocator) || null; }
+    catch { canonicalKey = null; }
+    if (!canonicalKey && repositoryLocator !== undefined) throw new RuleBundleError("repository_locator_invalid",
+      "仓库地址必须是 namespace/repository 或可归一化的线上 MCode Git 地址。", {
+        issues: [{ field: "repository_locator", code: "invalid", message: "请提供完整 namespace/repository 或线上 Git 地址" }], retryable: false,
+      });
+  }
+  const issues = [];
+  if (!DELIVERY_STAGES.has(stage)) issues.push({ field: "stage", code: stage == null ? "required" : "invalid", message: "请指定 --stage design、coding 或 cr" });
+  const normalizedDomain = text(domain);
+  if (normalizedDomain && !DOMAINS.has(normalizedDomain)) issues.push({ field: "standard_domain", code: "invalid", message: "--domain 仅支持 frontend 或 backend" });
+  if (!canonicalKey && !normalizedDomain) issues.push({ field: "standard_domain", code: "required", message: "无法确定仓库领域，请指定 --domain frontend 或 backend" });
+  if (issues.length) throw new RuleBundleError("rule_parameters_invalid", issues.map(item => item.message).join("；"), { issues, retryable: false });
+  const gateway = validateGatewayUrl(gatewayUrl);
+  if (new URL(gateway).pathname !== GATEWAY_PATHNAME) throw new RuleBundleError("resolution_contract_not_supported", "统一拉取需要 rule-distribution 网关，请升级服务配置。", { retryable: false });
+  return Object.freeze({ gatewayUrl: gateway, repositoryLocator: canonicalKey, sourceRoot, targetRoot,
+    domain: normalizedDomain || null, stage, scope: bootstrap ? "l1" : "effective",
+    target: { display_name: canonicalKey || sourceRoot, source: canonicalKey ? "repository_locator" : "local_directory" },
+    execution: normalizeUnifiedExecution(execution),
+  });
+};
+
+const resolutionContext = (body, scope, domainSource) => ({
+  schema_version: UNIFIED_RESPONSE_SCHEMA, bundle_kind: body.bundle_kind, delivery_mode: body.delivery_mode,
+  selection_reason: body.selection_reason, standard_domain: body.standard_domain, stage: body.stage,
+  target: body.target, scope, domain_source: domainSource,
+});
+const resolutionDigest = (resolution, snapshotId) => sha256Hex(canonicalJson({ resolution, snapshot_id: snapshotId }));
+const validateResolutionManifest = (manifest) => {
+  const r = manifest.resolution;
+  return isObject(r) && r.schema_version === UNIFIED_RESPONSE_SCHEMA
+    && ["effective", "l1"].includes(r.bundle_kind) && ["l1_only", "l1_l2"].includes(r.delivery_mode)
+    && SELECTION_REASONS.has(r.selection_reason) && ["effective", "l1"].includes(r.scope)
+    && ["user_explicit", "repository_configuration"].includes(r.domain_source)
+    && r.standard_domain === manifest.standard_domain && r.stage === manifest.stage
+    && isObject(r.target) && ["platform", "repository_locator", "local_directory"].includes(r.target.source)
+    && typeof r.target.display_name === "string" && !!r.target.display_name
+    && (r.target.canonical_key === null || typeof r.target.canonical_key === "string")
+    && (r.bundle_kind === "effective" ? manifest.repository?.canonical_key === r.target.canonical_key : r.delivery_mode === "l1_only")
+    && (manifest.release_refs.some(ref => ref.scope_level === "L2") ? r.delivery_mode === "l1_l2" : r.delivery_mode === "l1_only")
+    && manifest.resolution_hash === resolutionDigest(r, manifest.snapshot_id);
+};
+
+const serviceErrorDetails = (error) => {
+  // Only bounded diagnostic fields cross the CLI boundary; never propagate raw
+  // database bodies, credentials, stack traces, or HTML.
+  const clean = value => safeMetadata(value, 1000)
+    ?.replace(/\bBearer\s+\S+|\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)?/gu, "[redacted]")
+    .replace(/\b(?:access_token|client_secret|authorization|password)\s*[:=]\s*\S+/giu, "[redacted]");
+  const result = { retryable: error?.retryable === true };
+  if (/^[A-Za-z0-9._:-]{1,128}$/u.test(error?.request_id || "") && !/^(eyJ|sk-)/u.test(error.request_id)) result.request_id = error.request_id;
+  if (Array.isArray(error?.issues)) result.issues = error.issues.slice(0, 20).flatMap(issue => {
+    const field = safeMetadata(issue?.field, 100);
+    const message = clean(issue?.message);
+    return field && /^[a-zA-Z0-9_.[\]-]+$/u.test(field) && message
+      ? [{ field, code: /^[a-z][a-z0-9_]{0,99}$/u.test(issue.code || "") ? issue.code : "invalid", message }] : [];
+  });
+  return { ...result, message: clean(error?.message) };
+};
+
+export const syncUnifiedRuleBundle = async ({ gatewayUrl, token, repositoryLocator, repoRoot, outputDir, cwd,
+  domain, stage, bootstrap = false, execution, publicPull = false, mis, fetchImpl = globalThis.fetch, requestTransport,
+} = {}) => {
+  const prepared = await prepareUnifiedSyncRequest({ gatewayUrl, repositoryLocator, repoRoot, outputDir, cwd, domain, stage, bootstrap, execution });
+  if (!publicPull && !token && !requestTransport) fail("RULE_BUNDLE_AUTH_REQUIRED", "认证拉取需要有效用户票据");
+  const declaredActor = publicPull ? text(mis) : "";
+  if (declaredActor && !/^[a-z][a-z0-9._-]{0,63}$/u.test(declaredActor)) throw new RuleBundleError("declared_actor_invalid", "自报调用方格式错误：应为 1–64 位小写字母、数字、点、下划线或连字符，以字母开头。", { retryable: false });
+  const root = prepared.targetRoot;
+  const formalExists = await exists(path.join(root, ".mdp", "rules", MANIFEST_NAME));
+  const formal = await readLocalManifest(root);
+  const baselineState = await readBootstrapManifest(root);
+  const baseline = baselineState.value;
+  if (formalExists && !await Promise.resolve().then(() => validateLocalManifestStructure(formal)).catch(() => false)) fail("RULE_BUNDLE_LOCAL_MANIFEST_INVALID", "本地正式规则清单非法，未修改现有文件");
+  if (baselineState.exists && !await Promise.resolve().then(() => validateBootstrapManifestStructure(baseline)).catch(() => false)) fail("RULE_BUNDLE_BOOTSTRAP_MANIFEST_INVALID", "本地 L1 规则清单非法，未修改现有文件");
+  if ((formal && !await validateLocalManifestFiles(root, formal).catch(() => false))
+    || (baseline && !await validateBootstrapManifestFiles(root, baseline).catch(() => false))) fail("RULE_BUNDLE_LOCAL_MANAGED_FILE_CHANGED", "本地受管文件缺失或已修改，未覆盖文件");
+  if (formal && baseline) fail("RULE_BUNDLE_LOCAL_MANIFEST_INVALID", "本地同时存在两份规则清单，请先处理冲突");
+  const previous = formal || baseline;
+  const previousCanonical = formal?.repository.canonical_key || baseline?.resolution?.target.canonical_key;
+  if (previousCanonical && previousCanonical !== prepared.repositoryLocator) fail("RULE_BUNDLE_REPOSITORY_CONFLICT", "当前请求无法确认与本地规则相同的仓库身份，未覆盖现有规则");
+  if (!previousCanonical && baseline?.resolution?.target.source === "local_directory"
+    && baseline.resolution.target.display_name !== prepared.sourceRoot) fail("RULE_BUNDLE_REPOSITORY_CONFLICT", "本地规则属于其他来源目录，未覆盖现有规则");
+  const known = previous && validateResolutionManifest(previous)
+    && previous.stage === stage && (!prepared.domain || previous.standard_domain === prepared.domain)
+    && previous.resolution.scope === prepared.scope
+    && previous.resolution.target.canonical_key === prepared.repositoryLocator
+    ? { bundle_kind: previous.resolution.bundle_kind, snapshot_id: previous.snapshot_id } : null;
+  const body = {
+    schema_version: UNIFIED_RESOLVE_SCHEMA, repository_locator: prepared.repositoryLocator,
+    ...(prepared.domain ? { standard_domain: prepared.domain } : {}), stage,
+    scope: prepared.scope, bundle_contract: LOCAL_LAYOUT, agents_index_contract: AGENTS_INDEX_CONTRACT,
+    target: prepared.target, execution: prepared.execution,
+    ...(known ? { known_snapshot: known } : {}),
+    ...(declaredActor ? { declared_actor: declaredActor } : {}),
+  };
+  const result = await serviceRequest({ gatewayUrl: prepared.gatewayUrl, token,
+    resourcePath: publicPull ? "/v1/public/rule-bundles/resolve" : "/v1/rule-bundles/resolve",
+    body, fetchImpl, requestTransport, serviceLabel: "统一规范服务", publicRequest: publicPull });
+  if (!result.ok) {
+    const error = result.body?.error;
+    const details = serviceErrorDetails(error);
+    const unsupported = result.status === 404 && (!error?.code || error.code === "not_found");
+    const code = unsupported ? "resolution_contract_not_supported"
+      : /^[a-z][a-z0-9_]{0,99}$/u.test(error?.code || "") ? error.code : `RULE_BUNDLE_HTTP_${result.status}`;
+    throw new RuleBundleError(code, unsupported ? "当前服务尚不支持统一规范拉取，请升级 rule-distribution；本地规则未修改。"
+      : details.message || "规则服务返回异常，请凭请求编号排查。", details);
+  }
+  const resolved = result.body;
+  if (!isObject(resolved) || resolved.schema_version !== UNIFIED_RESPONSE_SCHEMA
+    || !["effective", "l1"].includes(resolved.bundle_kind)
+    || !["l1_only", "l1_l2"].includes(resolved.delivery_mode)
+    || !SELECTION_REASONS.has(resolved.selection_reason)
+    || resolved.pull_id !== prepared.execution.pull_id
+    || !/^[A-Za-z0-9._:-]{1,128}$/u.test(resolved.request_id || "")
+    || !DOMAINS.has(resolved.standard_domain) || resolved.stage !== stage
+    || (prepared.domain && resolved.standard_domain !== prepared.domain)
+    || !isObject(resolved.target) || resolved.target.canonical_key !== prepared.repositoryLocator
+    || !["platform", "repository_locator", "local_directory"].includes(resolved.target.source)
+    || !safeMetadata(resolved.target.display_name, 4096)
+    || (resolved.target.source === "local_directory" && resolved.target.display_name !== prepared.sourceRoot)) {
+    fail("RULE_BUNDLE_RESOLUTION_INVALID", "统一规范响应身份、领域、阶段或请求标识不一致，本地规则未修改");
+  }
+  assertRuleResponseBudget(resolved.bundle, { allowAgentsIndexes: true, serviceLabel: "统一规范内包" });
+  const matchingKnown = known?.bundle_kind === resolved.bundle_kind ? known.snapshot_id : "";
+  const bundle = resolved.bundle_kind === "effective"
+    ? validateBundle(resolved.bundle, matchingKnown, stage, true)
+    : validateBootstrapBundle(resolved.bundle, matchingKnown, stage, true);
+  const refs = bundle.snapshot.release_refs;
+  if (!refs.some(ref => ref.scope_level === "L1")
+    || (refs.some(ref => ref.scope_level === "L2") ? "l1_l2" : "l1_only") !== resolved.delivery_mode
+    || (prepared.scope === "l1" && resolved.delivery_mode !== "l1_only")
+    || (resolved.bundle_kind === "l1" && (resolved.delivery_mode !== "l1_only" || bundle.snapshot.standard_domain !== resolved.standard_domain))
+    || (resolved.bundle_kind === "effective" && (bundle.snapshot.repository.canonical_key !== resolved.target.canonical_key
+      || bundle.snapshot.repository.standard_domain !== resolved.standard_domain))) fail("RULE_BUNDLE_RESOLUTION_INVALID", "分发模式与实际规则包不一致，本地规则未修改");
+  const context = resolutionContext(resolved, prepared.scope, prepared.domain ? "user_explicit" : "repository_configuration");
+  let manifest;
+  if (bundle.status === "not_modified") {
+    if (!previous || previous.resolution.bundle_kind !== context.bundle_kind
+      || previous.resolution.delivery_mode !== context.delivery_mode
+      || previous.resolution.standard_domain !== context.standard_domain
+      || previous.resolution.stage !== context.stage || previous.resolution.scope !== context.scope
+      || previous.resolution.target.canonical_key !== context.target.canonical_key) {
+      fail("RULE_BUNDLE_NOT_MODIFIED_INVALID", "缓存分发身份、模式、领域或阶段不一致，本地规则未修改");
+    }
+    manifest = previous;
+    if (canonicalJson(previous.resolution) !== canonicalJson(context)) {
+      manifest = { ...previous, ...(baseline ? { domain_source: context.domain_source } : {}), resolution: context, resolution_hash: resolutionDigest(context, previous.snapshot_id) };
+      const rulesRoot = path.join(root, ".mdp", "rules");
+      const filename = path.join(rulesRoot, formal ? MANIFEST_NAME : BOOTSTRAP_MANIFEST_NAME);
+      const temporary = path.join(rulesRoot, `.mt-resolution-${randomUUID()}.tmp`);
+      await assertNoSymlink(filename, rulesRoot);
+      try {
+        await writeFile(temporary, `${JSON.stringify(manifest, null, 2)}\n`, { encoding: "utf8", flag: "wx" });
+        await rename(temporary, filename);
+      } finally { await rm(temporary, { force: true }); }
+    }
+  } else if (resolved.bundle_kind === "effective") {
+    manifest = await installReadyBundle(root, bundle, formal, baseline, context);
+  } else {
+    manifest = await installBootstrapBundle({ repoRoot: root, bundle, previousManifest: baseline,
+      formalManifest: formal, domainSource: context.domain_source, domainEvidence: {}, resolution: context });
+  }
+  return Object.freeze({ local_layout: LOCAL_LAYOUT,
+    status: bundle.status === "ready" ? "installed" : "not_modified",
+    ...context, schema_version: "mt-rule-bundle-install/v1", request_id: resolved.request_id,
+    pull_id: prepared.execution.pull_id, execution_agent: prepared.execution.execution_agent,
+    snapshot_id: manifest.snapshot_id, release_refs: refs, managed_files: manifest.managed_files,
+    ...agentsReceipt(manifest), total_bytes: manifest.total_bytes,
+    removed_l2_files: formal && resolved.delivery_mode === "l1_only"
+      ? formal.managed_files.filter(name => name.startsWith("team/")).length : 0,
+  });
+};
+
 export const syncEffectiveRuleBundle = async ({
   gatewayUrl = DEFAULT_GATEWAY,
   token,
@@ -1519,14 +1964,16 @@ export const syncEffectiveRuleBundle = async ({
   fetchImpl = globalThis.fetch,
   requestTransport,
   publicPull = false,
+  mis,
 } = {}) => {
-  if (publicPull && bootstrap) {
-    fail("RULE_BUNDLE_PUBLIC_BOOTSTRAP_UNSUPPORTED", "public 模式不支持未登记仓库 bootstrap");
+  const declaredActor = text(mis);
+  if (bootstrap && !/^[a-z][a-z0-9._-]{0,63}$/.test(declaredActor)) {
+    fail("RULE_BUNDLE_BOOTSTRAP_MIS_REQUIRED", "L1 引导安装需要 --mis 自报调用方（个人 MIS 或机器人名称，如 aicr-agent；1–64 位小写字母、数字、点、下划线或连字符，以字母开头）。该值不作为认证身份。");
   }
   const prepared = await prepareSyncRequest({
     gatewayUrl, repositoryLocator, repoRoot, outputDir, cwd, domain, bootstrap, stage, execution,
   });
-  if (!publicPull && !token && !requestTransport) {
+  if (!bootstrap && !publicPull && !token && !requestTransport) {
     fail(
       "RULE_BUNDLE_AUTH_REQUIRED",
       "缺少 MTSSO 官方短期用户票据；禁止使用 Cookie、Git 作者、系统账号或把令牌写入文件",
@@ -1543,6 +1990,7 @@ export const syncEffectiveRuleBundle = async ({
   const deliveryStage = prepared.stage;
   const normalizedExecution = prepared.execution;
   const locator = publicPull ? publicCanonicalKey : prepared.repositoryLocator;
+  const previousManifestExists = await exists(path.join(absoluteRoot, ".mdp", "rules", MANIFEST_NAME));
   const previousManifest = await readLocalManifest(absoluteRoot);
   const bootstrapState = await readBootstrapManifest(absoluteRoot);
   let bootstrapManifest = null;
@@ -1557,6 +2005,12 @@ export const syncEffectiveRuleBundle = async ({
     if (!bootstrapManifest) {
       fail("RULE_BUNDLE_BOOTSTRAP_MANIFEST_INVALID", "本地 L1 bootstrap manifest 非法，禁止静默覆盖");
     }
+    if (!await validateBootstrapManifestFiles(absoluteRoot, bootstrapManifest).catch(() => false)) {
+      fail("RULE_BUNDLE_LOCAL_MANAGED_FILE_CHANGED", "本地 L1 bootstrap 受管文件缺失或已修改，禁止覆盖");
+    }
+  }
+  if (bootstrapManifest && !await validateBootstrapManifestFiles(absoluteRoot, bootstrapManifest).catch(() => false)) {
+    fail("RULE_BUNDLE_LOCAL_MANAGED_FILE_CHANGED", "本地受管 L1 bootstrap 文件缺失或已被修改，禁止覆盖；请先恢复受管文件后重试");
   }
   const previousTrusted = (() => {
     try {
@@ -1568,7 +2022,7 @@ export const syncEffectiveRuleBundle = async ({
   const previousCurrent = previousTrusted
     ? await validateLocalManifestFiles(absoluteRoot, previousManifest).catch(() => false)
     : false;
-  if (previousManifest && !previousTrusted) {
+  if (previousManifestExists && !previousTrusted) {
     fail(
       "RULE_BUNDLE_LOCAL_MANIFEST_INVALID",
       "本地正式规则包 manifest 非法，禁止静默覆盖；请先恢复或移走现有 .mdp/rules 目录",
@@ -1581,30 +2035,16 @@ export const syncEffectiveRuleBundle = async ({
     );
   }
   // A verified legacy tree must be fetched once more so it can be migrated to
-  // the flat company/team layout; only the current layout may receive a
+  // the scope/domain/rule-set-name layout; only the current layout may receive a
   // not_modified response without rewriting local files.
-  const previousStage = previousManifest?.schema_version === FLAT_LOCAL_MANIFEST_SCHEMA
+  const previousStage = previousManifest?.schema_version === LAYOUT_LOCAL_MANIFEST_SCHEMA
     ? text(previousManifest.stage)
     : "";
-  const knownSnapshotId = previousCurrent && isFlatLocalManifest(previousManifest)
+  const knownSnapshotId = previousCurrent && previousManifest?.schema_version === LAYOUT_LOCAL_MANIFEST_SCHEMA
     && previousStage === deliveryStage
     ? previousManifest.snapshot_id
     : "";
-  let body;
-  try {
-    body = await requestBundle({
-      gatewayUrl,
-      token,
-      repositoryLocator: locator,
-      knownSnapshotId,
-      stage: deliveryStage,
-      execution: normalizedExecution,
-      fetchImpl,
-      requestTransport,
-      publicRequest: publicPull,
-    });
-  } catch (error) {
-    if (!(error instanceof RuleBundleError) || error.code !== "repository_not_registered" || !prepared.bootstrap) throw error;
+  if (prepared.bootstrap) {
     const canonicalKey = canonicalRepositoryKey(locator);
     if (!canonicalKey) {
       fail(
@@ -1631,15 +2071,16 @@ export const syncEffectiveRuleBundle = async ({
     const bootstrapCurrent = bootstrapManifest
       ? await validateBootstrapManifestFiles(absoluteRoot, bootstrapManifest).catch(() => false)
       : false;
-    const bootstrapStage = bootstrapManifest?.schema_version === BOOTSTRAP_LOCAL_MANIFEST_SCHEMA
+    const bootstrapStage = bootstrapManifest?.schema_version === LAYOUT_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA
       ? text(bootstrapManifest.stage)
       : "";
-    const bootstrapKnownSnapshotId = bootstrapCurrent && bootstrapStage === deliveryStage
+    const bootstrapKnownSnapshotId = bootstrapCurrent && bootstrapManifest?.schema_version === LAYOUT_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA && bootstrapStage === deliveryStage
       ? bootstrapManifest.snapshot_id
       : "";
     const bootstrapBody = await requestBootstrapBundle({
       gatewayUrl,
-      token,
+      mis: declaredActor,
+      execution: normalizedExecution,
       canonicalKey,
       standardDomain: detected.classification,
       knownSnapshotId: bootstrapKnownSnapshotId,
@@ -1651,6 +2092,7 @@ export const syncEffectiveRuleBundle = async ({
       bootstrapBody,
       bootstrapKnownSnapshotId,
       deliveryStage,
+      true,
     );
     const installedManifest = bootstrapBundle.status === "ready"
       ? await installBootstrapBundle({
@@ -1663,20 +2105,29 @@ export const syncEffectiveRuleBundle = async ({
       : bootstrapManifest;
     return Object.freeze({
       schema_version: BOOTSTRAP_RECEIPT_SCHEMA,
+      local_layout: LOCAL_LAYOUT,
       status: bootstrapBundle.status === "ready" ? "installed" : "not_modified",
       mode: "l1_bootstrap",
+      declared_actor: declaredActor,
+      actor_source: "self_reported",
       standard_domain: bootstrapBundle.snapshot.standard_domain,
       domain_source: installedManifest.domain_source,
       snapshot_id: bootstrapBundle.snapshot.snapshot_id,
       release_refs: bootstrapBundle.snapshot.release_refs,
       managed_files: installedManifest.managed_files,
+      ...agentsReceipt(installedManifest),
       total_bytes: installedManifest.total_bytes,
       pull_id: normalizedExecution.pullId,
       execution_agent: normalizedExecution.agent,
       ...(deliveryStage ? { stage: deliveryStage } : {}),
     });
   }
-  const bundle = validateBundle(body, knownSnapshotId, deliveryStage);
+  const body = await requestBundle({
+    gatewayUrl, token, repositoryLocator: locator, knownSnapshotId,
+    stage: deliveryStage, execution: normalizedExecution, fetchImpl, requestTransport,
+    publicRequest: publicPull,
+  });
+  const bundle = validateBundle(body, knownSnapshotId, deliveryStage, true);
   if (previousTrusted && (
     previousManifest.repository.repository_id !== bundle.snapshot.repository.repository_id
     || previousManifest.repository.canonical_key !== bundle.snapshot.repository.canonical_key
@@ -1696,11 +2147,13 @@ export const syncEffectiveRuleBundle = async ({
     : previousManifest;
   return Object.freeze({
     schema_version: RECEIPT_SCHEMA,
+    local_layout: LOCAL_LAYOUT,
     status: bundle.status === "ready" ? "installed" : "not_modified",
     repository: bundle.snapshot.repository,
     snapshot_id: bundle.snapshot.snapshot_id,
     release_refs: bundle.snapshot.release_refs,
     managed_files: manifest.managed_files,
+    ...agentsReceipt(manifest),
     total_bytes: manifest.total_bytes,
     pull_id: normalizedExecution.pullId,
     execution_agent: normalizedExecution.agent,
@@ -1712,7 +2165,7 @@ const parseArgs = (argv) => {
   const result = {};
   const valued = new Set([
     "--repository", "--repo-root", "--output-dir", "--gateway-url", "--token-env", "--pull-id",
-    "--execution-agent", "--execution-agent-source", "--skill-version", "--domain", "--stage",
+    "--execution-agent", "--execution-agent-source", "--skill-version", "--domain", "--stage", "--mis",
   ]);
   for (let index = 0; index < argv.length; index += 1) {
     const key = argv[index];
@@ -1729,6 +2182,7 @@ const parseArgs = (argv) => {
     else if (key === "--output-dir") result.outputDir = value;
     else if (key === "--gateway-url") result.gatewayUrl = value;
     else if (key === "--token-env") result.tokenEnv = value;
+    else if (key === "--mis") result.mis = value;
     else if (key === "--pull-id") result.pullId = value;
     else if (key === "--execution-agent") result.executionAgent = value;
     else if (key === "--execution-agent-source") result.executionAgentSource = value;
@@ -1751,6 +2205,7 @@ const main = async () => {
     outputDir: args.outputDir,
     domain: args.domain,
     bootstrap: args.bootstrap,
+    mis: args.mis,
     stage: args.stage,
     execution: {
       pullId: args.pullId,

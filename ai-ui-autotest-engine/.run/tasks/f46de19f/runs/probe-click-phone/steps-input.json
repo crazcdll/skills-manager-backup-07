@@ -1,0 +1,42 @@
+{
+  "batch_name": "隐私号浮层唤起探针",
+  "device": {
+    "type": "sandbox",
+    "platform": "android",
+    "app": "meituan",
+    "auto_install": false
+  },
+  "env": {
+    "type": "A",
+    "auth_method": "password",
+    "account": "18510177674",
+    "password": "ZXCasd@MT01()",
+    "ptest": false,
+    "bundle_lock": []
+  },
+  "cases": [
+    {
+      "case_id": "probe-click-phone",
+      "case_name": "订单详情-联系酒店浮层-点击号码探针",
+      "landing_scheme": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-order-detail&mrn_component=hotelchannel-order-detail&order_id=5035036077836749951&biz_type=1",
+      "params": {},
+      "steps": [
+        {
+          "sid": "S1",
+          "kind": "ui",
+          "desc": "落地订单详情页并确认「联系酒店」入口存在",
+          "action": "assert-text",
+          "step-type": "assert",
+          "asserts": [
+            {
+              "kind": "text",
+              "match": "present",
+              "expect": "联系酒店"
+            }
+          ]
+        }
+      ],
+      "flow_source": "/Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine/.run/tasks/f46de19f/inputs/flows/probe-click-phone.md"
+    }
+  ]
+}

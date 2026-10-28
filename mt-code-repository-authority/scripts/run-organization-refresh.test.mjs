@@ -245,3 +245,28 @@ test("lost callback receipt resends identical bytes and accepts a duplicate, wit
   assert.equal(bodies.length, 2);
   assert.equal(bodies[0], bodies[1]);
 });
+
+test("organization refresh callback rejection retains its upstream message", async () => {
+  const message = "当前内容含高密文档，需在安全屋环境中访问，请携带安全屋Token后重试";
+  const requestId = "71440c02-b61a-49c6-b59c-03f0bbe78680";
+  const context = { deadline: Date.now() + 60_000 };
+  const item = { attemptId: ids[1], runnerInvocationId: ids[2], callback: { url: "https://example.invalid", token: "a".repeat(43) } };
+  await assert.rejects(deliverRefreshCallback({ context, item, result: { execution_status: "failed" }, request: async () => ({ status: 403, contentType: "application/json", body: JSON.stringify({ error: { code: "citadel_secure_environment_required", message, request_id: requestId } }) }) }), (error) => error.message === message && error.errorCode === "callback_unauthorized" && error.requestId === requestId);
+});
+
+test("organization refresh keeps public callback details in aggregate CLI diagnostics and local summaries", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "organization-refresh-public-error-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const task = taskFixture();
+  const serialized = canonical(task);
+  const taskPath = join(directory, "task.json");
+  const outputPath = join(directory, "receipt.json");
+  await writeFile(taskPath, serialized);
+  const message = "当前内容含高密文档，需在安全屋环境中访问，请携带安全屋Token后重试";
+  await assert.rejects(executeOrganizationRefresh({ taskPath, taskArtifactHash: sha256(serialized), outputPath }, {
+    ensureRuntime: async () => ({}), acquireToken: async () => { throw new Error("not used"); },
+    callbackRequest: async () => ({ status: 403, contentType: "application/json", body: JSON.stringify({ error: { code: "citadel_secure_environment_required", message } }) }),
+  }), (error) => error.errorCode === "partial_callback_failure" && error.diagnosticMessage === message);
+  const output = JSON.parse(await readFile(outputPath, "utf8"));
+  assert.ok(output.items.every((item) => item.callback_error.diagnostic_message === message));
+});

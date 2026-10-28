@@ -1,180 +1,267 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""设备池守卫 —— 固化 T2 租约口径，防止回退。
+"""设备池守卫 —— 固化服务端租约口径，防止回退。
 
 用法：
     python3 scripts/dev/check_device_pool.py
 
-覆盖不变量（注入 FakeLifecycle + 临时租约文件，不碰真机 / 平台）：
+不碰真机、不碰网络：把 `pool_api` 的五个出口替换成假实现，验证**编排层语义**。
 
-  A. 领取   复用空闲实例 / 无空闲则新建并登记 owner 租约
-  B. 隔离   已被有效租约占用的实例不被抢占（多 run 各自独占）
-  C. 锁     领取在锁内完成"读→决策→登记"（否则并发会抢同一台）
-  D. 心跳   renew 刷新 owner 名下条目的 heartbeat_at
-  E. 归还   release 只删本 run 租约条目、实例数不变、从不销毁
-  F. 状态   status 叠加 in_use / idle / stale
-  G. 维护   gc 只清失效（心跳超时）条目、不销毁实例
-  H. 容错   损坏的租约文件按空租约处理（不抛）
+覆盖不变量：
+
+  A. owner 口径   `<run>#<task>`；run 缺失时退化为 task；不允许纯 run 名做设备归属
+  B. 过期判断     `remaining_seconds` 兼容 `Z` / `+00:00` / 非法串（非法必须触发续期）
+  C. 领取口径     sandbox 必须带 owner + platform + run/task；NO_CAPACITY 码必须透出
+  D. 归还顺序     conan 先还平台占用、再改服务端状态；平台失败也必须落库（pending 待补偿）
+  E. 隔离口径     report 必须带 quarantine_seconds（长隔离不能被短冷却覆盖）
+  F. 容量/补偿     summary 必须展平服务端嵌套结构；sweep_pending 必须全局扫（只跳他人持有）
+  G. 不再本地记账 源码里不得出现本地租约存储（leases.json / LeaseStore）
 
 退出码：0 全部通过 / 1 有失败。
 
-【为什么需要它】T2 的核心决策（复用优先、只动租约、不销毁实例、心跳判活、
-锁内决策）都是易回退的口径；本脚本把它们固化为一条命令，改坏了立刻可见。
+【为什么需要它】"设备池"曾经用本地文件 + flock 记账，在单机串行场景看似正确，但在
+多机 / 多会话并发下会让同一台设备被两次发放（实测同 sandbox 被两个分片同时占用
+12–36 分钟）。现在权威在服务端单行 CAS，本脚本把新口径固化下来，改坏了立刻可见。
 """
-import contextlib
-import io
+import inspect
 import os
 import sys
-import tempfile
-import time
-import traceback
-from datetime import datetime, timedelta, timezone
 
-# 源树零字节码：本文件是进程入口，开关必须在引擎包导入之前生效。
 sys.dont_write_bytecode = True
 os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_SCRIPTS_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _SCRIPTS_DIR)
 
-from resources.device_pool.device_lease import DeviceLeaseManager, LEASE_TTL
-from resources.device_pool.lease_store import LocalFileLeaseStore
-
-
-def _ago(seconds):
-    return (datetime.now(timezone.utc) - timedelta(seconds=seconds)).isoformat()
+import resources.device_pool.device_lease as dl
+import resources.device_pool.pool_api as api
 
 
-class _FakeLifecycle:
-    """鸭子类型的 DeviceLifecycle：只实现设备池用到的 query / acquire / release。"""
+# ═══════════════════════════════════════════════════════════════════
+# 夹具：把 pool_api 出口换成记录型假实现
+# ═══════════════════════════════════════════════════════════════════
 
-    def __init__(self, devices):
-        self.devices = devices
-        self.destroy_calls = []
+class _Recorder:
+    def __init__(self):
+        self.calls = []
 
-    def query_user_devices(self, mis):
-        return [dict(v) for v in self.devices.values()]
-
-    def acquire(self, mis):
-        sid = f"S{len(self.devices) + 1}"
-        self.devices[sid] = {"sandboxId": sid, "state": "running", "started_at": _ago(60)}
-        return {"sandboxId": sid, "serial": f"10.0.0.{len(self.devices)}:8080", "scrcpyUrl": ""}
-
-    def release(self, info):
-        # 池不得调用它（不销毁实例）；一旦被调用即视为回归
-        self.destroy_calls.append(info.get("sandboxId"))
-        return True
+    def __call__(self, name, result):
+        def fn(*args, **kwargs):
+            self.calls.append((name, args, kwargs))
+            if isinstance(result, Exception):
+                raise result
+            return result
+        return fn
 
 
-def _manager(tmp):
-    store = LocalFileLeaseStore(os.path.join(tmp, "leases.json"))
-    lc = _FakeLifecycle({"S1": {"sandboxId": "S1", "state": "running", "started_at": _ago(120)}})
-    return DeviceLeaseManager(lc, store=store, ttl=900), store, lc
+class _Patched:
+    """临时替换 pool_api / conan_api 的出口。"""
+
+    def __init__(self, **replacements):
+        self.replacements = replacements
+        self.saved = {}
+
+    def __enter__(self):
+        for dotted, fn in self.replacements.items():
+            mod_name, attr = dotted.rsplit(".", 1)
+            mod = dl if mod_name == "dl" else api
+            if mod_name == "conan":
+                from platform import conan_api as mod  # noqa: PLC0415
+            self.saved[dotted] = (mod, attr, getattr(mod, attr, None))
+            setattr(mod, attr, fn)
+        return self
+
+    def __exit__(self, *exc):
+        for dotted, (mod, attr, old) in self.saved.items():
+            if old is None:
+                delattr(mod, attr)
+            else:
+                setattr(mod, attr, old)
+        return False
 
 
-def test_acquire_reuses_idle_and_registers_lease():
-    with tempfile.TemporaryDirectory() as tmp:
-        m, store, _lc = _manager(tmp)
-        r = m.acquire("mis", owner="runA", task="tA")
-        assert r["sandboxId"] == "S1" and r["reused"] is True, r
-        lease = store.read()["S1"]
-        assert lease["owner"] == "runA" and lease["owner_task"] == "tA", lease
-        assert lease["heartbeat_at"] > 0
+# ═══════════════════════════════════════════════════════════════════
+# A. owner 口径
+# ═══════════════════════════════════════════════════════════════════
+
+def test_lease_owner_is_run_scoped():
+    """owner 必须 `<run>#<task>`：纯 run 名不唯一（同机多 workspace 会撞）。"""
+    with _Patched(**{"dl.get_active_run": lambda: "flow04-alpha",
+                     "dl.get_active_task": lambda: "ws-home"}):
+        assert dl.lease_owner() == "flow04-alpha#ws-home"
 
 
-def test_acquire_creates_when_all_leased():
-    with tempfile.TemporaryDirectory() as tmp:
-        m, store, _lc = _manager(tmp)
-        m.acquire("mis", owner="runA")
-        r2 = m.acquire("mis", owner="runB")
-        assert r2["sandboxId"] == "S2" and r2["reused"] is False, r2
-        assert set(store.read()) == {"S1", "S2"}
+def test_lease_owner_falls_back_to_task():
+    with _Patched(**{"dl.get_active_run": lambda: "",
+                     "dl.get_active_task": lambda: "ws-home"}):
+        assert dl.lease_owner() == "ws-home"
 
 
-def test_leased_instance_is_not_stolen():
-    with tempfile.TemporaryDirectory() as tmp:
-        m, store, _lc = _manager(tmp)
-        m.acquire("mis", owner="runA")
-        m.acquire("mis", owner="runB")   # 领到新机，不得动 S1
-        assert store.read()["S1"]["owner"] == "runA"
+def test_lease_owner_empty_when_no_scope():
+    with _Patched(**{"dl.get_active_run": lambda: "",
+                     "dl.get_active_task": lambda: ""}):
+        assert dl.lease_owner() == ""
 
 
-def test_acquire_holds_lock_across_decision_and_registration():
-    """元守卫：领取必须持锁完成"读→决策→登记"，否则并发会抢同一台。"""
-    with tempfile.TemporaryDirectory() as tmp:
-        m, store, _lc = _manager(tmp)
-        depth = {"in": 0, "max": 0}
-        real_lock = store.lock
+# ═══════════════════════════════════════════════════════════════════
+# B. 过期判断
+# ═══════════════════════════════════════════════════════════════════
 
-        @contextlib.contextmanager
-        def counting_lock():
-            depth["in"] += 1
-            depth["max"] = max(depth["max"], depth["in"])
-            try:
-                with real_lock():
-                    yield
-            finally:
-                depth["in"] -= 1
-
-        store.lock = counting_lock
-        m.acquire("mis", owner="runA")
-        assert depth["max"] >= 1, "acquire 未持锁（并发会抢同一台）"
+def test_remaining_seconds_parses_iso():
+    assert dl.remaining_seconds("2099-01-01T00:00:00Z") > 0
+    assert dl.remaining_seconds("2099-01-01T00:00:00+00:00") > 0
+    assert dl.remaining_seconds("2020-01-01T00:00:00Z") < 0
 
 
-def test_renew_refreshes_only_owner_entries():
-    with tempfile.TemporaryDirectory() as tmp:
-        m, store, _lc = _manager(tmp)
-        m.acquire("mis", owner="runA")
-        before = store.read()["S1"]["heartbeat_at"]
-        time.sleep(1.1)
-        assert m.renew("runA") == 1
-        assert store.read()["S1"]["heartbeat_at"] > before
-        assert m.renew("nobody") == 0
+def test_remaining_seconds_invalid_forces_renew():
+    """无法解析（空 / 脏数据）必须返回 -1，从而触发一次续期。"""
+    for bad in (None, "", "not-a-time", 123):
+        assert dl.remaining_seconds(bad) == -1, bad
 
 
-def test_release_only_drops_lease_and_keeps_instance():
-    with tempfile.TemporaryDirectory() as tmp:
-        m, store, lc = _manager(tmp)
-        m.acquire("mis", owner="runA")
-        m.acquire("mis", owner="runB")
-        n = len(lc.devices)
-        assert m.release("runA") == 1
-        assert "S1" not in store.read() and "S2" in store.read()
-        assert len(lc.devices) == n, "归还不得销毁实例"
-        assert lc.destroy_calls == [], "池不得调用销毁"
+# ═══════════════════════════════════════════════════════════════════
+# C. 领取口径
+# ═══════════════════════════════════════════════════════════════════
+
+def test_claim_passes_scope_to_server():
+    rec = _Recorder()
+    row = {"device_id": "S1", "connect_address": "10.0.0.1:8080", "fence": 7,
+           "lease_expires_at": "2099-01-01T00:00:00Z", "use_count": 2}
+    with _Patched(**{"api.claim_sandbox": rec("claim", row),
+                     "dl.get_active_run": lambda: "run-a",
+                     "dl.get_active_task": lambda: "ws-a"}):
+        got = dl.DevicePool("sandbox", "android").claim("run-a#ws-a")
+    assert got["device_id"] == "S1"
+    name, args, kwargs = rec.calls[0]
+    assert name == "claim"
+    assert args[:2] == ("run-a#ws-a", "android"), args
+    assert kwargs.get("run_id") == "run-a" and kwargs.get("task") == "ws-a", kwargs
 
 
-def test_status_overlays_three_states():
-    with tempfile.TemporaryDirectory() as tmp:
-        m, store, lc = _manager(tmp)
-        m.acquire("mis", owner="runA")                 # S1 in_use
-        m.acquire("mis", owner="runB")                 # S2 in_use
-        m.release("runA")                              # S1 idle
-        lc.devices["S9"] = {"sandboxId": "S9", "state": "running", "started_at": _ago(90000)}
-        states = {x["sandboxId"]: x["status"] for x in m.status("mis")}
-        assert states["S1"] == "idle", states
-        assert states["S2"] == "in_use", states
-        assert states["S9"] == "stale", states
+def test_no_capacity_error_code_survives():
+    """池满必须是可判别的 code，不能被包装成普通异常文本。"""
+    err = api.DevicePoolError("no idle sandbox/android device", code="NO_CAPACITY")
+    with _Patched(**{"api.claim_sandbox": _Recorder()("claim", err)}):
+        try:
+            dl.DevicePool("sandbox", "android").claim("r#w")
+        except api.DevicePoolError as e:
+            assert e.code == "NO_CAPACITY", e.code
+        else:
+            raise AssertionError("池满必须抛错（旧实现会静默新建，掩盖容量问题）")
 
 
-def test_gc_prunes_expired_lease_but_never_destroys():
-    with tempfile.TemporaryDirectory() as tmp:
-        m, store, lc = _manager(tmp)
-        m.acquire("mis", owner="runB")                 # 复用 S1（有效租约）
-        leases = store.read()
-        leases["S_old"] = {"owner": "dead", "heartbeat_at": int(time.time()) - (LEASE_TTL + 100)}
-        store.write(leases)
-        n = len(lc.devices)
-        res = m.gc()
-        assert res["pruned"] == 1, res
-        assert "S_old" not in store.read() and "S1" in store.read()
-        assert len(lc.devices) == n and lc.destroy_calls == [], "gc 不得销毁实例"
+# ═══════════════════════════════════════════════════════════════════
+# D. 归还顺序
+# ═══════════════════════════════════════════════════════════════════
+
+def _conan_row(serial="10.0.0.9:5555"):
+    return {"device_id": serial, "provider": "conan", "state": "in_use",
+            "lease_owner": "r#w", "fence": 2}
 
 
-def test_corrupt_lease_file_is_treated_as_empty():
-    with tempfile.TemporaryDirectory() as tmp:
-        path = os.path.join(tmp, "leases.json")
-        with open(path, "w", encoding="utf-8") as fh:
-            fh.write("{ not json")
-        assert LocalFileLeaseStore(path).read() == {}, "损坏租约应降级为空，不得抛异常"
+def test_release_owner_releases_platform_before_state():
+    """conan 必须先把平台占用还掉，再告诉服务端"已归还"。"""
+    seq = []
+    with _Patched(**{
+        "api.list_devices": lambda **kw: {"rows": [_conan_row()]},
+        "api.release": lambda *a, **kw: seq.append(("server", kw)) or {"device_id": "x"},
+        "conan.release": lambda serial: seq.append(("conan", serial)) or True,
+    }):
+        assert dl.DevicePool("conan", "harmony").release_owner("r#w") == 1
+    assert [s[0] for s in seq] == ["conan", "server"], seq
+    assert seq[1][1].get("provider_released") is True, seq
+
+
+def test_release_owner_marks_pending_when_platform_fails():
+    """平台归还失败也必须落库（provider_released=False → pending 待补偿），
+    否则服务端以为配额已释放，而 Conan 侧还占着（配额泄漏）。"""
+    seq = []
+    with _Patched(**{
+        "api.list_devices": lambda **kw: {"rows": [_conan_row()]},
+        "api.release": lambda *a, **kw: seq.append(("server", kw)) or {"device_id": "x"},
+        "conan.release": lambda serial: (_ for _ in ()).throw(RuntimeError("boom")),
+    }):
+        assert dl.DevicePool("conan", "harmony").release_owner("r#w") == 1
+    assert seq and seq[0][1].get("provider_released") is False, seq
+
+
+def test_release_owner_skips_unowned_rows():
+    with _Patched(**{"api.list_devices": lambda **kw: {"rows": [
+            {"device_id": "S1", "provider": "sandbox", "lease_owner": ""}]},
+            "api.release": _Recorder()("release", {"device_id": "S1"})}):
+        assert dl.DevicePool("sandbox", "android").release_owner("r#w") == 0
+
+
+# ═══════════════════════════════════════════════════════════════════
+# E. 隔离口径
+# ═══════════════════════════════════════════════════════════════════
+
+def test_report_forwards_quarantine_ttl():
+    rec = _Recorder()
+    with _Patched(**{"api.report": rec("report", {"device_id": "S1"}),
+                     "dl.get_active_run": lambda: "r",
+                     "dl.get_active_task": lambda: "w"}):
+        dl.DevicePool("sandbox", "android").report(
+            "S1", "quarantined", error="ADB_SERVER_COORDINATION", quarantine_seconds=300)
+    _name, _args, kwargs = rec.calls[0]
+    assert kwargs.get("quarantine_seconds") == 300, kwargs
+    assert _args[1] == "quarantined", _args
+
+
+# ═══════════════════════════════════════════════════════════════════
+# F. 容量快照与补偿归还口径
+# ═══════════════════════════════════════════════════════════════════
+
+def test_summary_flattens_provider_states():
+    """池满提示读的是 `summary['idle'] / ['total']`，服务端返回的是按 provider 嵌套的结构。"""
+    with _Patched(**{"api.list_devices": lambda **kw: {
+            "rows": [], "total": 3,
+            "summary": {"sandbox": {"idle": 1, "in_use": 2}}}}):
+        s = dl.DevicePool("sandbox", "android").summary()
+    assert (s.get("idle"), s.get("in_use"), s.get("total")) == (1, 2, 3), s
+
+
+def test_sweep_pending_scans_globally_but_skips_foreign_owner():
+    """过期回收会把 owner 清空：只按本 owner 扫会永久漏掉这些 conan 配额。"""
+    rows = [
+        {"device_id": "C-orphan", "provider": "conan", "lease_owner": None, "fence": 3},
+        {"device_id": "C-mine", "provider": "conan", "lease_owner": "r#w", "fence": 1},
+        {"device_id": "C-other", "provider": "conan", "lease_owner": "x#y", "fence": 2},
+    ]
+    rec = _Recorder()
+    with _Patched(**{
+        "api.pending_releases": rec("pending", {"rows": rows}),
+        "api.release": rec("release", {"device_id": "x"}),
+        "conan.release": lambda serial: True,
+    }):
+        dl.DevicePool("conan", "harmony").sweep_pending("r#w")
+    ids = [args[0] for name, args, _kw in rec.calls if name == "release"]
+    assert ids == ["C-orphan", "C-mine"], ids
+
+
+# ═══════════════════════════════════════════════════════════════════
+# G. 静态守卫：不得回退到本地记账
+# ═══════════════════════════════════════════════════════════════════
+
+def test_no_local_lease_store_in_source():
+    offenders = []
+    for root, dirs, files in os.walk(_SCRIPTS_DIR):
+        dirs[:] = [d for d in dirs if d not in ("__pycache__", "dev")]
+        for name in files:
+            if not name.endswith(".py"):
+                continue
+            path = os.path.join(root, name)
+            with open(path, encoding="utf-8", errors="ignore") as fh:
+                text = fh.read()
+            if "lease_store" in text or "leases.json" in text:
+                offenders.append(os.path.relpath(path, _SCRIPTS_DIR))
+    assert not offenders, f"设备归属不得再落本地文件：{offenders}"
+
+
+def test_pool_api_has_no_local_fallback():
+    """pool_api 不得提供"服务端不可达就写本地"的降级路径（会静默串台）。"""
+    src = inspect.getsource(api)
+    for banned in ("leases.json", "LocalFileLeaseStore"):
+        assert banned not in src, banned
 
 
 def main():
@@ -182,31 +269,17 @@ def main():
              if n.startswith("test_") and callable(f)]
     failed = []
     for name, fn in tests:
-        # 隔离被测函数的标准输出（库层会打印进度噪声）；失败时回放，不丢调试信息。
-        buf = io.StringIO()
         try:
-            with contextlib.redirect_stdout(buf):
-                fn()
+            fn()
             print(f"  ✅ {name}")
         except AssertionError as e:
             failed.append((name, e))
             print(f"  ❌ {name}: {e}")
-            _dump(buf)
         except Exception as e:  # noqa: BLE001 — 守卫需暴露真实异常
             failed.append((name, e))
             print(f"  💥 {name}: {type(e).__name__}: {e}")
-            _dump(buf)
-            traceback.print_exc()
-    total = len(tests)
-    print(f"\n{total - len(failed)}/{total} passed")
+    print(f"\n{len(tests) - len(failed)}/{len(tests)} passed")
     return 1 if failed else 0
-
-
-def _dump(buf):
-    text = buf.getvalue().strip()
-    if text:
-        for line in text.splitlines():
-            print(f"      | {line}")
 
 
 if __name__ == "__main__":

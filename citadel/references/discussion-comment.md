@@ -9,7 +9,9 @@
 - **Discussion（讨论）**：一个划词评论会话，对应文档正文的某段引用内容（通过 `quoteId` 关联）。
 - **Comment（评论/回复）**：Discussion 下的单条评论，第一条是创建 discussion 时一起提交的 `firstComment`，后续回复通过 `replyDiscussionComment` 命令添加。
 
-每个 Discussion 有唯一的 `discussionId`（格式：`temp-discussion-{contentId}--{uuid}`）和 `quoteId`（格式：`{contentId}--{uuid}`）。
+每个 Discussion 有服务端返回的正式 `discussionId` 和正文中的 `quoteId`（格式：`{contentId}--{uuid}`）。`temp-discussion-...` 只是创建请求中的临时 ID，不能用来回复或删除。
+
+原生 MD 同样使用这些评论命令；先读取 `getDocumentJson --raw`，取同一次返回的节点 `attrs.nodeId` 和 `stepVersion`。完整流程以 [MD 划词评论](markdown-documents.md#评论) 为准，不调用 XML 读取命令。
 
 ## 添加划词评论的两步操作
 
@@ -25,7 +27,7 @@
 |---|---|
 | `from` / `to` | 节点在文档 ProseMirror 序列中的起止位置（通过 client 内部计算） |
 | `quoteId` | 该引用的唯一 ID，格式 `{contentId}--{uuid}` |
-| `stepVersion` / `baseStepVersion` | 当前文档的 step 版本号，从 `getDocumentXml` 返回 |
+| `stepVersion` / `baseStepVersion` | 当前文档版本；MD 从本次 `getDocumentJson` 读取，2.0 从 `getDocumentXml` 读取 |
 | `clientId` | 固定值 `FROM-CITADEL-SKILL` |
 | `msgId` | 每次请求随机生成的 UUID |
 
@@ -45,7 +47,7 @@
 |---|---|---|
 | `--contentId <id>` | string | 文档 ID |
 | `--nodeId <nodeId>` | string | 目标节点的 nodeId（从文档 JSON 的段落/标题节点 attrs.nodeId 字段获取） |
-| `--stepVersion <版本号>` | number | 文档当前 step 版本号（从 `getDocumentXml` 返回的 stepVersion 字段） |
+| `--stepVersion <版本号>` | number | 文档当前 step 版本号；MD 从本次 `getDocumentJson` 读取，2.0 从 `getDocumentXml` 读取 |
 | `--text <内容>` | string | 评论正文纯文本内容 |
 
 **可选参数：**
@@ -79,16 +81,15 @@ oa-skills citadel addDiscussionComment \
 
 ```
 ✅ 划词评论添加成功！
-discussionId：temp-discussion-2755005703--xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+discussionId：<服务端正式ID>
 quoteId：2755005703--xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-文档链接：https://km.sankuai.com/collabpage/2755005703
 ```
 
 **输出（--raw 模式）：**
 
 ```json
 {
-  "discussionId": "temp-discussion-2755005703--...",
+  "discussionId": "<服务端正式ID>",
   "quoteId": "2755005703--...",
   "success": true
 }
@@ -98,14 +99,15 @@ quoteId：2755005703--xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 ### replyDiscussionComment — 回复划词评论
 
-对已有划词评论添加回复。`discussionId` 通过 `getDiscussionComments` 命令获取（对应结果中的 `commentId` 字段）。
+对已有划词评论添加回复。`discussionId` 和 `quoteId` 通过 `getDiscussionComments` 的同一讨论条目获取；`commentId` 是该条评论 ID，不能替代讨论 ID。
 
 **必填参数：**
 
 | 参数 | 类型 | 说明 |
 |---|---|---|
 | `--contentId <id>` | string | 文档 ID |
-| `--discussionId <id>` | string | 要回复的 discussionId（从 `getDiscussionComments` 返回的 `commentId` 字段获取） |
+| `--discussionId <id>` | string | 从 `getDiscussionComments` 的 `discussionId` 字段获取 |
+| `--quoteId <id>` | string | 同一讨论条目的 `quoteId` |
 | `--text <内容>` | string | 回复正文纯文本内容 |
 
 **可选参数：**
@@ -121,13 +123,15 @@ quoteId：2755005703--xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 # 回复划词评论
 oa-skills citadel replyDiscussionComment \
   --contentId "2755005703" \
-  --discussionId "temp-discussion-2755005703--xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
+  --discussionId "<正式讨论ID>" \
+  --quoteId "2755005703--xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
   --text "已按建议修改"
 
 # 带 @提及的回复
 oa-skills citadel replyDiscussionComment \
   --contentId "2755005703" \
-  --discussionId "temp-discussion-2755005703--xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
+  --discussionId "<正式讨论ID>" \
+  --quoteId "2755005703--xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" \
   --text "已处理，请再看看" \
   --mention "zhangsan" \
   --mentionNames "张三"
@@ -141,7 +145,7 @@ oa-skills citadel replyDiscussionComment \
 |---|---|---|
 | 纯文本 | 普通文字 | `--text` 参数直接传递 |
 | @提及 | 提及某人（会触发消息通知） | `--mention` + `--mentionNames` 参数 |
-| 链接 | （暂未在 CLI 中直接支持，如需使用请通过 client API 直接调用） | — |
+| 链接 | CLI 暂无独立传参入口，不绕过 CLI 调用内部 client | — |
 
 **明确不支持**：图片、附件、代码块、表格、有序/无序列表、标题、加粗/斜体/颜色等富文本格式，以及任何块级节点。评论只接受纯文本和上述两种内联节点，传入其他格式不会报错但内容可能被忽略或丢失。
 
@@ -152,6 +156,8 @@ oa-skills citadel replyDiscussionComment \
 添加划词评论前，需要先获取目标节点的 `nodeId` 和当前文档的 `stepVersion`。
 
 **推荐流程：**
+
+以下 XML 示例适用于 2.0。MD 使用上方 [MD 评论流程](markdown-documents.md#评论)，在同一次 JSON 读取中选取节点和版本。
 
 ```bash
 # 1. 获取文档 XML 内容（同时返回 stepVersion）
@@ -167,7 +173,7 @@ CitadelXML 格式中，每个块级节点的 `nodeId` 属性即为所需参数�
 
 ### nodeId 的查找说明
 
-文档中任何带有 `nodeId` 属性的块级节点均可作为划词评论的引用目标，通过 `getDocumentXml` 或 `getDocumentJson` 获取节点的 `nodeId` 属性即可。
+2.0 可通过 `getDocumentXml` 或 `getDocumentJson` 获取目标 `nodeId`；MD 必须读取原生 JSON，目标须含可添加 quote 的非空文字。
 
 **当前限制：**
 - 只支持对整个块节点添加划词评论（整节点作为引用范围），不支持对节点内部分文字范围划词（例如某句话中的某几个字）
@@ -177,12 +183,17 @@ CitadelXML 格式中，每个块级节点的 `nodeId` 属性即为所需参数�
 
 | 错误信息 | 原因 | 解决方法 |
 |---|---|---|
-| `未找到 nodeId=xxx 对应的节点` | nodeId 不存在或拼写有误 | 重新通过 `getDocumentXml` 获取正确的 nodeId |
-| `提交 addMark step 失败` | stepVersion 与服务端不一致（文档有其他人同时编辑） | 重新获取最新的 stepVersion 后重试 |
+| `未找到 nodeId=xxx 对应的节点` | nodeId 不存在、拼写有误或不能建立文字 quote | 按类型重新读取 JSON/2.0 XML，确认可引用节点 |
+| `提交 addMark step 失败` | 版本冲突、权限不足或提交结果不明确 | 先回查保存结果，再按类型重读正文、nodeId 和版本；不只替换版本号重发 |
 | `划词评论不支持 1.0 旧版文档` | 文档是 1.0 格式（HTML 存储） | 该文档不支持划词评论，请使用全文评论 |
-| `创建划词评论失败` | discussion 创建接口异常 | 检查网络和认证状态后重试 |
+| 锚点提交未完成确认 | Step 请求失败或回执异常，评论尚未继续创建 | 先回读确认，勿直接重发 |
+| 锚点已保存、评论创建未完成确认 | 评论请求失败或缺少正式 ID，可能已提交 | 按报错中的 quoteId 回查正文与评论；勿重跑整套添加流程 |
 
 ---
+
+## 全文评论回复
+
+全文评论回复通过 `addFullTextComment --parentCommentId <ID>`，当前该参数只接受非负 JavaScript 安全整数。超出范围直接报错，不会截断或替换 ID；遇到此情况先说明 CLI 限制，停止回复。
 
 ## 删除全文评论
 
@@ -213,15 +224,15 @@ deleteFullTextComment --contentId <id> --commentId <评论ID>
 3. **不可撤销**：删除后无法恢复，执行后告知用户此限制。
 
 **参数说明**：
-- `discussionId`：对应 `getDiscussionComments` 返回列表中的 `commentId` 字段（顶层 discussion 的 ID）
-- `commentId`：要删除的具体评论 ID（删除主评论时与 discussionId 相同，删除回复时为 replies[].commentId）
-- `quoteId`：删除主评论时传空字符串 `""`，删除回复时传 `replies[].quoteId`
+- `discussionId`：`getDiscussionComments` 中的 `discussionId` 字段
+- `commentId`：要删除的具体评论 ID；主评论为条目的 `commentId`，回复为 `replies[].commentId`，不使用讨论 ID 替代
+- `quoteId`：删除主评论沿用空字符串 `""`；删除回复使用其所属讨论的 `quoteId`
 
 **操作步骤**：
 
 ```bash
 # 第一步：获取划词评论列表，确认要删除的评论内容
-# 返回结果中：commentId = discussionId，replies[].commentId = 回复评论 ID
+# 返回结果中：discussionId = 讨论 ID，commentId = 主评论 ID，replies[].commentId = 回复 ID
 getDiscussionComments --contentId <id>
 
 # 第二步：展示评论内容并请用户确认，确认后执行删除
@@ -229,7 +240,7 @@ getDiscussionComments --contentId <id>
 # 删除主评论（quoteId 传空）
 deleteDiscussionComment --contentId <id> --discussionId <discussionId> --commentId <commentId> --quoteId ""
 
-# 删除回复（quoteId 从 replies[].quoteId 获取）
+# 删除回复（quoteId 从所属讨论条目获取）
 deleteDiscussionComment --contentId <id> --discussionId <discussionId> --commentId <回复ID> --quoteId <quoteId>
 ```
 

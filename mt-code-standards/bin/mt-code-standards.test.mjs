@@ -12,7 +12,13 @@ import { canonicalJson, sha256Hex } from "../scripts/resolve-effective-rules.mjs
 const cli = fileURLToPath(new URL("./mt-code-standards.mjs", import.meta.url));
 const packageInfo = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 
-test("parses pull options and fixes the independent execution agent to cli", () => {
+const envelope = (request, bundle) => ({
+  schema_version: "rule-bundle-resolution/v1", request_id: "cli-request-test", pull_id: request.execution.pull_id,
+  bundle_kind: "effective", delivery_mode: "l1_only", selection_reason: "no_effective_l2",
+  standard_domain: "frontend", stage: "coding", target: { canonical_key: request.repository_locator, ...request.target }, bundle,
+});
+
+test("parses CLI options and accepts a known invoking agent", () => {
   assert.deepEqual(parseCliArgs([
     "pull", "--repository", "hotel-web", "--output-dir", "/tmp/output",
     "--transport", "direct", "--mis", "tester", "--json", "--non-interactive", "--execution-agent", "cli",
@@ -32,7 +38,7 @@ test("parses pull options and fixes the independent execution agent to cli", () 
     },
   });
   assert.throws(
-    () => parseCliArgs(["pull", "--execution-agent", "codex"]),
+    () => parseCliArgs(["pull", "--execution-agent", "invalid-agent"]),
     (error) => error.code === "RULE_BUNDLE_ARGUMENT_INVALID",
   );
 });
@@ -95,9 +101,7 @@ test("parses public transport without accepting authentication options", () => {
   assert.equal(parsed.options.transport, "public");
   assert.equal(parsed.options.transportExplicit, true);
   for (const extra of [
-    ["--mis", "tester"],
     ["--auth-agent", "cursor"],
-    ["--bootstrap"],
   ]) {
     assert.throws(
       () => parseCliArgs(["pull", "--transport", "public", ...extra]),
@@ -106,21 +110,22 @@ test("parses public transport without accepting authentication options", () => {
   }
 });
 
-test("preflight rejects a missing repository before asking for MIS", async () => {
+test("preflight lists missing domain and stage without requiring a repository", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "setup-cli-no-git-"));
   const result = spawnSync(process.execPath, [
     cli, "pull", "--output-dir", directory, "--json", "--non-interactive",
   ], { encoding: "utf8", cwd: directory, env: {} });
   assert.equal(result.status, 2);
   const body = JSON.parse(result.stdout);
-  assert.equal(body.error.code, "RULE_BUNDLE_REPOSITORY_REQUIRED");
+  assert.equal(body.error.code, "rule_parameters_invalid");
+  assert.deepEqual(body.error.issues.map(issue => issue.field).sort(), ["stage", "standard_domain"]);
   assert.equal(result.stderr, "");
 });
 
 test("non-interactive pull requires MIS only after request preflight succeeds", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "setup-cli-mis-"));
   const result = spawnSync(process.execPath, [
-    cli, "pull", "--repository", "hotel-web", "--output-dir", directory, "--transport", "direct",
+    cli, "pull", "--stage", "coding", "--repository", "hfe/hotel-web", "--output-dir", directory, "--transport", "direct",
     "--json", "--non-interactive",
   ], { encoding: "utf8", cwd: directory, env: {} });
   assert.equal(result.status, 2);
@@ -135,58 +140,59 @@ test("default CLI pull uses the public endpoint without inheriting credentials",
   const content = "# Public L1\n";
   const files = [{
     relative_path: "l1/frontend-l1.md",
+    rule_set_id: "frontend-l1", release_id: "frontend-l1@test",
     content,
     sha256: sha256Hex(content),
     byte_size: Buffer.byteLength(content),
   }];
-  const manifestHash = sha256Hex(canonicalJson(files.map(({ relative_path, sha256, byte_size }) => ({
-    relative_path, sha256, byte_size,
+  const manifestHash = sha256Hex(canonicalJson(files.map(({ relative_path, rule_set_id, release_id, sha256, byte_size }) => ({
+    relative_path, rule_set_id, release_id, sha256, byte_size,
   }))));
   const repository = {
     repository_id: "repo:hotel-web",
     canonical_key: "hfe/hotel-web",
     standard_domain: "frontend",
   };
-  const releaseRefs = [{ rule_set_id: "frontend-l1", release_id: "frontend-l1@test", scope_level: "L1" }];
+  const releaseRefs = [{ rule_set_id: "frontend-l1", release_id: "frontend-l1@test", scope_level: "L1", standard_domain: "frontend", local_rule_set_name: "前端规范" }];
   const snapshotId = sha256Hex(canonicalJson({
-    resolver_version: "effective-rule-bundle/v2",
+    resolver_version: "effective-rule-bundle/v4",
     repository_id: repository.repository_id,
     canonical_key: repository.canonical_key,
     standard_domain: repository.standard_domain,
     manifest_hash: manifestHash,
-    release_refs: releaseRefs,
+    release_refs: releaseRefs, stage: "coding", dependency_hash: sha256Hex("cli-stage"),
   }));
   const output = [];
   const originalWrite = process.stdout.write;
   process.stdout.write = (chunk) => { output.push(String(chunk)); return true; };
   try {
     const status = await runCli({
-      argv: ["pull", "--repository", "git@git.sankuai.com:HFE/Hotel-Web.git", "--output-dir", directory, "--json"],
+      argv: ["pull", "--stage", "coding", "--repository", "git@git.sankuai.com:HFE/Hotel-Web.git", "--output-dir", directory, "--json"],
       environment: {
         RULE_OBSERVABILITY_USER_TOKEN: "must-not-be-used",
         SSO_USER_ID: "must-not-be-used",
       },
       cwd: directory,
       fetchImpl: async (url, init) => {
-        assert.match(url, /\/v1\/public\/effective-rule-bundles\/resolve$/u);
+        assert.match(url, /\/v1\/public\/rule-bundles\/resolve$/u);
         assert.equal(init.headers.Authorization, undefined);
         assert.equal(JSON.parse(init.body).repository_locator, "hfe/hotel-web");
         return {
           ok: true,
           status: 200,
-          text: async () => JSON.stringify({
-            schema_version: "effective-rule-bundle/v2",
+          text: async () => JSON.stringify(envelope(JSON.parse(init.body), {
+            schema_version: "effective-rule-bundle/v4",
             status: "ready",
             snapshot: {
-              resolver_version: "effective-rule-bundle/v2",
+              resolver_version: "effective-rule-bundle/v4",
               snapshot_id: snapshotId,
               repository,
               manifest_hash: manifestHash,
-              release_refs: releaseRefs,
+              release_refs: releaseRefs, stage: "coding", dependency_hash: sha256Hex("cli-stage"),
               total_bytes: Buffer.byteLength(content),
             },
             files,
-          }),
+          })),
         };
       },
     });
@@ -197,7 +203,7 @@ test("default CLI pull uses the public endpoint without inheriting credentials",
   const result = JSON.parse(output.join(""));
   assert.equal(result.receipt.authentication_mode, "public_repository");
   assert.equal(result.receipt.authentication_route_reason, "default_public_transport");
-  assert.equal(await readFile(path.join(directory, ".mdp/rules/company/frontend-l1.md"), "utf8"), content);
+  assert.equal(await readFile(path.join(directory, ".mdp/rules/company/fe/前端规范/frontend-l1.md"), "utf8"), content);
 });
 
 test("mtcli transport performs verified dry-run and installs without MIS or inherited user token", async () => {
@@ -208,12 +214,13 @@ test("mtcli transport performs verified dry-run and installs without MIS or inhe
   const content = "# L1 via mtcli\n";
   const files = [{
     relative_path: "l1/frontend-l1.md",
+    rule_set_id: "frontend-l1", release_id: "frontend-l1@test",
     content,
     sha256: sha256Hex(content),
     byte_size: Buffer.byteLength(content),
   }];
-  const manifestHash = sha256Hex(canonicalJson(files.map(({ relative_path, sha256, byte_size }) => ({
-    relative_path, sha256, byte_size,
+  const manifestHash = sha256Hex(canonicalJson(files.map(({ relative_path, rule_set_id, release_id, sha256, byte_size }) => ({
+    relative_path, rule_set_id, release_id, sha256, byte_size,
   }))));
   const repository = {
     repository_id: "repo:hotel-web",
@@ -224,24 +231,25 @@ test("mtcli transport performs verified dry-run and installs without MIS or inhe
     rule_set_id: "frontend-l1",
     release_id: "frontend-l1@test",
     scope_level: "L1",
+    standard_domain: "frontend", local_rule_set_name: "前端规范",
   }];
   const snapshotId = sha256Hex(canonicalJson({
-    resolver_version: "effective-rule-bundle/v2",
+    resolver_version: "effective-rule-bundle/v4",
     repository_id: repository.repository_id,
     canonical_key: repository.canonical_key,
     standard_domain: repository.standard_domain,
     manifest_hash: manifestHash,
-    release_refs: releaseRefs,
+    release_refs: releaseRefs, stage: "coding", dependency_hash: sha256Hex("cli-stage"),
   }));
   const bundle = {
-    schema_version: "effective-rule-bundle/v2",
+    schema_version: "effective-rule-bundle/v4",
     status: "ready",
     snapshot: {
-      resolver_version: "effective-rule-bundle/v2",
+      resolver_version: "effective-rule-bundle/v4",
       snapshot_id: snapshotId,
       repository,
       manifest_hash: manifestHash,
-      release_refs: releaseRefs,
+      release_refs: releaseRefs, stage: "coding", dependency_hash: sha256Hex("cli-stage"),
       total_bytes: Buffer.byteLength(content),
     },
     files,
@@ -253,20 +261,22 @@ const value = (flag) => args[args.indexOf(flag) + 1];
 const body = JSON.parse(value("--json"));
 const headers = JSON.parse(value("--params"));
 if (body.execution?.execution_agent !== "cli"
-  || body.execution?.skill_name !== "mt-code-standards"
-  || body.execution?.skill_version !== ${JSON.stringify(packageInfo.version)}) process.exit(42);
+  || body.execution?.skill_name !== null
+  || body.execution?.skill_version !== null
+  || body.execution?.client_type !== "cli"
+  || body.execution?.client_version !== ${JSON.stringify(packageInfo.version)}) process.exit(42);
 if (args.includes("--dry-run")) {
   process.stdout.write(JSON.stringify({
     auth_type: "SSO", body, dry_run: true, headers, method: "POST", query_params: {},
     target_env: "prod", timeout: 30,
-    url: "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-distribution/v1/effective-rule-bundles/resolve"
+    url: "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-distribution/v1/rule-bundles/resolve"
   }));
-} else process.stdout.write(JSON.stringify({ success: true, status_code: 200, data: ${JSON.stringify(bundle)} }));
+} else process.stdout.write(JSON.stringify({ success: true, status_code: 200, data: (${envelope.toString()})(body, ${JSON.stringify(bundle)}) }));
 `;
   await writeFile(executable, fakeSource, "utf8");
   await chmod(executable, 0o755);
   const result = spawnSync(process.execPath, [
-    cli, "pull", "--repository", "hfe/hotel-web", "--output-dir", directory,
+    cli, "pull", "--stage", "coding", "--repository", "hfe/hotel-web", "--output-dir", directory,
     "--transport", "mtcli", "--json", "--non-interactive",
   ], {
     encoding: "utf8",
@@ -283,7 +293,36 @@ if (args.includes("--dry-run")) {
   assert.equal(output.receipt.execution_agent, "cli");
   assert.match(output.receipt.pull_id, /^[0-9a-f-]{36}$/u);
   assert.equal(
-    await readFile(path.join(directory, ".mdp/rules/company/frontend-l1.md"), "utf8"),
+    await readFile(path.join(directory, ".mdp/rules/company/fe/前端规范/frontend-l1.md"), "utf8"),
     content,
   );
+});
+
+test("legacy bootstrap is an l1 scope alias without changing selected authentication", async () => {
+  for (const transport of ["public", "direct"]) {
+    let called = false;
+    const result = await runCli({
+      argv: ["pull", "--repository", "team/new", "--domain", "frontend", "--stage", "coding", "--transport", transport, "--bootstrap", "--mis", "aicr-agent", "--json"],
+      environment: { RULE_OBSERVABILITY_USER_TOKEN: "verified" }, prepare: async () => ({}),
+      sync: async ({ options }) => { called = true; assert.equal(transport, "direct"); assert.equal(options.bootstrap, true); return { status: "installed" }; },
+      syncBundle: async (options) => { called = true; assert.equal(transport, "public"); assert.equal(options.bootstrap, true); assert.equal(options.publicPull, true); assert.equal(options.mis, "aicr-agent"); return { status: "installed" }; },
+    });
+    assert.equal(result, 0); assert.equal(called, true);
+  }
+  assert.equal(parseCliArgs(["pull", "--transport", "mtcli", "--bootstrap"]).options.bootstrap, true);
+});
+
+
+test("CLI rejects an explicit blank repository before any request", { concurrency: false }, async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "setup-cli-blank-repository-"));
+  const originalWrite = process.stdout.write;
+  try {
+    for (const locator of ["", "   "]) {
+      const output = []; let calls = 0;
+      process.stdout.write = chunk => { output.push(String(chunk)); return true; };
+      const status = await runCli({ argv: ["pull", "--repository", locator, "--domain", "frontend", "--stage", "coding", "--json"], cwd: directory, environment: {}, fetchImpl: async () => { calls++; assert.fail("network"); } });
+      assert.equal(status, 2); assert.equal(calls, 0);
+      const body = JSON.parse(output.join("")); assert.equal(body.error.code, "repository_locator_invalid"); assert.equal(body.error.issues[0].field, "repository_locator");
+    }
+  } finally { process.stdout.write = originalWrite; }
 });

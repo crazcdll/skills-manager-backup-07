@@ -9,11 +9,12 @@
 所以制品必须有**一份**跨 run 的本地缓存，且安装前必须**先看缓存**。
 
 【分层模型】
-  L1 制品缓存（本模块，host 侧）：`<skill>/.cache/artifacts/<platform>/<form>/<pkg>/<文件名>`
+  L1 制品缓存（本模块，host 侧）：`~/.local/share/ai-ui-autotest-engine/cache/artifacts/<platform>/<form>/<pkg>/<文件名>`
       · 所有"需要本地制品"的通道（鸿蒙 HAP、Android APK、iOS 制品）共用这一份；
-      · 跨 workspace / 跨子 Agent 共享（`.cache` 在 Skill 根目录，不在 `.run/` 下）；
-      · **引擎永不自动清理**：只有用户手动清理 Skill（删目录/卸载 Skill）才会消失；
-        post-clean / preflight-clean 只作用于 `.run/tasks/<ws>/`，不触碰本目录。
+      · **机器级**（跨安装 / 跨 workspace / 跨子 Agent 共享），不能落在 Skill 目录：
+        Skill 会被多份安装/镜像，落在里面会各下一份，且 Skill 更新时整目录被替换；
+      · **引擎永不自动清理**：只有用户手动清理该目录才会消失；
+        post-clean / preflight-clean 只作用于 `$STATE/run/tasks/<ws>/`，不触碰本目录。
   L2 设备侧缓存（device 侧，各 PlatformOps 自持，如鸿蒙 `DEVICE_APK_CACHE_DIR`）：
       · 解决"同一台设备被多次占用时重复 host→device 传输"；
       · 命中判定用 L1 本地文件的**确切大小**（无需再探测远端）。
@@ -29,8 +30,8 @@
 【命中判定（为什么不做全量哈希）】
   命中 = 文件存在 + 大小 > 0 + sidecar 记录的大小与磁盘实际大小一致（防截断）+
   （可选）远端大小一致（HEAD，用于"同名文件被换内容"的情况；探测失败不否决缓存）。
-  1.4G 的制品每次安装都算 sha256 是纯浪费——原子落盘 + 大小校验已能覆盖真实故障；
-  真正需要防篡改时再在 sidecar 里补哈希字段即可（本模块已预留字段位）。
+  1.4G 的制品每次安装都算哈希是纯浪费——原子落盘 + 大小校验已能覆盖真实故障
+  （截断、半包、并发写坏）；防篡改不在本模块职责内。
 """
 import fcntl
 import os
@@ -41,14 +42,11 @@ from contextlib import contextmanager
 from urllib.parse import urlparse
 
 from shared.json_utils import read_json, write_json_atomic
-from shared.paths import SKILL_DIR
+from shared.paths import STATE_HOME
 
-# ── 缓存根（Skill 级，永不自动清理；见模块 docstring 的分层模型）──────────
-CACHE_ROOT = os.path.join(SKILL_DIR, ".cache")
+# ── 缓存根（机器级，永不自动清理；见模块 docstring 的分层模型）──────────
+CACHE_ROOT = os.path.join(STATE_HOME, "cache")
 ARTIFACTS_DIR = os.path.join(CACHE_ROOT, "artifacts")
-
-# sidecar 里预留的哈希字段（当前不写入：见 docstring 的命中判定说明）
-_HASH_FIELD = "sha256"
 
 # 崩溃残留的 part 文件超过该秒数才清理（远大于正常下载耗时，避免误删活跃下载）
 _STALE_PART_SEC = 6 * 3600
@@ -57,7 +55,7 @@ _SOCKET_TIMEOUT = 300
 
 
 def cache_root() -> str:
-    """L1 制品缓存的根目录（`<skill>/.cache`）。"""
+    """L1 制品缓存的根目录（`~/.local/share/ai-ui-autotest-engine/cache`）。"""
     return CACHE_ROOT
 
 
@@ -258,7 +256,6 @@ def ensure(url: str, scope: str, *, timeout: int = _SOCKET_TIMEOUT, label: str =
         write_json_atomic(_meta_path(path), {
             "url": url, "scope": scope, "size": size,
             "downloadedAt": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-            _HASH_FIELD: None,
         })
         sys.stderr.write(
             f"[artifact_cache] ⬇️ 下载完成: {path}（{size // 1024 // 1024}MB，"

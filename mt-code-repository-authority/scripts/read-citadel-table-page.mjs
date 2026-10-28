@@ -10,6 +10,7 @@ const SAFE_ERROR_CODES = new Set([
   "citadel_auth_expired",
   "citadel_auth_failed",
   "citadel_document_access_denied",
+  "citadel_secure_environment_required",
   "citadel_scan_timeout",
   "citadel_database_page_unavailable",
 ]);
@@ -17,6 +18,7 @@ const SAFE_ERROR_CODES = new Set([
 const safeCitadelErrorCode = (error) => {
   const message = String(error instanceof Error ? error.message : error);
   if (SAFE_ERROR_CODES.has(message)) return message;
+  if (/(?:C4|高密|安全屋|secure environment|secure house).{0,160}(?:失败|拒绝|required|需要|only|仅|不可用|不支持|访问)/iu.test(message)) return "citadel_secure_environment_required";
   if (/(?:MOA_USER_REJECTED|MOA_REJECT_COOLDOWN|(?:认证|授权).{0,30}(?:被?拒绝|冷却)|user.{0,20}rejected)/iu.test(message)) return "citadel_auth_rejected";
   if (/(?:expired_token|invalid_grant|token.{0,20}expired|auth(?:entication|orization)?.{0,30}expired|(?:认证|授权|令牌).{0,30}过期)/iu.test(message)) return "citadel_auth_expired";
   if (/(?:MOA_AUTH_TIMEOUT|AUTHORIZATION_TIMEOUT|auth(?:entication|orization)?.{0,30}timed?\s*out|(?:认证|授权)(?:请求|等待)?(?:已)?超时|等待.{0,20}(?:认证|授权|大象).{0,20}(?:已)?超时)/iu.test(message)) return "citadel_auth_timeout";

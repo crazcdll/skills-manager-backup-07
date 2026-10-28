@@ -7,7 +7,7 @@
 
 使用方式
 --------
-在轻量模板（.run/tasks/<task>/tmp/generate_steps.py）中：
+在轻量模板（$STATE/run/tasks/<task>/tmp/generate_steps.py）中：
     from execution.engine.flow.steps_generator import StepsGenerator
     gen = StepsGenerator(TAG, BATCH_NAME, DEVICE, ENV, CASES)
     path = gen.output()
@@ -19,7 +19,11 @@ from shared.errors import PayloadError
 from shared.paths import SKILL_DIR, steps_input_dir, flows_dir, resolve_input_path
 from shared.intake import read_intake
 from shared.json_utils import write_json_atomic, read_json
-from shared.placeholders import collect_case_placeholder_text, extract_placeholders
+from shared.placeholders import (
+    DATE_PLACEHOLDER_RE,
+    collect_case_placeholder_text,
+    extract_placeholders,
+)
 from provisioning.validators.env_validator import build_env_from_intake
 
 KIND_WHITELIST = {"ui", "api", "track"}
@@ -261,7 +265,20 @@ class StepsGenerator:
                     f"{case.get('case_id')}: landing_scheme 必须以 imeituan:// 开头"
                 )
             for pk, pv in (case.get("params", {}) or {}).items():
-                if isinstance(pv, str) and extract_placeholders(pv):
+                if not isinstance(pv, str):
+                    continue
+                if pv == "__date__":
+                    errors.append(
+                        f"{case.get('case_id')}: params.{pk}=__date__ 已废弃；"
+                        "日期必须直接写进 landing_scheme/steps，"
+                        "如 {T+10:%Y-%m-%d}"
+                    )
+                elif DATE_PLACEHOLDER_RE.search(pv):
+                    errors.append(
+                        f"{case.get('case_id')}: params.{pk} 不能承载日期表达式；"
+                        f"请直接写进 landing_scheme/steps"
+                    )
+                elif extract_placeholders(pv):
                     errors.append(f"{case.get('case_id')}: params.{pk} 含占位符，须为确定值")
             seen_sids = set()
             for step in case.get("steps", []):
@@ -328,7 +345,7 @@ class StepsGenerator:
     # ── 输出 ────────────────────────────────────────────────────
 
     def output(self) -> str:
-        """生成 steps-input-{tag}.json 并写入 .run/tasks/<task>/tmp/，返回文件路径。"""
+        """生成 steps-input-{tag}.json 并写入 $STATE/run/tasks/<task>/tmp/，返回文件路径。"""
         try:
             data = self.run()
         except ValueError as ve:
@@ -398,7 +415,7 @@ def mask_password(env: dict) -> dict:
 
 
 def cases_json_path(tag: str) -> str:
-    """返回 CASES JSON 的绝对路径（.run/tasks/<task>/tmp/cases-<tag>.json）。"""
+    """返回 CASES JSON 的绝对路径（$STATE/run/tasks/<task>/tmp/cases-<tag>.json）。"""
     return os.path.join(steps_input_dir(), f"cases-{tag}.json")
 
 
@@ -467,7 +484,7 @@ def cmd_steps_generate(args):
     except _json.JSONDecodeError as e:
         raise PayloadError(f"ERROR: JSON 解析失败: {e}\n  文件: {raw}（{len(raw)} 字节）") from e
 
-    # \u626b\u63cf .run/tasks/<task>/inputs/flows/ \u83b7\u53d6 .md \u6587\u4ef6\u5217\u8868
+    # \u626b\u63cf $STATE/run/tasks/<task>/inputs/flows/ \u83b7\u53d6 .md \u6587\u4ef6\u5217\u8868
     flow_sources = []
     if os.path.isdir(flows_dir()):
         try:

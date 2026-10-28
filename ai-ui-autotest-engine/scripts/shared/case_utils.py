@@ -11,6 +11,7 @@ from shared.paths import (
     get_active_run,
 )
 from shared.intake import read_intake, update_intake
+from shared.output_guard import redact_text, secrets_from
 from shared.records import STEPS_FILENAME, SRC_NOTE, StepRecord
 
 def resolve_case_path(path):
@@ -171,7 +172,7 @@ def resolve_flow_content(flow_source="", name_hints=None):
 
     解析顺序：
       1) flow_source 指向可读文件 → 直接用（相对路径按 SKILL_DIR 解析）
-      2) 否则在 .run/tasks/<task>/inputs/flows/ 按 name_hints（case_id/case_name）匹配文件名
+      2) 否则在 $STATE/run/tasks/<task>/inputs/flows/ 按 name_hints（case_id/case_name）匹配文件名
       3) 否则该目录下恰好只有一个 .md → 用它
     返回 (path, content, name)；解析不到返回 ("", "", "")。
     """
@@ -233,6 +234,8 @@ def append_source_notes(case_workspace, entries):
             from shared.errors import soft_fail
             soft_fail("infra", "SOURCE_NOTES_READ_FAILED", f"{path}: {e}")
 
+    # 原文快照会进入 steps.jsonl → 报告 → 平台：写入前先脱敏（运行态 intake 仍保留原值）
+    secrets = secrets_from(read_intake())
     written = []
     for entry in entries:
         src = entry.get("source")
@@ -245,7 +248,7 @@ def append_source_notes(case_workspace, entries):
             desc=entry.get("desc", ""),
             ok=None,
             status="note",
-            note=entry["note"],
+            note=redact_text(entry["note"], secrets),
             extra={"source": src},
         ).append(case_workspace)
         existing.add(src)

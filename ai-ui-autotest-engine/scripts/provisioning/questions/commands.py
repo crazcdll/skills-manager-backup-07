@@ -11,6 +11,7 @@ import json
 from provisioning.questions.driver import answer, next_question, schema_view, seed, status
 from shared.errors import UsageError
 from shared.intake import IntakeContext
+from shared.output_guard import redact_obj
 from shared.workspace import render_text
 
 # 需要按 JSON 解析的 `--value` 前缀（其余原样作为字符串，避免手机号被转成数字）
@@ -39,21 +40,22 @@ def _load_json_object(raw: str, cmd: str) -> dict:
     return data
 
 
+def _emit(result):
+    """命令回显是 stdout 出口：脱敏后再渲染（AI 只需 id，不需要原值）。"""
+    print(render_text(json.dumps(redact_obj(result), ensure_ascii=False, indent=2)))
+
+
 def cmd_input_next(args):
-    result = next_question(IntakeContext())
     # 输出里的 next.cmd 是 AI 直接执行的命令 → 统一渲染为 workspace 入口
-    print(render_text(json.dumps(result, ensure_ascii=False, indent=2)))
+    _emit(next_question(IntakeContext()))
 
 
 def cmd_input_answer(args):
-    result = answer(IntakeContext(),
-                    args.id, _parse_value(args.value))
-    print(render_text(json.dumps(result, ensure_ascii=False, indent=2)))
+    _emit(answer(IntakeContext(), args.id, _parse_value(args.value)))
 
 
 def cmd_input_status(args):
-    result = status(IntakeContext())
-    print(render_text(json.dumps(result, ensure_ascii=False, indent=2)))
+    _emit(status(IntakeContext()))
 
 
 def cmd_input_schema(args):
@@ -62,5 +64,4 @@ def cmd_input_schema(args):
 
 
 def cmd_input_seed(args):
-    result = seed(IntakeContext(), _load_json_object(args.answers, "input-seed"))
-    print(render_text(json.dumps(result, ensure_ascii=False, indent=2)))
+    _emit(seed(IntakeContext(), _load_json_object(args.answers, "input-seed")))

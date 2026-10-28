@@ -5,6 +5,7 @@ import time
 
 from shared.case_utils import current_case_workspace, resolve_case_path
 from shared.json_utils import write_json_atomic, read_json
+from shared.output_guard import redact_obj, secrets_from
 from shared.paths import get_active_run
 from reporting.case_report import build_case
 from reporting.data_collector import load_audit, load_case_data
@@ -55,7 +56,7 @@ def _case_report(context, run_dir, output_dir, s3):
     report = {
         "report_type": "case",
         "run_id": context["meta"]["batch_run_id"],
-        "case": case,
+        "case": redact_obj(case, secrets_from(context.get("env") or {})),
     }
     write_json_atomic(os.path.join(output_dir, "report.json"), report)
     return report
@@ -76,11 +77,9 @@ def generate_case_report(args):
 
     stage = context.get("sop", {}).get("current_stage")
     if stage == "aborted":
-        missing = [
-            {"case_id": item.get("case_id", ""), "case_name": item.get("case_name", "")}
-            for item in context.get("cases_manifest", [])
-            if item.get("case_id") != case.get("case_id")
-        ]
+        # 标题在 build_run 阶段就要带上，meta.json 才能与 report.json 一致
+        context["meta"]["flow_name"] = f"[环境准备失败] {context['meta'].get('flow_name', '')}"
+        # 缺失 Case 由 finalizer 统一计算并写入 report.json / meta.json，此处不再二次回写
         run, report_path = finalize_run(
             context=context,
             run_dir=run_dir,
@@ -90,9 +89,6 @@ def generate_case_report(args):
             output_dir=context["meta"]["batch_output_dir"],
             run_status="aborted",
         )
-        run["title"] = f"[环境准备失败] {run['title']}"
-        run["batch_summary"]["missing_cases"] = missing
-        write_json_atomic(report_path, run)
         if not getattr(args, 'no_db', False):
             insert_report(run)
         print(f"  📄 report.json: file://{report_path}")
@@ -139,8 +135,6 @@ def _generate_batch_report(args, run_dir, context):
         output_dir=context["meta"]["batch_output_dir"],
         run_status="complete" if not missing else "incomplete",
     )
-    run["batch_summary"]["missing_cases"] = missing
-    write_json_atomic(report_path, run)
     if not args.no_db:
         insert_report(run)
     print(f"  ✅ 聚合报告已生成: {report_path}")

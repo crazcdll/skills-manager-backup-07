@@ -10,7 +10,7 @@ skill-dependencies:
 metadata:
   skillhub.creator: "zhangce07"
   skillhub.updater: "zhangce07"
-  skillhub.version: "V10"
+  skillhub.version: "V12"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "141227"
   skillhub.high_sensitive: "false"
@@ -142,3 +142,11 @@ Edge 唯一 normalizer 判定；`invalid_items` 只承载过长等提取层错�
 
 跨层 Schema、状态含义和稳定错误码见 [references/contracts.md](references/contracts.md)。只有排障合同或修改
 Runner 时才需要读取该文件；普通执行只运行上面的固定命令。
+
+### 回调失败提示
+
+仓库负责人、来源扫描与组织关系刷新三类回调在非成功 HTTP 响应时，仅从不超过 8 KiB 的 JSON 错误
+提取有界、脱敏的明确 `message`。原有回调错误码和 HTTP 重试判定保持兼容；上游 machine code、UUID
+请求 ID 与提示通过 Error、CLI 和本地回调失败摘要保留，外部结果及 ACK 合同不添加字段。非 JSON、SQL、
+数据库内部细节及堆栈使用固定安全兜底，实际 capability 值不得出现在任何诊断字段。来源扫描超过响应体
+上限时取消读取；诊断 helper 随本 Skill 独立打包，不依赖其他 Skill 运行目录。

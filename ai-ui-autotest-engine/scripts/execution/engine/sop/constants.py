@@ -26,6 +26,11 @@ FLOW_CONTEXT_FILENAME = "flow-context.json"
 CLEANUP_CMDS = (
     "python3 scripts/cli.py mock record-stop",
     "python3 scripts/cli.py mock reset-env",
+    # 会话回收必须先于租约归还：disconnect 依赖 flow-context 的 session_id，
+    # 而 release 之后设备可能被其他 run 领走，再断会话会误伤对方。
+    # 忘记断开会让 ~/.imeituan/sessions 累积 pid=0 残留，污染后续注册
+    # （legacy 记录 → ADB_SERVER_LEGACY_IDENTITY_UNKNOWN）。
+    "python3 scripts/cli.py device disconnect",
     "python3 scripts/cli.py device release",
     "python3 scripts/cli.py mis release",
     "python3 scripts/cli.py flow-finalize",

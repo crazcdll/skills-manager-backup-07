@@ -143,6 +143,13 @@ main { min-height:0; --logs-width:440px;
 .tile-status[data-state="idle"] .led { background:var(--amber); box-shadow:0 0 6px var(--amber); }
 .tile-status[data-state="stale"] { color:var(--rose); border-color:rgba(255,107,138,.32); background:rgba(255,107,138,.05); }
 .tile-status[data-state="stale"] .led { background:var(--rose); box-shadow:0 0 6px var(--rose); }
+/* 池状态（服务端单表口径）：draining 不接新任务、quarantined 冷却中、broken 待下架 */
+.tile-status[data-state="draining"] { color:var(--amber); border-color:rgba(255,176,90,.3); }
+.tile-status[data-state="draining"] .led { background:var(--amber); box-shadow:0 0 6px var(--amber); }
+.tile-status[data-state="quarantined"] { color:var(--rose); border-color:rgba(255,107,138,.32); background:rgba(255,107,138,.05); }
+.tile-status[data-state="quarantined"] .led { background:var(--rose); box-shadow:0 0 6px var(--rose); }
+.tile-status[data-state="broken"] { color:var(--rose); border-color:rgba(255,107,138,.5); background:rgba(255,107,138,.1); }
+.tile-status[data-state="broken"] .led { background:var(--rose); box-shadow:0 0 8px var(--rose); }
 
 /* 画面容器：定高（行内对齐），画面 contain 内 */
 .screen { position:relative; height:320px; border-radius:6px; overflow:hidden; background:#050810;
@@ -152,7 +159,9 @@ main { min-height:0; --logs-width:440px;
   object-fit:contain; background:#000; display:block; }
 .screen .fallback { display:grid; place-items:center; height:100%; color:var(--dim); font-size:10px;
   text-align:center; padding:8px; line-height:1.7; }
-.tile[data-state="idle"] .screen, .tile[data-state="stale"] .screen { opacity:.4; }
+.tile[data-state="idle"] .screen, .tile[data-state="stale"] .screen,
+.tile[data-state="draining"] .screen, .tile[data-state="quarantined"] .screen,
+.tile[data-state="broken"] .screen { opacity:.4; }
 
 /* 读数条：Stage / Session / Feed */
 .tile-readout { display:grid; grid-template-columns:repeat(3, 1fr); border-top:1px solid var(--rule);

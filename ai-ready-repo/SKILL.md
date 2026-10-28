@@ -1,17 +1,24 @@
 ---
 name: ai-ready-repo
 description: 评估代码仓库的 AI-Ready 程度，生成详细评估报告与改进建议
-version: 3.7.0
+version: 3.8.0
 author: maoyue05
 
 metadata:
   skillhub.creator: "maoyue05"
-  skillhub.updater: "maoyue05"
-  skillhub.version: "V33"
+  skillhub.updater: "zhangli185"
+  skillhub.version: "V34"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "9802"
   skillhub.high_sensitive: "false"
 ---
+
+
+**⚠️【前置步骤，必须执行】⚠️**
+本 Skill 使用 `@datafe/lx-cli` 进行埋点上报，执行`lx`相关命令前必须先切到当前 `SKILL.md` 所在目录，将如下步骤加入TODO列表：
+1. 安装 `lx`：`npm install -g @datafe/lx-cli@latest --registry=http://r.npm.sankuai.com`
+2. 本Skill流程开始前执行：`cd <SKILL_DIR> && lx skill start`
+3. 本Skill流程结束后执行（无论执行成功或失败）：`cd <SKILL_DIR> && lx skill end --custom is_success=<true|false> --custom total_step=<本Skill总步骤数> --custom executed_step=<已成功执行步骤数> --custom failed_step_name="<失败步骤名，成功时为空>" --custom summary="<300字内执行总结，总结的步骤数要与total_step相同>"`，需加入 TODO 最后一项
 
 # AI-Ready 评估工具
 
@@ -140,17 +147,22 @@ metadata:
 python3 "$SKILL_ROOT/scripts/monorepo.py" discover --root .
 ```
 
-脚本只接受构建清单显式声明的成员，按以下优先级选择权威清单：
+脚本只接受权威清单显式声明的成员，按以下优先级选择清单：
 `pnpm-workspace.yaml#packages`、`package.json#workspaces`、Maven `pom.xml#modules`、
-Gradle `settings.gradle(.kts)#include`。不扫描未声明目录，不把根目录计为成员。
+Gradle `settings.gradle(.kts)#include`、Git `.gitmodules`。不扫描未声明目录，不把根目录计为成员；
+`.gitmodules` 中所有成员均纳入，包括混合仓库的 backend、frontend、knowledge、qa 等分组。
 
 - `is_monorepo=false`：根目录作为单仓，继续执行 1.1 至第七步。
-- `is_monorepo=true`：将 `members` 中每个一级成员作为独立单仓，分别执行 1.1 至第五步；
+- `is_monorepo=true`：将 `members` 中每个成员作为独立单仓，分别执行 1.1 至第五步；
   每个成员独立识别 `REPO_TYPE`、选择权重档案并完成 11 维评分。成员可沿父仓导航读取共享
   治理文档，但不得递归拆分成员内部的 workspace，也不得对 mono-repo 根目录评分。
 
 清单包含越界路径、声明目录不存在、工作区模式无匹配或成员为空时，停止评估并报告清单错误，
 不得回退为根目录单仓评分。
+
+当 `manifest=.gitmodules` 时，`discover` 额外返回 `uninitialized_members`。本地模式若该列表非空，
+必须先执行 `git submodule update --init --recursive`，不得对空目录或父仓根目录评分；
+`score_commit.py` 远程模式会自动初始化父仓 commit 锁定的全部 submodule，浅拉取失败时回退完整拉取。
 
 #### 1.1 REPO_TYPE 自动检测
 
@@ -481,9 +493,9 @@ python3 scripts/score_commit.py \
 ### 工作机制
 
 1. 浅克隆：`scripts/clone_at_commit.py` 三策略退化（指定 commit fetch → clone+fetch → 全克隆），
-   24h 内同 (repo, commit) 复用本地目录
-2. 形态识别：`scripts/monorepo.py` 读取构建清单；单仓进入根目录评分，mono-repo 只取清单
-   声明的一级成员
+   24h 内同 (repo, commit) 复用本地目录；存在 `.gitmodules` 时同步初始化父仓 commit 锁定的全部成员
+2. 形态识别：`scripts/monorepo.py` 读取权威清单；单仓进入根目录评分，mono-repo 只取清单
+   声明的成员
 3. 评分：单仓启动一个评分 Agent；mono-repo 为每个成员分别启动评分 Agent，成员内部不再递归拆分
 4. 输出：单仓保持 v1.0；mono-repo 输出 v1.1，保留成员完整结果并给出等权平均分
 
@@ -583,3 +595,4 @@ mono-repo 成功时 `repo_type="mono-repo"`、`version="1.1"`，并新增：
 - v3.5.0（2026-07-29）：`score_commit.py` 默认评分模型由 `claude-sonnet-4-7` 改为国产模型候选链 `glm-5.2 → LongCat-2.0`，并新增**候选链自动回退**——解决部分 runtime（CatPaw / Multica 定制版）网关不支持 claude-* 系列、报 400「不支持的模型类型」导致整批仓库评分静默降级/跳过的问题。`--model` 现支持逗号分隔候选链（如 `glm-5.2,LongCat-2.0,claude-sonnet-4-7`），某候选遇「不支持/超时/400」自动切下一个，全部失败才判定评分失败；结果 JSON 新增 `_model` 字段记录实际生效模型；`--list-models` 标注默认候选链顺序
 - v3.6.0（2026-07-31）：学城归档能力重构——解决归档根目录 `2756859002` 已打满学城子文档硬上限（实测 500，超出后 `createDocument` 返回 `code=708`，**新报告完全无法保存**）的线上故障。①归档结构由「一层平铺」改为「按月分目录」`【YYYY-MM】AI-Ready-Repo 打分`，单月满 480 篇自动开「· 卷2」，根目录每年仅新增 12~15 个节点、永不触顶；②新增 `scripts/km_report_dir.py`（`audit` 盘点容量与标题规范度 / `resolve` 解析并自动创建当月目录 / `title` 生成规范标题并处理同日重名 / `migrate` 把历史平铺文档按创建月份归位，默认 dry-run），stdout 仅输出纯数据、日志走 stderr，可直接用于 `$(...)`；③新增 `references/step6-report-template.md` 作为报告归档规范唯一真相源，统一标题格式 `<仓库名> AI-Ready 评估报告 YYYY-MM-DD[ #N] · <综合得分>分`（同日重复评估追加 `#N`；**综合分固定置于标题末尾**，最多一位小数并去尾零，可在目录列表直接横向对比得分；分数段整体可选以兼容已归档的无分数旧标题，同日去重只比对仓库名+日期而不看分数；版本号/评估次数仍禁止进标题），以及六个固定一级章节（概要/总览/详情/总结/路线图/附录），治理此前 500 篇中 83 篇标题不规范、格式各异无法机器解析的问题；**实测确认学城目录按标题字典序展示而非创建时间**，故排序完全由标题开头字段决定，`title` 因此支持 `--order repo|date` 双形态（环境变量 `AI_READY_TITLE_ORDER` 可设团队默认）：`date`（默认）把日期前置让目录按日期聚合，打开月度目录一眼看到最近评了哪些；`repo` 则让同仓库历次评估相邻便于看分数趋势（三个月真实数据中同仓库复评占比达 28%~37%）；两种形态字段一致、可混存同一目录，解析与同日去重均跨形态生效，切换无需改名历史文档；标题各段用 `|` 分隔，解析器同时兼容旧格式空格分隔；④SKILL.md 第六步与 step7-remote-mode.md 改为动态 `resolve` 获取 parentId，**禁止硬编码**；⑤健壮性：`migrate` 支持「引导式建目录」破解「根目录满→建不了目录→没法迁移」死锁（先在个人空间建目录、迁移腾位后自动 `moveDocument` 挂回），中断后重跑会复用遗留目录而非重复创建，SSO token 抖动/网络超时自动退避重试（3s→6s）；修复 citadel 写操作把结果输出到 stderr 导致新建目录 contentId 解析失败的问题。**已实机验证**：根目录 500→5（释放 495 容量），500 篇历史文档 100% 归位到 3 个月度目录（2026-05: 92 / 2026-06: 353 / 2026-07: 55），零失败，报告写入链路恢复正常
 - v3.7.0（2026-09-01）：新增 mono-repo 分仓评分。通过 `scripts/monorepo.py` 从 pnpm/npm workspace、Maven modules 或 Gradle include 确定性发现一级成员；根目录不评分，每个成员独立执行 11 维评分并保留完整结果，父仓总分取全部成员综合分的等权平均值。任一成员失败时返回 `member_error`，禁止计算部分平均分；交互式报告与 `score_commit.py` v1.1 输出同步支持成员明细和父仓平均分。
+- v3.8.0（2026-09-02）：新增 Git submodule 聚合型 mono-repo 识别与评分，覆盖 `oms-root` 这类由 `.gitmodules` 同时声明前端、后端、知识和 QA 仓库的结构。`.gitmodules` 作为构建清单之后的权威清单来源，全部声明路径均进入成员评分；`discover` 返回未初始化成员，本地评分遇空 submodule 时进入 `member_error`，禁止误走根仓分支。`score_commit.py` 的 checkout 自动按父仓 commit 初始化全部 submodule，浅拉取失败后回退完整拉取。

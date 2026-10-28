@@ -1,9 +1,9 @@
 skill-manifest-version: 1
-skill-id: 6cce54a1c84922317103dbf928f3a101cdbb651b285535a12ea08ad325dddcfe
+skill-id: efbfed697e382753e3eb19a4804f5b4e389492044da1d483f0ed2016962628f7
 
 files:
-  451263c70186dec575052844b4eecea68df2f60b2cb729c3ff1168388d183820  SKILL.md
-  3931d9d6fad6f1acee9c852824ea1d61b66d6af07897c42b3cca98ce3790a389  references/advanced.md
+  859d115b0af985bcd7d01226ec16e9f2e4959fd19ebb6e98f23ef592cac922e2  SKILL.md
+  780297ff69d03d2313d1346951676833731c69eabc54ece434b6a62f2e5191e7  references/advanced.md
   dc044b773882dd3faf1cc551c2fb50aac389f81b61aaa5d33a1baaa0d2ceb2db  references/config.md
-  3f78e53af8a929be9ded98d7705215437e858632c711c08580085d5f0000cd0b  references/group-management.md
-  6ca19df92181495a078673d6f7a36de8f81bfb18051e8e8459c9f494c0bab4fa  references/group-summary.md
+  58e2af5577562d9775ce1b10cdc74f4a2062e010dd5d8ece2cb04f0fda74fd44  references/group-management.md
+  c6b438bf31e507fb5710043ebc32f2c6ae4f41454bd0852c8b50c860317c3b6c  references/group-summary.md

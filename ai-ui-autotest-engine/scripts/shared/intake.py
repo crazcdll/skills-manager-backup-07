@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """IntakeContext —— 信息收集结果（workspace 级状态）读写。
 
-位置：`.run/tasks/<task_id>/intake.json`（**workspace 级 = 该子 Agent 私有**）。
+位置：`$STATE/run/tasks/<task_id>/intake.json`（**workspace 级 = 该子 Agent 私有**）。
 它承载的是「**输入**」而非「run 产物」：同一个 task 内多个 run 复用同一份，
 且不受 run 级清理影响。
 

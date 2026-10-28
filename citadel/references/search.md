@@ -34,9 +34,14 @@ searchContent --keyword <关键词> --space-id 27
 
 ### 按文档目录搜索
 
+支持 `/md/<id>`、`/md/<id>.md`、`/collabpage/<id>`、`/page/<id>` 和 `/xtable/<id>` 链接，可带 query/hash。MD 的完整操作规则见 [原生 MD 文档](markdown-documents.md)。空间与父文档范围合计最多 5 个；无效参数在认证前报错并非零退出。
+
 ```bash
 # 通过文档链接指定搜索范围（含空间最多 5 个，逗号分隔）
 searchContent --keyword <关键词> --parent-urls "https://km.sankuai.com/collabpage/1346135471,https://km.sankuai.com/collabpage/1343126899"
+
+# 限定到 MD 文档目录
+searchContent --keyword <关键词> --parent-urls "https://km.sankuai.com/md/1346135471"
 
 # 通过文档 ID 指定搜索范围（含空间最多 5 个，逗号分隔）
 searchContent --keyword <关键词> --parent-ids "1346135471,1343126899"

@@ -7,7 +7,7 @@ V3 send 接口的 `content.config` 字段支持以下可选参数：
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
 | `openSearch` | `bool` | `false` | 是否启用联网搜索 |
-| `fastModel` | `str \| None` | `null` | 指定模型（**仅当用户明确指定时传递**，不要擅自传默认值）。生图：gpt-image-2, gpt-image-1.5, gemini-3.1-flash-image-preview (nano banana2), gemini-3-pro-image-preview (nano banana pro), meituan-ip。视频：doubao-seedance-2.0 |
+| `fastModel` | `str \| None` | `null` | 指定模型（**仅当用户明确指定时传递**，不要擅自传默认值）。生图：gpt-image-2, gpt-image-1.5, gemini-3.1-flash-image-preview (nano banana2), gemini-3-pro-image-preview (nano banana pro), meituan-ip。视频：doubao-seedance-2.0, doubao-seedance-2.5 |
 | `skill` | `str \| None` | `null` | Skill 标识 |
 | `ratio` | `str \| None` | `null` | 宽高比（如 `"1:1"`, `"16:9"`） |
 | `width` | `int \| None` | `null` | 宽度（像素） |

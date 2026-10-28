@@ -6,11 +6,8 @@
 通过环境变量 `AI_UITEST_CONSOLE_PREVIEW=relay` 打开；启动失败时由 manager 回退截图。
 """
 import base64
-import glob
 import json
-import os
 import re
-import shutil
 import subprocess
 import threading
 import time
@@ -22,13 +19,9 @@ _FRAME_HEADER = 13   # 1B type + 4B seq + 8B timestamp
 
 
 def _resolve_imeituan():
-    p = shutil.which("imeituan")
-    if p:
-        return p
-    for g in glob.glob(os.path.expanduser("~/.nvm/versions/node/*/bin/imeituan")):
-        if os.path.exists(g):
-            return g
-    return None
+    """投屏中继与设备命令使用**同一份**受管安装（并已确保最新）。"""
+    from shared.imeituan import ensure_bin
+    return ensure_bin()
 
 
 class RelayPreview(PreviewAdapter):
@@ -51,9 +44,15 @@ class RelayPreview(PreviewAdapter):
                 "--protocol", "cast-stream-v2", "-p", platform,
                 "--device-id", self.serial]
         session = self.device.get("session_id")
-        env = dict(os.environ)
         if session:
-            env["IMEITUAN_SESSION"] = session
+            extra = {"IMEITUAN_SESSION": session}
+        else:
+            extra = None
+        # 与命令行使用方一致：无论当前 shell 的 Node 是哪个版本，都在 Node>=18 下运行
+        from provisioning.prereq.node_env import node_process_env
+        env = node_process_env(extra)
+        if env is None:
+            raise RuntimeError("Node>=18 不可用，relay 无法启动")
         self._proc = subprocess.Popen(
             args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             env=env, text=True, bufsize=1,

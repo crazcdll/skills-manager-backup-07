@@ -95,7 +95,7 @@ ai-ui-autotest-engine/
 │   │   ├── resource_client.py  #   虚拟 mis 池客户端（/mis-pool/*，经 yooz-server）
 │   │   └── appmock/            #   AppMock 子系统（规则/录制/泳道/环境/ptest）
 │   ├── devices/                # 设备抽象：契约 + android/harmony 实现 + 探针 + 工具链
-│   ├── resources/              # L2 资源池（device_pool：本地租约；mis_pool：经 resource_client 调平台）
+│   ├── resources/              # L2 资源池（device_pool：经 pool_api 访问服务端单表；mis_pool：经 resource_client 调平台）
 │   ├── provisioning/           # L3 环境供给（validators / setup 登录 / prereq 依赖 / questions 信息收集）
 │   ├── execution/              # L1 执行引擎
 │   │   ├── engine/             #   SOP 编排 / flow 生命周期 / placeholder / profile
@@ -104,15 +104,28 @@ ai-ui-autotest-engine/
 │   │   └── screen/             #   视图树采集与元素定位
 │   ├── reporting/              # 报告构建与上报
 │   └── dev/                    # 架构守卫等开发工具
-├── .run/                       # ★运行态：tasks/<ws>/（工作区）+ ws/<ws>/cli（入口）
-├── .device-pool/               # ★设备池租约（跨 workspace 共享）
-├── .credentials/               # ★用户级凭据缓存（AppMock SSO Cookie）
-├── .cache/artifacts/          # ★L1 制品缓存（安装包，跨 run / 跨子 Agent 共享；引擎永不自动清理）
-└── output/                     # 历史报告与归档产物
 
-★ = 执行期生成（已 gitignore，不入版本库）
-> `.cache/` 只在用户手动清理 Skill 时消失：`post-clean` / `preflight-clean` 只作用于
-> `.run/tasks/<ws>/`，从不触碰它（唯一访问入口与并发约定见 `shared/artifact_cache.py`，
+**Skill 目录内不产生任何运行态**——运行态与产物全部在机器级目录（见下）。
+
+**机器级目录（不在 Skill 内）**：`$STATE` = `~/.local/share/ai-ui-autotest-engine/`
+
+```
+~/.local/share/ai-ui-autotest-engine/
+├── run/                       # ★运行态：tasks/<ws>/（工作区）+ ws/<ws>/cli（入口）
+├── reports/                   # ★报告归档：<batch>/<run>/（meta.json / report.json / case_NN / run）
+├── device-pool/               # ★预热台账等本机辅助文件（设备租约在服务端，不落本地）
+├── console/                   # ★统一控制台服务状态（全机唯一、常驻）
+├── credentials/               # ★AppMock SSO 凭据（同一用户同一张票）
+├── toolchain/                 # ★adb/hdc 路径缓存（机器级事实）
+├── cache/artifacts/           # ★L1 制品缓存（安装包；引擎永不自动清理）
+└── npm/                       # 受管的 imeituan CLI 安装位置
+```
+
+> 上述目录**必须**放在 Skill 之外：Skill 会被多份安装/镜像（`~/.catpaw/skills`、
+> 各项目的 `.claude/skills`、`.catpaw/skills/skills-market`），落在里面会各存一份，
+> 且 Skill 自动更新时整目录被替换（缓存 / 登录 / 租约 / 在跑的 workspace / 历史报告全丢）。
+> `cache/` 只在用户手动清理时消失：`post-clean` / `preflight-clean` 只作用于
+> `$STATE/run/tasks/<ws>/`，从不触碰它（唯一访问入口与并发约定见 `shared/artifact_cache.py`，
 > 静态守卫见 `dev/check_architecture.py` 规则 19）。
 ```
 
@@ -124,7 +137,7 @@ ai-ui-autotest-engine/
 
 ### 4.1 CLI 入口 — `cli.py`
 
-整个 Skill 的唯一命令入口，纯粹的参数解析和分发层。**阶段 0 第一步 `ws-init` 通过 `python3 scripts/cli.py ws-init` 调用（它分配 workspace 本身）；此后所有命令一律通过 workspace 入口调用，即 `<入口> <command>`**（`<入口>` = `.run/ws/<ws>/cli`，由 `ws-init` 生成；非白名单命令缺 workspace 会被统一门禁直接拒绝）。命令按依赖程度分四档：**不需要 workspace 的（ws-init）**、不依赖 run 的（check-deps、preflight-clean、device query）、只需 run_dir 的（flow-status、flow-next、flow-advance、ack）、需要设备已创建的（tap-text、screenshot、step）。
+整个 Skill 的唯一命令入口，纯粹的参数解析和分发层。**阶段 0 第一步 `ws-init` 通过 `python3 scripts/cli.py ws-init` 调用（它分配 workspace 本身）；此后所有命令一律通过 workspace 入口调用，即 `<入口> <command>`**（`<入口>` = `$STATE/run/ws/<ws>/cli`，绝对路径，由 `ws-init` 生成；非白名单命令缺 workspace 会被统一门禁直接拒绝）。命令按依赖程度分四档：**不需要 workspace 的（ws-init）**、不依赖 run 的（check-deps、preflight-clean、device query）、只需 run_dir 的（flow-status、flow-next、flow-advance、ack）、需要设备已创建的（tap-text、screenshot、step）。
 
 ### 4.2 Flow 引擎 — `core/`
 
@@ -261,7 +274,13 @@ AppMock 是美团客户端测试的核心基础设施，本 Skill 对其进行�
 
 `sandbox_api.py` 封装所有 Sandbox 云模拟器 API 调用（经 yooz-server 代理，API Key 由服务端持有）。设备创建采用异步模式：POST create 立即返回 taskId，Skill 自行轮询 GET status 直到 state=running。
 
-`session.py` 管理 imeituan CLI 的设备会话（注册/断开），内部通过 `get_platform_module(platform).register_device()` 分发到各平台的注册入口（云真机走 `device register`，本地真机走 `device connect --target local-device`），跨 Android/HarmonyOS 通用，不感知平台细节。`imeituan_cli.py`（三端通用封装层，见 4.5 节）也位于本目录。**设备会话按 run 绑定（并发隔离）**：`imeituan_cli.py` 提供 `bind_session/current_session/needs_session`，`_run` 对设备命令注入 `IMEITUAN_SESSION`、未绑定即显式失败；CLI 入口 `cli.py::_bind_device_session` 按 `flow-context.meta.session_id` 绑定；注册后立即绑定，且不再有全量断会话（`disconnect --all`）。`app_installer.py` 负责 App 的版本检测、卸载、安装和验证，内部通过 `PlatformOps`/`DeviceLifecycle` 调用，跨 Android/HarmonyOS 通用。`adb.py` 封装 ADB 命令执行（Android），`hdc.py`（位于 `device_platform/harmony/`）封装 hdc 二进制探测与 PATH 准备（HarmonyOS）。`check_deps.py` 检测运行时依赖（Python、Node、imeituan CLI、adb/hdc、SSO Cookie，按当前 platform 按需检测对应工具链）。`node_env.py` 管理 Node.js 环境和 imeituan CLI 执行器。
+`session.py` 管理 imeituan CLI 的设备会话（注册/断开），内部通过 `get_platform_module(platform).register_device()` 分发到各平台的注册入口（云真机走 `device register`，本地真机走 `device connect --target local-device`），跨 Android/HarmonyOS 通用，不感知平台细节。`imeituan_cli.py`（三端通用封装层，见 4.5 节）也位于本目录。**设备会话按 run 绑定（并发隔离）**：`imeituan_cli.py` 提供 `bind_session/current_session/needs_session`，`_run` 对设备命令注入 `IMEITUAN_SESSION`、未绑定即显式失败；CLI 入口 `cli.py::_bind_device_session` 按 `flow-context.meta.session_id` 绑定；注册后立即绑定，且不再有全量断会话（`disconnect --all`）。
+
+**会话生命周期（并发安全的三条规则）**：
+
+1. **注册前隔离 legacy**：`session_store.py` 只把「同 serial + 缺少 `adbServerSocket` 身份」的旧版会话移入 `~/.imeituan/sessions/.stale/`（移动不删除，可回滚），避免 0.6.3 反复抛 `ADB_SERVER_LEGACY_IDENTITY_UNKNOWN` 并把记录 retain 下来。
+2. **按错误类型重试**：注册结果携带 `{code, retryable}`（`imeituan_cli.classify_error`）；确定性错误不重试（必要时定向隔离后只重试一次），瞬态错误退避重试；**不再执行全局 `adb kill-server`**（会打断并发 run 并制造无身份的共享 Server）。
+3. **收尾必须断开**：`device disconnect` 在 `device release` 之前执行，回收本 run 的会话；legacy/迁移类确定性失败视为「会话已不可用」，隔离后按已收尾处理。`app_installer.py` 负责 App 的版本检测、卸载、安装和验证，内部通过 `PlatformOps`/`DeviceLifecycle` 调用，跨 Android/HarmonyOS 通用。`adb.py` 封装 ADB 命令执行（Android），`hdc.py`（位于 `device_platform/harmony/`）封装 hdc 二进制探测与 PATH 准备（HarmonyOS）。`check_deps.py` 检测运行时依赖（Python、Node、imeituan CLI、adb/hdc、SSO Cookie，按当前 platform 按需检测对应工具链）。`node_env.py` 管理 Node.js 环境和 Node CLI 执行器。**imeituan CLI 的唯一使用入口是 `shared/imeituan.py`**：固定安装到用户级前缀（与当前 Node 版本 / workspace 无关），每次使用前与 registry `latest` 比对、不是最新即用 Node>=18 的 npm 自动升级；版本结论落盘（TTL）+ `flock` 串行化安装，并行 run 只会有一次真正安装；低于 0.6.3 在使用出口直接拒绝（旧版只能写 legacy 会话，并发会串台）。
 
 ## 五、SOP 生命周期
 
@@ -283,7 +302,7 @@ C0 切换到目标 Case。C1 收敛场景 Mock 到本 Case（`mock-apply`：差�
 
 ### Batch 尾部（T0-T2）— 执行一次
 
-T0 把场景 Mock 并集恢复到执行前状态（response + 启用态）。T2 是收尾清理：导出录制数据 → 停止录制 → 重置环境 → 归还设备租约（`device release`，不销毁实例）→ flow-finalize（归档 + 入库 + 生成最终报告）→ post-clean（**删除本 workspace 与其入口**）。
+T0 把场景 Mock 并集恢复到执行前状态（response + 启用态）。T2 是收尾清理：导出录制数据 → 停止录制 → 重置环境 → 断开本 run 的 imeituan 会话（`device disconnect`；legacy 自动隔离，必须在 release 之前）→ 归还设备租约（`device release`，不销毁实例）→ flow-finalize（归档 + 入库 + 生成最终报告）→ post-clean（**删除本 workspace 与其入口**）。
 
 ### 阶段推进机制
 
@@ -303,7 +322,7 @@ steps.jsonl 是不可变的执行事实流，每个 Case workspace 一个，记�
 
 ### 输出
 
-每次运行归档到 `output/run-<timestamp>/`，包含 report.json（聚合报告）、各 Case 的 report.json 和 frames/（截图 S3 URL），以及 run/（完整原始执行产物备份）。报告同时入库到平台，可通过 URL 在线查看；平台列表页通过 jsonb 路径投影 `cases->0->run_index` 读取运行级汇总（见 4.7），避免整包拉取 `cases`。
+每次运行归档到 `$STATE/reports/<batch>/<run>/`，包含 meta.json（目录索引）、report.json（聚合报告）、各 Case 的 report.json 和 frames/（截图 S3 URL），以及 run/（完整原始执行产物备份，含 inspect_tree / dumps 等过程信息）。报告同时入库到平台，可通过 URL 在线查看；平台列表页通过 jsonb 路径投影 `cases->0->run_index` 读取运行级汇总（见 4.7），避免整包拉取 `cases`。
 
 ## 七、设备管理架构
 
@@ -359,18 +378,18 @@ PlatformOps（怎么操作设备）、DeviceLifecycle（怎么获取/安装设�
 
 ### 一次测试执行的最小路径
 
-> 作用域分层：`.run/tasks/<ws>/{config,inputs,tmp,runs/<run>}/`（workspace / run 级）；入口脚本 `.run/ws/<ws>/cli`；跨 workspace 共享的 `.device-pool/`（设备池）、`.credentials/`（凭据）、`.cache/artifacts/`（L1 制品缓存，跨 run / 跨子 Agent 复用安装包）；产物 `output/`。Flow 文件、CASES、steps-input 均落在当前 workspace 下。
+> 作用域分层：全部状态在**机器级** `$STATE` = `~/.local/share/ai-ui-autotest-engine/`（跨安装 / 跨项目唯一）：`run/tasks/<ws>/{config,inputs,tmp,runs/<run>}/`（workspace / run 级）、入口脚本 `run/ws/<ws>/cli`、报告归档 `reports/<batch>/<run>/`；以及 `device-pool/`（设备池）、`console/`（控制台服务）、`credentials/`（凭据）、`toolchain/`（adb/hdc 缓存）、`cache/artifacts/`（L1 制品缓存）。Flow 文件、CASES、steps-input 均落在当前 workspace 下。
 
 ```
 # 0. 分配 workspace + 生成入口（整轮测试只执行一次）
-#    输出形如：你的入口 = .run/ws/<ws>/cli；之后所有命令都用 <入口> 执行
+#    输出形如：你的入口 = $STATE/run/ws/<ws>/cli（绝对路径）；之后所有命令都用 <入口> 执行
 python3 scripts/cli.py ws-init
 
 # 1. 依赖检测
 <入口> check-deps
 
 # 2. 创建 Flow 占位（多 Flow 场景每个 Flow 执行一次）
-#    文件落在 .run/tasks/<ws>/inputs/flows/，随后 AI 写入完整 Flow 内容
+#    文件落在 $STATE/run/tasks/<ws>/inputs/flows/，随后 AI 写入完整 Flow 内容
 <入口> flow-create --name <Flow名>
 
 # 3. 信息收集：循环 input-next → AskQuestion → input-answer，直到 done
@@ -384,7 +403,7 @@ python3 scripts/cli.py ws-init
 
 # 5. CASES 文件（强制约定）：先创建空文件 → AI 写入 → 落盘校验 → 生成 steps-input
 <入口> cases-create --tag {tag}
-#    AI 写入完整 CASES（device/env/cases/steps）到 .run/tasks/<ws>/tmp/cases-{tag}.json
+#    AI 写入完整 CASES（device/env/cases/steps）到 $STATE/run/tasks/<ws>/tmp/cases-{tag}.json
 #    wc -c 确认非空后：
 <入口> steps-generate --input 'cases-{tag}.json' --tag {tag}
 

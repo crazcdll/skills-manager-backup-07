@@ -1,0 +1,201 @@
+{
+    "code": 0,
+    "message": "",
+    "data": {
+        "productInfo": {
+            "showProductList": [
+                {
+                    "bizType": 403,
+                    "poiName": "香港迪士尼乐园酒店",
+                    "poiEnglishName": "Hong Kong Disneyland Hotel",
+                    "timeInfo": {
+                        "timezoneText": "当地时间",
+                        "startDate": "2026-10-09",
+                        "startDayOfWeek": "周四",
+                        "endDate": "2026-10-10",
+                        "endDayOfWeek": "周六",
+                        "dayCountText": "2晚"
+                    },
+                    "productName": "标准客房",
+                    "quantityText": "共2间",
+                    "paidAmountStr": "2226",
+                    "tags": [
+                        {
+                            "tagValue": "1张特大床 或 2张小型双人床(随机安排)"
+                        },
+                        {
+                            "tagValue": "无早"
+                        },
+                        {
+                            "tagValue": "2人入住"
+                        }
+                    ],
+                    "secondaryTags": [
+                        {
+                            "iconUrl": "https://p0.meituan.net/ingee/57a10aabce025a69aa1bc1fdbe5fce2f1090.png",
+                            "tagValue": "不可取消",
+                            "tagColor": "#FF2D19"
+                        },
+                        {
+                            "iconUrl": "https://p0.meituan.net/ingee/32c2147ca992253beaafb7e0fab22f8c1146.png",
+                            "tagValue": "9月16日18:00前可免费取消",
+                            "tagColor": "#004099"
+                        },
+                        {
+                            "iconUrl": "https://p0.meituan.net/ingee/f89f61bdba0e1e4edf74b4f789fcccc81283.png",
+                            "tagValue": "预计5分钟确认",
+                            "tagColor": "#004099"
+                        }
+                    ],
+                    "noticeList": [
+                        {
+                            "title": "订房必读",
+                            "richTextJson": "......"
+                        }
+                    ],
+                    "travelerInfo": {
+                        "title": "入住信息",
+                        "tips": "姓名与证件保持一致，每间入住1成人0儿童",
+                        "label": "房间",
+                        "vistorInfoList": [
+                            {
+                                "name": "江一",
+                                "englishName": "Jiang/Yi",
+                                "mobile": "<?空格>15201190513",
+                                "email": "123456789@qq.com",
+                                "credentials": {
+                                    "1007": "EK5588088"
+                                }
+                            },
+                            {
+                                "name": "欧阳美美",
+                                "englishName": "OuYang/Meimei",
+                                "mobile": "15201190009",
+                                "email": "123456789@qq.com",
+                                "credentials": {
+                                    "1007": "EK5588088"
+                                }
+                            }
+                        ]
+                    },
+                    "productList": [
+                        {
+                            "extraMap": {
+                                "bizProductId": "<goodsId>"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "bizType": 307,
+                    "poiName": "香港迪士尼乐园",
+                    "productName": "成人1日门票",
+                    "quantityText": "共1张",
+                    "paidAmountStr": "2226",
+                    "productDescList": [
+                        {
+                            "title": "使用日期",
+                            "content": "10月10日 周六(当地时间)"
+                        },
+                        {
+                            "title": "购买须知",
+                            "richTextJson": "......"
+                        }
+                    ],
+                    "travelerInfo": {
+                        "title": "游客信息",
+                        "tips": "姓名与证件保持一致，购买1张票需提供1位游客信息",
+                        "label": "游客",
+                        "vistorInfoList": [
+                            {
+                                "name": "江一",
+                                "englishName": "Jiang/Yi",
+                                "mobile": "15201190513",
+                                "email": "123456789@qq.com"
+                            }
+                        ]
+                    },
+                    "productList": [
+                        {
+                            "extraMap": {
+                                "bizProductId": "<dealId>"
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        "contractTerms": {
+            "noticeList": [
+                {
+                    "title": "购买须知",
+                    "richTextJson": "....."
+                }
+            ]
+        },
+        "amountInfo": {
+            "totalAmountStr": "2718",
+            "promotionAmountStr": "512",
+            "amountGroupList": [
+                {
+                    "promotionGroupType": 1,
+                    "groupTitle": "划线价",
+                    "totalAmountStr": "3230",
+                    "amountGroupList": [
+                        {
+                            "title": "香港迪士尼乐园酒店 Hong Kong Disneyland Hotel",
+                            "unitAmountStr": "2226",
+                            "description": "标准客房",
+                            "quantityText": "共1间·2晚",
+                            "productDetailList": [
+                                {
+                                    "detailText": "2026-10-09 无早餐"
+                                },
+                                {
+                                    "detailText": "2026-10-10 2份早餐/间"
+                                }
+                            ]
+                        },
+                        {
+                            "title": "香港迪士尼乐园",
+                            "unitAmountStr": "1004",
+                            "description": "成人票1日门票",
+                            "quantityText": "共2张",
+                            "productDetailList": [
+                                {
+                                    "detailText": "2026-10-09"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "promotionGroupType": 2,
+                    "groupTitle": "优惠",
+                    "totalAmountStr": "512",
+                    "amountGroupList": [
+                        {
+                            "title": "随机立减",
+                            "unitAmountStr": "224",
+                            "description": "随机立减"
+                        },
+                        {
+                            "title": "天降红包",
+                            "unitAmountStr": "110",
+                            "description": "每间每晚优惠110，每订单最高优惠200元"
+                        },
+                        {
+                            "title": "美团预订优惠",
+                            "unitAmountStr": "172",
+                            "description": "美团预订优惠"
+                        },
+                        {
+                            "title": "复购满减",
+                            "unitAmountStr": "5"
+                        }
+                    ]
+                }
+            ]
+        }
+    }
+}

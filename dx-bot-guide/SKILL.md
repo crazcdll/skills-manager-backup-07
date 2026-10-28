@@ -5,7 +5,7 @@ description: "大象机器人 CLI 工具（dx-bot-cli）。用于通过命令行
 metadata:
   skillhub.creator: "rancheng02"
   skillhub.updater: "rancheng02"
-  skillhub.version: "V6"
+  skillhub.version: "V7"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "75893"
   skillhub.high_sensitive: "false"
@@ -56,8 +56,8 @@ dx-bot-cli config show
 # 纯文本
 dx-bot-cli msg send-chat --to <mis> --text "消息内容" --force
 
-# Markdown
-dx-bot-cli msg send-chat --to <mis> --markdown "**加粗** 正文" --force
+# Markdown（多行用 \n，会自动还原为换行）
+dx-bot-cli msg send-chat --to <mis> --markdown "**加粗** 正文\n第二行" --force
 
 # 多人
 dx-bot-cli msg send-chat --to <mis1>,<mis2>,<mis3> --text "通知" --force
@@ -99,6 +99,22 @@ dx-bot-cli msg send-group --gid <群ID> --markdown "紧急 @all" --force
 | `--markdown` | `[@显示名:<uid>]` / `[@所有人:-1]` | 原生短语法，已查 UID 时可用 |
 
 > `@mis` 后需跟空格或标点才能识别（如 `请 @zhangsan 处理` ✓，`请@zhangsan处理` ✗）
+
+### 多行内容与转义
+
+内联 `--text` / `--markdown` 参数会自动还原转义序列：`\n`（换行）、`\r\n`（换行）、`\t`（制表符）、`\\`（反斜杠），全角 `＼n` / `＼t` 同样生效。
+
+```bash
+# 多行 Markdown：用 \n 换行
+dx-bot-cli msg send-group --gid <群ID> --markdown "## 上线通知\n服务已部署\n- 影响范围: ..." --force
+
+# 需要发送字面量反斜杠（如 Windows 路径）时，加 --no-unescape 关闭还原
+dx-bot-cli msg send-group --gid <群ID> --text "C:\new\table" --no-unescape --force
+```
+
+- **不做转义处理的输入**：`--stdin` / `--stdin-text` / `--stdin-markdown`、`--text-file` / `--markdown-file`、`--body`（JSON）、`--tmpl-file`
+- 未知转义（如 Markdown 的 `\*`）原样保留；末尾孤立反斜杠也保留
+- `--no-unescape` 适用命令：`msg send-chat` / `send-group`、`card send-chat` / `send-group` / `update-chat` / `update-group`（含 `--abstract`）、`group set-notice`
 
 ### 多类型消息（图片/文件/图文等）
 

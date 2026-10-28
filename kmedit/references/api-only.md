@@ -72,7 +72,7 @@ API schema 的 attrs 包含 type、required、nonEmpty、enum、minimum/maximum�
 - heading.level 为整数 1–6；note.type 为 info/note/warning/tip。link.href、mention.uid、emoji.name 等必填字符串不能空白。
 - time.date 为有效的非零毫秒时间戳或 YYYY-MM-DD 日期；代码 language/theme 为非空字符串，保留 ts/js 等语言别名。
 - 标题和代码块 title 不能换行；普通正文的换行使用 hard_break 或分段。代码块正文允许换行；保留标题已有的 quote 评论标记。
-- 表格检查完整网格、跨行/跨列边界及列宽；colspan/rowspan 为正整数，colwidth 为 null 或与 colspan 等长的有效宽度数组。被跨行单元格完全覆盖的空行合法。
+- 表格检查完整网格、跨行/跨列边界及列宽；colspan/rowspan 为正整数；写出的 colwidth 必须是与 colspan 等长的正数数组。null、缺失及数组内的 null/0 在写入前按逻辑列补齐：优先复用表内已有宽度，否则使用 Parker schema 默认宽度；有效显式宽度和 responsive 不变。被跨行单元格完全覆盖的空行合法。schema 接受 null 仅是历史读取兼容，不代表编辑器可渲染；不要生成 null 列宽。
 - image.src/small/origin、附件、音视频和图形文件必须使用目标文档的永久 KM CDN 地址；外链或源文档地址应通过 paste 的资源迁移上传。专用 insert_yuntu 支持合法的 Yuntu iframe 地址。
 - 通用 insert/replace/set_node_attrs 不能创建或改写托管宏资源；full 必须保留已有节点的 Provider 标识。新增资源走专用命令，不能仅填一个看似合法的 ID。
 - 同一 xtableId 的新增或加剧重复会被拦截；存量重复允许保留或减少。新内容嵌套最多 100 层。

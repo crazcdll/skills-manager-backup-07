@@ -1,94 +1,46 @@
-# mt-code-standards
-
-独立拉取业务研发平台为仓库解析出的有效编码规范。CLI 与 `mt-code-standards` Skill 共用同一套下载、校验、增量更新和原子回滚实现。
+# 业务研发平台统一编码规范 CLI
 
 ## 安装
 
-使用 Node.js 18 或更高版本，并从公司 npm 源安装：
-
 ```shell
-mnpm install -g @nibfe/mt-code-standards
+npm install -g @nibfe/mt-code-standards --registry=http://r.npm.sankuai.com
 ```
 
-## 使用
-
-在任意目录按精确 `namespace/repository` 匿名拉取，默认写入当前目录的 `.mdp/rules/`：
+## 统一拉取
 
 ```shell
-mt-code-standards pull --repository hfe/duo-hotel-order-submit
+mt-code-standards pull --repo-root ./my-project --domain frontend --stage coding
+mt-code-standards pull --repository hfe/hotel-web --stage coding --output-dir ./rules
+mt-code-standards pull --domain backend --stage cr --json
 ```
 
-指定输出基目录：
+默认 public，一次请求返回领域/阶段匹配的 L1 和可获取的生效 L2。未登记、无 Git、没有 origin 或无可用 L2 时直接返回 L1，无需 bootstrap 参数和第二次请求。匿名保留 active 仓库现有 L2 公开分发策略；认证无可读关联时仅 L1。
+阶段必须为 design/coding/cr。领域可从可读登记配置获取，否则需明确 frontend/backend；不扫描源码推断。显式错误地址/领域报具体错误；仓库地址支持完整 namespace/repository 和可归一化线上 MCode Git 地址，不接受裸名。
+自动发现的 GitHub 等非 MCode origin 按身份不明处理，使用来源目录兜底取 L1，不访问 origin 主机；显式传入非法或不受支持地址仍报错。
+`--repo-root` 或 cwd 为来源目录；能找到 Git 根则以 Git 根定位，无地址时用来源绝对路径作显示名称。`--output-dir` 只决定安装基目录，不参与名称兜底。
+默认输出为 `<output-dir 或 repo-root 或 cwd>/.mdp/rules/`。
+
+## 认证与 mtcli
 
 ```shell
-mt-code-standards pull \
-  --repository hfe/duo-hotel-order-submit \
-  --output-dir /path/to/workspace
+mt-code-standards pull --repository hfe/hotel-web --stage coding --transport direct --mis your-mis
+mt-code-standards pull --domain frontend --stage coding --transport mtcli --json
 ```
 
-后端规则按研发阶段拉取：方案/编码阶段使用精简 L1，CR 阶段使用全量 L1：
+direct 使用官方用户票据，保持当前身份；public 不取票、不继承环境票据。public 的可选 --mis 仅自报标识，不作为权限事实。CLI 的执行 Agent 可通过 --execution-agent 明确，或环境识别；未知独立 CLI 记 cli。
+mtcli 固定生产服务定义/环境，先核验 dry-run，再调用 `bundles resolve-unified`；部署前必须登记 assets/mtcli-service.json 的新方法和 Schema。不支持时明确停止，不自动切回 direct。
+新请求 `rule-bundle-resolve/v1` 调用 `/v1/public/rule-bundles/resolve` 或 `/v1/rule-bundles/resolve`，只支持 rule-distribution 网关。旧 --bootstrap 仅作为 scope=l1 别名，保持所选认证方式。旧服务需升级，不降级重试旧入口。
+认证失败、停用、L1缺失、损坏的订阅和服务失败均报具体 code/message/字段问题/request_id，不伪装无 L2 成功。
 
-```shell
-mt-code-standards pull \
-  --repository hbar/your-java-repo \
-  --stage coding
+## 上报和安装
 
-mt-code-standards pull \
-  --repository hbar/your-java-repo \
-  --stage cr
-```
+CLI 记录 client_type=cli、实际 npm name/version，skill_name/version 为 null；Skill 读取实际发行 SKILL.md，setup 和非 setup 名称分别记录，未知值为 null。平台展示名→完整仓库名→来源绝对路径兜底，配套名称来源，不重复上报路径。
+服务端记录实际分发模式、原因、快照、Release、规则 UID、字节数及时间；匿名/自报/认证身份明确区分。服务器 ready/not_modified 不代表本地安装成功，本地结果目前不回传。
 
-`--repo-root` 用于兼容原 Setup Runner：它作为 Git 自动探测目录；没有 `--output-dir` 时也作为输出基目录。优先级为 `--output-dir`、`--repo-root`、当前目录。
-
-`--stage` 可选值为 `design`、`coding`、`cr`。显式传入阶段时，规则包会校验阶段化响应和依赖哈希；不传时保持旧的 legacy 拉取行为。
-
-CLI 默认使用 `public` 仓库级读取模式，无需传 `--transport`。服务端总开关开启后，可匿名读取所有 active 仓库的已发布 L1 与该仓库已生效的 L2，不再检查仓库的 `public_pull_enabled`；不发送 MIS、SSO token 或组织信息，也不会因匿名失败自动降级到认证接口。public 只接受精确 `namespace/repository` 或可归一化的线上 MCode Git 地址，不接受裸仓库名，也不支持 `--bootstrap`、`--mis`、`--auth-agent` 或 `--mtcli-service`。
-
-默认 public 客户端发布前，必须先完成 Board 的数据库迁移、`rule-distribution` 部署和共享配额验收，再开启
-`RULE_PUBLIC_PULL_ENABLED` 总开关。公共模式不需要网关凭据或可信 IP 头；所有匿名调用共享配额，当前固定窗口
-合计每 60 秒最多 600 次请求、100 个不同仓库、60 个并发，单个仓库每窗口最多 300 次。实际策略以 Board 数据库
-`public_rule_pull_quota_policy_v1` 为准。该初始值为 50 人同时拉取预留余量，但未经过生产压测；一个调用者仍可能耗尽额度并影响其他人。无法验证实际用户或
-来源 IP，也无法保证阻止慢速或跨时间窗口爬取。仅发布 npm 包不会开启匿名接口；失败时保留本地规则，不自动取票或重试。
-
-需要通过当前用户权限访问时，显式选择 direct：
-
-```shell
-mt-code-standards pull \
-  --repository hfe/duo-hotel-order-submit \
-  --transport direct \
-  --mis '<你的MIS>' \
-  --stage coding
-```
-
-direct 通过当前用户 CIBA 票据访问平台，`--mis`、`SSO_USER_ID` 或当前仓库本地 `.git/config` 的 `user.mis` 仅作为登录提示，优先级依次降低。可信操作人由服务端验证票据后确定；票据不会写入参数、规则文件、manifest 或公共输出。Git 配置不存在或没有合法 `user.mis` 时静默跳过；direct 非交互环境没有预注入票据时仍需要有效 MIS 提示。
-
-## 通过 mtcli 拉取
-
-从 1.1.0 起可选择 mtcli 负责远程调用和官方 SSO 登录，本地仍由本 CLI 校验和安装规则。使用前需完成 [mtcli 服务登记与验收](references/mtcli-integration.md)；仅安装 npm 包不会自动发布服务定义。
-
-```shell
-npm install -g @dp/mtcli@1.1.20 --registry=http://r.npm.sankuai.com
-mtcli auth sso login
-
-mt-code-standards pull \
-  --repository hfe/duo-hotel-order-submit \
-  --stage coding \
-  --transport mtcli \
-  --output-dir /path/to/workspace \
-  --json
-```
-
-不传 `--output-dir` 时写入当前目录的 `.mdp/rules/`，目录不需要 `.git`。服务名默认为 `mt-code-standards`；确有其他已登记同合同服务时可加 `--mtcli-service <名称>`，目标网关仍受 allowlist 约束。
-
-mtcli 模式不接受 `--mis`、`--auth-agent`，也不使用 direct 的用户票据环境变量。若 mtcli 的 CIBA 回退需要 MIS，在独立登录命令中使用 `mtcli auth sso login --mis '<你的MIS>'`。`--non-interactive` 只禁止本 CLI 的 MIS 提示，不替代 mtcli 登录；无人值守运行前应已完成官方登录。
-
-调用固定使用生产服务定义和生产目标环境，先校验 dry-run，再调用 `bundles resolve`；显式 bootstrap 条件满足时才调用 `bundles bootstrap`。认证失败、未登记服务或返回异常时停止，不自动切回 direct。平台仍记录真实用户、`execution_agent=cli` 和同一次拉取的 `pull_id`。平台记录说明服务端已分发；本地 receipt 的 `installed/not_modified` 才说明本地结果。
-
-正式拉取未匹配到已登记仓库时停止且不写文件。只有明确需要为未登记仓库安装公开 L1 时才使用 `--transport direct --bootstrap`（或显式 mtcli transport）；此模式需要精确的 `namespace/repository`，非 Git 目录还需 `--domain frontend|backend`。Bootstrap 没有已登记仓库身份，只生成本地回执，不写正式仓库拉取审计。
-
-平台修改已登记仓库的前端/后端类型后，本地文件不会立即变化；升级到支持类型切换的 CLI，并在下一次成功拉取时，才会用新类型的规则替换原有托管文件。CLI 仅在平台返回的正式规则包与本地 manifest 的 `repository_id`、`canonical_key` 完全一致且完整性校验通过时执行替换；非托管文件冲突仍会终止安装并保留原文件。旧版 CLI 会以 `RULE_BUNDLE_DOMAIN_CHANGED` 拒绝此类更新，因此平台迁移仓库类型前应先完成 CLI 升级。
-
-机器调用可增加 `--json`。成功输出 `{ "ok": true, "receipt": ... }`，失败输出 `{ "ok": false, "error": { "code", "message" } }` 并以状态码 2 退出。
+规则安装到 company/<fe|java>/<规则集名称>/ 与 team/<fe|java>/<规则集名称>/；project/ 为项目自管 L3。
+生效包 manifest v8、L1 manifest v5 在旧内容 Hash 之外绑定 resolution 上下文，兼容读取旧清单；内包继续校验 effective-rule-bundle/v4 或 l1-bootstrap-bundle/v3 和 scope-domain-ruleset/v1。
+模式切换时原子替换规则和索引，仅移除旧清单认领且未修改的文件；保护未知文件、人工修改、L3 和不同仓库身份。无仓库请求不能清理已有其他 canonical 的正式规则。索引沿用规则集 AGENTS.md 合同，缓存同样核对索引 Hash。
+成功 receipt 为 mt-rule-bundle-install/v1，状态 installed/not_modified；展示名或选择原因变化而内容未变时只原子更新清单上下文。
 
 ## 发布
 

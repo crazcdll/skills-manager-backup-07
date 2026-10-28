@@ -16,7 +16,7 @@
 import os
 import sys
 
-from shared.paths import get_active_run, get_active_task, require_active_task
+from shared.paths import ENV_PLATFORM, get_active_run, require_active_task
 from shared.workspace import render_text, render_cmd
 from shared.case_utils import resolve_case_path
 from execution.engine.flow.flow_context import read_meta_fields
@@ -38,6 +38,10 @@ def resolve_active_context(args, need_serial=False):
     run_dir = resolve_case_path(case_name)
     fc_path = os.path.join(run_dir, FLOW_CONTEXT_FILENAME)
     meta = read_meta_fields(fc_path)
+    platform = str(meta.get("platform") or "").strip().lower()
+    if platform:
+        # 低层 imeituan_run / 设备操作读取该变量区分 Android/ADB 与 hdc/WDA。
+        os.environ[ENV_PLATFORM] = platform
 
     if need_serial and not meta.get("device_serial", ""):
         raise UsageError("device_serial 为空（设备未创建），请先完成 B1_device")
@@ -76,14 +80,14 @@ def run_with_guard(args, dispatch_fn):
 
     业务/核心层（非命令 handler）一律用第 1 种方式：只 raise，不返回码。
     """
-    # 设备预检：仅在有 workspace 时执行。`ws-init` 等 workspace-free 命令不需要设备
-    # 能力，跳过可避免无意义的工具链解析（历史上此处曾因读取 workspace 级缓存而在
-    # 冷启动时崩溃；缓存已改为用户级，这里保留门禁以维持"无 workspace 不触设备"的语义）。
-    if get_active_task():
-        from devices.toolchain.adb import ensure_adb
-
-        ensure_adb(install=False)
-
+    # 注意：这里**不再**对所有命令做 adb 预检。
+    # 历史实现会对每条命令执行 `ensure_adb()`；当 adb 不在 PATH 时会走候选目录校验，
+    # 而校验里的 `adb devices` 会隐式拉起共享 ADB Server（5037），与 imeituan 0.6.3
+    # 的 Server 所有权校验冲突（ADB_PORT_OWNERSHIP_CONFLICT），并让并发 run 互相干扰。
+    # 工具链按用途各自按需解析：
+    #   · 设备命令 → devices/<platform>/ops.ensure_toolchain()
+    #   · 本地真机/模拟器探测 → devices.toolchain.adb.list_devices()
+    #   · WebView CDP → devices/android/probes/webview.py::_adb()
     try:
         code = dispatch_fn(args)
     except AutotestError as err:

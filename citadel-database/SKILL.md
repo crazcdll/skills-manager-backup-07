@@ -1,11 +1,11 @@
 ---
 name: citadel-database
-description: "学城多维表格操作工具。支持:文档/表格创建与管理、数据增删改查、批量操作、筛选排序、文件上传、账号转换、多维表格高级权限角色成员增删；在此基础上新增自定义角色生命周期、表/行/列/视图权限配置、成员角色反查调整和当前用户实际表权限查询。当用户需要操作多维表格、批量处理表格数据、数据同步、数据收集、表格自动化，或给多维表格管理员、默认角色、自定义角色添加或删除人员/组织/群/邮件组/应用，以及使用上述高级权限能力时使用。触发词:表格、多维表格、XTable、高级权限、默认角色、自定义角色、多维表格管理员、角色成员、批量操作、数据导入、数据收集。"
+description: "学城多维表格操作工具。支持:文档/表格创建与管理、数据增删改查、批量操作、筛选排序、文件上传、账号转换、多维表格高级权限角色成员增删；在此基础上新增自定义角色生命周期、表/行/列/视图权限配置、成员角色反查调整和当前用户实际表权限查询。当用户需要操作多维表格、批量处理表格数据、数据同步、数据收集，或给多维表格管理员、默认角色、自定义角色添加或删除人员/组织/群/邮件组/应用，以及使用上述高级权限能力时使用。仪表盘和自动化配置需求须遵守正文操作边界，禁止自行推测或通过浏览器接口修改。触发词:表格、多维表格、XTable、高级权限、默认角色、自定义角色、多维表格管理员、角色成员、批量操作、数据导入、数据收集。"
 
 metadata:
   skillhub.creator: "zhangshufei02"
   skillhub.updater: "zhangshufei02"
-  skillhub.version: "V24"
+  skillhub.version: "V27"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "3859"
   skillhub.high_sensitive: "true"
@@ -22,6 +22,7 @@ metadata:
 - ✅ **完整的 CRUD**：支持创建、查询、更新、删除操作
 - ✅ **Token 自动缓存**：认证信息自动保存，后续调用无需重复认证
 - ✅ **支持筛选和排序**：灵活的数据查询能力
+- ✅ **公式计算状态查询**：直接检查当前版本或指定数据变更的公式是否计算完成，无需自行比较版本
 - ✅ **新增公式列** 🧮：支持创建公式列（columnType:9），自动计算数字/日期/文本/货币结果，支持本表列引用 `[#colId]` 和跨表引用 `[$tableId].[#colId]`
 - ✅ **编辑列配置** ⚙️：支持修改公式表达式、结果格式（formulaFormat）、数字/日期格式化（formatter）、货币代码、人员列多选等列级配置
 - ✅ **高级权限管理** 🔐：支持查询高级权限开关、开启/关闭高级权限、查询角色配置；支持给管理员、默认角色、自定义角色添加或删除人员/组织/大象群/邮件组/应用；新增支持自定义角色增删改名、默认/自定义角色的表/行/列/视图权限配置、成员角色反查/调整及当前用户生效权限查询
@@ -35,17 +36,23 @@ metadata:
     - [Node.js 版本检查](#nodejs-版本检查)
     - [CLI 可用性检查](#cli-可用性检查)
   - [意图路由](#意图路由)
+    - [仪表盘与自动化操作边界（必须遵守）](#仪表盘与自动化操作边界必须遵守)
     - [用户贴入多维表格链接时的处理规则（必须遵守）](#用户贴入多维表格链接时的处理规则必须遵守)
+    - [多维表格高级权限路由规则](#多维表格高级权限路由规则)
   - [CLI 速查](#cli-速查)
   - [典型工作流](#典型工作流)
+    - [公式计算完成判断](#公式计算完成判断)
     - [📝 文档级别操作（使用 citadel 命令）](#-文档级别操作使用-citadel-命令)
   - [在学城文档内插入多维表格（标准流程）](#在学城文档内插入多维表格标准流程)
     - [创建多维文档后的授权收尾](#创建多维文档后的授权收尾)
   - [复制数据表](#复制数据表)
   - [账号转换（MIS ↔ empId ↔ UID）](#账号转换mis--empid--uid)
   - [列类型速查](#列类型速查)
+    - [新增/编辑列时 columnConfig 各类型说明](#新增编辑列时-columnconfig-各类型说明)
+  - [AI 写公式 🧮](#ai-写公式-)
+    - [🔒 函数白名单（封闭集）](#-函数白名单封闭集)
+    - [需求 → 正确写法对照表](#需求--正确写法对照表)
   - [视图管理](#视图管理)
-  - [AI 写公式](#ai-写公式-)
   - [约束](#约束)
   - [暂不支持](#暂不支持)
   - [认证](#认证)
@@ -54,6 +61,7 @@ metadata:
   - [最佳实践](#最佳实践)
   - [常见问题](#常见问题)
   - [问题反馈](#问题反馈)
+  - [多维表格新模型试用](#多维表格新模型试用)
 
 ## 前置检查
 
@@ -78,6 +86,13 @@ node -e "const cp=require('child_process'); const probe=process.platform==='win3
 **此步骤必须执行一次，否则新环境中可能不存在 CLI 命令导致运行失败。**
 
 ## 意图路由
+
+### 仪表盘与自动化操作边界（必须遵守）
+
+- **当前不支持的配置操作**：创建或修改仪表盘配置（图表、布局、筛选等），以及创建、修改、启停或删除自动化规则/流程。用户提出这些需求时，明确告知当前 CLI 暂不支持并停止相关写操作，可请用户在产品页面自行配置。
+- **禁止自行推测**命令、接口、请求参数或配置结构后尝试写入；不得将数据表、视图或学城文档图表命令套用到多维表格仪表盘或自动化配置。
+- **禁止通过浏览器接口修改**：不得使用页面脚本（`fetch`/XHR）、抓包重放或自行调用页面内部 HTTP 接口执行写操作，也不得通过浏览器 UI 操作绕过上述能力边界。
+- **已支持的仪表盘操作**：回收站查询、删除和恢复可使用 `queryDeletedTables`、`deleteTable`、`recoveryTable`，参数见 [CLI 参考](references/cli-reference.md#querydeletedtables)。删除或恢复仅在用户明确要求且核对目标后执行。仪表盘高级权限仍遵守[高级权限路由规则](#多维表格高级权限路由规则)，不得修改。
 
 ### 用户贴入多维表格链接时的处理规则（必须遵守）
 
@@ -125,20 +140,24 @@ node -e "const cp=require('child_process'); const probe=process.platform==='win3
 | 用户意图                    | 命令                                    |
 | -------------------------- | --------------------------------------- |
 | 创建一个新的多维表格文档     | `createDatabase [--contentTitle <标题>] [--tableTitle <表格>]` <br/>💡 标题可为空；不指定 `--parentId` 时创建在用户自己空间下，无需 `--mis` 参数 |
+| 创建 V2 多维表格文档 | `createDatabase --schemaVersion 2 [--contentTitle <标题>]`；仍在灰度中，提示不在灰度范围时可提醒加入试用群，见「多维表格新模型试用」 |
+| 异步创建多维表格文档 | `createDatabase --async true [--schemaVersion 2]`；自动轮询最多 5 秒，未完成提示创建中并返回任务 ID，不要重复创建 |
+| 查询异步创建状态 | `queryDatabaseTask --taskId <任务ID>`；状态 2 才表示创建完成，状态 3 表示失败并停止 |
 | 复制整个多维表格文档         | `createDatabase --contentTitle <标题> --sourceContentId <原文档ID> [--keepData true]` |
 | 在现有文档中创建新数据表     | `createTable --contentId <id> [--tableTitle "任务表"] --columnMeta '[{"columnName":"任务名","columnType":1}]'` |
 | 复制数据表到多维文档/学城文档 | `copyTable --sourceTableId <源ID> --targetParentId <目标ID> [--targetType <3\|4>]` <br/>💡 目标是学城文档时需额外执行 `updateDocumentByMd` 插入 `:::xtable` |
 | 查看文档下有哪些表格         | `listTables --contentId <id>`                 |
 | 查询表格的列结构（columnId） | `getTableMeta --tableId <id>`                          |
+| 查询公式计算状态 / 等待变更后的公式结果 | `checkFormulaCalculation --tableId <id> [--stepVersion <写入版本>]`；返回完成状态，完成后再查询公式值 |
 | 查询表格中的数据             | `queryTableData --tableId <id> [--columnIds <列ID>] [--filter <条件>] [--sort <排序>] --max-pages 10` <br/>💡 默认加 `--max-pages 10` 预览前 10 页，需全量时再去掉 <br/>💡 按视图查询时可传 `--viewId <id>`（仅在**未传** `--columnIds`/`--filter`/`--sort` 时生效，直接使用视图的列/筛选/排序配置） |
 | 向表格中添加新数据           | `addData --tableId <id> --columnIds <列ID> --data '[...]'` |
 | 更新表格中的数据             | `updateData --tableId <id> --rowIds <行ID> --data '[...]'` |
 | 删除表格中的数据             | `deleteData --tableId <id> --rowIds "123456,123457"` |
 | 重命名数据表                 | `renameTable --tableId <id> --title "新表格名称"`    |
 | 数据表排序                   | `sortTable --tableId <id> --to 2`                    |
-| 为数据表新增列               | `addTableColumns --tableId <id> --columnMetas '[{"columnName":"名称", "columnType": 1}]'` <br/>⚠️ 单选(3)/多选(5)列必须提供 `columnConfig.options`，例如：`{"columnName":"状态","columnType":3,"columnConfig":{"options":["选项1","选项2"]}}` <br/>各列类型 columnConfig 字段详见下方**列类型速查** |
+| 为数据表新增列               | `addTableColumns --tableId <id> --columnMetas '[{"columnName":"名称", "columnType": 1}]'`，也可用 `--columnMetasFile columns.json` 读取列定义数组 <br/>⚠️ 单选(3)/多选(5)列使用自定义选项时必须提供 `columnConfig.options`；引用选项时传 `columnConfig.refConfig`，不传 options，例如：`{"columnName":"状态","columnType":3,"columnConfig":{"options":["选项1","选项2"]}}` <br/>各列类型 columnConfig 字段详见下方**列类型速查** |
 | **新增公式列** 🧮          | `addTableColumns --tableId <id> --columnMetas '[{"columnName":"总价","columnType":9,"columnConfig":{"formula":"[#列ID1] * [#列ID2]","formulaFormat":2,"formatter":"0,0.00"}}]'` <br/>💡 `columnType:9` 为公式列，必须在 `columnConfig.formula` 中提供公式表达式；字段引用格式为 `[#列ID]`（需先用 `getTableMeta` 获取列ID，**不支持 `[列名]` 格式**）；**`formulaFormat` 控制结果类型：2=数字、7=日期、8=货币；结果为文本/字符串时不传此字段**；公式只能使用 `{baseDir}/references/data-format.md` 「完整函数表」中列出的函数 |
-| **修改列配置** ⚙️         | `updateColumnConfig --tableId <id> --columnId <cid> --columnConfig '{"formula":"[#列ID1] + [#列ID2]"}'` <br/>💡 支持修改公式表达式、结果格式、formatter、货币代码、人员列是否多选、单选/多选 options 等；不传的字段保持原值；**不支持修改列类型** |
+| **修改列配置** ⚙️         | `updateColumnConfig --tableId <id> --columnId <cid> --columnConfig '{"formula":"[#列ID1] + [#列ID2]"}'`，也可用 `--columnConfigFile config.json` 读取配置对象 <br/>💡 支持修改公式表达式、结果格式、formatter、货币代码、人员列是否多选、单选/多选 options 等；不传的字段保持原值；**不支持修改列类型**。删除单选/多选选项是危险操作，须显式加 `--dangerDeleteMissingOptions true` 且先取得用户确认，见「列配置」表 type:3 |
 | **设置跨表公式** 🔗      | 先 `listTables --contentId <id>` 列出同文档所有表获取目标 tableId，再 `getTableMeta --tableId <目标表id>` 获取目标列 colId，然后用 `[$表ID].[#列ID]` 语法构造公式写入 `addTableColumns` 或 `updateColumnConfig` <br/>⚠️ 跨表公式只能引用**同一 contentId** 下的表；`$` 后接 tableId（较长数字），`#` 后接 colId（较短数字），不要颠倒；**跨表引用支持公式列和非公式列** |
 
 > 🚨 **写公式前必读——三条硬性禁止（违反必出错）**
@@ -186,11 +205,23 @@ node -e "const cp=require('child_process'); const probe=process.platform==='win3
 
 **阶段 1: 准备** — `getTableMeta` 获取列 ID、列类型、列配置
 
+上传/导入数据时，先统计本次待写入的数据总行数，再拆分批次；超过 1 万行时，按[多维表格新模型试用](#多维表格新模型试用)规则提醒用户。
+
 **阶段 2: 权限管理**（大象群建文档时必需）— 文档级权限使用 `oa-skills citadel` 两步授权；多维表格高级权限使用本 skill，加载 `{baseDir}/references/advanced-permission.md`
 
 **阶段 3: 数据操作** — `addData` / `updateData` / `queryTableData` / `deleteData`
 
-**阶段 4: 验证** — `queryTableData` 确认修改成功；若操作涉及日期列，必须检查返回的 `dateCellValue` 对应日期是否与预期一致
+**阶段 4: 验证** — 用 `queryTableData` 确认修改成功；若需验证公式结果，先按下方规则确认计算完成再读取；若操作涉及日期列，必须检查返回的 `dateCellValue` 对应日期是否与预期一致
+
+### 公式计算完成判断
+
+使用 `checkFormulaCalculation` 检查，版本比较由 CLI 完成，Agent 无需读取 meta 的计算进度字段。
+
+- **检查当前版本**：`checkFormulaCalculation --tableId <id>`。
+- **检查本次数据变更**：保留成功写入返回的 `stepVersion`，调用同一张表的 `checkFormulaCalculation --tableId <id> --stepVersion <写入版本>`。
+- **读取结果**：加 `--raw` 获取 `status`：`completed`（已完成）、`pending`（未完成）、`unknown`（无法确认）。只有 `completed` 才能继续读取并验证公式结果；写入成功本身不代表公式计算完成。
+
+需要等待时，仅对 `pending` 有间隔、有限次地重复检查（建议间隔 1 秒、最多 30 次），完成后再执行 `queryTableData`。`unknown`、查询失败或达到上限时停止，说明尚未确认完成；不要重复写入或将当前公式值当作最终结果。对用户只说明计算状态，无需展示内部进度字段。详见 [CLI 参考：checkFormulaCalculation](references/cli-reference.md#checkformulacalculation)。
 
 ### 📝 文档级别操作（使用 citadel 命令）
 
@@ -244,7 +275,7 @@ node -e "const cp=require('child_process'); const probe=process.platform==='win3
 
 ### 创建多维文档后的授权收尾
 
-每次 `createDatabase` 成功后，必须询问用户是否需要授权。若场景为**大象群**，自动执行两步授权。当用户需要为文档授权、改权、移权、管理权限继承时，加载 `{baseDir}/references/permission-management.md`。
+每次 `createDatabase` 创建完成后（异步创建须查询到 `taskStatus: 2`，处理中不执行授权或写入），必须询问用户是否需要授权。若场景为**大象群**，自动执行两步授权。当用户需要为文档授权、改权、移权、管理权限继承时，加载 `{baseDir}/references/permission-management.md`。
 
 ## 复制数据表
 
@@ -263,7 +294,7 @@ node -e "const cp=require('child_process'); const probe=process.platform==='win3
 
 | columnType | 类型 | 数据结构 | 示例 |
 |------------|------|----------|------|
-| 1 | 文本 | `IRichTextNode[]` | `[{type:"text",value:"任务A"}]` |
+| 1 | 文本 | `IRichTextNode[]` | 支持 `text` 纯文本、`link` 超链接、`mention` @提及、`paragraph` 段落；见[完整写入示例](references/cli-reference.md#文本列完整写入示例) |
 | 2 | 数字 | `number` | `100` |
 | 3 | 单选 | `string` | `"进行中"` |
 | 4 | 人员 | `empId[]` | `[2015738,2015739]` |
@@ -274,6 +305,8 @@ node -e "const cp=require('child_process'); const probe=process.platform==='win3
 | 9 | 公式 | 只读（列内单元格不可写入） | 公式列的表达式在 `columnConfig.formula` 中配置 |
 | 10 | 查找引用 | 只读 | 不支持写入 |
 
+**写入超链接**：文本列（`columnType: 1`）的单元格直接传 `[{"type":"link","value":"显示文字","link":"https://example.com"}]`；单行单列的完整 `--data` 为 `[[[{"type":"link","value":"显示文字","link":"https://example.com"}]]]`。新增、更新、混合多个链接及文件写入示例见[富文本列超链接写入](references/cli-reference.md#富文本列超链接写入)，节点规则见[超链接节点](references/data-format.md#2-超链接节点)。
+
 ### 新增/编辑列时 columnConfig 各类型说明
 
 > 适用于 `addTableColumns` 和 `updateColumnConfig --columnConfig`，不传的字段保持原值（编辑时）。
@@ -282,9 +315,9 @@ node -e "const cp=require('child_process'); const probe=process.platform==='win3
 |------------|--------------------------|------------|
 | 1 文本 | 无 | 无需传 columnConfig |
 | 2 数字 | `formatter` | 数字格式化：`""` 无格式 / `"0"` 整数 / `"0.00"` 2位小数 / `"0,0"` 千分位 / `"0,0.00"` 千分位2位小数 / `"0%"` 百分比 |
-| 3 单选 | `options` | 新增时传选项名称字符串列表；编辑已有列时支持字符串列表或包含 `id`/`label`/`color` 的对象列表，支持改名、排序、新增；不支持删除已有选项；最多512项，每项 label 不超过100字符；示例：`{"options":["未开始","进行中","已完成"]}` 或 `{"options":[{"id":123,"label":"进行中","color":"#E8F3FF"}]}` |
+| 3 单选 | `options` / `refConfig` | 新增时传选项名称字符串列表；编辑已有列时支持字符串列表或包含 `id`/`label`/`color` 的对象列表，支持改名、排序、新增；**缺省不删除已有选项**（缺席的旧选项会报错）；最多512项，每项 label 不超过100字符；示例：`{"options":["未开始","进行中","已完成"]}` 或 `{"options":[{"id":123,"label":"进行中","color":"#E8F3FF"}]}`。<br/>⚠️ **删除选项 = 危险操作**：只有显式传 `--dangerDeleteMissingOptions true`（独立参数，不放在 `columnConfig` 中）时，`options` 才视为全量列表，缺席的旧选项被删除，服务端同一版本内会**清空引用这些选项的单元格值、剔除默认值和各视图筛选条件里的死选项，不可撤销**。执行前必须：① `getTableMeta` 拿全量选项；② 向用户列出将删除的选项和上述后果；③ 用户明确确认后才执行，未确认即停止 |
 | 4 人员 | `multiple` | 是否允许多人，默认 `false`；示例：`{"multiple":true}` |
-| 5 多选 | `options` | 同单选，参见 type:3 |
+| 5 多选 | `options` / `refConfig` | 同单选，参见 type:3 |
 | 6 附件 | 无 | 无需传 columnConfig |
 | 7 日期 | `formatter` | 日期格式：`"YYYY/MM/DD"`（默认）/ `"YYYY-MM-DD"` / `"YYYY/MM/DD HH:mm"` / `"YYYY-MM-DD HH:mm"` / `"MM-DD"` / `"MM/DD/YYYY"` / `"DD/MM/YYYY"` |
 | 8 货币 | `currencyCode` / `currencySymbol` / `formatter` | 货币代码默认 `"CNY"`，符号默认 `"¥"`，formatter 同数字列；示例：`{"currencyCode":"USD","currencySymbol":"$","formatter":"0,0.00"}` |
@@ -298,6 +331,10 @@ oa-skills citadel-database getUserInfo --misList '["zhangsan", "lisi"]'
 ```
 
 **📖 完整数据格式文档**：操作文本/附件/日期/人员列、构造筛选/排序条件时，加载 `{baseDir}/references/data-format.md`（富文本节点、附件格式、筛选/排序语法、列配置、常见错误）
+
+选项引用适用于单选/多选列，**来源也只能是未开启引用的普通单选(3)/多选(5)列**。先查询来源元数据确认类型，再配置 `refConfig`。支持用 `refConfig.filter` 筛选来源记录，可按固定值或当前行某列的值筛选；必须按 `{baseDir}/references/data-format.md` 的「选项引用配置」构造单层数组条件，不能使用查询数据的对象式筛选。
+
+`refConfig` 对象开启或整体替换引用配置，省略保持原值，修改时显式传 `null` 关闭引用。清除筛选时保留来源字段并省略 `filter`，不要传空数组。修改已有列前先查询元数据，确认来源及切换影响；开启引用后自定义选项和默认值不再适用，应先向用户说明并确认，未确认则停止。
 
 ## AI 写公式 🧮
 
@@ -320,7 +357,11 @@ oa-skills citadel-database getUserInfo --misList '["zhangsan", "lisi"]'
 - 修改已有公式列：`updateColumnConfig --tableId <id> --columnId <cid> --columnConfig '{"formula":"<表达式>"[,"formulaFormat":<类型>]}'`
 - 跨表公式：先 `listTables` 获取目标 tableId，再 `getTableMeta` 获取目标 colId，用 `[$tableId].[#colId]` 引用；**只能引用同一 contentId 下的表**
 
+Windows 下传复杂 JSON 或带引号的公式时，推荐将原始 JSON 保存为 UTF-8 文件，用 `--columnMetasFile`（新增列数组）或 `--columnConfigFile`（修改配置对象）传入；同时传文件和对应内联参数时，文件优先。文件内容、单行 PowerShell 命令示例及注意事项见 [JSON 文件输入](references/cli-reference.md#json-文件输入)。
+
 **`formulaFormat`**：结果为数字传 `2`、日期传 `7`、货币传 `8`；**结果为文本/字符串时省略**
+
+新增或修改公式后，按「公式计算完成判断」确认完成，再读取结果验证；只有写入成功不能证明计算已完成。
 
 ### 🔒 函数白名单（封闭集）
 
@@ -393,9 +434,9 @@ oa-skills citadel-database getUserInfo --misList '["zhangsan", "lisi"]'
 - **列类型严格校验**：必须按列类型表传入正确格式，否则 API 报错
 - **数据量限制**：单次操作最多 500 行；批量写建议每批 ≤100 行，超 500 行自动分批
 - **列类型选择强制要求**：创建表格时必须根据数据用途选对应列类型，不要全部用文本列
-- **单选/多选列必须提供 options**：新增单选（columnType: 3）或多选（columnType: 5）列时，`columnConfig.options` 为必填项且至少需要一个选项，否则命令报错。示例：`{"columnName":"状态","columnType":3,"columnConfig":{"options":["未开始","进行中","已完成"]}}`
+- **单选/多选列选项来源**：新增单选（columnType: 3）或多选（columnType: 5）列时，自定义选项需提供非空 `columnConfig.options`；引用选项改传 `columnConfig.refConfig` 对象，不能同时传 `options` 或 `defaultValue`。示例：`{"columnName":"状态","columnType":3,"columnConfig":{"options":["未开始","进行中","已完成"]}}`
 - **筛选语法**：`operator` 只使用"筛选和排序"章节列出的枚举值；`filterValue` 始终传 `string[]`，`isnull`/`notnull` 传 `[]`
-- **单选/多选列 options 不允许删除已有选项**：修改已有单选/多选列的 `options` 时，先用 `getTableMeta` 获取当前 `columnConfig.options`，必须保留所有已有选项；对象项可用 `id` 保留/改名/改色，调整数组顺序即可改选项顺序，新增选项可追加 label；缺少已有选项会报错
+- **单选/多选列 options：缺省不删除，删除须显式开关并先确认**：修改已有单选/多选列的 `options` 前，先用 `getTableMeta` 获取当前 `columnConfig.options`。缺省语义下必须保留所有已有选项（对象项用 `id` 保留/改名/改色，调整数组顺序即改选项顺序，新增选项追加 label），缺少已有选项会报错而不是被删除。用户明确要求删除时，向用户列出将删除的选项并说明"引用它们的单元格值、默认值和视图筛选条件值会被清空且不可撤销"，得到明确确认后再加 `--dangerDeleteMissingOptions true` 执行，未确认即停止
 - **列配置修改必须串行执行**：对同一张表执行多个 `updateColumnConfig` 或 `addTableColumns` 时，必须串行执行（命令间用 `&&` 顺序连接），**禁止并发**（`&` 后台并行），否则版本号冲突会导致部分操作静默失败
 - **风控要求**：不得在输出中包含内部 IP、Token、敏感密钥
 - **日期列必须传字符串**：日期列（columnType: 7）必须直接传 `"YYYY-MM-DD"` 或 `"YYYY-MM-DDTHH:mm"` 字符串，CLI 内部自动按本地时区转换为毫秒时间戳，无需手动计算。若传数字时间戳，禁止手写或估算，必须通过上方命令实时计算
@@ -405,8 +446,9 @@ oa-skills citadel-database getUserInfo --misList '["zhangsan", "lisi"]'
 - **修改列类型**（不支持将已有列改为其他类型）
 - **列的删除**
 - LOOKUP（查找引用）列及系统列（code ≥ 101）的创建
+- 仪表盘配置和自动化规则/流程操作，范围及停止条件见[仪表盘与自动化操作边界](#仪表盘与自动化操作边界必须遵守)
 
-用户要求时明确说明"当前暂不支持"。不可通过 Web UI 手动操作。
+用户要求时明确说明"当前暂不支持"。禁止通过 Web UI 手动操作。
 
 ## 认证
 
@@ -470,3 +512,15 @@ A: `oa-skills citadel-database --clear-cache`。
 
 ## 问题反馈
 点击 https://applink.neixin.cn/profile?gid=70411238253 加入学城多维表格官方 Skill 客服群大象群
+
+## 多维表格新模型试用
+
+**大数据量上传/导入**：本次待写入的实际数据总行数超过 10,000 行时，Agent 必须在开始写入前主动提示一次：
+
+> 本次上传的数据超过 1 万行，可以加入[学城多维表格 2.0 新模型试用大象群](https://applink.neixin.cn/profile?gid=71013739252)申请试用新模型。
+
+按分批前的总行数判断，不含表头；恰好 10,000 行不触发。同一次导入只提醒一次，不随每批重复。仅作为附件上传文件、不将其内容导入表格行时，不按文件内部行数触发。提示后继续原有导入流程，不自动切换模型或重建表格。
+
+**V2 创建灰度资格**：V2 表（`--schemaVersion 2`）即多维表格新模型，目前仍在灰度中，灰度资格由服务端判断，无需指定灰度链路。创建失败时保留服务端 `message` 或 `info` 原文；返回业务错误码 `617`（如 `info: "暂无创建 v2(next) 引擎多维表格的权限"`），或明确表示用户不在灰度范围时，可提醒用户加入上述试用群申请试用资格。
+
+异步任务确认创建失败且返回用户不在灰度范围时，若已知创建的是 V2 表，也可给出该提示。创建失败场景下，普通权限不足、其他错误、创建中或仅查询出错不作为加群提示的依据。有任务 ID 时只查询原任务，不要重复创建。

@@ -24,13 +24,16 @@
 | `https://km.sankuai.com/collabpage/2750138424` | `--url <url>` |
 | `https://km.sankuai.com/page/2750138424` | `--url <url>` |
 | `https://km.sankuai.com/xtable/2750138424` | `--url <url>` |
+| `https://km.sankuai.com/md/2750138424` 或对应 `.md` 链接 | `--url <url>` |
 | 纯数字 contentId（如 `2750138424`） | `--pageId 2750138424` |
 | `https://km.sankuai.com/space/XOPEN` | `--url <url>`（仅 space-admin 使用） |
 | `https://km.sankuai.com/space/38556` | `--url <url>`（仅 space-admin 使用） |
 
 - `--url` 和 `--pageId` **二选一**，不要同时传。
+- 文档 ID 和数字空间 ID 必须为正整数，且不超过 `9007199254740991`；非法文档路径直接停止，不能借 URL 查询参数改为空间目标。
 - `space-admin` **只接受 `--url` 的空间 URL**，不支持 `--pageId`。
 - 不要把 URL 拆成 `contentId` 再让用户补填；能从链接提取时直接传 `--url`。
+- MD 类型与环境说明见 [原生 MD 文档](markdown-documents.md)。测试命令必须显式传 `--env test --swimlane <泳道>`；传入测试链接不会自动切换环境。
 
 ## 意图路由
 

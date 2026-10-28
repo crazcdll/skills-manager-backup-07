@@ -3,8 +3,13 @@
 """服务生命周期：单例锁 + 端口探测 + 后台启动 + 健康探测。
 
 `ensure()` 是唯一入口，幂等：
-  · 服务已存活 → 直接返回其地址（★ 其他会话在此跳过，绝不重启）；
+  · 服务已存活且 home 就是本机机器级目录 → 直接返回其地址（★ 其他会话在此跳过，绝不重启）；
+  · 端口上有 home 不一致的 catpaw-console（其他安装/拷贝拉起的重复实例）→ 回收后重启；
   · 未存活 → flock 串行化，启动一个脱离父会话的常驻服务进程。
+
+home 固定为 `~/.local/share/ai-ui-autotest-engine/console/`：Skill 会被多份安装/镜像，
+常驻服务的状态**不能**落在 SKILL_DIR 内，否则每个副本都会长出一份 `.console`，
+且常驻进程心跳会在目录被删后立刻重建（幽灵目录），并拉起多个重复实例。
 """
 import errno
 import json
@@ -84,8 +89,9 @@ def _healthz(port, token, timeout=config.HEALTH_TIMEOUT) -> bool:
 def _probe_port(port, timeout=config.HEALTH_TIMEOUT):
     """探测某端口是否是在跑的 catpaw-console（token-free `/healthz`）。
 
-    返回 `{"pid": int, "port": int}` 或 None。**这是单例判据的“现实来源”**——
-    不依赖 `server.json`，因此名片缺失/陈旧也不会误判。
+    返回 `{"pid": int, "port": int, "home": str}` 或 None。**这是单例判据的“现实来源”**——
+    不依赖 `server.json`，因此名片缺失/陈旧也不会误判。`home` 是实例实际写入
+    `server.json` 的目录：为空或与本机不一致 → 不是本机实例，应回收。
     """
     if not port:
         return None
@@ -105,7 +111,60 @@ def _probe_port(port, timeout=config.HEALTH_TIMEOUT):
         return None
     if not isinstance(obj, dict) or obj.get("service") != "catpaw-console":
         return None
-    return {"pid": int(obj.get("pid") or 0), "port": int(port)}
+    return {"pid": int(obj.get("pid") or 0), "port": int(port),
+            "home": str(obj.get("home") or "")}
+
+
+def _pid_cmdline(pid) -> str:
+    """进程命令行（取不到返回空串）；用于回收前确认“它真的是控制台服务”。"""
+    try:
+        out = subprocess.run(
+            ["ps", "-p", str(int(pid)), "-o", "command="],
+            capture_output=True, text=True, timeout=2,
+        )
+        return (out.stdout or "").strip()
+    except (OSError, ValueError, subprocess.SubprocessError):
+        return ""
+
+
+def _is_console_server(pid) -> bool:
+    """`pid` 是否为本控制台服务进程（避免 pid 被系统回收后误杀无关进程）。"""
+    if not _pid_alive(pid):
+        return False
+    cmd = _pid_cmdline(pid)
+    return "console/server.py" in cmd or "console\\server.py" in cmd
+
+
+def _reclaim_pid(pid) -> bool:
+    """结束一个失控/重复的控制台实例（先 TERM 再 KILL）；确认是同类进程才动手。"""
+    try:
+        pid = int(pid)
+    except (TypeError, ValueError):
+        return False
+    if not _is_console_server(pid):
+        return False
+    try:
+        os.kill(pid, 15)
+    except OSError:
+        return False
+    for _ in range(30):
+        if not _pid_alive(pid):
+            return True
+        time.sleep(0.1)
+    try:
+        os.kill(pid, 9)
+    except OSError:
+        pass
+    for _ in range(10):
+        if not _pid_alive(pid):
+            return True
+        time.sleep(0.1)
+    return not _pid_alive(pid)
+
+
+def _owned_by_me(home) -> bool:
+    """实例的 home 是否就是本机机器级目录。"""
+    return bool(home) and os.path.realpath(str(home)) == os.path.realpath(console_dir())
 
 
 def _candidate_ports():
@@ -122,18 +181,25 @@ def _candidate_ports():
 def discover_running():
     """探测**现实**中正在运行的控制台实例；返回其 info 或 None。
 
-    判据：端口范围内有 `catpaw-console` 在响应 `/healthz`。命中即用探测结果
-    **刷新名片**（server.json 退化为缓存/展示），保证名片始终指向真实实例。
+    判据：端口范围内有 `catpaw-console` 在响应 `/healthz`，**且其 home 就是本机
+    机器级目录**。命中即用探测结果刷新名片（server.json 只是缓存/展示）。
+
+    home 不一致 → 是其他安装/拷贝拉起的重复实例：回收后继续找/启动，保证全机唯一。
     """
     for p in _candidate_ports():
         hit = _probe_port(p)
         if not hit:
             continue
+        if not _owned_by_me(hit.get("home")):
+            if _reclaim_pid(hit["pid"]):
+                continue            # 重复实例已回收：端口空出，继续探测/启动
+            # 回收不了（权限等）：退回复用，优先保证控制台可用
         info = {
             "version": config.CONSOLE_VERSION,
             "pid": hit["pid"], "host": config.BIND_HOST, "port": hit["port"],
             "url": f"http://127.0.0.1:{hit['port']}",
             "token": _load_or_create_token(),
+            "home": hit.get("home") or console_dir(),
         }
         try:
             write_json_atomic(console_server_json(), info)
@@ -144,7 +210,7 @@ def discover_running():
 
 
 class _FileLock:
-    """flock 单例锁（跟 lease_store 同款用法）。"""
+    """flock 单例锁（保证控制台服务全局唯一）。"""
 
     def __init__(self, path):
         self._path = path
@@ -219,8 +285,8 @@ def _persist_token(tok) -> None:
 def _load_or_create_token(existing_token="") -> str:
     """取得**稳定**的访问令牌（保证控制台链接长期不变）。
 
-    优先级：`.console/token`（持久化文件） → 调用方传入的现有 token → 新生成；
-    无论哪条来源都回写 `.console/token`，使后续任何重启都复用同一 token。
+    优先级：`$STATE/console/token`（持久化文件） → 调用方传入的现有 token → 新生成；
+    无论哪条来源都回写 `$STATE/console/token`，使后续任何重启都复用同一 token。
     """
     ensure_dirs()
     tok = ""
@@ -239,8 +305,8 @@ def _load_or_create_token(existing_token="") -> str:
 def ensure():
     """幂等启动并返回 {ok, started, url, port, token, pid}。
 
-    存活判据 = **探测现实**（端口范围内是否有 catpaw-console 在响应），而非
-    `server.json`——名片缺失/陈旧也不会拉起第二个实例；`server.json` 只是缓存。
+    存活判据 = **探测现实**（端口范围内是否有 home 一致的 catpaw-console 在响应），
+    而非 `server.json`——名片缺失/陈旧也不会拉起第二个实例；`server.json` 只是缓存。
     """
     ensure_dirs()
     found = discover_running()
@@ -256,7 +322,7 @@ def ensure():
         _spawn(token)
         info = _wait_ready(old_pid)
         if not info:
-            return {"ok": False, "error": "服务启动超时，请查看 .console/server.log"}
+            return {"ok": False, "error": "服务启动超时，请查看 $STATE/console/server.log"}
         return {"ok": True, "started": True, **info}
 
 

@@ -1,82 +1,58 @@
 #!/usr/bin/env bash
-# dep-scan.sh — 依赖升级扫描工具
-#
-# 子命令：
-#   fetch <pkg-name> <old-version> <new-version>
-#       下载指定包的新旧两个版本 tgz 并解压到临时目录，输出路径供 Agent 读取
-#   clean
-#       清理 /tmp/fe-ai-review/ 下所有临时文件
-#
-# 路径保护：所有操作固定在 /tmp/fe-ai-review/ 下，不操作任意路径。
-
+# fetch <pkg> <old-version> <new-version>：下载到独立扫描目录。
+# clean <scan_dir>：只删除本次 fetch 返回的目录。
 set -uo pipefail
 
-SKILL_TMP="/tmp/fe-ai-review"
-SUBCMD="${1:-}"
+fetch_version() {
+  local spec="$1" dest="$2" tgz
+  mkdir -p "$dest" || return 1
+  if tgz=$(npm pack "$spec" --ignore-scripts --silent --pack-destination "$dest" 2>/dev/null) \
+    && [[ -n "$tgz" && "$tgz" != */* && "$tgz" == *.tgz ]] \
+    && tar -xzf "$dest/$tgz" -C "$dest" --strip-components=1 2>/dev/null; then
+    rm -f "$dest/$tgz"
+    return 0
+  fi
+  # 不把下载失败或解压了一半的目录当作可用源码。
+  rm -rf "$dest"
+  return 1
+}
 
-# ── fetch ─────────────────────────────────────────────────────────────────────
 cmd_fetch() {
-  local PKG="${1:-}" OLD_VER="${2:-}" NEW_VER="${3:-}"
-
-  if [[ -z "$PKG" || -z "$OLD_VER" || -z "$NEW_VER" ]]; then
-    echo "usage: bash dep-scan.sh fetch <pkg-name> <old-version> <new-version>" >&2
-    exit 1
+  if [[ $# -ne 3 || -z "$1" || -z "$2" || -z "$3" ]]; then
+    echo "usage: bash dep-scan.sh fetch <pkg> <old-version> <new-version>" >&2
+    return 1
   fi
-
-  # 把包名中的 / @ 替换为 _ 作为目录名（避免路径问题）
-  local SAFE_PKG BASE_DIR OLD_DIR NEW_DIR
-  SAFE_PKG=$(echo "$PKG" | tr '/@' '_' | sed 's/^_//')
-  BASE_DIR="${SKILL_TMP}/dep-upgrade-scan/${SAFE_PKG}"
-  OLD_DIR="${BASE_DIR}/old"
-  NEW_DIR="${BASE_DIR}/new"
-
-  mkdir -p "$OLD_DIR" "$NEW_DIR"
-
-  # 下载 & 解压 old
-  echo "[dep-scan] Fetching ${PKG}@${OLD_VER} ..."
-  local OLD_TGZ
-  if OLD_TGZ=$(npm pack "${PKG}@${OLD_VER}" --pack-destination "${BASE_DIR}" 2>/dev/null); then
-    tar -xzf "${BASE_DIR}/${OLD_TGZ}" -C "$OLD_DIR" --strip-components=1 2>/dev/null \
-      || { echo "[dep-scan] warn: failed to extract old tgz" >&2; }
-    [[ "${BASE_DIR}/${OLD_TGZ}" == /tmp/fe-ai-review/* ]] && rm -f "${BASE_DIR}/${OLD_TGZ}"
-  else
-    echo "[dep-scan] warn: npm pack failed for ${PKG}@${OLD_VER}, skipping old version" >&2
+  local pkg="$1" old_ver="$2" new_ver="$3" scan_dir
+  local old_status=unavailable new_status=unavailable old_dir="" new_dir=""
+  scan_dir=$(mktemp -d /tmp/fe-ai-review-dep.XXXXXXXX) || return 1
+  if fetch_version "${pkg}@${old_ver}" "$scan_dir/old"; then
+    old_status=ready
+    old_dir="$scan_dir/old"
   fi
-
-  # 下载 & 解压 new
-  echo "[dep-scan] Fetching ${PKG}@${NEW_VER} ..."
-  local NEW_TGZ
-  if NEW_TGZ=$(npm pack "${PKG}@${NEW_VER}" --pack-destination "${BASE_DIR}" 2>/dev/null); then
-    tar -xzf "${BASE_DIR}/${NEW_TGZ}" -C "$NEW_DIR" --strip-components=1 2>/dev/null \
-      || { echo "[dep-scan] warn: failed to extract new tgz" >&2; }
-    [[ "${BASE_DIR}/${NEW_TGZ}" == /tmp/fe-ai-review/* ]] && rm -f "${BASE_DIR}/${NEW_TGZ}"
-  else
-    echo "[dep-scan] warn: npm pack failed for ${PKG}@${NEW_VER}, skipping new version" >&2
+  if fetch_version "${pkg}@${new_ver}" "$scan_dir/new"; then
+    new_status=ready
+    new_dir="$scan_dir/new"
   fi
-
-  # 输出路径供 Agent 使用
-  echo "[dep-scan] old_dir=${OLD_DIR}"
-  echo "[dep-scan] new_dir=${NEW_DIR}"
+  printf 'scan_dir=%s\nold_status=%s\nold_dir=%s\nnew_status=%s\nnew_dir=%s\n' \
+    "$scan_dir" "$old_status" "$old_dir" "$new_status" "$new_dir"
+  [[ "$old_status" == ready && "$new_status" == ready ]]
 }
 
-# ── clean ─────────────────────────────────────────────────────────────────────
 cmd_clean() {
-  if [[ -d "$SKILL_TMP" && "$SKILL_TMP" == /tmp/fe-ai-review ]]; then
-    rm -rf "$SKILL_TMP"
-    echo "[fe-ai-review] cleaned: $SKILL_TMP"
-  else
-    echo "[fe-ai-review] skip: $SKILL_TMP not found"
+  local scan_dir="${1:-}"
+  if [[ $# -ne 1 || ! "$scan_dir" =~ ^/tmp/fe-ai-review-dep\.[[:alnum:]]+$ || -L "$scan_dir" ]]; then
+    echo "clean requires the scan_dir returned by fetch" >&2
+    return 1
   fi
+  rm -rf "$scan_dir" || return 1
+  printf '[dep-scan] cleaned: %s\n' "$scan_dir"
 }
 
-# ── 路由 ──────────────────────────────────────────────────────────────────────
-case "$SUBCMD" in
+case "${1:-}" in
   fetch) shift; cmd_fetch "$@" ;;
-  clean) cmd_clean ;;
+  clean) shift; cmd_clean "$@" ;;
   *)
-    echo "usage: bash dep-scan.sh <fetch|clean> [args...]" >&2
-    echo "  fetch <pkg-name> <old-version> <new-version>  — 下载并解压新旧版本" >&2
-    echo "  clean                                         — 清理所有临时文件" >&2
+    echo "usage: bash dep-scan.sh fetch <pkg> <old-version> <new-version> | clean <scan_dir>" >&2
     exit 1
     ;;
 esac

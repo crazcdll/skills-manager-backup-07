@@ -186,3 +186,19 @@ test("reports mtcli absence, timeout, invalid JSON and unverified dry-run withou
   await assert.rejects(unsafe(request), (error) => error.code === "RULE_BUNDLE_MTCLI_DRY_RUN_INVALID");
   assert.equal(called, 1);
 });
+
+
+test('negotiated large indexes pass mtcli stdout and body budgets without enlarging the ordinary response budget', async () => {
+  const indexedRequest = { ...request, body: { ...request.body, agents_index_contract: 'rule-set-agents-index/v1' }, maxResponseBytes: 64 * 1024 * 1024 };
+  let data = { agents_indexes: [{ index: { content: '\u0001'.repeat(5 * 1024 * 1024) } }], snapshot: {} };
+  const limits = [];
+  const transport = createMtcliTransport({ execute: async (_command, args, options) => {
+    limits.push(options.maxBuffer);
+    return { stdout: JSON.stringify(args.includes('--dry-run')
+      ? dryRun({ body: indexedRequest.body }) : { success: true, status_code: 200, data }) };
+  } });
+  assert.equal((await transport(indexedRequest)).body.agents_indexes[0].index.content.length, 5 * 1024 * 1024);
+  assert.deepEqual(limits, [12 * 1024 * 1024, 66 * 1024 * 1024]);
+  data = { ...data, extra: 'x'.repeat(4 * 1024 * 1024) };
+  await assert.rejects(transport(indexedRequest), { code: 'RULE_BUNDLE_RESPONSE_TOO_LARGE' });
+});

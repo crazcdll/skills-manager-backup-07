@@ -3,13 +3,22 @@
 """报告层唯一 I/O 入口。
 
 builders 拆分为纯构建模块后，所有文件读取集中于此，便于离线单测与 mock。"""
-import functools
 import json
 import os
 
 from shared.errors import soft_fail
 from shared.json_utils import read_json, read_jsonl
-from shared.paths import SKILL_MD_PATH, check_deps_result_path
+from shared.paths import SKILL_DIR, check_deps_result_path
+from shared.selfupdate import read_skill_version
+
+
+def skill_version():
+    """平台版本号（SKILL.md frontmatter 的 skillhub.version，如 V187）；无则 None。
+
+    实现只有一份：`shared.selfupdate.read_skill_version`（自更新也要用它比对远端），
+    这里只是把 SKILL_DIR 绑定好，供报告层直接调用。
+    """
+    return read_skill_version(SKILL_DIR)
 
 
 def load_case_data(case_workspace):
@@ -19,27 +28,6 @@ def load_case_data(case_workspace):
 def load_audit(run_dir):
     audit_dir = os.path.join(run_dir, "audit")
     return read_jsonl(os.path.join(audit_dir, "run-events.jsonl"))
-
-
-_SKILL_MD = SKILL_MD_PATH
-
-
-@functools.lru_cache(maxsize=1)
-def _read_skill_version():
-    """从 SKILL.md 的 YAML 头部读取 Friday Skillhub 注入的平台版本号（skillhub.version，如 V96）。"""
-    if not os.path.isfile(_SKILL_MD):
-        return None
-    try:
-        with open(_SKILL_MD, encoding="utf-8") as f:
-            for line in f:
-                stripped = line.strip()
-                if "skillhub.version:" in stripped:
-                    val = stripped.split("skillhub.version:", 1)[1].strip().strip('"\'')
-                    if val:
-                        return val
-    except OSError as e:
-        soft_fail("infra", "SKILL_VERSION_READ_FAILED", e)
-    return None
 
 
 def _load_check_deps():

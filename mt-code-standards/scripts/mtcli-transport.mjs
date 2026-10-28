@@ -2,7 +2,8 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 import {
-  MAX_RESPONSE_BYTES,
+  MAX_AGENTS_INDEX_RESPONSE_BYTES,
+  assertRuleResponseBudget,
   RuleBundleError,
   canonicalJson,
 } from "./resolve-effective-rules.mjs";
@@ -14,6 +15,7 @@ const TARGET_ENV = "prod";
 const SCHEMA_ENV = "prod";
 const TIMEOUT_MS = 180_000;
 const OUTER_RESPONSE_BYTES = 12 * 1024 * 1024;
+const INDEX_OUTER_RESPONSE_BYTES = MAX_AGENTS_INDEX_RESPONSE_BYTES + 2 * 1024 * 1024;
 const SERVICE_PATTERN = /^[a-z][a-z0-9-]{0,62}$/u;
 const TOKEN_ENV_NAMES = new Set([
   "RULE_OBSERVABILITY_USER_TOKEN",
@@ -36,6 +38,7 @@ const TOKEN_ENV_NAMES = new Set([
   "ANTHROPIC_AUTH_TOKEN",
 ]);
 const METHODS = Object.freeze({
+  "/v1/rule-bundles/resolve": "resolve-unified",
   "/v1/effective-rule-bundles/resolve": "resolve",
   "/v1/l1-rule-bundles/bootstrap": "bootstrap",
 });
@@ -91,8 +94,8 @@ export const mtcliInvocation = ({ service, request, dryRun }) => {
   ];
 };
 
-const parseJson = (raw, code, message) => {
-  if (Buffer.byteLength(raw, "utf8") > OUTER_RESPONSE_BYTES) fail("RULE_BUNDLE_RESPONSE_TOO_LARGE", message);
+const parseJson = (raw, code, message, maxBytes = OUTER_RESPONSE_BYTES) => {
+  if (Buffer.byteLength(raw, "utf8") > maxBytes) fail("RULE_BUNDLE_RESPONSE_TOO_LARGE", message);
   try {
     return JSON.parse(raw);
   } catch {
@@ -166,12 +169,12 @@ const mtcliResponse = (payload) => {
   fail("RULE_BUNDLE_MTCLI_RESPONSE_INVALID", "mtcli 未返回 success/status_code/data JSON 响应");
 };
 
-const executeMtcli = async ({ execute, args, environment, cwd }) => {
+const executeMtcli = async ({ execute, args, environment, cwd, maxBytes = OUTER_RESPONSE_BYTES }) => {
   try {
     return await execute("mtcli", args, {
       env: mtcliChildEnvironment(environment),
       timeout: TIMEOUT_MS,
-      maxBuffer: OUTER_RESPONSE_BYTES,
+      maxBuffer: maxBytes,
       windowsHide: true,
       cwd,
     });
@@ -187,7 +190,7 @@ const executeMtcli = async ({ execute, args, environment, cwd }) => {
     }
     const stdout = text(cause?.stdout);
     if (stdout) {
-      const payload = parseJson(stdout, "RULE_BUNDLE_MTCLI_EXEC_FAILED", "mtcli 调用失败且未返回有效 JSON");
+      const payload = parseJson(stdout, "RULE_BUNDLE_MTCLI_EXEC_FAILED", "mtcli 调用失败且未返回有效 JSON", maxBytes);
       return { stdout: JSON.stringify(payload) };
     }
     fail("RULE_BUNDLE_MTCLI_EXEC_FAILED", "mtcli 调用失败，请检查服务定义和登录状态；可先执行 mtcli auth sso login");
@@ -225,9 +228,12 @@ export const createMtcliTransport = ({
     );
     validateMtcliDryRun(dryRunPayload, mtcliRequest);
 
+    const allowAgentsIndexes = request.body?.agents_index_contract === "rule-set-agents-index/v1";
+    const outerBytes = allowAgentsIndexes ? INDEX_OUTER_RESPONSE_BYTES : OUTER_RESPONSE_BYTES;
     const executed = await executeMtcli({
       execute,
       args: mtcliInvocation({ service: trustedService, request: mtcliRequest, dryRun: false }),
+      maxBytes: outerBytes,
       environment,
       cwd,
     });
@@ -235,12 +241,10 @@ export const createMtcliTransport = ({
       text(executed?.stdout),
       "RULE_BUNDLE_RESPONSE_NOT_JSON",
       "mtcli 规则服务返回了非 JSON 内容",
+      outerBytes,
     );
     const result = mtcliResponse(payload);
-    const bodyBytes = Buffer.byteLength(JSON.stringify(result.body), "utf8");
-    if (bodyBytes > MAX_RESPONSE_BYTES) {
-      fail("RULE_BUNDLE_RESPONSE_TOO_LARGE", "mtcli 规则服务响应超过 4 MiB 安全上限");
-    }
+    assertRuleResponseBudget(result.body, { allowAgentsIndexes, serviceLabel: "mtcli 规则服务" });
     return result;
   };
 };

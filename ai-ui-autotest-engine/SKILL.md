@@ -6,7 +6,7 @@ description: 移动端 UI 自动化测试。以 Flow 输入驱动，执行环境
 metadata:
   skillhub.creator: "wangshicheng05"
   skillhub.updater: "wangshicheng05"
-  skillhub.version: "V179"
+  skillhub.version: "V188"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "93069"
   skillhub.high_sensitive: "false"
@@ -14,19 +14,21 @@ metadata:
 
 # AI UI Autotest Engine
 
-> **目录（作用域分层）**：`.run/tasks/<ws>/{config,inputs,tmp,runs/<run>}/`（workspace / run 级）；入口脚本 `.run/ws/<ws>/cli`；跨 workspace 共享的 `.device-pool/`（设备池）、`.credentials/`（凭据）、`.console/`（统一控制台服务，跨会话共享、常驻、不随收尾清理）；产物 `output/`。制品缓存 `.cache/artifacts/<platform>/<form>/<pkg>/` 也是跨 workspace / 跨子 Agent 共享，且**引擎永不自动清理**（post-clean / preflight-clean 不触碰它，仅用户手动清理 Skill 时消失）。
-> **workspace 入口（每轮测试第一步）**：`python3 -B scripts/cli.py ws-init` 分配 workspace 并生成入口 `.run/ws/<ws>/cli`；**之后所有命令都必须通过该入口执行**（写作 `<入口> <命令>`），入口把 `AI_UITEST_TASK=<ws>` 注入进程以定位工作区。未经入口执行 → 直接报错，**无默认兜底**（避免静默落到共享目录）。入口与 `cli.py` 均已带 `python3 -B` + `PYTHONDONTWRITEBYTECODE=1`（源树零字节码，不做 pyc 缓存）；手工执行其它 python 入口（如 `scripts/dev/*.py`）同样加 `-B`。
-> `--input` 支持**裸文件名**（按本 workspace 的 `.run/tasks/<ws>/tmp/` 解析）。
+> **目录（作用域分层）**：所有状态都在**机器级目录** `$STATE` = `~/.local/share/ai-ui-autotest-engine/`（跨安装 / 跨项目唯一，可用 `AI_UITEST_STATE_HOME` 覆盖）：`run/`（运行态：`tasks/<ws>/{config,inputs,tmp,runs/<run>}/` + 入口 `ws/<ws>/cli`）、`reports/`（历史报告 `<batch>/<run>/`）、`console/`（统一控制台服务，全机唯一、常驻）、`credentials/`（AppMock SSO 凭据）、`toolchain/`（adb/hdc 路径缓存）、`cache/artifacts/<platform>/<form>/<pkg>/`（制品缓存，引擎永不自动清理）、`device-pool/`（预热台账等本机辅助文件；设备租约在服务端，不落本地）。**Skill 目录内不产生任何运行态**（多副本 / 自动更新都不会丢进度、缓存、登录与报告）。
+> **随包分发的依赖清单**：`references/toolchain/manifest.json`（adb 离线包：按平台声明包名、大小与解压白名单）与 `references/deps/manifest.json`（Python 包版本区间 + 静态资源大小/更新时间）。两者都由 `check-deps` 统一安装/校验。依赖清单带 `updated_at`：安装成功后写进机器级 `$STATE/deps/state.json`，下次比对不一致（依赖集合被 Skill 升级改过）才重装 Python 包并复核资源大小；一致则只做 import/大小复核 —— 不算 sha256、也不比较文件 mtime。adb 离线包按「版本目录 + 大小」判定是否可用，解压出的 adb 需能执行 `adb version` 才算成功。
+> **workspace 入口（每轮测试第一步）**：`python3 -B scripts/cli.py ws-init` 分配 workspace 并生成入口 `$STATE/run/ws/<ws>/cli`（**绝对路径**）；**之后所有命令都必须通过该入口执行**（写作 `<入口> <命令>`），入口把 `AI_UITEST_TASK=<ws>` 注入进程以定位工作区。未经入口执行 → 直接报错，**无默认兜底**（避免静默落到共享目录）。入口与 `cli.py` 均已带 `python3 -B` + `PYTHONDONTWRITEBYTECODE=1`（源树零字节码，不做 pyc 缓存）；手工执行其它 python 入口（如 `scripts/dev/*.py`）同样加 `-B`。
+> `--input` 支持**裸文件名**（按本 workspace 的 `$STATE/run/tasks/<ws>/tmp/` 解析）
+> **统一传输端口**：每个 workspace 首个命令分配唯一 `transport-port.json` / `flow-context.meta.transport_port`，所有平台统一持有；当前只有 Android ADB 适配器把它映射为 `IMEITUAN_CLOUD_ADB_PORT`，HarmonyOS（hdc）/ iOS（WDA）暂不使用。
 
 ## 一、执行原则
 
 1. **严格遵循 Skill 流程**：AI 必须严格按 SKILL.md 定义的阶段和子步骤顺序执行，不得跳过、合并或重排流程。
 2. **禁止运行期改写已声明步骤**：steps 只依据 Flow 原文；页面不符走 hook 消歧并记 `needs_review`/finding，不得回改 cases/steps 或重跑 `steps-generate`/`flow-init` 掩盖。
 3. 测试结果必须可追溯。环境、登录、落地页、步骤、视觉扫描、动态 Mock 和报告都写入运行事件与证据清单。失败记录真实结果，不伪造成功。
-4. 一次运行串行控制一台设备。`device create` 从**设备池**领取设备（复用空闲实例，无空闲则新建）并登记本 run 的 owner 租约；`device release` 在收尾归还租约（**不销毁实例**，留给池复用）。每个 run 还会先 `mis acquire` 从**虚拟 mis 池**领取一个 AppMock 工作域（`mock_domain`，私有优先 → 公共兜底），所有 AppMock（规则 / 录制 / 环境 / 泳道）都以它为准，收尾 `mis release` 归还；它记录在 workspace 级 `intake.mock_domain`，与设备 / 报告归属的 `resource_mis` **恒定分离**。收尾阶段由 SOP 引擎自动处理，AI 只需执行 `flow-next` 返回的指令即可。共享设备（云模拟器）历次占用会在 `/data/local/tmp` 残留安装/传输中间产物（清数据不覆盖该目录），需要时可执行 `device clean-tmp`：只删白名单后缀的产物、**保留本 Skill 自己的设备侧缓存目录与临时文件**，不递归、不删目录。安装制品统一**先查 Skill 制品缓存**（`.cache/artifacts/`，唯一入口 `shared/artifact_cache.py`）：命中即免下载，未命中才下载一次，多个子 Agent 并行也只会下载一次。
+4. 一次运行串行控制一台设备。`device create` 从**设备池**领取设备（复用空闲实例；**池满直接失败 `POOL_EXHAUSTED`，不会新建，也不要立即重试**）并登记本 run 的 owner 租约（服务端 `device_registry` 单表权威，无本地副本）；租约 owner 恒为 `<run>#<workspace>`，每条设备命令都会刷新心跳并校验归属——**租约被其他 workspace 持有时直接失败（`DEVICE_LEASE_LOST`）**，禁止继续操作该设备（否则两个分片会同时 tap/滚动，结论不可信）。收尾先 `device disconnect` 回收本 run 的 imeituan 会话（legacy 会话自动移入 `~/.imeituan/sessions/.stale/`，不删除），再 `device release` 归还租约（**不销毁实例**，留给池复用；release 后进入 120s 复用冷却，避免上一轮 session 未清理完就复用；`SESSION_CLEANUP_PENDING` 等单设备会话错误自动隔离旧 sandbox 并换机重试一次；`ADB_SERVER_COORDINATION_*` 仅 Android 调用 `device contract --repair-android-runtime` 修复本 workspace 独立 ADB 台账后重试一次，禁止换机）。每个 run 还会先 `mis acquire` 从**虚拟 mis 池**领取一个 AppMock 工作域（`mock_domain`，私有优先 → 公共兜底），所有 AppMock（规则 / 录制 / 环境 / 泳道）都以它为准，收尾 `mis release` 归还；它记录在 workspace 级 `intake.mock_domain`，与设备 / 报告归属的 `resource_mis` **恒定分离**。收尾阶段由 SOP 引擎自动处理，AI 只需执行 `flow-next` 返回的指令即可。共享设备（云模拟器）历次占用会在 `/data/local/tmp` 残留安装/传输中间产物（清数据不覆盖该目录），需要时可执行 `device clean-tmp`：只删白名单后缀的产物、**保留本 Skill 自己的设备侧缓存目录与临时文件**，不递归、不删目录。安装制品统一**先查 Skill 制品缓存**（`$STATE/cache/artifacts/`，唯一入口 `shared/artifact_cache.py`）：命中即免下载，未命中才下载一次，多个子 Agent 并行也只会下载一次。
 5. 环境不可用时快速失败并收尾，不重试、不换数据对照、不深挖日志。
 6. **先预置、后提问（硬门禁）**：用户已明确提供的值先经 `input-seed --answers` **一次性预置**（引擎按与作答同一套白名单 / 依赖校验入库，已预置的题不再下发）；剩余项才走 `input-next` → AskQuestion（原样传 `options`，每次只 1 题）→ `input-answer`（只提交刚下发的题 ID，禁止合并 / 跳答 / 未下发直接作答）；循环见 §二「阶段 0」。
-7. **禁止复用历史产物**：每轮测试的判定依据必须全部来自**本次运行**的实时产物（`.run/`、`output/run-<ts>/`），不得引用历史 `output/` 下的截图、报告或日志作为判定依据。
+7. **禁止复用历史产物**：每轮测试的判定依据必须全部来自**本次运行**的实时产物（`$STATE/run/`、`$STATE/reports/<batch>/<run>/`），不得引用历史 `$STATE/reports/` 下的截图、报告或日志作为判定依据。
 8. **CASES 文件强制约定**：先 `cases-create --tag <tag>` 创建空文件，AI 再写入内容；写完 `wc -c` 确认非空后再 `steps-generate`。禁止用编辑器直接新建该文件。
 9. **统一控制台（跨会话共享；链接须转达用户）**：`ws-init` 与 `ai-auto-ui-test` 的环境准备会自动**幂等启动** Web 控制台并打印访问链接（多设备实时画面 + 结构化动态日志）——**务必把该链接原样转达给用户**便于实时分析。服务**常驻、跨会话共享**：已启动则直接复用（其他会话据此跳过，**不要重启**）；`down` 一般不需要。控制台对测试执行**零侵入**（服务未启动时埋点不启用、零开销；启动后仅非阻塞落盘）。
 
@@ -38,8 +40,9 @@ metadata:
 # ① 分配 workspace + 生成入口（整轮测试只执行一次，之后 <入口> 固定不变）
 python3 -B scripts/cli.py ws-init
 
-# ② 之后所有命令都通过 <入口> 执行（<入口> 形如 .run/ws/<ws>/cli）
-<入口> check-deps
+# ② 之后所有命令都通过 <入口> 执行（<入口> = $STATE/run/ws/<ws>/cli，绝对路径）
+<入口> check-deps          # 唯一的安装入口：缺什么装什么（pip/npm/解压内置 adb 离线包）
+<入口> toolchain           # 只读体检：adb/hdc 从哪来、版本、内置离线包是否完好
 <入口> flow-create --name <Flow名>     # 多 Flow 场景：每个 Flow 执行一次
 # AI 写入完整 Flow 内容
 
@@ -144,14 +147,14 @@ AI 不再手动决定下一步，按 `flow-next` 返回的命令执行，确认�
 | `device` | 设备配置（可选，缺省走 sandbox-android-meituan 默认值，见下） |
 | `env` | 环境配置。**收集字段**（type/auth_method/account/password/bundle_lock/ptest/swimline/url_mappings）由引擎从 intake 合成。**场景 Mock 不在 env**：为 case 级（`cases[].mock_ids`），由 flow-init 从各 Flow「可测性环境」表派生 |
 | `cases` | Case 数组，一个 Flow 文件 = 一个 Case。**多 Flow 场景**：将所有 Flow 的 Case 合并到同一个数组，`flow-init` 只执行一次 |
-| `cases[].params` | AI 手动填充的占位符映射。`{name: value}`，value 取值：`null`（需用户提供）、`"__date__"`（`{T+N}` 或 `{T+N:format}` 日期，引擎自动解析）、具体值字符串（从「测试数据参考」填入） |
+| `cases[].params` | AI 手动填充的**非日期**占位符映射。`{name: value}`，value 取值：`null`（需用户提供）、具体值字符串（从「测试数据参考」填入）。**日期参数不写在 params**：必须直接写进 `landing_scheme` / steps 的 `{T+N:format}` / `{T-N:format}`，由 `flow-init` 按批次日期基线解析；`"__date__"` 已废弃，出现即校验失败 |
 | `cases[].mock_ids` | **可选**：该 Case 的场景 AppMock 规则 ID 列表（case 级）。缺省时由 `flow-init` 从该 Case 的 Flow「可测性环境」AppMock 行自动派生；显式填写则优先生效 |
 
 **`device` 块字段**（可选，缺省时全部走默认值）：
 
 | 字段 | 可选值 | 默认值 | 说明 |
 |---|---|---|---|
-| `type` | `sandbox` / `local` / `cloud_device` | `sandbox` | 云模拟器（从设备池领取：复用空闲实例，否则新建，登记 owner 租约）；本地真机（跳过创建/销毁）；云真机（待完善） |
+| `type` | `sandbox` / `local` / `cloud_device` | `sandbox` | 云模拟器（从设备池领取：复用空闲实例；池满直接报 `POOL_EXHAUSTED`，不会新建）；本地真机（跳过创建/销毁）；云真机（待完善） |
 | `platform` | `android` / `harmony` | `android` | 决定底层工具：Android 用 imeituan-cli，Harmony 用 hdc |
 | `app` | `meituan` / `dianping` | `meituan` | `dianping` 暂不支持 |
 | `auto_install` | `true` / `false` | `false` | 仅 `local` 生效：版本不符时自动卸载重装。`sandbox` 恒为 `true` |
@@ -228,7 +231,7 @@ Flow 含 `pending`/`待审校`/`以实际为准` 时：操作推定最合理文�
 - **元素定位**：`find-text --text <文案>` `find-icon --anchor <邻近文案>` `find-input --anchor <邻近文案>` `probe-status` `inspect-tree`
 - **Flow 引擎驱动**：`step` `log-record` `override-step-result` `assert-fields`（API/Track 字段判定；埋点多候选用 `--picked <序号>` 消歧） `response-search`（API 响应按需视图：`--skeleton` 结构总览 / `--query` 关键字定位 / `--path` 精确取值） `flow-init` `flow-status`（`--sid <SID>` 查单步精简详情）`flow-case-status` `flow-next` `flow-advance` `hook-info`（`--hook-id <ID> [--sid <SID>]` 按需查询单个 hook 的完整操作指引）`ack` `skip-case` `flow-fail` `flow-finalize` `gen-report`
 - **异常终止**：`report-error`（异常终止收尾前调用，上报 AI 分析结论和解决方案）
-- **workspace / 环境与设备**：`ws-init`（分配 workspace + 生成入口） `check-deps` `preflight-clean` `post-clean` `install-app` `force-stop` `launch` `set-location` `mock`（含 `mock effective`：聚合 ptest + 场景 Mock 的生效集并判定是否仍被 ptest 全量规则遮蔽） `mock-preflight`（场景 Mock 预检：快照 union + 冲突检测 + 清场） `mock-apply --case-index <i>`（把场景 Mock 收敛到指定 case） `mock-restore`（恢复 union 到执行前状态） `mis`（虚拟 mis 池：`mis acquire` 领虚拟 mis / `mis status` 查看 / `mis release` 释放 / `mis release-stale --hours N`） `input-schema` `input-seed` `input-next` `input-answer` `input-status` `env-prepare` `validate` `case-init`
+- **workspace / 环境与设备**：`ws-init`（分配 workspace + 生成入口） `check-deps`（缺什么装什么） `toolchain`（adb/hdc 来源与内置离线包体检，只读） `preflight-clean` `post-clean` `device disconnect`（收尾回收本 run 会话，legacy 自动隔离到 `sessions/.stale/`） `install-app` `force-stop` `launch` `set-location` `mock`（含 `mock effective`：聚合 ptest + 场景 Mock 的生效集并判定是否仍被 ptest 全量规则遮蔽） `mock-preflight`（场景 Mock 预检：快照 union + 冲突检测 + 清场） `mock-apply --case-index <i>`（把场景 Mock 收敛到指定 case） `mock-restore`（恢复 union 到执行前状态） `mis`（虚拟 mis 池：`mis acquire` 领虚拟 mis / `mis status` 查看 / `mis release` 释放 / `mis release-stale --hours N`） `input-schema` `input-seed` `input-next` `input-answer` `input-status` `env-prepare` `validate` `case-init`
 
 以下是 `--help` 之外仍需要说明的行为语义（不属于参数，`--help` 不会体现）：
 - `back` 是 Flow action，单独执行用 `step back`。
@@ -267,7 +270,7 @@ Flow 含 `pending`/`待审校`/`以实际为准` 时：操作推定最合理文�
 
 ## 六、产物
 
-`flow-finalize` 将本 workspace 归档到 `output/run-<ts>/run/`，随后 `post-clean` **删除本 workspace 与其入口**。`output/` 保留 report.json（批次/Case 报告）、frames/（截图 S3 URL）和 run/（全部原始执行产物）供数据分析。批量报告必须包含全部声明的 Case，缺失则 `run_status: incomplete`。
+`flow-finalize` 将本 workspace 归档到 `$STATE/reports/<batch>/<run>/run/`，随后 `post-clean` **删除本 workspace 与其入口**。同一编排的多个分片共享 `<batch>`、各自独立 `<run>`；`<run>` 重试落 `-r2/-r3`，不覆盖上一轮。目录内保留 `meta.json`（批次/run/状态的稳定索引）、`report.json`（批次报告）、`case_NN/report.json` + `frames/`（Case 报告与截图 S3 URL）和 `run/`（全部原始执行产物，含 inspect_tree / dumps 等过程信息）供数据分析。归档与报告统一脱敏，运行态原值不外泄。批量报告必须包含全部声明的 Case，缺失则 `run_status: incomplete`。
 
 Case 报告的 `steps` 是已声明步骤结论，`findings` 是独立判定，`notes` 是无判定备注。任何 fail 都会使 Case 状态为 failed，不存在"有失败但显示全绿"的情况。
 

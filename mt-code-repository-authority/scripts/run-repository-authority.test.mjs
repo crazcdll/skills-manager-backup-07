@@ -804,3 +804,10 @@ test("finalizes a missing repository owner as succeeded but unresolved", async (
   assert.equal(callbackResult.error.error_code, "repository_owner_not_found");
   assert.equal(callbackResult.organization, null);
 });
+
+test("authority callback rejection keeps safe upstream diagnostics and compatible local codes", async () => {
+  const context = await resultContext();
+  const message = "当前内容含高密文档，需在安全屋环境中访问，请携带安全屋Token后重试";
+  const requestId = "71440c02-b61a-49c6-b59c-03f0bbe78680";
+  await assert.rejects(deliverAuthorityCallback({ context, result: {}, now: () => NOW, request: async () => ({ status: 403, contentType: "application/json", body: JSON.stringify({ error: { code: "citadel_secure_environment_required", message, request_id: requestId } }) }) }), (error) => error.message === message && error.errorCode === "callback_unauthorized" && error.requestId === requestId && error.upstreamCode === "citadel_secure_environment_required");
+});

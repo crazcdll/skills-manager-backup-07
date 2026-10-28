@@ -16,7 +16,7 @@
       → 流式下发 HAP 到设备侧缓存（实时打印 百分比 / 已传 / 速率 / 剩余）
       → 校验缓存落盘（**只注入缓存、不做真实安装**）
       → 归还（conan-cli release，仅释放占用）
-      → 同步到平台 device_registry（设备管理页可见，并进入后续「鸿蒙候选」）
+     → 同步设备池租约（bind/release，设备管理页可见，并进入后续「鸿蒙候选」）
 
 【为什么逐台（不做并发）】
 · 已实测：单台 ~3MB/s；4 台并发时各 ~1MB/s、**聚合仍 ~3.2MB/s**——瓶颈是本机/网关的
@@ -32,7 +32,7 @@
 【为什么需要台账 / --black-numbers】
 同一台归还后可能被再次分配；靠 `conan-cli occupy --black-numbers <序列号...>`
 把「台账里已预热」+「本次已尝试（含失败）」的序列号整批排除，Conan 只在剩余设备里
-分配。台账落在 `.device-pool/warm-ledger.json`（mis 级、跨 workspace 共享），
+分配。台账落在用户级设备池目录（与租约同级的 `warm-ledger.json`，跨 workspace 共享），
 重复执行不会重复预热同一台。
 
 用法：
@@ -61,14 +61,14 @@ os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from shared import artifact_cache  # noqa: E402
-from shared.case_utils import resolve_mis  # noqa: E402
 from shared.context import create_app_descriptor  # noqa: E402
 from shared.json_utils import read_json, write_json_atomic  # noqa: E402
-from shared.paths import DEVICE_POOL_DIR, get_active_run, get_active_task  # noqa: E402
+from shared.paths import DEVICE_POOL_DIR  # noqa: E402
 from devices.base import get_platform_module  # noqa: E402
 from devices.harmony.hdc import ensure_hdc  # noqa: E402
 from devices.toolchain.app_installer import load_apk_config  # noqa: E402
-from platform.sandbox_api import api_post  # noqa: E402
+from resources.device_pool.device_lease import PROVIDER_CONAN, DevicePool  # noqa: E402
+from resources.device_pool.pool_api import DevicePoolError  # noqa: E402
 
 # Conan 单人占用上限（`conan-cli device occupy -n` 超过即失败），并发数不得超过它。
 CONAN_MAX_OCCUPY_PER_BATCH = 10
@@ -82,7 +82,7 @@ _SEND_TIMEOUT = 2400  # 1.3G 慢链路兜底上限（40 分钟）
 
 
 # ═══════════════════════════════════════════════════════════════════
-# 预热台账（.device-pool/warm-ledger.json）
+# 预热台账（用户级设备池目录下的 warm-ledger.json）
 # ═══════════════════════════════════════════════════════════════════
 
 def load_ledger() -> dict:
@@ -164,43 +164,56 @@ def release(serials: list) -> bool:
 # 平台登记（device_registry）—— 复用 Skill 的 yooz 代理接口
 # ═══════════════════════════════════════════════════════════════════
 
-def platform_record_occupy(serial: str, remote: str, action: str) -> None:
-    """best-effort 登记一次占用（写平台设备登记表）。失败只告警，不影响预热。
+def _pool(platform: str = DEFAULT_PLATFORM) -> DevicePool:
+    """设备池客户端（conan）。owner 用 `warm#<主机名>`：预热不是 run，不应占用某个 run 的租约。
 
-    `owner_mis` 记**实际占用人 mis**（`resolve_mis()`）——云模拟器虽是团队共享池，
-    但平台要展示“占用人”，故按实际操作人记录。
+    必须走 pool_api：旧的 `/device/occupy` 登记接口已随单表改造删除，
+    现在「谁在用」的唯一入口是租约（claim/renew/release）。
     """
+    return DevicePool(provider=PROVIDER_CONAN, platform=platform)
+
+
+def platform_record_occupy(serial: str, remote: str, action: str,
+                           occupation_id: str = None) -> None:
+    """best-effort 登记一次占用（绑定本进程的设备池租约）。失败只告警，不影响预热。"""
     if not serial:
         return
     try:
-        api_post("/node/api/data/monitor/device/occupy", {
-            "device_id": serial,
-            "owner_mis": resolve_mis(),
-            "device_type": "cloud-emulator",
-            "platform": DEFAULT_PLATFORM,
-            "app": DEFAULT_APP,
-            "platform_state": "running",
-            "connect_address": remote,
-            "view_url": "",
-            "owner_run": get_active_run(),
-            "owner_task": get_active_task(),
-            "action": action,
-        }, timeout=_PLATFORM_TIMEOUT)
+        _pool().bind(
+            _warm_owner(), serial,
+            connect_address=remote,
+            provider_lease_id=occupation_id,
+            form="emulator",
+            ttl_seconds=3600,
+        )
+    except DevicePoolError as e:
+        print(f"[warm] ⚠️ 平台占用登记失败（{e.code}，忽略）: {e}")
     except Exception as e:  # noqa: BLE001 —— 登记失败不影响预热
         print(f"[warm] ⚠️ 平台占用登记失败（忽略）: {e}")
 
 
 def platform_record_release(serial: str) -> None:
-    """best-effort 登记一次归还（把设备行显示为「空闲」）。失败只告警。"""
+    """best-effort 登记一次归还（解除租约，把设备行还给候选态）。失败只告警。
+
+    调用前 `conan-cli release` 已经执行过，故 `provider_released=True`。
+    """
     if not serial:
         return
     try:
-        api_post("/node/api/data/monitor/device/release", {
-            "device_id": serial,
-            "owner_run": get_active_run(),
-        }, timeout=_PLATFORM_TIMEOUT)
+        _pool().release(serial, _warm_owner(), provider_released=True)
+    except DevicePoolError as e:
+        print(f"[warm] ⚠️ 平台归还登记失败（{e.code}，忽略）: {e}")
+        return
     except Exception as e:  # noqa: BLE001 —— 登记失败不影响预热
         print(f"[warm] ⚠️ 平台归还登记失败（忽略）: {e}")
+        return
+    return
+
+
+def _warm_owner() -> str:
+    """预热进程的租约 owner：`warm#<hostname>`（同一台机器重复执行会覆盖前一次的残留）。"""
+    import socket
+    return f"warm#{socket.gethostname()}"
 
 
 # 当前占用中的序列号（供信号处理时归还）；进程级、单线程读写（本脚本已改回逐台串行）
@@ -218,18 +231,23 @@ def _occupied_serials() -> set:
 
 
 def reconcile_platform_state(warmed: dict) -> None:
-    """把「台账里已预热、但当前并未被占用」的设备在平台上补记 release，清掉残留的「使用中」。
+    """清理**本机预热遗留**的租约（被 kill 的上一次预热）。
 
-    平台的行态由**最后一条 occupy/release 事件**派生（页面按 `last_action == 'release'`
-    判空闲）：被 kill 的 run、或人工直接 `conan-cli device release`，都不会写 release 事件，
-    行会永久停在「使用中」。这里按 Conan 的**真实占用**对账：不在占用列表里的台账设备，
-    补一条 release 使其回到空闲（被占用中的设备自动跳过，不会误清正在用的）。
+    新模型下「谁在用」只由服务端租约表达，不再有 last_action 派生态：
+    正常结束会 release，被 kill 则由租约 TTL 自动回收。这里只顺手清本机
+    `warm#<host>` 名下、且 Conan 侧确实未占用的残留（不碰其他 owner 的租约）。
     """
     occupied = _occupied_serials()
-    stale = sorted(s for s in warmed if s not in occupied)
+    try:
+        rows = _pool().list(owner=_warm_owner())
+    except Exception as e:  # noqa: BLE001 —— 对账失败不影响预热
+        print(f"[warm] ⚠️ 读取预热租约失败（跳过对账）: {e}")
+        return
+    stale = sorted(r.get("device_id") for r in rows
+                   if r.get("device_id") and r.get("device_id") not in occupied)
     if not stale:
         return
-    print(f"[warm] 平台状态对账：{len(stale)} 台已预热但未占用，补记 release ...", flush=True)
+    print(f"[warm] 平台状态对账：{len(stale)} 台遗留租约，补记 release ...", flush=True)
     for s in stale:
         platform_record_release(s)
 
@@ -245,11 +263,8 @@ def _tag_of(serial: str) -> str:
 
 def _hdc_base(serial: str, remote: str) -> list:
     """拼装 hdc 命令前缀：`hdc [-s <remote>] -t <serial>`（与 Hdc 句柄同口径）。"""
-    bin_path = None
     try:
-        found = ensure_hdc(install=False)
-        if found:
-            bin_path = found[0]
+        bin_path, _ = ensure_hdc(install=False)
     except Exception:  # noqa: BLE001 —— 找不到就走 PATH 里的 hdc
         bin_path = None
     cmd = [bin_path or "hdc"]
@@ -562,7 +577,8 @@ def main() -> int:
             print(f"[warm] ✅ {serial} 缓存注入完成（耗时 {_fmt_dur(time.time() - t0)}，"
                   f"进度 {done}/{args.count}）", flush=True)
             # 只登记**确有缓存**的设备到平台，使其进入后续「鸿蒙候选」
-            platform_record_occupy(serial, remote, action="warm")
+            platform_record_occupy(serial, remote, action="warm",
+                                   occupation_id=d.get("occupationId"))
         else:
             failed.append({"serial": serial, "error": res.get("error")})
             print(f"[warm] ❌ {serial} 预热失败（耗时 {_fmt_dur(time.time() - t0)}）："

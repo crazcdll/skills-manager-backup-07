@@ -1,0 +1,18 @@
+{
+  "version": "37.0.1",
+  "members": [
+    "adb",
+    "lib64/",
+    "NOTICE.txt"
+  ],
+  "platforms": {
+    "darwin": {
+      "bundle": "platform-tools-darwin-37.0.1.zip",
+      "size": 16110554
+    },
+    "linux": {
+      "bundle": "platform-tools-linux-37.0.1.zip",
+      "size": 9054187
+    }
+  }
+}

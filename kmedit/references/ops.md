@@ -55,7 +55,7 @@ DrawIO session runtime action 不是 `kmedit browser-apply` 的普通 `op`，需
 - `insert_html`、`edit_html`、`insert_mermaid`、`insert_plantuml`、`insert_yuntu`
 - `insert_drawio` / `update_drawio`：支持 XML、`.drawio`、可编辑 SVG 和本地 cell operations；未知 shape
   默认失败，只有显式 `allowDegraded: true` 才允许近似
-- `insert_minder` / `insert_minder_svg`：支持本地语义布局或已有带 `content` 的可编辑 SVG
+- `insert_minder` / `insert_minder_svg`：支持通过指定 CDP 原生渲染语义模型，或上传已有带 `content` 的可编辑 SVG
 - 完整 Provider 生命周期的 `insert_data2chart`、`update_data2chart_config`、`update_data2chart_data`
 
 `kmedit copy` 默认从 snapshot + tail 只读复制原生节点，不申请编辑会话；目标 `patch` 会迁移资源并创建新 Provider。详见 [API-only](api-only.md)。

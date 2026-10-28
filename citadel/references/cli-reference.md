@@ -1,5 +1,7 @@
 # CLI 命令参考
 
+> **原生 MD 文档（type=7、`/md/<id>`）请使用 [MD 文档操作说明](markdown-documents.md)。本页的 XML 命令用于 2.0 文档。**
+
 完整参数说明，基于 `src/citadel/cli.ts` 实际实现。
 
 ## 通用选项
@@ -13,9 +15,9 @@
 
 ## getSimpleMarkdown
 
-获取文档简化版 Markdown 内容（阅读/总结专用，低 token 消耗）。去除所有 `nodeId`、`dataDiffId` 等技术属性，学城专属宏保留语义提示，媒体/附件保留 URL。
+读取文档用于阅读和总结，自动识别 1.0、2.0 和原生 MD 类型。2.0 输出简化版 Markdown，去除 `nodeId`、`dataDiffId` 等技术属性，学城专属宏保留语义提示，媒体/附件保留 URL；MD 输出原生 Markdown；1.0 输出 HTML。
 
-> ⚠️ **该输出仅供阅读和总结，不可用于编辑文档**。如需编辑，请使用 `getDocumentXml`。
+> ⚠️ **该命令用于阅读和总结**。编辑 2.0 文档前先用 `getDocumentXml` 获取完整 XML 和 `stepVersion`；编辑原生 MD 前先用 `getMarkdownDocument` 一次获取正文和 `stepVersion`。1.0 旧版文档的正文仅支持读取。
 
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |---|---|---|---|---|
@@ -25,7 +27,7 @@
 oa-skills citadel getSimpleMarkdown --contentId "2748397739"
 ```
 
-**输出**：非 raw 模式下，文档标题/ID/长度输出到 stderr，简化版 Markdown 输出到 stdout（内容顶部包含不可用于编辑的警告）。
+**输出**：非 raw 模式下，文档标题/ID/长度输出到 stderr，正文输出到 stdout；仅 2.0 简化版 Markdown 顶部包含不可用于编辑的警告。
 
 ## getDocumentJson
 
@@ -127,6 +129,8 @@ oa-skills citadel getChildContent --contentId "2748397739"
 >
 > 模板来源是 `km.sankuai.com/collabpage/<id>` / `km.sankuai.com/page/<id>`（尤其学城文档2.0）时，优先使用 `--copyFrom <id>`，不要先读取内容后再通过 `--content` 重建。
 
+> 原生 MD 来源也使用 `--copyFrom`，服务端保留 MD 类型，回执返回当前环境的 `/md/<id>` 链接；正文和图片保真、创建后核对及停止条件见 [MD 整篇复制说明](markdown-documents.md#复制整篇文档)。不支持 MD 模板创建。
+
 ```bash
 # 根文档（CitadelXML 格式，推荐）
 oa-skills citadel createDocument --title "方案" --file /tmp/new-doc.xml
@@ -219,6 +223,8 @@ oa-skills citadel updateDocumentByXml --contentId "1234567890" --file doc.xml
 
 ## uploadImageToDocument
 
+原生 MD 文档使用返回的 `nativeMarkdown` 标准图片片段；2.0 文档使用返回的 `imageXml` XML 图片节点。上传本身不修改正文，操作顺序见 [MD 图片操作](markdown-documents.md#图片上传清洗与跨文档迁移)。
+
 上传图片（本地文件或远程 URL）到指定学城文档，返回学城图片 URL 和可直接插入文档 XML 的图片节点。
 
 > ⚠️ **严禁直接将非学城图片 URL 插入文档**。必须先调用此命令上传，再将返回的图片节点插入文档 XML。
@@ -240,7 +246,7 @@ oa-skills citadel uploadImageToDocument --contentId "1234567890" --image "https:
 oa-skills citadel uploadImageToDocument --contentId "1234567890" --image "https://example.com/arch.png" --alt "架构图"
 ```
 
-**输出**：学城图片 URL、图片尺寸（宽×高 px）、可直接插入文档的图片节点（`imageMd`）。
+**输出**：学城图片 URL、图片尺寸（宽×高 px）、可直接插入文档的 XML 图片节点（`imageXml`）。
 
 **完整插入流程**：
 
@@ -616,7 +622,8 @@ oa-skills citadel getSpaceRootDocs --spaceId "23583"
 
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |---|---|---|---|---|
-| `--url` | string | ✅ | — | 空间、目录或文档 URL |
+| `--url` | string | 条件 | — | 空间、目录或文档 URL，与 `--pageId` 二选一 |
+| `--pageId` | string | 条件 | — | 文档 ID，与 `--url` 二选一 |
 | `--secret-level` | number | — | — | 按文档密级过滤，范围 `0-5` |
 | `--start-time` | string | — | — | 创建时间起始，格式 `YYYY-MM-DD` |
 | `--end-time` | string | — | — | 创建时间截止，格式 `YYYY-MM-DD` |
@@ -840,9 +847,32 @@ oa-skills citadel getDocumentVersionContent --contentId "1234567890" --stepVersi
 
 **输出**：非 raw 模式下，版本信息输出到 stderr，ProseMirror JSON 正文输出到 stdout。raw 模式输出 `{ contentId, versionTitle, stepVersion, version, body }` 的 JSON。
 
+服务端实际返回的 `stepVersion` 必须等于请求版本，不匹配或正文缺失时失败，不将当前正文标成历史正文。版本列表的 `title` 是展示标签（如时间），不能作为文档标题。
+
+## getMarkdownDocumentVersion
+
+获取原生 MD 文档（`type=7`）指定历史版本的 Markdown。`--stepVersion` 使用版本列表中的协作步骤版本号，仅支持原生 MD，不经过 XML 转换。
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|---|---|---|---|---|
+| `--contentId` | string | ✅ | — | MD 文档 ID |
+| `--stepVersion` | number | ✅ | — | 非负整数，取自 `getDocumentVersions` 的 `stepVersion` 字段 |
+| `--output` | string | — | — | 将历史 Markdown 保存到本地 UTF-8 文件 |
+
+```bash
+oa-skills citadel getMarkdownDocumentVersion --contentId "1234567890" --stepVersion 23
+oa-skills citadel getMarkdownDocumentVersion --contentId "1234567890" --stepVersion 23 --output /tmp/version-23.md
+```
+
+**输出**：不指定 `--output` 或 `--raw` 时，Markdown 输出到 stdout，版本信息输出到 stderr。指定 `--output` 时写入纯 Markdown，stdout 输出 `{ contentId, stepVersion, url, output }`；`--raw` 输出 `{ contentId, markdown, stepVersion, url }`，同时仍会写入 `--output` 文件。`url` 保留客户端环境与泳道的 `/md/` 路径。
+
+实际版本不匹配、正文缺失或转换失败时直接报错，不读取最新正文替代。历史标题以快照正文为准，版本列表的时间标签不是文档标题。
+
+还原复用 `updateMarkdownDocument`：先确认目标历史版本，再读取并备份当前正文，以**当前读取的版本**作为 `--step-version` 覆盖并回读核对。不要将历史版本号作为当前并发校验版本。完整流程见 [MD 历史版本读取与还原](markdown-documents.md#历史版本读取与还原)。
+
 ## getDocumentVersionXml
 
-获取指定历史版本的文档 CitadelXML 内容，内部自动将历史版本 JSON 转换为 CitadelXML 格式。可直接传给 `updateDocumentByXml` 用于还原文档版本。
+获取 2.0 文档指定历史版本的 CitadelXML 内容，内部自动将历史版本 JSON 转换为 CitadelXML 格式。可直接传给 `updateDocumentByXml` 用于还原文档正文。MD 使用 `getMarkdownDocumentVersion`。
 
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |---|---|---|---|---|
@@ -873,4 +903,4 @@ oa-skills citadel getDocumentVersionXml --contentId "1234567890" --stepVersion 2
 oa-skills citadel updateDocumentByXml --contentId "1234567890" --file /tmp/restore.xml
 ```
 
-> ⚠️ 还原操作会覆盖文档当前内容，执行前应与用户确认目标版本（时间、编辑者）。
+> ⚠️ 还原操作会覆盖文档当前正文，执行前应与用户确认目标版本（时间、编辑者），并备份当前内容。历史实际版本不匹配时停止；历史标题需要还原时确认后显式传 `--title`，不能使用版本列表的时间标签。

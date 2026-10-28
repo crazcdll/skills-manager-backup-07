@@ -22,7 +22,7 @@
   7. layer-direction        （棘轮）分层依赖方向：跳层 import 不得超过基线（只许下降）。
   8. no-device-destroy      （硬失败）不得重新引入「设备销毁」能力（T2：复用优先、不销毁实例）。
   9. forbidden-edges        （硬失败）`devices → resources` 等反向依赖直接失败（不受规则 7 棘轮保护）。
- 10. lease-single-entry     （硬失败）`device_pool_leases_path` 只允许在租约存储后端调用。
+  10. device-access-single     （硬失败）设备归属只能经 `pool_api`，不得直连 device_registry / 本地副本。
  11. appmock-contract       （硬失败）AppMock 代理契约（离线，stub 掉网络）：
                             CLI 边界必须显式传 mis（多 shard 隔离）；信封解析 / mockId 提取 /
                             请求形状（userDomain、无 title）/ list 读 {items} / create 透传 exampleUrl / ensure 激活 /
@@ -138,6 +138,7 @@ SWALLOW_ALLOWLIST = {
     "shared/observability/exception_reporter.py",                # 上报 fire-and-forget
     "shared/json_utils.py",                         # 读文件失败返回默认值（类型化 API）
     "shared/paths.py",                              # 清理目录 best-effort
+    "shared/transport_port.py",                    # 端口文件清理 best-effort，失败不得阻断 workspace 回收
     "execution/engine/flow/step_scheduler.py",                     # steps.jsonl 读取容错
     "execution/engine/flow/flow_init.py",                          # 归档清理 best-effort
     "execution/engine/flow/steps_generator.py",                    # 目录创建容错
@@ -152,6 +153,7 @@ SWALLOW_ALLOWLIST = {
     "provisioning/prereq/check_deps.py",                             # 依赖探测多路径尝试
     "platform/auth.py",                           # 缓存 / 降级路径
     "devices/toolchain/app_installer.py",                          # 安装探测多路径尝试
+    "devices/toolchain/bundle.py",                        # macOS 隔离属性清理 / 残留目录清理 best-effort
     "reporting/data_collector.py",                        # 报告层 I/O：文件缺失/不可读即降级并留痕
     "devices/ios/ops.py",                      # iOS 骨架：WDA / imeituan 双路径降级
     "cli.py",                                  # CLI 边界：控制台横幅 / token 自保护（不得影响命令主流程）
@@ -393,9 +395,14 @@ def check_login_restart_declared():
         )
     return bad
 
-# ── 规则 10：设备池租约访问单一入口（防绕过 LeaseStore 直接读写租约文件）──
-LEASE_PATH_FN = "device_pool_leases_path"
-LEASE_PATH_ALLOWLIST = {"resources/device_pool/lease_store.py"}
+# ── 规则 10：设备归属访问单一入口（防绕过 pool_api 直连表 / 直读写本地文件）──
+# 只拦“真实访问”（PostgREST 表路径），不拦注释/文档里提到表名。
+DEVICE_ACCESS_ALLOWLIST = {"resources/device_pool/pool_api.py", "resources/device_pool/device_lease.py"}
+DEVICE_ACCESS_BANNED = (
+    "/rest/v1/device_registry",
+    "device_pool_leases_path",
+    "leases.json",
+)
 
 
 def _iter_py_files():
@@ -939,24 +946,27 @@ def check_forbidden_edges():
     return bad
 
 
-def check_lease_path_single_entry():
-    """规则 10：`device_pool_leases_path` 只允许在租约存储后端调用。
+def check_device_access_single_entry():
+    """规则 10：设备归属只能经 `pool_api` 访问。
 
-    绕过 LeaseStore 直读/直写租约文件会破坏 flock 串行化与原子写，
-    使并发选机重新变得不安全。固定「租约只能经存储后端访问」这条纪律。
+    绕过 `pool_api` 直连 `device_registry`，或者在本地再记一份"谁占了哪台"，
+    都会让并发选机重新变得不安全（多机 / 多会话下本地视图必然不一致）。
+    固定「设备归属只有一个网络入口、没有本地副本」这条纪律。
     """
     bad = []
     for path in _iter_py_files():
         rel = _rel(path)
-        if rel in LEASE_PATH_ALLOWLIST:
+        if rel in DEVICE_ACCESS_ALLOWLIST:
             continue
-        tree = _parse(path)
-        if tree is None:
+        try:
+            with open(path, encoding="utf-8", errors="ignore") as fh:
+                text = fh.read()
+        except OSError:
             continue
-        for node in ast.walk(tree):
-            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
-                    and node.func.id == LEASE_PATH_FN):
-                bad.append(f"{rel}:{node.lineno}")
+        for token in DEVICE_ACCESS_BANNED:
+            if token in text:
+                bad.append(f"{rel}: 绕过 pool_api（{token}）")
+                break
     return bad
 
 
@@ -2364,11 +2374,12 @@ def main():
             "规则9 失败：存在硬禁止的反向依赖\n  " + "\n  ".join(edge_bad)
         )
 
-    lease_bad = check_lease_path_single_entry()
+    lease_bad = check_device_access_single_entry()
     if lease_bad:
         failures.append(
-            "规则10 失败：device_pool_leases_path 只允许在租约存储后端调用"
-            "（防绕过 LeaseStore 直读写租约文件）\n  " + "\n  ".join(lease_bad)
+            "规则10 失败：设备归属只能经 pool_api 访问"
+            "（不得直连 device_registry，也不得在本地保存占用副本）\n  "
+            + "\n  ".join(lease_bad)
         )
 
     appmock_bad = check_appmock_domain_threading() + check_appmock_contract() + check_appmock_mock_domain_isolation()

@@ -87,6 +87,8 @@ kmedit inspect --doc-id <docId> --snapshot-file /tmp/current.json
 }
 ```
 
+新插入的原生 `table` 未指定 `attrs.responsive` 时默认自适应宽度（`true`）；显式 `false` 可使用固定宽度。Markdown 和未指定宽度的普通 HTML 表格粘贴也默认自适应；原生复制和带宽度的 HTML 保留原设置。已有表格的行列/文本编辑不改变宽度模式；整表 `replace` 未指定该属性时保留目标表格模式。修改已有表格可用 `set_node_attrs`，target 指向表格节点，attrs 设为 `{"responsive": true}`。此默认策略适用于 API-only patch，不改变 Parker schema 的读取默认值。
+
 属性采用 merge 语义。未知属性会失败，且不允许通过该接口修改稳定 `nodeId`。
 
 ### 富文本 marks
@@ -157,7 +159,7 @@ API-only 已与 CDP 的标准 `table` 命令对齐：
 | `insert_mermaid` | 通过官方附件 create/fileinfo/upload API 保存 source，再插入原生 `open_iframe` |
 | `insert_plantuml` | 调用学城 PlantUML SVG 服务校验源码并读取固有尺寸，再插入保留 source 的原生 `plantuml` 节点；渲染失败则停止 |
 | `insert_drawio` / `update_drawio` | 本地严格渲染 XML / `.drawio` / 可编辑 SVG，上传可编辑 SVG 后写入原生 `drawio`；未知 shape 默认失败，显式 `allowDegraded: true` 才允许降级 |
-| `insert_minder` / `insert_minder_svg` | 本地布局并保留完整 minder JSON `content` 的 SVG，上传后写入原生 `minder` |
+| `insert_minder` / `insert_minder_svg` | 语义输入通过指定 CDP 原生渲染，已有 SVG 保留字节；上传后写入原生 `minder` |
 | `insert_data2chart` / `update_data2chart_config` / `update_data2chart_data` | 通过 Data2Chart 官方 chart/datasource/save-publish 生命周期物化，再写回原生 `data2chart` 节点 |
 
 例如：
@@ -268,9 +270,9 @@ API-only 已与 CDP 的标准 `table` 命令对齐：
   `set_node_attrs` 也不能绕过对应高阶命令直接修改这些节点。
   这类输入返回 `browserless_capability_unavailable`，防止跳过 provider 字段和附件生命周期校验。
 - 富文本/Markdown/file/copy paste 均支持 API-only；原生 custom MIME 为 `application/x-kmedit-nodes+json`，其他 custom 格式须显式 CDP。复制资源会上传到目标文档，复制 Data2Chart/Mermaid 会创建新 Provider。详见 [API-only](api-only.md)。
-- DrawIO、Minder 的本地 renderer 以及 PlantUML 的学城 SVG renderer 与 KM 编辑传输是分离的：`render` 只生成 artifact，`check` 只读验证，
-  `patch` 才上传、调用 provider 并提交 Pike step。所有运行均不启动 Chrome/CDP。
-- DrawIO 未覆盖的 shape、无法读取的既有 DrawIO 源、Minder 未支持的模板会失败并给出可选 CDP fallback；绝不伪造成普通图片或残缺节点。
+- DrawIO renderer、Minder 原生 CDP renderer 以及 PlantUML 的学城 SVG renderer 与 KM 编辑传输是分离的：`render` 只生成 artifact，`check` 只读验证，
+  `patch` 才上传、调用 provider 并提交 Pike step。Minder 使用 `--cdp-url` 或 `LOCAL_CDP_URL` 指定浏览器。
+- DrawIO 未覆盖的 shape、无法读取的既有 DrawIO 源会返回对应诊断；Minder 能力边界及模板列表见 [Minder](minder.md)。
 - PlantUML 保留原生 source 节点，宽高来自同一源码的服务端 SVG `width`/`height` 或 `viewBox`；没有固定尺寸降级，语法、网络或不可测量 SVG 都会在提交前失败。
 - 快照节点/mark、远端 step slice、输入内容和属性都按本地 Parker schema 严格校验。出现未知类型、未知属性、非法 content expression 或未知 step 时不提交。
 - request、operation、target、fallback、node 和 mark JSON 的未知字段也会直接失败；例如把 `position` 拼成 `positon` 不会静默使用默认值。
@@ -319,3 +321,5 @@ cat ./ops.json | kmedit patch --doc-id <docId>
 - 不要把 Pike channel、用户 token、Sign、Cookie 或 bootstrap 身份信息打印、保存到 ops 或写入文档。
 - macOS 首次刷新 SSO 时可能弹出 Keychain 授权窗口；应让用户完成系统授权，不要绕过或导出凭证。
 - `target_not_unique`、`text_not_unique`、`schema_mismatch`、未知远端 step 等安全错误必须停止；不要改用模糊匹配、猜位置或全文覆盖兜底。
+
+原生表格的 `responsive` 与 `colwidth` 独立：自适应表格也必须保存与 `colspan` 等长的正数宽度数组。不要用 `colwidth: null` 表示自适应。写入端会按逻辑列补齐缺失宽度（包括跨行/跨列），保留有效显式值；没有可复用宽度时采用 Parker schema 默认值。已有且未改动的历史表格不会因编辑其他节点而被重写。API 保存/读回和 `check` 通过后，仍须进入真实编辑模式验证表格渲染。

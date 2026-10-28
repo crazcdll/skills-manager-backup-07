@@ -1,5 +1,9 @@
 skill-manifest-version: 1
-skill-id: 3ba2fcba1bd81d3b497b873c90910ba750e65c0e369f0f56c7a0ecf30072265b
+skill-id: 7ac943005698e8d554b4ca3705824ae278e44a99cbdeb5e7297f73170f780e45
 
 files:
-  6d6ad0c347e18e31e54f94f2d7266ea0fa29ae296104bc62594ff98aee9de8b0  SKILL.md
+  98f570a41093cade46f93ee1a52a301681ec2dd5e4dddf5a269db9e9eaa65056  SKILL.md
+  1fb240b4110f18562dda3ea4be679f9aecfa976582cb830d5004863739fec3da  references/overseas-dynamic-package/order-preview.json
+  64c1b293465f47db8d6b14370af0efed7eaee20ccad87db03811fb3bd21cfd8b  references/overseas-dynamic-package/travelers.json
+  6f2b5eb5398259c87558b9bfc91e0b95bf809170fd2aea44d7185ffc8667d611  references/scrollable-demo.md
+  1ac2f2e5e18848daf65c66aed17a08b115e10817a27e467c1322713d478c7caf  references/scrollable-demo/index.tsx

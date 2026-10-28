@@ -25,7 +25,7 @@ NON_IDEMPOTENT_ACTIONS = frozenset({"back", "input-text"})
 #     漏配映射会直接报红（handoff 时无指引 = 静默死端）。
 # 有意「不配 hook」的引擎内部错误见 on_fail.REASONS_WITHOUT_HOOK。
 ACTION_REASONS = {
-    "open-url": frozenset({"MISSING_URL", "PUSH_FAILED"}),
+    "open-url": frozenset({"MISSING_URL", "UNRESOLVED_PLACEHOLDER", "PUSH_FAILED"}),
     "tap": frozenset({
         "MISSING_COORDS", "DEBUG_OVERLAP", "TAP_FAILED",
         "ANCHOR_NOT_FOUND", "ANCHOR_NO_CLICKABLE", "ANCHOR_AMBIGUOUS",

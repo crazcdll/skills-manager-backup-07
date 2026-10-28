@@ -12,6 +12,7 @@
     "references/mtcli-integration.md",
     "scripts/mtcli-transport.mjs",
     "scripts/portable-user-auth.mjs",
+    "scripts/agents-index.mjs",
     "scripts/resolve-effective-rules.mjs",
     "scripts/sync-effective-rules-with-sso.mjs",
     "README.md"

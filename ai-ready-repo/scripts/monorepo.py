@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import configparser
 import json
 import re
 import sys
@@ -87,6 +88,46 @@ def _modules_from_gradle(path: Path) -> list[str] | None:
     return modules or None
 
 
+def _safe_declared_member(root: Path, raw_path: str) -> str:
+    path = Path(raw_path.strip())
+    if not raw_path.strip() or path.is_absolute() or ".." in path.parts:
+        raise MonoRepoError(f"成员位于仓库根目录之外: {raw_path}")
+    resolved_root = root.resolve()
+    resolved = (resolved_root / path).resolve()
+    try:
+        relative = resolved.relative_to(resolved_root)
+    except ValueError as exc:
+        raise MonoRepoError(f"成员位于仓库根目录之外: {raw_path}") from exc
+    if relative == Path("."):
+        raise MonoRepoError("mono-repo 根目录不能作为子仓库成员")
+    return relative.as_posix()
+
+
+def _members_from_gitmodules(path: Path) -> list[str] | None:
+    if not path.is_file():
+        return None
+    parser = configparser.RawConfigParser(interpolation=None, strict=True)
+    try:
+        parser.read_string(path.read_text(encoding="utf-8"))
+    except configparser.Error as exc:
+        raise MonoRepoError(f".gitmodules 解析失败: {exc}") from exc
+
+    members: list[str] = []
+    for section in parser.sections():
+        if not section.startswith("submodule "):
+            continue
+        if not parser.has_option(section, "path"):
+            raise MonoRepoError(f".gitmodules {section} 缺少 path")
+        if not parser.has_option(section, "url"):
+            raise MonoRepoError(f".gitmodules {section} 缺少 url")
+        members.append(_safe_declared_member(path.parent, parser.get(section, "path")))
+    if not members:
+        raise MonoRepoError(".gitmodules 没有声明任何成员")
+    if len(set(members)) != len(members):
+        raise MonoRepoError(".gitmodules 声明了重复的成员路径")
+    return sorted(members)
+
+
 def _safe_relative_member(root: Path, candidate: Path) -> str:
     resolved_root = root.resolve()
     resolved = candidate.resolve()
@@ -118,7 +159,7 @@ def _expand_workspace_patterns(root: Path, patterns: list[str]) -> list[str]:
 
 
 def discover_members(root: Path) -> dict:
-    """Return the declared first-level logical repositories under ``root``."""
+    """Return the declared logical repositories under ``root``."""
     root = root.resolve()
     pnpm = _workspace_patterns_from_pnpm(root / "pnpm-workspace.yaml")
     if pnpm is not None:
@@ -148,6 +189,20 @@ def discover_members(root: Path) -> dict:
                 "manifest": f"{filename}#include",
                 "members": members,
             }
+
+    gitmodules = _members_from_gitmodules(root / ".gitmodules")
+    if gitmodules is not None:
+        uninitialized = []
+        for member in gitmodules:
+            member_path = root / member
+            if not member_path.is_dir() or not any(member_path.iterdir()):
+                uninitialized.append(member)
+        return {
+            "is_monorepo": True,
+            "manifest": ".gitmodules",
+            "members": gitmodules,
+            "uninitialized_members": uninitialized,
+        }
 
     return {"is_monorepo": False, "manifest": None, "members": []}
 
@@ -232,6 +287,20 @@ def score_checkout(
     if not discovery["is_monorepo"]:
         return score_one(repo_dir, commit)
 
+    uninitialized = discovery.get("uninitialized_members", [])
+    if uninitialized:
+        member_list = ", ".join(uninitialized)
+        return {
+            "_status": "member_error",
+            "_error": f"Git submodule 尚未初始化: {member_list}",
+            "repo_type": "mono-repo",
+            "manifest": discovery["manifest"],
+            "member_count": len(discovery["members"]),
+            "members": [
+                {"path": path, "_status": "uninitialized"} for path in uninitialized
+            ],
+        }
+
     member_results: list[dict] = []
     for relative_path in discovery["members"]:
         member_path = repo_dir / relative_path
@@ -260,7 +329,7 @@ def score_checkout(
 def _main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="AI-Ready mono-repo 成员发现与分数聚合")
     subparsers = parser.add_subparsers(dest="command", required=True)
-    discover = subparsers.add_parser("discover", help="发现构建清单声明的子仓库")
+    discover = subparsers.add_parser("discover", help="发现权威清单声明的子仓库")
     discover.add_argument("--root", required=True)
     aggregate = subparsers.add_parser("aggregate", help="等权聚合全部子仓库评分")
     aggregate.add_argument("--input", required=True, help="子仓库评分 JSON 数组")

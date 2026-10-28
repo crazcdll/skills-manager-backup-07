@@ -1,12 +1,13 @@
 skill-manifest-version: 1
-skill-id: 4faba7a510a90cad60fdaca6ac62f03b44ae7a0b4479c0a00e3bbb6fdb76ed4a
+skill-id: c2f1ded7d3363c79c96d903a211d3d2fc44b2c54a7b474a079ff856e6bab2425
 
 files:
   ef6006df00fdf640ae12f56cf7ae9a0c91ce29b8c7b75e39e4e62883180d985c  README.md
-  a290ed57e4e31a19617be98b0fa03d1cad972f4195c1a4f8be610e381773320d  SKILL.md
+  61eae7b0d1756211241f86e43bbc5de1ef0b6289eae1ecfcecc6be52d53d5481  SKILL.md
   61269ec4f476e55ef8bafe7f8a73f81e8b82b722315f0a65e602b7b8f7917fd5  assets/flex-design-template.md
+  47dff3e816b2d0664baa4544395058bd250797426c6d954f6b36533df4f66816  references/design-data-analytics.md
   d4c8af682772d2e4e39d47c75d99c07178628d9feebbac901aa6e944f388a3be  references/flex-design-gen.md
   cbd15d96eca556285db1b3a99a305756d445e24e5c7acea8886f3e214004a852  references/image-analysis.md
-  47dff3e816b2d0664baa4544395058bd250797426c6d954f6b36533df4f66816  references/ingee-data-analytics.md
-  74823fd576481b32eeb96540fd7c93dba8492cbdd8647c1e077ed48d54322bca  references/ingee-design-fetch.md
+  2282712b9f1a36e3fdcc8e142ac7131844aadbcd139c17fe821e27851df6ce43  references/imd-design-fetch.md
+  d3774fe800bde10505fe57eb4df96fee99e95af0a6854f8246c6daea20f527eb  references/ingee-design-fetch.md
   b4295fcd76b14b4372b1ba2cbbaf38fd79956b69263b64556e49e8e171dd1387  references/material-retrieval.md

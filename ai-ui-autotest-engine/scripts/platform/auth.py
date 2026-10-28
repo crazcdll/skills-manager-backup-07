@@ -13,10 +13,11 @@ import json
 import os
 import re
 import subprocess
+import sys
 import time
 
 from shared.paths import ensure_dirs, appmock_cookie_path
-from shared.json_utils import write_json_atomic_quiet, read_json
+from shared.json_utils import read_json, write_json_atomic
 from shared.errors import AutotestError, soft_fail
 
 # AppMock SSO clientId（sso-auth-cli 认证用）
@@ -154,7 +155,9 @@ def _get_appmock_cookie() -> str:
             pass
 
     # 3. sso-auth-cli 取票（两阶段策略：静默优先 → 交互式兜底）
-    print("正在获取 AppMock 授权（client_id=%s）..." % _APPMOCK_SSO_CLIENT_ID)
+    # 必须走 stderr：check-deps 的 stdout 是给调用方解析的 JSON，
+    # 任何提示混进去都会让产物直接变成非法 JSON（实测 json.load 失败）。
+    sys.stderr.write("正在获取 AppMock 授权（client_id=%s）...\n" % _APPMOCK_SSO_CLIENT_ID)
 
     # ── 阶段 A: 静默取票 ──
     returncode, combined = _run_sso_auth_cli_streaming(
@@ -223,7 +226,7 @@ def _get_appmock_cookie() -> str:
     _cookie_cache["expires_at"] = expires_at
 
     try:
-        write_json_atomic_quiet(_COOKIE_CACHE_FILE, {"cookie": cookie_str, "expires_at": expires_at})
+        write_json_atomic(_COOKIE_CACHE_FILE, {"cookie": cookie_str, "expires_at": expires_at})
     except Exception:
         pass
 

@@ -91,6 +91,8 @@ dx-bot-cli --json msg history-group --gid <GID> --start 24h --page-size 100
 dx-bot-cli --force msg send-chat --to <请求者mis> --text "<总结内容>"
 ```
 
+> 多行总结用 `\n` 分隔即可（内联 `--text` 会自动还原为换行）；若总结中含字面量反斜杠，改用 `--stdin` 或加 `--no-unescape`。
+
 ## 错误处理
 
 | 错误 | 处理 |

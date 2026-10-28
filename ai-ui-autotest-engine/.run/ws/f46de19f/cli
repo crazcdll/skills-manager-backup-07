@@ -1,6 +1,0 @@
-#!/bin/sh
-# ai-ui-autotest-engine workspace 入口（由 `cli.py ws-init` 生成，请勿手工修改）
-# 用法：.run/ws/f46de19f/cli <命令> [参数...]
-# 源树零字节码（进程入口层）：-B 覆盖本进程，环境变量被所有子进程继承。
-cd "/Users/crazcdll07/.skills-manager/skills/ai-ui-autotest-engine" || exit 1
-PYTHONDONTWRITEBYTECODE=1 AI_UITEST_TASK=f46de19f exec python3 -B scripts/cli.py "$@"

@@ -3,6 +3,7 @@
 import time
 
 from shared.context import get_platform_ops
+from shared.placeholders import find_unresolved_placeholders
 from execution.screen.page_stability import wait_page_stable
 from execution.screen.inspect_tree import invalidate_cache
 
@@ -12,6 +13,7 @@ from execution.screen.inspect_tree import invalidate_cache
 _REASON_LABELS = {
     "BACK_FAILED": "press_back 设备执行失败（返回键未生效）",
     "MISSING_URL": "open-url 缺少 URL 参数",
+    "UNRESOLVED_PLACEHOLDER": "open-url URL 仍含未解析占位符",
     "PUSH_FAILED": "open-url scheme 推送失败",
 }
 
@@ -41,6 +43,11 @@ def handle_open_url(action_arg, args):
     if not url:
         print("STEP ACTION FAIL: open-url 需要 --action-arg <url>")
         return _fail("MISSING_URL", "open-url", impact="full")
+    unresolved = find_unresolved_placeholders(url)
+    if unresolved:
+        print(f"STEP ACTION FAIL: open-url 含未解析占位符: {', '.join(unresolved)}")
+        return _fail("UNRESOLVED_PLACEHOLDER", "open-url", impact="full",
+                     placeholders=unresolved)
     ops = get_platform_ops()
     print(f"  OPEN-URL: {url[:80]}...")
     if not ops.open_url(url):

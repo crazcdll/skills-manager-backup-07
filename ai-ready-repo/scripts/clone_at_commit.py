@@ -2,13 +2,14 @@
 """
 T1：浅克隆模块（独立可测）
 
-职责：给定 (repo, commit) → 在本地工作根下准备一份 checkout 到该 commit 的目录，返回 Path。
+职责：给定 (repo, commit) → 在本地工作根下准备一份 checkout 到该 commit 的目录，返回 Path；
+存在 `.gitmodules` 时初始化该 commit 锁定的全部 submodule。
 
 设计原则：
   1. 24h 内同 (repo, commit) 直接复用本地目录，不重复克隆
   2. 优先尝试"指定 commit 浅克隆"（git protocol v2 + uploadpack.allowReachableSHA1InWant），
      不支持时退化为 `clone --depth=1` + `fetch <commit>` + `checkout`，最后兜底全克隆
-  3. 仅做"准备 worktree"这一件事，不做评分；不引入 ai-ready 业务逻辑
+  3. 仅做"准备完整 worktree"这一件事，不做评分；不引入 ai-ready 业务逻辑
   4. 失败抛 CloneError；调用方自行决定是否进入 _status=error
 
 CLI 自检：
@@ -134,6 +135,35 @@ def _is_fresh_enough(path: Path, ttl: int) -> bool:
     except OSError:
         return False
     return (time.time() - mtime) < ttl
+
+
+def _materialize_git_submodules(repo_dir: Path, timeout: int) -> None:
+    """Initialize every declared submodule at the gitlink pinned by the parent commit."""
+    if not (repo_dir / ".gitmodules").is_file():
+        return
+
+    code, _, sync_err = _run(
+        ["git", "submodule", "sync", "--recursive"],
+        cwd=repo_dir,
+        timeout=timeout,
+    )
+    if code != 0:
+        raise CloneError(f"submodule URL 同步失败: {sync_err.strip()[-500:]}")
+
+    shallow_cmd = [
+        "git", "submodule", "update", "--init", "--recursive", "--depth=1"
+    ]
+    code, _, shallow_err = _run(shallow_cmd, cwd=repo_dir, timeout=timeout * 4)
+    if code == 0:
+        return
+
+    full_cmd = ["git", "submodule", "update", "--init", "--recursive"]
+    code, _, full_err = _run(full_cmd, cwd=repo_dir, timeout=timeout * 8)
+    if code != 0:
+        raise CloneError(
+            "submodule 初始化失败；浅拉取与完整回退均失败: "
+            f"shallow={shallow_err.strip()[-300:]}; full={full_err.strip()[-300:]}"
+        )
 
 
 # ----------------------------------------------------------------------------
@@ -266,6 +296,7 @@ def clone_at_commit(
         and _is_repo_at_commit(repo_dir, commit)
         and _is_fresh_enough(repo_dir, cache_ttl)
     ):
+        _materialize_git_submodules(repo_dir, timeout)
         return CloneResult(
             repo_dir=repo_dir,
             repo_url=repo_url,
@@ -288,6 +319,7 @@ def clone_at_commit(
     ):
         ok, err = fn(repo_url, repo_dir, commit, timeout)
         if ok:
+            _materialize_git_submodules(repo_dir, timeout)
             # 校验真实 HEAD（避免 checkout 短 commit 后 HEAD 与传入不一致）
             _, head, _ = _run(
                 ["git", "rev-parse", "HEAD"], cwd=repo_dir, timeout=10, quiet=True

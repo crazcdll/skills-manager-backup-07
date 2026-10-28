@@ -12,8 +12,17 @@ import time
 from urllib.parse import urlparse, parse_qs, urlunparse
 
 from shared.case_utils import resolve_case_path, resolve_flow_content
-from shared.paths import OUTPUT_DIR
+from shared.paths import (
+    ENV_TRANSPORT_PORT,
+    allocate_run_output_dir,
+    report_batch_id,
+)
 from shared.json_utils import read_json, write_json_atomic
+from shared.placeholders import (
+    DATE_PLACEHOLDER_RE,
+    collect_case_placeholder_text,
+    find_unresolved_placeholders,
+)
 from shared.observability.runtime_audit import create_run_manifest
 from execution.engine.flow.flow_context import save_context
 from execution.engine.sop.on_fail import (
@@ -130,12 +139,30 @@ def init_from_steps_json(run_dir, steps_json_path, flow_name="", device_serial=N
     from shared.intake import read_intake
     answers = read_intake()
 
-    # 预填充：AI 审校时在 params 中填写的具体值（非 None、非 __date__）直接注入 intake
+    # 预填充：AI 审校时在 params 中填写的具体值直接注入 intake。
+    # 日期不允许走 params（否则 answer 插入的 {T+N} 会绕过 scheme 的日期解析），
+    # 生成期已由 steps-generate 拒绝，这里再做一次执行期硬门禁。
     for case in ai_input.get("cases", []):
         for name, value in (case.get("params", {}) or {}).items():
-            if value is not None and value != "__date__":
+            if value is None:
+                continue
+            if not isinstance(value, str):
                 if name not in answers:
                     answers[name] = value
+                continue
+            if value == "__date__":
+                raise ValueError(
+                    f"Case {case.get('case_id')}: params.{name}=__date__ 已废弃；"
+                    f"请把日期直接写成 landing_scheme/steps 中的 "
+                    f"{{T+10:%Y-%m-%d}}"
+                )
+            if DATE_PLACEHOLDER_RE.search(value):
+                raise ValueError(
+                    f"Case {case.get('case_id')}: params.{name} 不能承载日期表达式；"
+                    "请把日期直接写成 landing_scheme/steps 中的 {T+10:%Y-%m-%d}"
+                )
+            if name not in answers:
+                answers[name] = value
 
     case_placeholders = extract_placeholders_from_steps(ai_input)
     unresolved = []
@@ -153,8 +180,25 @@ def init_from_steps_json(run_dir, steps_json_path, flow_name="", device_serial=N
         sys.stderr.write(f"[flow_init] {msg}\n")
         raise ValueError(msg)
 
-    # 统一替换所有占位符：{T+N} → 自动日期，{xxx} → intake 值
+    # 统一替换所有占位符：{T±N} → 自动日期，{xxx} → intake 值
     ai_input = resolve_placeholders(ai_input, answers)
+
+    # 解析后硬门禁：执行字段里不允许再残留任何 {T+N} / {xxx}。
+    # 这一步确保“App 收到 {}”永远不会成为产品失败，而是在初始化阶段直接报配置错误。
+    resolved_cases = ai_input.get("cases", [])
+    residual = []
+    for case in resolved_cases:
+        for ph in find_unresolved_placeholders(collect_case_placeholder_text(case)):
+            residual.append((case.get("case_id"), ph))
+    if residual:
+        lines = [f"  Case {case_id}: {ph}" for case_id, ph in residual]
+        msg = (
+            "解析后仍存在未替换的占位符:\n" + "\n".join(lines) + "\n"
+            "日期请直接写成 {T+10:%Y-%m-%d}（不要经 params/answer 间接插入）；"
+            "其他占位符请先通过 `input-next` → `input-answer` 收集。"
+        )
+        sys.stderr.write(f"[flow_init] {msg}\n")
+        raise ValueError(msg)
 
     # ══════════════════════════════════════════════════════════
     #  ④ 固化「解析后的 steps-input」为唯一事实来源（方案 A）
@@ -171,16 +215,20 @@ def init_from_steps_json(run_dir, steps_json_path, flow_name="", device_serial=N
                 _f.write(raw_text)
         write_json_atomic(steps_json_path, ai_input)
 
-    # 从替换后的完整数据中重新提取 cases（替换前提取的 cases 仍指向原始数据，
+    # 使用替换后的完整数据（替换前提取的 cases 仍指向原始数据，
     # 里面的 landing_scheme 等字段未经日期替换，直接使用会导致日期占位符残留）
-    cases = ai_input.get("cases", [])
+    cases = resolved_cases
 
     now = time.strftime("%Y-%m-%dT%H:%M:%S")
     batch_ts = time.strftime("%Y%m%dT%H%M%S")
 
-    # batch 级统一 run_id 和 output_dir（一个 batch = 一条执行记录）
-    batch_run_id = f"run-{batch_ts}"
-    batch_output_dir = os.path.join(OUTPUT_DIR, batch_run_id)
+    # 报告目录：reports/<batch>/<run>[-rN]。
+    # 同一编排的所有 shard 共享 batch_id（便于控制台聚合），但各自独立 run 目录
+    # （并发不串台；重试落 -r2 保留上一轮证据）。
+    run_key = os.path.basename(os.path.normpath(run_dir))
+    batch_id = report_batch_id()
+    batch_output_dir = allocate_run_output_dir(batch_id, run_key)
+    batch_run_id = f"{batch_id}--{os.path.basename(batch_output_dir)}"
 
     # 构建 cases_manifest 和 cases_summary
     cases_manifest = []
@@ -208,7 +256,7 @@ def init_from_steps_json(run_dir, steps_json_path, flow_name="", device_serial=N
         }
 
         # 原始 Flow 原文：flow-init 时一次性读取并内嵌（flow_source 缺失时按
-        # case_id/case_name 在 .run/tasks/<task>/inputs/flows/ 兜底匹配）。避免 preflight/post-clean
+        # case_id/case_name 在 $STATE/run/tasks/<task>/inputs/flows/ 兜底匹配）。避免 preflight/post-clean
         # 清空本 workspace 的 inputs/ 后报告无原始语义文件。flow_source_name 供 case-init 落日志
         # 与报告 desc 使用。
         flow_path, flow_content, flow_name = resolve_flow_content(
@@ -252,10 +300,15 @@ def init_from_steps_json(run_dir, steps_json_path, flow_name="", device_serial=N
             "skill": "ai-ui-autotest-engine",
             "batch_name": batch_name,
             "batch_ts": batch_ts,
+            "batch_id": batch_id,
+            "run_name": run_key,
             "batch_run_id": batch_run_id,
             "batch_output_dir": batch_output_dir,
             "flow_name": batch_name,
             "started_at": now,
+            "date_base": os.environ.get("AI_UITEST_DATE_BASE", "").strip() or now[:10],
+            "transport_port": int(os.environ[ENV_TRANSPORT_PORT])
+            if os.environ.get(ENV_TRANSPORT_PORT, "").strip().isdigit() else 0,
             "run_start_ts": time.time(),
             "last_updated": now,
             "device_serial": device_serial or "",

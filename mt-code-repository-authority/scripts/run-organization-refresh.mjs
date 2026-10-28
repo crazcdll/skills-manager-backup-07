@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { parseCallbackError, callbackErrorDiagnostics } from "./callback-error.mjs";
 import { request as httpsRequest } from "node:https";
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
@@ -98,13 +99,14 @@ export const deliverRefreshCallback = async ({ context, item, result, request = 
         return validateReceipt(JSON.parse(response.body), expected);
       }
       const retriable = response.status === 408 || response.status === 425 || response.status === 429 || response.status >= 500;
-      lastError = new OrganizationRefreshContractError("callback was rejected", {
+      const details = parseCallbackError(response, [item.callback.token]);
+      lastError = Object.assign(new OrganizationRefreshContractError(details.message || "callback was rejected", {
         phase: "callback",
         errorCode: response.status === 401 || response.status === 403
           ? "callback_unauthorized" : response.status === 409
           ? "callback_conflict" : "callback_delivery_failed",
         retriable,
-      });
+      }), { upstreamCode: details.upstreamCode, requestId: details.requestId });
     } catch (error) {
       lastError = error instanceof OrganizationRefreshContractError ? error
         : new OrganizationRefreshContractError("callback request failed", {
@@ -202,7 +204,7 @@ export const executeOrganizationRefresh = async ({ taskPath, taskArtifactHash, o
         execution_status: result.execution_status,
         callback_status: "failed",
         result_status: null,
-        callback_error: errorFields(error),
+        callback_error: { ...errorFields(error), ...callbackErrorDiagnostics(error) },
       });
     }
   }
@@ -215,9 +217,12 @@ export const executeOrganizationRefresh = async ({ taskPath, taskArtifactHash, o
     items: summaries,
   };
   await writeJsonAtomic(outputPath, output);
-  if (callbackFailures > 0) throw new OrganizationRefreshContractError("one or more callbacks failed", {
-    phase: "callback", errorCode: "partial_callback_failure", retriable: true,
-  });
+  if (callbackFailures > 0) {
+    const first = summaries.find((item) => item.callback_error)?.callback_error;
+    throw Object.assign(new OrganizationRefreshContractError("one or more callbacks failed", {
+      phase: "callback", errorCode: "partial_callback_failure", retriable: true,
+    }), { diagnosticMessage: first?.diagnostic_message, upstreamCode: first?.upstream_code, requestId: first?.request_id });
+  }
   return output;
 };
 
@@ -250,6 +255,7 @@ if (isMain) {
     process.stderr.write(`${JSON.stringify({
       schema_version: "organization-refresh-local-error/v1",
       ...errorFields(error),
+      ...callbackErrorDiagnostics({ message: error?.diagnosticMessage ?? error?.message, upstreamCode: error?.upstreamCode, requestId: error?.requestId }),
     })}\n`);
     process.exitCode = 1;
   }

@@ -10,11 +10,13 @@ workspace 无关，因此缓存必须落在用户级位置。放到 workspace �
   2. workspace 收尾 `post-clean` 会整目录删除缓存 → 下一个 workspace 需重新解析，
      自下载的 adb 甚至会被重复下载。
 
-缓存固定为 `SKILL_DIR/.toolchain/toolchain.json`（与 `.credentials` / `.device-pool`
-同级：均属用户级、不被 workspace 清理影响）。本模块是读写该缓存的**唯一入口**，
+缓存固定为 `~/.local/share/ai-ui-autotest-engine/toolchain/toolchain.json`（与凭据、设备池
+同级：均落在**机器级**目录，不被 workspace 清理影响，也不随 Skill 更新/重建丢失；
+且多份 Skill 副本共用同一份，不会各探测一遍）。
+本模块是读写该缓存的**唯一入口**，
 adb 与 hdc 共用；写入口 `update_env` 做增量合并，避免并发写互相覆盖键。
 """
-from shared.json_utils import read_json, write_json_atomic_quiet
+from shared.json_utils import read_json, write_json_atomic
 from shared.paths import toolchain_env_path
 
 
@@ -36,4 +38,4 @@ def update_env(patch: dict) -> None:
     merged.update(dict(patch or {}))
     # 纯机器缓存、且被每条命令的预检（ensure_adb）内联调用：用静默变体，
     # 既不需要空文件占位，也不能让提示污染命令 stdout。
-    write_json_atomic_quiet(toolchain_env_path(), merged)
+    write_json_atomic(toolchain_env_path(), merged)

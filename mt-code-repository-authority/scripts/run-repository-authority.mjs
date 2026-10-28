@@ -12,6 +12,7 @@ import {
 } from "node:fs/promises";
 import { request as httpsRequest } from "node:https";
 import { dirname, join, resolve, sep } from "node:path";
+import { parseCallbackError, callbackErrorDiagnostics } from "./callback-error.mjs";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { setTimeout as wait } from "node:timers/promises";
@@ -58,12 +59,16 @@ export class AuthorityRunnerError extends Error {
     phase = "runner",
     errorCode = "runner_failed",
     retriable = false,
+    upstreamCode = null,
+    requestId = null,
   } = {}) {
     super(message);
     this.name = "AuthorityRunnerError";
     this.phase = phase;
     this.errorCode = errorCode;
     this.retriable = retriable;
+    this.upstreamCode = upstreamCode;
+    this.requestId = requestId;
   }
 }
 
@@ -635,7 +640,9 @@ export const deliverAuthorityCallback = async ({
         }
         return { receipt: validateCallbackReceipt(receipt, expected), resultHash };
       }
-      lastError = new AuthorityRunnerError("callback was not accepted", {
+      const details = parseCallbackError(response, [context.callback.token]);
+      lastError = new AuthorityRunnerError(details.message || "callback was not accepted", {
+        ...details,
         phase: "callback",
         errorCode: response.status === 401 || response.status === 403
           ? "callback_unauthorized"
@@ -902,6 +909,7 @@ if (isMain) {
       phase: normalized.phase,
       error_code: normalized.errorCode,
       retriable: normalized.retriable === true,
+      ...callbackErrorDiagnostics(normalized),
     })}\n`);
     process.exitCode = 1;
   }

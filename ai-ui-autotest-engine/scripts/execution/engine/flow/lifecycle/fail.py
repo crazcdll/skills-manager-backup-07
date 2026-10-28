@@ -9,7 +9,7 @@
 
   - 一旦进入 abort（包括 AI 强制终止一个 on_fail=log_and_continue 的阶段），
     就先生成报告：`gen-report` 在 aborted 状态下会顺带完成 本 workspace归档
-    （archive_run → output/run-<ts>/run/）与入库，且 run_status=aborted；
+    （archive_run → $STATE/reports/<batch>/<run>/run/）与入库，且 run_status=aborted；
   - 还没进 Case（环境准备阶段失败）时代理不了 Case 报告，则退化为只归档原始产物；
   - 两者都失败时**不执行 post-clean**，把现场留在本 workspace供人工取证。
 

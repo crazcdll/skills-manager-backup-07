@@ -12,7 +12,6 @@ import time
 
 from shared.case_utils import resolve_case_path
 from shared.json_utils import write_json_atomic, read_json
-from shared.paths import OUTPUT_DIR
 from execution.engine.sop.constants import FLOW_CONTEXT_FILENAME
 
 
@@ -141,7 +140,8 @@ def _check_json_path_truthy(ctx, spec):
 
 _FILE_EXISTS_BASE_RESOLVERS = {
     "run_dir": lambda ctx: ctx.get("meta", {}).get("run_dir", ""),
-    "skill_scripts_output": lambda ctx: OUTPUT_DIR,
+    # 本次运行的报告产物目录（reports/<batch>/<run>），不是 reports 根
+    "skill_scripts_output": lambda ctx: ctx.get("meta", {}).get("batch_output_dir", ""),
     "current_case_output_dir": lambda ctx: ctx.get("current_case", {}).get("output_dir", ""),
 }
 

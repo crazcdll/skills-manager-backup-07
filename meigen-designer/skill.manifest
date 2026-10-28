@@ -1,12 +1,12 @@
 skill-manifest-version: 1
-skill-id: 3bb03f7db2e567d3bb9cf4ef78c9810a4741647685e3051595950fb623abbda7
+skill-id: fda83c89bf31464d24071a694cc595a637b78a9540a772ecf145d6beffe92c27
 
 files:
   3ad9a2a07f937cc68a3d824b6a7cee1205e3287677208722498f5c8fd2eec4ce  .skillignore
-  f4eb40f4ad020637255d16d1ecd9639589f5715ee20292b3f8453f9325922de5  SKILL.md
+  283943759e3f88d013db6fcf967ace7af080187aaef147a593f009bab4ddb14a  SKILL.md
   27e07e2de1687cb55093abf4bd582e62c9c0d52acb4d98b8f6fc3bfcb71dd4c4  evals/evals.json
   4855b8d22430409f50219c8330ecb6d47866a07c07253b8ad7f81606d3e6b2c9  references/block-types.md
-  5c61067ed0a370e5fa6fc8dec525206b605e5cbecce2a508bcc7b5472cd6cea4  references/config-options.md
+  1eac0d91ce68d0c55e40a38259bf5c3a9bbac317c8716e8b610c73291be66942  references/config-options.md
   dbf095ca2fe611def5b5023c64594a9fcd5724c7eccd2b7bc23fc734558ae541  scripts/common.py
   2f0293efa079c7766fd28badb8599b938b6dd0d3eb311b3f634d730617fc64e4  scripts/generate.py
   24a454c9ef6a497a76f064076e523c6ee3db40a3cf6b5b92fb1f1d864d22f329  scripts/poll.py

@@ -5,7 +5,7 @@ description: 当用户要对学城/KM/WIKI 协作文档做编辑器原生结构�
 metadata:
   skillhub.creator: "pingxumeng"
   skillhub.updater: "pingxumeng"
-  skillhub.version: "V23"
+  skillhub.version: "V26"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "4621"
   skillhub.high_sensitive: "false"
@@ -15,9 +15,15 @@ metadata:
 
 `kmedit` 是学城协作文档的编辑器工具。精确文本、通用节点/属性/mark、标准表格、图片、附件、音视频、
 HTML、Mermaid、PlantUML、Yuntu、DrawIO、Minder、Data2Chart、富文本/Markdown/file paste 和跨文档复制默认走
-Parker + Pike API-only 增量提交。DrawIO 多次编辑使用本地草稿会话；只有需要浏览器 iframe 实时交互或未知剪贴板格式时显式走 CDP。整篇正文改写使用 `kmedit full`：2.0 优先用带原生节点/评论保留标记的 Markdown，也支持 ProseMirror JSON；1.0 提交 HTML；
+Parker + Pike API 增量提交；Minder 语义输入使用指定 CDP 浏览器原生渲染，再上传产物。DrawIO 多次编辑使用本地草稿会话；只有需要浏览器 iframe 实时交互或未知剪贴板格式时显式走 CDP。整篇正文改写使用 `kmedit full`：2.0 优先用带原生节点/评论保留标记的 Markdown，也支持 ProseMirror JSON；1.0 提交 HTML；
 
 API-only 草稿、富文本复制/粘贴及共享语义校验要求 `kmedit >= 3.2.0`；首次使用先更新 CLI。Markdown 全文编辑要求 `kmedit >= 3.3.0`；使用前确认 `kmedit full --help` 包含 `--markdown-file`，旧版本需更新。
+
+Minder 原生渲染及 `render/check/patch --cdp-url` 需要 `kmedit >= 3.4.0`。
+
+原生表格列宽兼容性修复要求 `kmedit >= 3.4.3`；旧版本需更新，不能用 `colwidth: null` 表示自适应。
+
+API-only patch 新表格默认自适应宽度要求 `kmedit >= 3.4.1`；显式 `responsive: false` 保留固定宽度，已有表格模式不自动改动。
 
 ## km-html 选路
 
@@ -45,7 +51,7 @@ API-only 草稿、富文本复制/粘贴及共享语义校验要求 `kmedit >= 3
 | 已有 DrawIO 更新或实时编辑 session | `kmedit` DrawIO 能力 | 读 `references/drawio.md`。 |
 | Mermaid、PlantUML 等原生图形节点 | `insert_mermaid` / `insert_plantuml` | 不要降级成普通图片或 HTML。 |
 | 通用交互、动画、自包含轻应用，且不匹配上面场景 | `insert_html` / `edit_html` | 读 `references/insert-html.md`。 |
-| 精确文本、通用节点 JSON、表格、图片、附件、音视频、HTML、Mermaid、PlantUML、Yuntu、DrawIO、Minder、Data2Chart | `kmedit patch` | 读 `references/patch.md`；本地上传/渲染/物化 + Parker state + Pike WSS，无浏览器、无全文转换。 |
+| 精确文本、通用节点 JSON、表格、图片、附件、音视频、HTML、Mermaid、PlantUML、Yuntu、DrawIO、Minder、Data2Chart | `kmedit patch` | 读 `references/patch.md`；本地资源物化 + Parker state + Pike WSS；Minder 渲染传入 CDP 地址。 |
 | 整篇正文改写、跨区域批量改动、章节重排 | `kmedit full` | 读 `references/full-edit.md`；优先 `inspect --markdown-file` → `full --markdown-file`，保留图形/附件/复杂表格/评论锚点；也支持 JSON，按 nodeId diff 成增量 step，必须带 `--step-version`。 |
 | 1.0 文档正文编辑 | `kmedit full --html-file` | 读 `references/CITADELMD_IN_PLACE_EDIT.md`；导出原始 HTML，按 page version 保存并读回。 |
 | 文档重命名（1.0 / 2.0） | `kmedit rename` | 保留正文，2.0 同步标题节点与元数据。 |
@@ -115,6 +121,7 @@ kmedit --version
 - 需要精确锚点时，先从标题、段落原文、表格附近文本缩小范围，再用定向 `inspect` 确认候选节点和 schema：`--find "<text>"`、`--node-type <type>`、`--outline`、`--limit <n>`。
 - 采样不足或文档结构复杂时，用 `inspect --snapshot-file` 导出精确当前 JSON tree，用 `jq` 或脚本
   在本地查找目标文本、节点类型和 `attrs.nodeId`；只把筛选后的少量 `{type,nodeId,text}` 回填到上下文。
+- `inspect.writable: false` 表示该命令是只读入口，不代表协作步骤未保存；权限另看 `canEdit`，保存状态看版本和读回正文。
 - `inspect` 默认保持轻量、定向验证；只有显式 `--snapshot-file` 才导出完整 JSON tree，不把完整树输出到 Agent 上下文。
 
 ## 能力速览
@@ -213,6 +220,7 @@ cat ./structured-ops.json | kmedit patch --doc-id <docId>
 - 连续多次 `insert + after` 到同一锚点时，结果顺序会反转。
 - 尾部插入不能落到 `footnote_list` 后面，应插在脚注区之前。
 - 表格操作的 `target` 必须是表格节点本身，不是单元格或行；标准 `table` 和 `xtable` 不同。
+- 原生表格即使 `responsive: true` 也必须使用正数 `colwidth` 数组，长度匹配 `colspan`；不要生成 `colwidth: null`。schema 接受空值不代表编辑器可渲染。表格写入后必须进入编辑模式确认初始化成功，不能只验证浏览模式或 API 读回。
 - 1.0 HTML 必须基于 `inspect --snapshot-file` 导出的原始正文编辑；不要把 `km get` 的简化 Markdown 拿去回写。
 - `kmedit full` 对 2.0 优先 `--markdown-file`（带保留标记），也接受完整 ProseMirror JSON；对 1.0 接受 `--html-file`。原生图形/附件/表格/评论块遗漏即报错；删除必须显式 `--drop-preserved-node`；`--step-version` 必填。冲突后要基于新版本重新生成目标文档，不能只换版本号重投旧内容，否则会静默还原他人改动。
 - `kmedit full` 无法新建 XTable、Data2Chart 等托管资源，也不接受跨文档附件；先用专用命令创建再引用其 ID。

@@ -4,9 +4,13 @@
 
 设计要点（**无模式**：1 个 Agent 与 N 个 Agent 走完全同一条路径）：
 
-  ① `ws-init` 分配一个 workspace id（uuid）并生成入口脚本 `.run/ws/<id>/cli`
+  ① `ws-init` 分配一个 workspace id（uuid）并生成入口脚本
+     `~/.local/share/ai-ui-autotest-engine/run/ws/<id>/cli`
   ② 之后**所有命令**都通过该入口执行；入口把 `AI_UITEST_TASK=<id>` 注入进程
   ③ 代码读 `AI_UITEST_TASK` 定位工作区；没有则直接报错（不回落默认值）
+
+运行态放在机器级目录（不在 Skill 内）：Skill 会被多份安装/镜像，且自动更新时
+会整目录替换——放里面会丢进度、产生多份分叉的工作区（详见 shared/paths.py）。
 
 为什么用 uuid 而不是可读名字：多个 Agent 并发时，uuid 随机不可猜，
 不会出现"记错/写成了别人的名字"而静默跑进别人工作区的情况。
@@ -17,6 +21,7 @@ import uuid
 from shared.paths import (
     ENV_WORKSPACE,
     SKILL_DIR,
+    STATE_HOME,
     WORKSPACES_DIR,
     ensure_dirs,
     get_active_task,
@@ -27,10 +32,11 @@ from shared.paths import (
 
 _ENTRY_TEMPLATE = """#!/bin/sh
 # ai-ui-autotest-engine workspace 入口（由 `cli.py ws-init` 生成，请勿手工修改）
-# 用法：{entry_rel} <命令> [参数...]
+# 用法：{entry} <命令> [参数...]
 # 源树零字节码（进程入口层）：-B 覆盖本进程，环境变量被所有子进程继承。
+# AI_UITEST_STATE_HOME 写死在入口里：入口在任何 shell 下都能定位到同一个机器级状态目录。
 cd "{skill_dir}" || exit 1
-PYTHONDONTWRITEBYTECODE=1 {env}={ws} exec python3 -B scripts/cli.py "$@"
+PYTHONDONTWRITEBYTECODE=1 AI_UITEST_STATE_HOME="{state_home}" {env}={ws} exec python3 -B scripts/cli.py "$@"
 """
 
 
@@ -47,15 +53,17 @@ def new_workspace_id() -> str:
 CLI_INVOCATION = "python3 scripts/cli.py"
 
 
-def entry_rel() -> str:
-    """当前 workspace 入口的相对路径（供 AI 直接照抄）。
+def entry_display() -> str:
+    """当前 workspace 入口的可执行路径（供 AI 直接照抄）。
 
-    无 workspace 时回退为直接的 CLI 调用串：使渲染在「尚无 workspace」时保持原样。
+    入口在机器级目录（`$STATE/run/ws/<ws>/cli`），**不在 Skill 内**：直接返回
+    绝对路径——相对路径会渲染成 `../../../.local/share/...`，既难读又依赖 cwd。
+    无 workspace 时回退为直接的 CLI 调用串（此时唯一可执行的是 `ws-init`）。
     """
     ws = get_active_task()
     if not ws:
         return CLI_INVOCATION
-    return os.path.relpath(workspace_entry_path(ws), SKILL_DIR)
+    return workspace_entry_path(ws)
 
 
 def render_text(text: str) -> str:
@@ -63,7 +71,7 @@ def render_text(text: str) -> str:
 
     适用于含多处引擎调用的提示文本（如 hook cli_hint）。已渲染过 / 尚无 workspace 时原样返回。
     """
-    return str(text).replace(CLI_INVOCATION, entry_rel())
+    return str(text).replace(CLI_INVOCATION, entry_display())
 
 
 def render_cmd(cmd: str) -> str:
@@ -77,7 +85,7 @@ def render_cmd(cmd: str) -> str:
     text = str(cmd)
     if CLI_INVOCATION in text:
         return render_text(text)
-    prefix = entry_rel()
+    prefix = entry_display()
     if text.startswith(prefix):
         return text
     return f"{prefix} {text}".strip()
@@ -100,8 +108,9 @@ def write_entry(ws_id: str) -> str:
     path = workspace_entry_path(ws_id)
     with open(path, "w", encoding="utf-8") as f:
         f.write(_ENTRY_TEMPLATE.format(
-            entry_rel=os.path.relpath(path, SKILL_DIR),
+            entry=path,
             skill_dir=SKILL_DIR,
+            state_home=STATE_HOME,
             env=ENV_WORKSPACE,
             ws=ws_id,
         ))
@@ -124,7 +133,6 @@ def init_workspace() -> dict:
         "workspace": ws_id,
         "reused": bool(current),
         "entry": path,
-        "entry_rel": os.path.relpath(path, SKILL_DIR),
         "workspace_dir": task_dir(ws_id),
         "other_workspaces": others,
     }
@@ -142,8 +150,8 @@ def cmd_ws_init(args=None) -> dict:
                   f"{', '.join(info['other_workspaces'])}")
             print("     若并非有意新建，请改用你自己那个入口继续，不要重复执行 ws-init。")
     print(f"  工作区: {info['workspace_dir']}")
-    print(f"  你的入口: {info['entry_rel']}")
+    print(f"  你的入口: {info['entry']}")
     print(f"  后续所有命令都必须通过该入口执行，例如: "
-          f"{info['entry_rel']} flow-next")
+          f"{info['entry']} flow-next")
     print("  请勿重复执行 ws-init（会分配出一个新工作区，之前的进度将不在其中）。")
     return info

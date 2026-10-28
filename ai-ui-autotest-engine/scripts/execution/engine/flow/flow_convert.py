@@ -382,7 +382,7 @@ def flow_convert_main(args):
         else:
             raise PayloadError(f"Flow 目录不存在: {flow_dir}")
     elif not flow_sources:
-        # 默认模式：扫描 .run/tasks/<task>/inputs/flows/
+        # 默认模式：扫描 $STATE/run/tasks/<task>/inputs/flows/
         default_dir = flows_dir()
         if os.path.isdir(default_dir):
             flow_sources = sorted([
@@ -450,7 +450,7 @@ def flow_convert_main(args):
 
 
 def _sync_flows_to_workspace(flow_docs):
-    """把外部 Flow .md 幂等拷贝到 .run/tasks/<task>/inputs/flows/。
+    """把外部 Flow .md 幂等拷贝到 $STATE/run/tasks/<task>/inputs/flows/。
 
     目的：让 `flow-convert --flow-source/--flow-dir` 与 `flow-create` 两条入口等价——
     steps-generate 从该目录注入 case.flow_source，flow-init 据此派生 case 级 mock_ids；

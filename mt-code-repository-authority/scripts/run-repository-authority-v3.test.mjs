@@ -392,6 +392,8 @@ test("source scan distinguishes CIBA outcomes without treating timeout hints as 
     waitBetweenReads: async () => {},
   });
   for (const [message, code] of [
+    ["当前内容含高密文档，需在安全屋环境中访问，请携带安全屋Token后重试 HTTP 403 forbidden", "citadel_secure_environment_required"],
+    ["citadel_secure_environment_required", "citadel_secure_environment_required"],
     ["MOA_USER_REJECTED", "citadel_auth_rejected"],
     ["expired_token", "citadel_auth_expired"],
     ["authorization timed out", "citadel_auth_timeout"],
@@ -504,4 +506,48 @@ test("invalid complete URLs are issues while names are not expanded", () => {
   const candidates = extractRepositoryCandidates("board https://dev.sankuai.com/code/repo-detail/team/board/file/list/extra ssh://git@git.sankuai.com/team/standards.git", "document", issues);
   assert.deepEqual(candidates.map((item) => item.canonical_key), ["team/standards"]);
   assert.equal(issues[0].error_code, "invalid_repository_url");
+});
+
+test("source scan recognizes C4 business errors even when the CLI exits zero", async () => {
+  for (const resultSchema of ["repository-authority-source-scan-result/v1", V3_SOURCE_RESULT_SCHEMA_V2]) {
+    let calls = 0;
+    const scan = await scanSource({
+      source: { citadelUrl: "https://km.sankuai.com/page/123" }, resultSchema,
+      processRunner: async () => { calls += 1; return result({ code: 403, message: "当前内容含高密文档，需在安全屋环境中访问，请携带安全屋Token后重试 token=private-secret" }); },
+      waitBetweenReads: async () => {},
+    });
+    assert.equal(calls, 1);
+    assert.equal(scan.scan_status, "failed");
+    assert.equal((scan.read_errors || scan.issues)[0].error_code, "citadel_secure_environment_required");
+    assert.doesNotMatch(JSON.stringify(scan), /private-secret|Token/u);
+  }
+});
+
+test("official table page auth preserves the specific C4 code", async () => {
+  class SecureClient {
+    async ensureAuth() { throw new Error("当前内容含高密文档，需在安全屋环境中访问，请携带安全屋Token后重试 HTTP 403 forbidden"); }
+    async queryTableDataSinglePage() { throw new Error("must not query"); }
+  }
+  await assert.rejects(readCitadelTablePage({ tableId: "12345", columnIds: [1], actorMis: "actual_user", Client: SecureClient }), /citadel_secure_environment_required/u);
+});
+
+test("source scan classifies escaped Unicode C4 error messages", async () => {
+  const message = "当前内容含高密文档，需在安全屋环境中访问，请携带安全屋Token后重试";
+  const stdout = JSON.stringify({ error: { message } }).replace(/[\u4e00-\u9fff]/gu, (value) => `\\u${value.charCodeAt(0).toString(16).padStart(4, "0")}`);
+  const scan = await scanSource({
+    source: { citadelUrl: "https://km.sankuai.com/page/123" }, resultSchema: V3_SOURCE_RESULT_SCHEMA_V2,
+    processRunner: async () => ({ exitCode: 0, stdout: Buffer.from(stdout), stderr: Buffer.alloc(0) }),
+    waitBetweenReads: async () => {},
+  });
+  assert.equal(scan.scan_status, "failed");
+  assert.equal(scan.read_errors[0].error_code, "citadel_secure_environment_required");
+});
+
+test("source callback exposes C4 errors without reflecting the capability", async () => {
+  const token = "a".repeat(43);
+  const context = { shardId: "shard", generation: 1, deadline: Date.now() + 60_000, source: { runId: "run", callback: { url: "https://example.invalid", token } } };
+  const message = "当前内容含高密文档，需在安全屋环境中访问，请携带安全屋Token后重试";
+  const requestId = "71440c02-b61a-49c6-b59c-03f0bbe78680";
+  await assert.rejects(deliverSourceResult({ context, result: {}, fetchImpl: async () => Response.json({ error: { code: "citadel_secure_environment_required", message, request_id: requestId } }, { status: 403 }) }), (error) => error.message === message && error.errorCode === "callback_unauthorized" && error.requestId === requestId);
+  await assert.rejects(deliverSourceResult({ context, result: {}, fetchImpl: async () => Response.json({ error: { code: token, message: `拒绝访问 ${token}`, request_id: token } }, { status: 403 }) }), (error) => !error.message.includes(token) && !JSON.stringify(error).includes(token));
 });

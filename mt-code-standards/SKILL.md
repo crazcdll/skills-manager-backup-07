@@ -1,12 +1,12 @@
 ---
 name: mt-code-standards
 version: "1.2.0"
-description: "按用户指定的仓库名称或当前 Git 仓库，从业务研发平台下载并安全同步有效编码规范；可在任意目录运行并指定输出目录。适用于已登记仓库的前端/Java L1 与已订阅 L2，也支持显式为服务端确认未登记的单领域仓库引导安装公开 L1；不用于代码审查或规则准入。"
+description: "按用户指定的仓库名称或当前 Git 仓库，从业务研发平台下载并安全同步有效编码规范；可在任意目录运行并指定输出目录。按领域和阶段统一获取前端/Java L1 与可获取的生效 L2，未登记或无仓库地址时直接获取公开 L1；不用于代码审查或规则准入。"
 
 metadata:
   skillhub.creator: "zhangce07"
   skillhub.updater: "zhangce07"
-  skillhub.version: "V6"
+  skillhub.version: "V11"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "150847"
   skillhub.high_sensitive: "false"
@@ -16,40 +16,53 @@ metadata:
 
 ## 目标与边界
 
-本 Skill 当前提供的核心能力是：为用户指定的仓库同步平台确认可用的编码规范。它可在任意目录运行；服务端总开关开启后，默认匿名读取所有已登记 active 仓库的已发布规范，不再检查仓库公开开关。只有用户明确要求显式认证的 `--transport direct --bootstrap` 时，服务端确认全局未登记的仓库才引导安装对应领域的公开 L1。
+一次请求同步领域和阶段匹配的已发布 L1，以及当前请求可获取的生效 L2。未登记、没有可获取的 L2、无 Git 或无 origin 时正常返回仅 L1；用户不需要选择引导模式或重试另一入口。匿名 public 保留 active 仓库现有公开 L2 分发策略；direct 根据已验证用户的组织关联判断 L2，缺少关联时仍返回公开 L1。
 
-- 前端仓库按当前研发阶段下载所有匹配的前端 L1，并下载该仓库当前订阅的前端/共享 L2。
-- 后端仓库在方案、编码阶段下载 Java 精简 L1，在 CR 阶段下载 Java 全量 L1；同一阶段允许平台返回多套互补 L1。
-- L2 始终按仓库订阅的固定 Release 下载，本轮不按研发阶段裁剪。
-- 默认公开拉取模式按 active 仓库读取已发布 L1 与该仓库已生效的 L2；
-  不接收或推断消费用户 MIS，不开放仓库列表、模糊搜索或 bootstrap。
-- 正式包的仓库领域、组织关联、订阅、Release 有效性和最终规则集合均由平台判定。
-- 正式解析未找到仓库时默认停止并提示先登记或更换仓库，不写入 `.mdp`。显式 `--bootstrap` 时，Runner 才用 Git 已跟踪文件判断 `frontend`、`backend`、`mixed` 或 `unknown`，再由独立 bootstrap 接口用精确 `namespace/repository` 跨可见性确认全局登记事实。
-- 单一领域证据明确时自动拉取该领域已发布 L1；`mixed` 或 `unknown` 时停止并展示限量安全证据，由 Agent 询问用户后以 `--domain frontend|backend` 明确选择。
-- 已登记、隐藏、未关联、停用或其他不可用仓库统一禁止 bootstrap，不借此探测仓库、组织或订阅信息。
-- 只提供裸仓库名时不能执行 bootstrap；必须由用户补充 `namespace/repository` 或可归一化到该形式的完整 Git 地址。
-- 不执行代码审查、规则准入、订阅变更、仓库登记、commit、push 或平台发布。
+- 必须明确 --stage design|coding|cr；前端/后端由用户说明转换为 --domain frontend|backend，或由服务端使用可读的登记领域。缺失时一次性询问必要字段，不扫描业务源码猜测领域。
+- 前端按阶段选择匹配 L1；后端 design/coding 选择精简 L1、cr 选择全量 L1；同阶段可有互补规则集。L2 依照生效订阅 Release，不按阶段裁剪。
+- 认证失败、明确停用、订阅内容损坏、L1 未发布、数据库或构包失败必须明确报错，不能伪装成“仅 L1 成功”。
+- 不执行代码审查、规则准入、仓库登记、订阅变更、commit、push 或发布。不自行 clone 中心仓库、查询组织订阅明细、拼装规则。
 
-Agent 不得自行 clone 中心规范仓库、调用组织/订阅/规则明细等接口、解析页面或拼装规则。
-唯一确定性 Runner 默认调用 `POST /v1/public/effective-rule-bundles/resolve`；显式 `--transport direct` 才调用需用户鉴权的 `POST /v1/effective-rule-bundles/resolve`。仅 direct 显式启用 `--bootstrap`、收到未找到且具备精确 canonical key 与单一领域后，才调用 `POST /v1/l1-rule-bundles/bootstrap`。响应均完整校验后再原子替换受管文件。
+唯一 Runner 在 public 下调用 `POST /v1/public/rule-bundles/resolve`，direct 下调用 `POST /v1/rule-bundles/resolve`。
+请求为 `rule-bundle-resolve/v1`，响应为 `rule-bundle-resolution/v1`；服务端一次选择，不先失败再重试 bootstrap。
+默认网关为 `https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-distribution`。
+新入口仅接受该受信网关；旧服务或旧 rule-observability 网关需要升级，不静默回退。
+匿名分发依赖已部署的新数据库/Edge 合同和 `RULE_PUBLIC_PULL_ENABLED` 总开关，沿用共享匿名配额；限流/服务未就绪时停止，不反复重试或切换身份。
 
-Runner 默认只调用
-`https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-distribution`。迁移期间显式配置仍可使用同
-host 的旧 `rule-observability` 网关；其他 Function、host、端口、query 或 fragment 均在发送用户票据前拒绝。
-应先部署并验收 `rule-distribution`，再发布新版 `mt-code-standards` 以切换默认地址。
-默认 public 的发布前置为数据库、Edge 和共享配额已部署验收，并开启 `RULE_PUBLIC_PULL_ENABLED` 总开关。
-公共请求不需要网关凭据，不信任客户端提供的 IP 或身份头。所有匿名调用共享配额，当前固定 60 秒窗口合计最多
-600 次请求、100 个不同仓库、60 个并发，单个仓库每窗口最多 300 次；实际值以 Board 数据库策略为准。该初始值为
-50 人同时拉取预留余量，但未经过生产压测；无法按真实用户或 IP 限流，任意调用者都可能耗尽额度。未就绪或限流时停止，不自动切换身份或反复重试。
+## 唯一执行方式
 
-## 显式 direct 身份认证
+先读取目标项目 AGENTS.md/CLAUDE.md 和工作区状态。本次仅管理 `.mdp/rules/` 下平台认领的规则和索引。
 
-默认 public 模式不需要身份认证，也不会读取或发送用户票据、MIS 或组织信息。只有用户显式选择
-`--transport direct` 时，执行 Agent 才加载 `mtsso-skills-official`，按官方指南的 **Prompt 标准注入**
-为 NoCode 作品线上 audience `923a237244` 获取当前用户短期票据。用户不需要手工获取或粘贴 Token；
-统一 Runner 负责取票、下载和校验。
+```shell
+node <skill_dir>/scripts/sync-effective-rules-with-sso.mjs \
+  --repo-root '<来源目录>' \
+  --domain frontend \
+  --stage coding \
+  --execution-agent codex
+```
 
-运行环境要求 Node.js `>= 18`。npm CLI 自带固定版本 `@it/oa-skills-shared 1.2.1`；Skill Runner 优先加载自身本地依赖，没有本地依赖时再从当前 Node 的全局 `oa-skills` 中加载 `@it/oa-skills-shared >= 1.2.0`。首次执行 Skill 前检查 `oa-skills`，仅在依赖不存在时安装。不要在 Runner 内自动安装依赖：
+用户提供仓库时可传 `--repository '<namespace/repository 或线上 MCode Git 地址>'`；无 Git 地址也允许直接拉取 L1。
+显式错误地址不被目录兜底吞掉。只接受完整 canonical key 或可归一化的线上地址，不接受裸仓库名。
+没有显式地址时只查来源 Git 根的 origin，不向下扫描多个仓库，不任选其他 remote。自动发现的非 MCode origin 无法确定平台身份时，使用来源目录兜底并拉取 L1；不访问 origin 主机，也不按其路径猜测平台仓库。显式传入不受支持的地址仍报错。
+输出基目录优先 `--output-dir`、`--repo-root`、当前目录，最终路径为 `<输出基目录>/.mdp/rules/`。
+来源目录用于名称兜底：以 repo-root/cwd 向上找 Git 根，否则取该目录的绝对路径。不能用 output-dir 冒充仓库。
+
+public 是默认模式，不获取或发送 SSO 票据。可选 `--mis` 仅自报调用方，不影响权限；未提供时记匿名，不猜系统用户名或 Git 作者。
+显式 direct 保持认证身份；仅返回 L1 时也不偷偷转为匿名：
+
+```shell
+node <skill_dir>/scripts/sync-effective-rules-with-sso.mjs \
+  --repo-root '<来源目录>' --domain frontend --stage coding \
+  --transport direct --mis '<当前操作者MIS>' --execution-agent codex
+```
+
+旧 `--bootstrap` 参数只保留为 `scope=l1` 兼容别名，仍调用统一入口并保持所选传输方式，不是新流程的必要参数。旧 effective/bootstrap 服务路由仅兼容旧客户端，新客户端不回退调用。
+
+## direct 身份认证
+
+仅 direct 调用认证。执行前加载官方 `mtsso-skills-official`，按 audience `923a237244` 获取当前用户短期票据；不让用户粘贴 Token。匿名 public 不依赖认证工具。
+
+运行环境要求 Node.js `>= 18`。npm CLI 自带固定版本 `@it/oa-skills-shared 1.2.1`；Skill Runner 优先加载自身本地依赖，没有本地依赖时再从当前 Node 的全局 `oa-skills` 中加载 `@it/oa-skills-shared >= 1.2.0`。首次执行需要认证的正式 direct 拉取前检查 `oa-skills`，仅在依赖不存在时安装；匿名 public 不需要安装认证依赖。不要在 Runner 内自动安装依赖：
 
 ```shell
 node -e "const cp=require('child_process'),fs=require('fs'),p=require('path'),npm=process.platform==='win32'?'npm.cmd':'npm';try{const r=cp.execFileSync(npm,['root','-g'],{encoding:'utf8'}).trim();fs.accessSync(p.join(r,'@it','oa-skills','node_modules','@it','oa-skills-shared','package.json'))}catch{cp.execFileSync(npm,['install','-g','@it/oa-skills','--registry=http://r.npm.sankuai.com'],{stdio:'inherit'})}"
@@ -83,7 +96,7 @@ node -e "const cp=require('child_process'),fs=require('fs'),p=require('path'),np
   不得加入 Board 请求 Schema。
 - 收到 `RULE_BUNDLE_CIBA_CONFIRMATION_REQUIRED` 时，在大象确认后重新执行同一拉取；收到拒绝或冷却提示时停止，不能自动重试。
 - 官方换票的交互等待上限为 30 秒；便携 CIBA 单独允许最多 150 秒。超时均停止，由用户确认状态后重新执行。
-- 新增的组织管理员在首次登录平台前标记为“未经登录核验”，不能拉取规范。Runner 收到 `repository_user_login_unverified` 时，提示用户先访问并登录 [业务研发平台编码规范管理平台](https://quality-gate.nocode.sankuai.com/) 后重新拉取。
+- 当前身份未完成平台登录/组织核验、无法读取受关联保护的 L2 时，统一入口仍可按明确领域和阶段返回公开 L1；要获取相应 L2，可先访问并登录 [业务研发平台编码规范管理平台](https://quality-gate.nocode.sankuai.com/)。旧接口曾返回 `repository_user_login_unverified` 并停止，不将该历史行为沿用到新统一分发。
 - 官方换票失败时按 `mtsso-skills-official` 的错误分类停止；权限不足或需人工确认的错误不得自动重试。
 - 不把 `catdesk auth exchange` 写成跨平台前置条件，不自行注册 Agent、复制其他平台凭据或修改宿主 SSO 配置。
 
@@ -91,162 +104,46 @@ node -e "const cp=require('child_process'),fs=require('fs'),p=require('path'),np
 代理授权。已有 Codex 真实会话打通便携 CIBA 和规则安装，但这不能替代其余外部 Agent、用户权限和运行
 环境的逐项验收。
 
-CatDesk、CatPaw IDE、CatPaw 云端 Agent 和美团沙箱沿用同一份 Skill；前提是所在平台已完成官方 SSO
+CatDesk、CatPaw IDE、CatPaw 云端 Agent 和美团沙箱沿用同一份 Skill；仅正式 direct 认证拉取要求所在平台已完成官方 SSO
 适配并绑定当前用户。首次接入或出现缺少 `client_id`、登录/权限错误时，读取
 [平台条件与验收](references/sso-platforms.md)。`923a237244` 是目标服务 audience，不是待补填的调用方身份。
 
-## 仓库定位
 
-优先使用用户提供的 `--repository`；此时目录不需要包含 `.git`。没有提供时，Runner 从当前目录或 `--repo-root` 向上执行 `git rev-parse --show-toplevel`，再读取该仓库的 `origin`。locator 支持：
+## 本地目录与安装合同
 
-- Code HTTPS 页面地址；
-- `sankuai.com` 或其子域下的 HTTP(S) 仓库地址；
-- `ssh://git@host/...`（包括线上 `git.sankuai.com`、`git.dianpingoa.com` 和线下 `git.vip.sankuai.com:2198`）；
-- `git@host:path` 格式；
-- `namespace/repository`；
-- 唯一仓库名，如 `rn_hotel_inland`（仅显式 direct）。
-
-locator 后可以带 `?` 或 `#` 参数。Runner 保留完整输入交给平台，平台只用主仓库身份匹配。仅仓库名匹配到
-多条记录时，要求用户补充 `namespace/repository` 或完整地址；不要任选一条。没有显式 locator 且当前目录不在 Git 仓库或没有 origin 时，向用户询问仓库 locator。未登记仓库的 L1 bootstrap 只接受可确定映射为同一线上 MCode 仓库的 Code 页面地址、
-`git.sankuai.com`/`git.dianpingoa.com` 的 SSH 或 SCP 地址，或明确的 `namespace/repository`；通用 HTTP(S)、线下 VIP 和未知主机地址必须先在平台登记，
-不能仅按相同路径折叠为线上仓库。
-默认 public 模式只接受精确 `namespace/repository`，或可本地归一化到该形式的 Code 页面、
-`git.sankuai.com`/`git.dianpingoa.com` SSH/SCP 地址；裸仓库名、线下 VIP 和未知主机在联网前停止。
-
-## 唯一执行方式
-
-先读取目标仓库的 `AGENTS.md`/`CLAUDE.md` 和工作区状态，确认本次仅管理 `.mdp/rules/` 下规则包文件。
-随后执行随 Skill 分发的 Runner。新调用必须根据当前工作传入 `--stage design|coding|cr`。默认即为匿名仓库模式，不需要传 `--transport`；该模式不调用 SSO，也不支持 bootstrap、MIS 或认证宿主参数：
-
-```shell
-node <skill_dir>/scripts/sync-effective-rules-with-sso.mjs \
-  --repository '<namespace/repository>' \
-  --stage coding
-```
-
-默认输出基目录是执行命令时的当前目录，最终路径始终为 `<输出基目录>/.mdp/rules/`。用户指定存储目录时增加 `--output-dir '<directory>'`。`--repo-root` 保留兼容：它用于 Git 探测；未传 `--output-dir` 时也沿用旧行为作为输出基目录。输出优先级固定为 `--output-dir`、`--repo-root`、当前目录。
-
-需要显式使用用户鉴权接口时增加 `--transport direct`。Codex、Claude Code 会按高置信环境变量自动识别并直达便携 CIBA；若没有 `SSO_USER_ID`，还应传入当前
-操作者 MIS 作为 CIBA 登录提示：
-
-```shell
-node <skill_dir>/scripts/sync-effective-rules-with-sso.mjs \
-  --transport direct \
-  --repository '<repository-name-or-locator>' \
-  --stage coding \
-  --mis '<current-user-mis>'
-```
-
-其他已知外部编码 Agent 应显式传入独立的认证宿主标识；例如 Cursor：
-
-```shell
-node <skill_dir>/scripts/sync-effective-rules-with-sso.mjs \
-  --transport direct \
-  --repository '<repository-name-or-locator>' \
-  --stage coding \
-  --auth-agent cursor \
-  --mis '<current-user-mis>'
-```
-
-`--auth-agent` 只选择认证路径，不进入 Board 请求；允许值见
-[平台条件与验收](references/sso-platforms.md)。不要用 `--execution-agent` 代替它。
-
-没有提供仓库名称时，可从当前 Git 仓库或其子目录自动发现：
-
-```shell
-node <skill_dir>/scripts/sync-effective-rules-with-sso.mjs \
-  --repo-root "$PWD" \
-  --stage coding
-```
-
-当 Runner 返回 `RULE_BUNDLE_DOMAIN_CONFIRMATION_REQUIRED` 时，Agent 根据错误中的 Git 已跟踪证据询问用户；用户明确领域后重试：
-
-```shell
-node <skill_dir>/scripts/sync-effective-rules-with-sso.mjs \
-  --transport direct \
-  --repository '<namespace/repository>' \
-  --bootstrap \
-  --stage coding \
-  --domain frontend
-```
-
-执行 Agent 应在可确认自身环境时传入 `--execution-agent`：`catdesk`、`catpaw`、`claude`、
-`codex`、`agent_1024`、`sandbox` 或 `catx`。未传时 Runner 只按环境变量识别，不能识别会记录为
-`unknown`，不猜测。该参数只用于 Board 观测，不能承载 Cursor 等外部认证宿主标识。不要改参数、复制脚本
-逻辑或在失败后改走旧接口。Runner 的成功 stdout 是正式包的
-`mt-effective-rule-bundle-install/v1` 或引导 L1 的 `mt-l1-bootstrap-install/v1` receipt；其他文字、Agent 回复或 HTTP `accepted` 均不能作为安装成功证据。
-
-独立终端也可安装同目录 npm 包后执行 `mt-code-standards pull`。CLI 与 Skill 共用上述 Runner 核心；默认 public 且固定记录 `execution_agent=cli`，不读取注入票据或 MIS，也不会因匿名失败自动切换到认证接口。用户可显式选择 `--transport direct` 使用当前用户 CIBA，或选择 `--transport mtcli` 由已登录的官方 mtcli 调用同一服务。完整安装、参数和 JSON 用法见 [CLI README](README.md)；登记或发布 mtcli 接入时读取 [mtcli 接入说明](references/mtcli-integration.md)。
-
-## 本地目录合同
-
-平台响应中的 `files[].relative_path` 只用于校验来源和规则包完整性。Runner 将其映射为扁平的本地目录，
-不在本地重复领域、层级或来源目录：
+显式协商 `bundle_contract=scope-domain-ruleset/v1` 和 `agents_index_contract=rule-set-agents-index/v1`。
+统一响应的 `bundle_kind` 为 effective/l1，内包分别复用 effective-rule-bundle/v4 和 l1-bootstrap-bundle/v3；内包历史名称不要求用户选择 bootstrap。
+每次都检查 envelope 的请求编号、pull_id、仓库身份、阶段和领域，再校验内包文件、Release 与 SHA-256。
 
 ```text
 .mdp/rules/
-├── .mt-effective-rule-bundle.json
-├── company/
-│   └── <L1 原文件名>.md
-└── team/
-    └── <L2 规则集 ID>/<L2 原文件名>.md
+├── .mt-effective-rule-bundle.json   # 生效包 manifest v8
+├── .mt-l1-bootstrap.json           # 仅 L1 包 manifest v5；与上项互斥
+├── company/fe/<规则集名称>/<文件>.md
+├── company/java/<规则集名称>/<文件>.md
+├── team/fe/<规则集名称>/<文件>.md
+├── team/java/<规则集名称>/<文件>.md
+└── project/                       # L3，项目自管
 ```
 
-前端和后端仓库均使用相同的 `company/`、`team/` 根目录；仓库领域仍由服务端校验并写入 manifest，
-不作为本地目录层级。一个 Release/来源文件对应一个物理 Markdown，不按文档中的逻辑规则拆分。
-同一目录内出现同名来源文件时，Runner 保留文件名并追加来源 Hash，避免覆盖。manifest 固定为
-`.mdp/rules/.mt-effective-rule-bundle.json`，至少记录：
+文件归属通过 Release 的 scope_level、standard_domain、local_rule_set_name 决定；一个 Release/来源文件对应一个物理 Markdown。
+manifest 的 managed_file_releases、来源路径、Hash、大小及索引参与验证；新版另以 resolution_hash 绑定分发上下文。
+安装使用暂存和原子替换；仅 L1 与 L1+L2 双向迁移时清理原清单认领且未被修改的旧规则/索引，保留未知文件和 L3。
+本地被修改的文件、Hash 损坏、路径冲突、符号链接或不同仓库身份必须停止。无仓库请求不能覆盖一个已知 canonical 的正式包。
+相同内容可返回 not_modified，仍校验本地文件和索引；展示名或选择原因变化时原子更新清单元数据。
+索引按现有合同转换为受管 AGENTS.md；缺少索引合同则仅报告警告，不能编造索引。
 
-- `snapshot_id`、`manifest_hash`，新版另含 `resolver_version`；显式阶段还记录 `stage` 与 `dependency_hash`；
-- 仓库稳定身份和 `standard_domain`；
-- L1/L2 `release_refs`；
-- `managed_files`、逐文件 SHA-256 和总字节数；
-- 本地安装时间。
+## 分发上报与错误
 
-未登记仓库的 L1 使用独立 `.mdp/rules/.mt-l1-bootstrap.json`，不包含仓库、组织、订阅或 L2 身份，也不冒充正式有效规则包。其受管文件仍位于 `company/`；仓库完成登记并成功取得正式包后，Runner 原子删除 bootstrap manifest 与其受管文件，再由正式 manifest 接管。两类 manifest 冲突、损坏或领域不一致时均失败关闭，不静默覆盖。
+- 客户端仅发送仓库地址、领域阶段、协议/缓存、pull_id、执行工具和实际发行元数据；不上传源码、diff、分支、提示词、文件列表、模型或 Token 消耗。
+- 展示名由平台名→完整仓库名→来源绝对路径确定，配套 display_name_source；目录只保存一次，不用于 L2 匹配。
+- skill_name/skill_version 从实际运行目录 SKILL.md 读取，setup 包记录 setup 名称；读取失败为 null，不固定兜底。client_type/name/version 独立记录，CLI 不冒充 Skill。
+- public 未自报身份时为 anonymous；direct 为 verified_mis；显式匿名自报标记 self_reported，不提升为可信身份。
+- 服务端记录实际快照、Release、逐条规则 UID、总字节数、分发模式和原因。ready/not_modified 是分发结果，不代表本地安装成功。
+- 本地成功 receipt 为 mt-rule-bundle-install/v1，status=installed/not_modified；本轮没有安装结果回传。
+- 失败展示安全 code/message、issues 和 request_id；不要用“public_rule_bundle_unavailable”一概替代具体问题。参数错误请补齐对应字段；认证、限流与服务故障不要自动切换身份或反复重试。
 
-Runner 先在同一文件系统暂存完整领域目录，校验路径、字节数、文件哈希、manifest hash 和 snapshot hash，
-再交换目录并最后更新 manifest；任一步失败都回滚。它只删除旧 manifest 明确登记的受管文件，保留未知文件，
-遇到同名非受管文件、符号链接或路径穿越时失败关闭。
-同一输出目录已有正式 manifest 时，新响应的 `repository_id` 和 `canonical_key` 必须与之完全一致；否则以 `RULE_BUNDLE_REPOSITORY_CONFLICT` 停止，避免两个仓库共用 `.mdp/rules/` 时互相覆盖。
+## 验收与发布前置
 
-正式 `effective-rule-bundle/v2` 与阶段化 `effective-rule-bundle/v3` 均保留中文文件名和原始大小写，Unicode 统一为 NFC；例如
-`.mdp/rules/company/ASYNC-异步与异常处理.md`，或
-`.mdp/rules/team/git-1-fe-l2/L2-rules.md`。
-控制字符、路径穿越和绝对路径仍拒绝；系统非法字符、保留名、过长路径及大小写/Unicode 重名由平台
-确定性处理。路径最多 240 个 UTF-8 字节、单段最多 200 字节；长路径优先保留可读文件名，并追加来源 Hash。
-Runner 不自行改写平台路径；比较路径时考虑 NFC 和大小写等效，避免覆盖等效名称的非受管文件。
-
-## 增量更新
-
-当前 Runner 兼容读取 v1/v2 规则包与旧版正式本地 manifest v1/v2/v3、bootstrap manifest v1。未传阶段的旧请求继续使用正式 v2、bootstrap v1；
-显式阶段只接受正式 `effective-rule-bundle/v3` 或 `l1-bootstrap-bundle/v2`，并写入正式本地 manifest v4
-或 bootstrap manifest v2。显式阶段收到旧服务响应会失败关闭，不能把旧全量包当作阶段选择结果。v2 的快照 Hash 包含 `resolver_version`，
-文件清单使用固定的字符串二进制排序，不能沿用 v1 的快照或排序公式。
-从 v1 升级时，先校验旧 manifest，再安装新包并移除旧清单登记的英文文件；保留用户自行添加的文件。
-当前默认 public 的部署顺序为数据库合同 → 支持现有及公共路由的 Edge → 共享匿名配额验收与总开关启用 → npm/Friday 客户端发布；CatX 技能包更新独立验收。
-旧 Runner 无法读取新版本地 manifest，因此回滚时必须保留新版 Runner，并通过不传 `--stage` 走 legacy 分发；
-错误时保留原有规则，不手动删文件或伪造 manifest。
-
-Runner 只在本地 manifest 及所有受管文件仍通过 SHA-256 校验时发送 `known_snapshot_id`：
-
-- 平台返回 `ready`：校验并安装完整规则包。
-- 平台返回 `not_modified`：snapshot 必须与本地已校验值一致，且不得携带文件；本地不制造 diff。
-- 本地文件被修改、丢失或 manifest 非法：不信任旧 snapshot，要求平台返回完整 `ready` 包。
-- 本地 manifest 的阶段与本次 `--stage` 不同：不发送旧 snapshot，安装新阶段完整包并清理上一阶段受管文件。
-
-禁止用旧缓存、部分文件或“上次成功”掩盖服务不可用。网络、认证、权限、登记、歧义、响应 Schema 或 Hash
-任一失败时保持原规则包不变，并把 Runner 的稳定错误码和可执行提示交给用户。
-
-## 验收与交付
-
-成功后只依据 receipt 与本地文件复核：
-
-1. receipt 为正式包 `mt-effective-rule-bundle-install/v1` 或引导 L1 `mt-l1-bootstrap-install/v1`，状态是 `installed` 或 `not_modified`。
-2. 对应 manifest 的 `snapshot_id` 与 receipt 一致；bootstrap receipt 必须同时声明 `mode=l1_bootstrap` 与领域来源。
-3. 每个 `managed_files` 都位于 `company/` 或 `team/<规则集 ID>/` 且 SHA-256 与 manifest 一致。
-4. `release_refs` 至少包含当前领域 L1；L2 仅包含仓库实际订阅且已发布的 Release。
-5. `git diff` 只包含本次受管规则包变更，未知文件和项目规则未改变。
-
-每一次 public 正式规则包解析记录匿名仓库拉取事件，不记录或伪造 MIS；显式 direct 正式解析记录服务端票据核验出的可信 MIS。两种模式都记录仓库、精确规则 UID 与 Release、执行 Agent、Skill 和结果状态；相同快照的不同拉取仍按 `pull_id` 记录，同一 `pull_id` 幂等。L1 bootstrap 没有已登记仓库身份，只生成本地回执，不写正式仓库拉取审计。向用户报告仓库稳定身份、领域、L1/L2 Release、安装文件数、
-总字节数以及 `installed/not_modified`。不要回显票据，不要声称未执行的部署或线上验证已经完成。
+安装后核对 receipt 与 manifest 的 snapshot_id、领域、阶段、实际 L1/L2、文件 Hash 和索引，检查只修改受管内容。
+新版必须先完成数据库前向迁移及 rule-distribution 统一入口发布验收，再分别发布 npm CLI 与 Friday Skill；CatX 技能包独立更新并回读实际版本。mtcli 服务定义需先登记新 resolve-unified 方法。源码或本地测试成功不代表线上部署完成。

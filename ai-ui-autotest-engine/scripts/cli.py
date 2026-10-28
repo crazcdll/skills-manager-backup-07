@@ -12,6 +12,7 @@
 """
 
 import argparse
+import contextlib
 import os
 import sys
 
@@ -27,14 +28,16 @@ if _THIS_DIR not in sys.path:
     sys.path.insert(0, _THIS_DIR)
 
 from cli_utils import resolve_active_context, auto_log_command, run_with_guard
-from shared.errors import UsageError, soft_fail
+from shared.errors import DeviceError, UsageError, soft_fail
 
 # ── 所有 handler 的导入 ───────────────────────────────────────
 from shared.case_utils import resolve_case_path, set_current_user_mis, resolve_mock_domain
-from execution.engine.flow.flow_context import read_meta_fields
+from execution.engine.flow.flow_context import read_meta_fields, update_meta_fields
 from execution.engine.sop.constants import FLOW_CONTEXT_FILENAME
 from provisioning.prereq.check_deps import main as _check_deps_main
+from shared.transport_port import ensure_transport_port
 from shared.paths import (
+    ENV_PLATFORM, active_run_context_path,
     preflight_clean, clean_post_test, get_active_run, get_active_task, require_active_task,
 )
 from shared.workspace import cmd_ws_init as _cmd_ws_init
@@ -62,9 +65,20 @@ from execution.engine.flow.lifecycle.mock_lifecycle import (
 from provisioning.setup.env_prepare import cmd_env_prepare
 from reporting.gen_report import generate_case_report as _cmd_gen_report
 from devices.device_commands import cmd_device as cmd_device_secondary
-from resources.device_pool.commands import cmd_device as cmd_device_pooled, POOLED_SUBCMDS
-from resources.device_pool.device_lease import DeviceLeaseManager as _DeviceLeaseManager
-from resources.device_pool.lease_store import LocalFileLeaseStore as _LocalFileLeaseStore
+from resources.device_pool.commands import (
+    cmd_create as _pool_create,
+    cmd_device as cmd_device_pooled,
+    cmd_release as _pool_release,
+    quarantine_current_device as _quarantine_current_device,
+    POOLED_SUBCMDS,
+)
+from resources.device_pool.device_lease import (
+    RENEW_AHEAD as _RENEW_AHEAD,
+    DevicePool as _DevicePool,
+    lease_owner as _lease_owner,
+    remaining_seconds as _remaining_seconds,
+)
+from resources.device_pool.pool_api import DevicePoolError as _DevicePoolError
 from resources.mis_pool.commands import cmd_mis, maybe_heartbeat_mis
 
 from execution.steps.locators import (
@@ -361,9 +375,9 @@ def build_parser():
     p = sub.add_parser("set-mis", help="设置当前用户 MIS（一般由 flow-init 自动解析）")
     p.add_argument("--mis", required=True)
 
-    p = sub.add_parser("check-deps", help="前置依赖自动检测与安装")
-    p.add_argument("--platform", default="android", choices=["android", "harmony"],
-                   help="仅用于标记上报的 platform 字段；依赖默认全量安装（含 hdc），不再按平台裁剪")
+    sub.add_parser("check-deps", help="前置依赖自动检测与安装（Android/HarmonyOS 全量覆盖）")
+
+    sub.add_parser("toolchain", help="连接工具链（adb/hdc）来源与可用性体检（只读）")
 
     sub.add_parser("ws-init", help="分配 workspace 并生成入口脚本；之后所有命令都用该入口执行")
 
@@ -556,8 +570,8 @@ def build_parser():
     p = sub.add_parser("device", help="设备生命周期管理")
     p.add_argument("device_subcmd", choices=[
         "create", "setup", "query",
-        "check-version", "register",
-        "release", "pool-gc", "clean-tmp",
+        "check-version", "register", "disconnect",
+        "release", "clean-tmp",
     ])
     p.add_argument("--force-reinstall", action="store_true",
                    help="setup 时强制卸载重装")
@@ -722,7 +736,7 @@ def _print_console_link():
         from console.commands import banner_link
         link = banner_link()
         if link:
-            print(f"  🖥  实时控制台（多设备画面 + 动态日志）: {link}")
+            print(f"  📡  实时控制台（多设备画面 + 动态日志）: {link}")
     except Exception:
         pass
 
@@ -739,19 +753,164 @@ def main():
 # 查表分发
 # ═══════════════════════════════════════════════════════════════════
 
-def _heartbeat_lease():
-    """命令级心跳：刷新当前 run 的**设备租约**与**虚拟 mis 占用**（best-effort）。
+# ═══════════════════════════════════════════════════════════════
+# 租约围栏：进入 workspace 后，除显式豁免的“纯数据/恢复”命令外一律校验归属
+# ═══════════════════════════════════════════════════════════════
+# 采用**默认围栏**而不是白名单列举“需要设备的命令”：新增命令时默认受保护，
+# 不会因为忘记登记而绕过所有权校验（这是本轮并发串台的根因之一）。
+#
+# 豁免只给两类命令：
+#   ① 不产生设备读写的数据/状态命令（流程查看、输入采集、报告归档、断言读取）；
+#   ② 丢租约后仍必须能执行的恢复入口（flow-fail / mis / cleanup / disconnect）。
+_LEASE_FENCE_EXEMPT = frozenset({
+    # 流程 / 输入 / 报告（不碰设备）
+    "flow-init", "flow-add-case", "flow-convert", "flow-create", "cases-create",
+    "steps-generate", "validate", "case-init",
+    "input-schema", "input-seed", "input-next", "input-answer", "input-status",
+    "flow-status", "flow-case-status", "hook-info", "ack", "skip-case",
+    "flow-finalize", "gen-report", "report-error", "record-event",
+    "assert-fields", "response-search", "relay-hook-result",
+    # 恢复 / 收尾
+    "flow-fail", "mis", "cleanup", "disconnect",
+    # device 子命令按 subcmd 单独判定（见 _UNFENCED_DEVICE_SUBCMDS）
+    "device",
+})
+# device 子命令中“不依赖当前归属”的入口：create 尚无租约；release/disconnect 必须在
+# 丢租约后仍可执行；query 是只读。
+_UNFENCED_DEVICE_SUBCMDS = frozenset({
+    "create", "query", "release", "disconnect",
+})
 
-    CLI 每次调用都是独立进程，靠这条心跳让资源池知道该 run 仍活着：
-      · 设备租约（本地文件，廉价）—— 每次命令都刷；
-      · 虚拟 mis（网络调用）—— **限流**（≥30min 一次），避免拖慢每条命令。
-    无 run / 无租约 / 无 mock_domain 时是 no-op；任何异常都不得影响主流程。
+
+def _device_scope_path() -> str:
+    """本 run 的 flow-context.json 路径（无 workspace / 无 run 时返回空串）。"""
+    run = get_active_run()
+    if not run:
+        return ""
+    try:
+        return os.path.join(resolve_case_path(run), FLOW_CONTEXT_FILENAME)
+    except Exception as e:  # noqa: BLE001 —— 读不到就当没有设备
+        soft_fail("infra", "LEASE_SCOPE_READ_FAILED", e)
+        return ""
+
+
+def _device_scope_meta() -> dict:
+    """读取本 run 的 flow-context.meta（无 workspace/无 run 时返回空 dict）。"""
+    path = _device_scope_path()
+    if not path:
+        return {}
+    try:
+        return read_meta_fields(path) or {}
+    except Exception as e:  # noqa: BLE001 —— 围栏读取失败按“无设备”处理
+        soft_fail("infra", "LEASE_SCOPE_READ_FAILED", e)
+        return {}
+
+
+def _provider_of_meta(meta: dict) -> str:
+    """device_type → 服务端 provider（只有这两类进池）。"""
+    return "conan" if str(meta.get("device_type") or "") == "cloud-emulator" else "sandbox"
+
+
+def _fence_device_lease(owner: str) -> None:
+    """确认当前设备租约仍属于本 run；不属于则**立即失败**，不允许继续操作设备。
+
+    为什么必须硬失败：租约丢失意味着设备已被回收、并可能被另一个 workspace 领取。
+    此时任何 tap/scroll/scheme 都会与对方交叉执行，截图与断言结论不可信
+    （本轮实测：同一 sandbox 被两个分片同时占用 12–36 分钟）。
+
+    与旧实现的差异：不再"过期就自动重新认领"。服务端分配是库存 CAS，自动重认领等于
+    把可能已被别人领走的设备抢回来；丢了就是丢了 → `flow-fail --cleanup` 后重新 create。
     """
-    owner = get_active_run()
+    meta = _device_scope_meta()
+    device_id = str(meta.get("sandbox_id") or "").strip()
+    if not device_id:
+        return  # 尚未创建设备（B1 之前），无租约可校验
+
+    pool = _DevicePool(provider=_provider_of_meta(meta), platform=meta.get("platform"))
+    try:
+        row = pool.get(device_id)
+    except _DevicePoolError as e:
+        # 查不到归属 ≠ 安全：围栏是防串台的最后一道闸，网络异常时宁可失败一次让人重试，
+        # 也不能在"不知道归属"的情况下继续操作设备。
+        raise DeviceError(
+            f"设备租约校验失败（{e.code}）: {e}",
+            code="DEVICE_LEASE_UNVERIFIED", stage="B1_device", retryable=True,
+        ) from e
+
+    if row is None:
+        raise DeviceError(
+            f"设备 {device_id[:8]} 已不在设备池中（被对账清理或移出库存）。"
+            "请执行 flow-fail --cleanup 后重新 device create 领取设备。",
+            code="DEVICE_LEASE_LOST", stage="B1_device", retryable=False,
+        )
+
+    holder = row.get("lease_owner") or ""
+    if holder != owner:
+        raise DeviceError(
+            f"设备租约已不再归属本 run：设备 {device_id[:8]}，"
+            f"当前持有者 {holder or '（空闲/已回收）'}，本 run={owner}，"
+            f"state={row.get('state')}，到期={row.get('lease_expires_at')}。"
+            "另一分片可能正在使用同一台设备，继续操作会互相串台"
+            "（页面被导航/点击错位/会话被删）。"
+            "请执行 flow-fail --cleanup 后重新 device create 领取新设备。",
+            code="DEVICE_LEASE_LOST", stage="B1_device", retryable=False,
+        )
+
+
+def _should_fence(cmd: str, args) -> bool:
+    """该命令是否要做租约归属围栏（默认是；仅豁免集与只读 device 子命令除外）。"""
+    if cmd == "device":
+        return getattr(args, "device_subcmd", "") not in _UNFENCED_DEVICE_SUBCMDS
+    return cmd not in _LEASE_FENCE_EXEMPT
+
+
+def _heartbeat_lease(fence: bool = False):
+    """命令级心跳：续期本 run 的**设备租约** + **虚拟 mis 占用**。
+
+    CLI 每次调用都是独立进程。租约搬到服务端后，"每条命令都 renew"意味着一条 300 步
+    的流程会多出 300 次 HTTP，因此按**剩余时间节流**：只有剩余不足 `RENEW_AHEAD`
+    才真正打网络（服务端 TTL 远大于这个阈值，不会中途过期）。
+
+    `fence=True`（设备相关命令）时额外校验归属，冲突立即失败。
+    owner 必须用 `lease_owner()`（`<run>#<workspace>`）：历史实现误用纯 run 名，
+    导致续期永远匹配不到租约、15 分钟后设备被并发分片二次领取。
+    """
+    owner = _lease_owner()
     if owner:
+        meta = _device_scope_meta()
+        device_id = str(meta.get("sandbox_id") or "").strip()
+        device_type = str(meta.get("device_type") or "sandbox")
         try:
-            _DeviceLeaseManager(store=_LocalFileLeaseStore()).renew(owner)
-        except Exception as e:
+            # 没有 fence = 租约已被解除（quarantine / release 会清掉本地字段）：
+            # 这时再 renew 必然 LEASE_LOST，只会给每条命令刷一行噪音。
+            if device_id and device_type in ("sandbox", "cloud-emulator") \
+                    and meta.get("lease_fence") is not None:
+                pool = _DevicePool(provider=_provider_of_meta(meta),
+                                   platform=meta.get("platform"))
+                if _remaining_seconds(meta.get("lease_expires_at")) < _RENEW_AHEAD:
+                    lease = pool.renew(device_id, owner,
+                                       fence=meta.get("lease_fence"))
+                    path = _device_scope_path()
+                    if path:
+                        update_meta_fields(path, {
+                            "lease_fence": lease.get("fence"),
+                            "lease_expires_at": lease.get("lease_expires_at"),
+                        })
+            if fence:
+                _fence_device_lease(owner)
+        except DeviceError:
+            raise
+        except _DevicePoolError as e:
+            # 续不上 ≠ 一定要停：只有"要动设备"（fence）时才是致命的；纯数据命令
+            # 放行，避免 release/fail 之后的收尾类命令被一次失败续期卡死。
+            if fence and e.code in ("LEASE_LOST", "NOT_FOUND"):
+                raise DeviceError(
+                    f"设备租约已失效（{e.code}）: {e}。设备可能已被回收/被他人接管，"
+                    "请 flow-fail --cleanup 后重新 device create。",
+                    code="DEVICE_LEASE_LOST", stage="B1_device", retryable=False,
+                ) from e
+            sys.stderr.write(f"[device:lease] 续期跳过（{e.code}）: {e}\n")
+        except Exception as e:  # noqa: BLE001 —— 心跳失败不能阻断业务命令
             soft_fail("infra", "LEASE_HEARTBEAT_FAILED", e)
     try:
         md = resolve_mock_domain()
@@ -765,8 +924,90 @@ def _heartbeat_lease():
 # workspace 门禁白名单
 # ════════════════════════════════════════════════════════════════
 # 除白名单外，**所有命令**都必须在 workspace 内执行（统一门禁，不逐个命令判断）。
-# 唯一例外是 `ws-init`：它负责分配 workspace 本身，自然不能要求已有 workspace。
-WORKSPACE_FREE_CMDS = ("ws-init", "console")
+# 唯一例外是「不需要 workspace 也能跑的基础设施命令」：
+#   · `ws-init`    负责分配 workspace 本身；
+#   · `console`    常驻服务控制；
+#   · `check-deps` 前置依赖体检/安装，冷启动阶段就必须可执行；
+#   · `toolchain`  连接工具链只读体检（先判断缺 adb 还是缺 hdc）。
+WORKSPACE_FREE_CMDS = ("ws-init", "console", "check-deps", "toolchain")
+
+
+def _recover_device_reuse(args, reg_result: dict) -> bool:
+    """setup 命中设备复用阻塞时：隔离旧 sandbox → 换一台 → 由 setup 重试一次。
+
+    只在组合根（本文件）做这件事：`devices` 层不反向依赖 `resources`，它只负责
+    在失败时回调本函数。换机后的设备信息写回 `args`，注册链路会重新读 meta 重试。
+    """
+    code = str(reg_result.get("code") or "DEVICE_REUSE_BLOCKED")
+    meta = read_meta_fields(args.state_file) or {}
+    if meta.get("device_type") != "sandbox":
+        return False
+
+    sys.stderr.write(
+        f"[device:setup] 设备复用阻塞[{code}]，隔离当前 sandbox 并换机重试一次...\n")
+    if not _quarantine_current_device(args, code):
+        return False
+
+    try:
+        # 换机输出归到 stderr，保持 setup 命令 stdout 只有一个 JSON 结果
+        with contextlib.redirect_stdout(sys.stderr):
+            _pool_release(args)
+            _pool_create(args)
+    except Exception as e:  # noqa: BLE001 —— 换机失败则按原错误上报
+        sys.stderr.write(f"[device:setup] 换机失败: {e}\n")
+        return False
+
+    meta = read_meta_fields(args.state_file) or {}
+    args.sandbox_id = meta.get("sandbox_id") or None
+    args.adb_address = meta.get("device_serial") or None
+    sys.stderr.write(
+        f"[device:setup] 已切换到新 sandbox: {args.sandbox_id or '?'}"
+        f" ({args.adb_address or '?'})\n")
+    return bool(args.adb_address)
+
+
+def _sync_platform_env() -> str:
+    """把 active flow-context 的 platform 同步到进程环境，返回平台名。
+
+    低层 `imeituan_run` 依赖该环境变量判断是否启用 Android/ADB 专属恢复；
+    不再让所有平台共享同一套 ADB 行为。
+    """
+    platform = os.environ.get(ENV_PLATFORM, "").strip().lower()
+    path = active_run_context_path()
+    if path:
+        meta = read_meta_fields(path) or {}
+        platform = str(meta.get("platform") or platform).strip().lower()
+        if platform:
+            os.environ[ENV_PLATFORM] = platform
+    return platform
+
+
+def _record_transport_port(port: int) -> None:
+    """把 workspace 传输端口回写 flow-context，便于报告与排障追溯。"""
+    if not port:
+        return
+    path = active_run_context_path()
+    if not path:
+        return
+    meta = read_meta_fields(path) or {}
+    if meta.get("transport_port") == port:
+        return
+    update_meta_fields(path, {"transport_port": port})
+
+
+def _ensure_transport_port() -> int:
+    """所有 workspace 统一分配唯一传输端口；具体传输层按需消费。"""
+    port = ensure_transport_port()
+    _record_transport_port(port)
+    return port
+
+
+def _transport_cleanup(platform: str):
+    """按平台返回端口收尾回调；当前仅 Android 需要停止独立 ADB Server。"""
+    if platform != "android":
+        return None
+    from devices.toolchain.imeituan_cli import stop_adb_server
+    return stop_adb_server
 
 
 def dispatch(args):
@@ -786,12 +1027,20 @@ def dispatch(args):
     #   ② 统一在此判断，新命令默认即受限，不可能遗漏。
     if cmd not in WORKSPACE_FREE_CMDS:
         require_active_task()
+        _sync_platform_env()
+        # 每个 workspace 统一分配唯一传输端口；Harmony/iOS 暂不使用，但保留
+        # 统一状态，后续传输层需要本地端口时无需再引入第二套分配器。
+        if cmd not in ("post-clean", "preflight-clean"):
+            _ensure_transport_port()
 
     # ── Level 0：不依赖 active_run（但依赖 workspace）──
     if cmd == "set-mis":
         return set_current_user_mis(args.mis)
     if cmd == "check-deps":
-        return _check_deps_main(platform=getattr(args, "platform", "android"))
+        return _check_deps_main()
+    if cmd == "toolchain":
+        from devices.toolchain.commands import cmd_toolchain
+        return cmd_toolchain(args)
     if cmd == "ws-init":
         result = _cmd_ws_init(args)
         _print_console_link()
@@ -800,11 +1049,11 @@ def dispatch(args):
         from console.commands import cmd_console
         return cmd_console(args)
     if cmd == "preflight-clean":
-        preflight_clean()
+        preflight_clean(cleanup=_transport_cleanup(_sync_platform_env()))
         print("Preflight cleanup done")
         return None
     if cmd == "post-clean":
-        clean_post_test()
+        clean_post_test(cleanup=_transport_cleanup(_sync_platform_env()))
         print("Post-test cleanup done")
         return None
     if cmd == "input-next":
@@ -831,24 +1080,28 @@ def dispatch(args):
         # 将 namespace 传给 cmd_report_error（其内部有独立 parser 支持 standalone 调用）
         return cmd_report_error(args)
 
+    # ── 租约心跳 + 围栏（workspace 已确定，进入所有依赖 run 的命令）──
+    # 默认围栏，豁免集见 _LEASE_FENCE_EXEMPT；device 按子命令细判。
+    _heartbeat_lease(fence=_should_fence(cmd, args))
+
     # ── Level 1：需要 run_dir（active_run） ──
     if cmd == "flow-init":
         return _cmd_flow_init(args)
     if cmd == "flow-add-case":
         return _cmd_flow_add_case(args)
     if cmd == "device":
-        _heartbeat_lease()
         if args.device_subcmd in POOLED_SUBCMDS:
             return cmd_device_pooled(args)
+        if args.device_subcmd == "setup":
+            # 仅 setup 需要设备复用恢复：注册失败时由组合根换机后重试一次
+            args.device_reuse_recover = lambda reg: _recover_device_reuse(args, reg)
         return cmd_device_secondary(args)
     if cmd == "mis":
-        _heartbeat_lease()
         return cmd_mis(args)
     if cmd == "cleanup":
         return _cmd_cleanup(args)
     if cmd == "env-prepare":
         resolve_active_context(args, need_serial=True)
-        _heartbeat_lease()
         return cmd_env_prepare(args)
     if cmd == "mock":
         resolve_active_context(args, need_serial=False)
@@ -860,7 +1113,6 @@ def dispatch(args):
     # ── Level 2：需要设备 + 自动记录 ──
     if cmd in _LEVEL2_HANDLERS:
         resolve_active_context(args, need_serial=True)
-        _heartbeat_lease()
         auto_log_command(args)
         return _LEVEL2_HANDLERS[cmd](args)
 

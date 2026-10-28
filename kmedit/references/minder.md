@@ -36,31 +36,20 @@
 }
 ```
 
-## 布局与主题
+## 原生渲染与连接准备
 
-API-only 本地 renderer 支持的 `template`：
+`insert_minder` 通过 Minder converter 的原生引擎渲染，再通过 KM API 上传和提交。`render`、`check` 和 `patch` 接收 `--cdp-url`，也可设置 `LOCAL_CDP_URL`。
 
-- `default`：默认左右展开脑图
-- `right`：全部向右展开，适合流程/清单
-- `filetree`：文件树结构
-- `structure`：组织结构/自上而下结构
+按当前环境的浏览器说明获取可供程序连接的完整 CDP 地址。优先使用任务提供的地址；宿主提供管理命令时，先查看帮助，再查询当前会话的连接信息。动态端口由管理方返回。用 `minder-converter doctor --probe --cdp-url "$LOCAL_CDP_URL"` 验证后再转换。
 
-`fish-bone`、`tianpan` 等专用布局继续走 CDP runtime；API-only 会明确失败，不会把它们错误画成普通脑图。
+```bash
+kmedit render --ops-file ops.json --output-dir ./artifacts --cdp-url "$LOCAL_CDP_URL"
+kmedit check --doc-id <docId> --ops-file ops.json --cdp-url "$LOCAL_CDP_URL"
+kmedit patch --doc-id <docId> --ops-file ops.json --cdp-url "$LOCAL_CDP_URL"
+```
 
-常用 `theme`：
+模板支持 `default`、`right`、`structure`、`filetree`、`fish-bone`、`tianpan`。常用组合是 `right/fresh-blue`、`fish-bone/fish`、`tianpan/tianpan`；完整主题列表见 converter `doctor`。
 
-- `fresh-blue`：默认清爽蓝色，优先使用
-- `fresh-green`：绿色主题
-- `fresh-purple`：紫色主题
-- `classic`：经典主题
-- `snow`：浅色雪景主题
-- `fish`：适合鱼骨图
-- `wire`：黑底线框风格
+缺省使用 `default/fresh-blue`。完整 JSON 的备注、链接、优先级、资源标签及折叠状态随模型保留；图片节点会返回 `unsupported_feature`，需要资源嵌入能力后再转换。渲染在上传前完成，预览校验与提交复用同一份产物。
 
-## Gotchas
-
-- `template` 控制布局预设，`theme` 控制颜色/样式；不要把内部 layout 名称当成 `template` 使用。
-- `fish-bone` 建议搭配 `theme: "fish"`；`tianpan` 可搭配 `theme: "tianpan"`，但二者当前需要 CDP runtime。
-- 如果不指定，renderer 默认使用 `template: "default"` 和 `theme: "fresh-blue"`。
-- `patch` 的 `insert_minder` 使用本地 renderer，不依赖页面 `provider.serverUrl`，并在 SVG `content` 中保留完整 JSON 语义；不支持的模板应失败并走显式 CDP fallback。
-- 不要把 Minder SVG 当普通图片插入；需要保留脑图语义时使用 `insert_minder_svg`。
+已有合法 SVG 使用 `insert_minder_svg`，保留原始文件字节和可编辑模型。最终检查页面预览并在脑图编辑器重开确认。

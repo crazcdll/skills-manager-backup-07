@@ -57,9 +57,9 @@
 
 - **R-PAR-001 [P0] 运行时参数补填**：tap/input-text 必须配 action_anchor
 - **R-PAR-002 [P0] 占位符完整**：Flow 的 {xxx} 在 steps-input 中全部用到
-- **R-PAR-003 [P1] 日期用 {T+N:format}**：禁止硬编码日期，如 `{T+10:%Y-%m-%d}`（不指定 format 时默认 `%Y-%m-%d`）
+- **R-PAR-003 [P1] 日期用 {T+N:format}**：日期参数必须直接写在 `landing_scheme` / steps 中，如 `{T+10:%Y-%m-%d}`（不指定 format 时默认 `%Y-%m-%d`）；**禁止**写成 `{checkinDate}` 由用户回答，也**禁止** `params.*="__date__"`。日期偏移来自 Flow「测试数据参考」或 schemes 的 `relative_date`，由 `flow-init` 按批次日期基线解析
 - **R-PAR-004 [P0] device 对齐**：把 `flow-convert` 的默认 device（type/platform/app）修正为信息收集（`input-next` 循环）的实际结果（env 的收集字段由引擎从 intake 合成，无需手写）
-- **R-PAR-005 [P0] 真实值覆盖**：凭证登录（线上 A）的 account/password、以及各场景 params，从 Flow「测试数据参考」提取真实值，经 `input-answer` 持久化到 `intake.json`；验证码登录（alpha/泳道 B/C）的测试手机号由引擎按 workspace 确定性自动生成（`test_account`，不提问），无需从 Flow 提取（如需指定号码，用 `input-seed test_account` 覆盖）
+- **R-PAR-005 [P0] 真实值覆盖**：凭证登录（线上 A）的 account/password、以及各场景**非日期** params，从 Flow「测试数据参考」提取真实值，经 `input-answer` 持久化到 `intake.json`；日期参数不走 params（见 R-PAR-003）；验证码登录（alpha/泳道 B/C）的测试手机号由引擎按 workspace 确定性自动生成（`test_account`，不提问），无需从 Flow 提取（如需指定号码，用 `input-seed test_account` 覆盖）
 - **R-PAR-006 [P0] 匹配标识必填**：`api_assert.path` 与 `track_assert.match` 为空会被 flow-init 硬拒（空 path 匹配任意请求、空 match 必然匹配不到）
 - **R-PAR-007 [P1] 埋点匹配标识选择**：`track_assert.match` 优先用 `val_bid`（事件 ID，精确且唯一，命中即 PASS）。Flow 只给组件级 cid（如 `c_hotel_xxx`）时，同一 cid 下会同时存在 PV / MV / MC 等多个事件，引擎会转 PENDING 交 AI 用 `assert-fields --picked` 消歧；建议补 `expected_fields` 锁定事件类型（如 `{"nm":"PV"}`）以减少歧义、提升确定性
 

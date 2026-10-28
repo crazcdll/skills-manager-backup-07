@@ -2,325 +2,185 @@
 # -*- coding: utf-8 -*-
 """Android adb 环境准备。
 
-确保 adb 二进制可用（版本 >= 1.0.40），供 imeituan CLI 内部 AdbAdapter 使用。
-设备连接和交互由 imeituan CLI 通过 Session 机制管理。
+`ensure_adb()` 是本模块唯一入口：check-deps、设备命令、WebView 端口转发
+都通过它拿 adb。
 
-本模块是 adb 获取的唯一入口，check_deps 和 device_commands 都通过 ensure_adb() 获取 adb。
+查找链（从高到低，全部是确定性来源）：
+  1. 当前进程 PATH（`adb version` 通过且版本 >= 1.0.40）
+  2. 用户级工具链缓存（`$STATE/toolchain/toolchain.json`，跨会话记忆）
+  3. `imeituan device environment status` 查询受管路径
+  4. Skill 内置包的已安装副本（`$STATE/toolchain/adb/<ver>-<platform>/`）
+  5. 安装：解压 Skill 内置离线包（`references/toolchain/*.zip`）并验证 `adb version`
 
-查找链（优先级从高到低）：
-  1. 当前进程 PATH 直接可用（which adb 版本合规）
-  2. 用户级工具链缓存（.toolchain/toolchain.json，跨会话记忆）
-  3. imeituan device environment status 查询受管路径
-  4. ~/.imeituan/bin/ 等固定目录
-  5. adbutils 内置 ADB（仅 Linux 沙箱，自动 pip 安装）
-  6. （最后一步）自下载到持久化目录 ~/.local/share/ai-ui-autotest-engine/adb/
+刻意不做的事：
+  · 不访问 dl.google.com —— 内网/沙箱对该域名返回 502，这条路在本流程真正
+    需要它的机器上必然失败；
+  · 不 `pip install adbutils` —— 污染用户 Python 环境，且只是把「拿一个 adb」
+    拆成第二套互不相干的逻辑。
+  固定版本 + 校验和的离线包同时解决了可用性与版本漂移（不同机器 adb 行为不一致）。
 
-非交互 Shell 不加载 ~/.zshrc，找到后通过 _prepend_path 显式注入当前进程 PATH，
-不依赖 shell 配置文件是否被加载。
+非交互 Shell 不加载 ~/.zshrc，因此找到后显式 prepend 当前进程 PATH 并持久化。
 
-Linux 沙箱无法从 dl.google.com 下载 platform-tools（返回 502），
-改用 adbutils 包内置的 ADB 可执行文件，通过 PyPI 镜像安装。失败时仅给出提示，
-不做复杂的多源回退。
+统一返回 `(path, status)`：
+  · "session_available" — 当前会话 PATH 直接可用
+  · "installed"         — 使用 Skill 内置包的已安装副本（绝对路径）
+  · None                — 不可用
 """
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
-import zipfile
 
+from devices.toolchain import bundle
 from shared.toolchain_env import read_env, update_env
 
 ADB_MIN_VERSION = 40  # adb 1.0.40+ 才能连接新设备
-_DOWNLOAD_URL = (
-    "https://dl.google.com/android/repository/platform-tools-latest-"
-    f"{'darwin' if sys.platform == 'darwin' else 'linux'}.zip"
-)
-
-# imeituan 受管 ADB 目录（imeituan device environment install adb 的安装目标）
 _IMEITUAN_BIN_DIR = os.path.expanduser("~/.imeituan/bin")
-
-# 自下载持久化目录（非临时目录，跨任务保留，不会被 preflight-clean 清理）
-_ADB_PERSISTENT_BASE = os.path.join(
-    os.path.expanduser("~/.local/share/ai-ui-autotest-engine"), "adb"
-)
-
-
-def _pip_install_adbutils():
-    """自动 pip 安装 adbutils 包（Linux 沙箱，内置 ADB 二进制）。"""
-    try:
-        subprocess.run(
-            [sys.executable, "-m", "pip", "install", "-q", "adbutils"],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            universal_newlines=True, timeout=180, check=True,
-        )
-        return True
-    except Exception as e:
-        sys.stderr.write(f"[device:adb] pip install adbutils 失败: {e}\n")
-        return False
-
-
-def _get_adbutils_adb():
-    """获取 adbutils 内置的 ADB 可执行文件路径，未安装时自动 pip 安装。
-
-    adbutils 内置 ADB 仅在 Linux 环境中有效（PyPI 打包了二进制），
-    macOS/Windows 的 binaries/ 目录为空。
-
-    Returns:
-        (path, installed): path 为可执行文件路径，installed 表示是否本次新安装的
-    """
-    if sys.platform != "linux":
-        return None, False
-
-    installed = False
-    try:
-        import adbutils
-    except ImportError:
-        if not _pip_install_adbutils():
-            return None, False
-        installed = True
-        import adbutils
-
-    adb_path = os.path.join(os.path.dirname(adbutils.__file__), "binaries", "adb")
-    if os.path.isfile(adb_path) and os.access(adb_path, os.X_OK):
-        return adb_path, installed
-    return None, False
+_VERSION_RE = re.compile(r"Android Debug Bridge version (\d+)\.(\d+)\.(\d+)")
 
 
 def _run(cmd, timeout=30):
     try:
-        r = subprocess.run(
-            cmd, shell=isinstance(cmd, str), capture_output=True,
-            text=True, timeout=timeout,
-        )
-        out = (r.stdout or "") + (r.stderr or "")
-        return r.returncode, out.strip()
-    except subprocess.TimeoutExpired:
-        return -1, "TIMEOUT"
-    except Exception as e:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return r.returncode, ((r.stdout or "") + (r.stderr or "")).strip()
+    except Exception as e:  # noqa: BLE001 —— 探测失败等价于「这条路径不可用」
         return -1, str(e)
 
 
-def _version_ok(adb_path):
-    try:
-        out = subprocess.run(
-            [adb_path, "version"], capture_output=True, text=True, timeout=5
-        ).stdout
-        m = re.search(r"(\d+)\.(\d+)\.(\d+)", out)
-        return bool(m and int(m.group(3)) >= ADB_MIN_VERSION)
-    except Exception:
-        return False
-
-
 def _verify_adb(adb_path):
-    """三重验证：二进制存在性 → 版本合规 → 设备命令可用性。
+    """存在性 → 版本合规。
+
+    **刻意不跑 `adb devices`**：它会隐式拉起 5037 上的共享 ADB Server，而
+    imeituan 对 Server 有启动身份校验——被引擎随手拉起、没有身份记录的 Server
+    会让并发中的会话清理报
+    `ADB_PORT_OWNERSHIP_CONFLICT: 当前监听 Server 没有可验证的网络隔离启动记录`。
+    真正的设备探测只发生在本地真机路径（`list_devices`），云设备交给 imeituan。
 
     Returns:
-        (ok, checks): ok=True 表示全部通过，checks 为各维度检查结果 dict
+        (ok, checks): checks 形如 {"exists": bool, "version": bool}
     """
-    checks = {}
-    checks["exists"] = os.path.isfile(adb_path) and os.access(adb_path, os.X_OK)
-    if checks["exists"]:
-        checks["version"] = _version_ok(adb_path)
-        if checks["version"]:
-            rc, _ = _run([adb_path, "devices"], timeout=10)
-            checks["device_cmd"] = (rc == 0)
-        else:
-            checks["device_cmd"] = False
-    else:
-        checks["version"] = False
-        checks["device_cmd"] = False
-    return all(checks.values()), checks
+    exists = os.path.isfile(adb_path) and os.access(adb_path, os.X_OK)
+    if not exists:
+        return False, {"exists": False, "version": False}
+    rc, out = _run([adb_path, "version"], timeout=5)
+    m = _VERSION_RE.search(out or "")
+    version_ok = rc == 0 and bool(m) and int(m.group(3)) >= ADB_MIN_VERSION
+    return version_ok, {"exists": True, "version": version_ok}
 
 
 def _prepend_path(directory):
     current = os.environ.get("PATH", "")
-    if directory not in current.split(":"):
+    if directory and directory not in current.split(":"):
         os.environ["PATH"] = directory + ":" + current
 
 
 def _imeituan_managed_adb():
-    """查询 imeituan 受管的 ADB 可执行文件路径。
+    """查询 imeituan 受管的 adb 路径（`imeituan device environment status`）。
 
-    通过 `imeituan device environment status` 获取当前受管环境的工具列表，
-    从中提取 adb 的完整路径。兼容 JSON envelope 和裸 JSON 两种输出格式。
+    兼容 JSON envelope 与裸 JSON 两种输出。受管 CLI 不存在时直接返回：
+    探测不得触发 npm 安装，否则「只读体检」就不再无副作用。
     """
     try:
-        r = subprocess.run(
-            ["imeituan", "device", "environment", "status"],
-            capture_output=True, text=True, timeout=15,
-        )
+        from shared.imeituan import managed_bin, run as run_imeituan
+        if not managed_bin():
+            return None
+        r = run_imeituan(["device", "environment", "status"], timeout=15)
         if r.returncode != 0:
             return None
-        try:
-            status = json.loads(r.stdout)
-        except json.JSONDecodeError:
-            return None
-        if not isinstance(status, dict):
-            return None
-        # 兼容 {code, data: {tools: {adb: {path: ...}}}} 和 {tools: {adb: {path: ...}}}
-        data = status.get("data", status)
-        if not isinstance(data, dict):
-            return None
-        tools = data.get("tools", {})
-        if not isinstance(tools, dict):
-            return None
-        adb_info = tools.get("adb", {})
-        if isinstance(adb_info, dict):
-            path = adb_info.get("path")
-            if path and os.path.isfile(path) and os.access(path, os.X_OK):
-                return path
-        elif isinstance(adb_info, str):
-            if os.path.isfile(adb_info) and os.access(adb_info, os.X_OK):
-                return adb_info
+        status = json.loads(r.stdout)
+    except Exception:  # noqa: BLE001 —— 查不到就当没有受管副本
         return None
-    except Exception:
+    data = status.get("data", status) if isinstance(status, dict) else None
+    tools = data.get("tools") if isinstance(data, dict) else None
+    adb_info = (tools or {}).get("adb") if isinstance(tools, dict) else None
+    path = adb_info.get("path") if isinstance(adb_info, dict) else adb_info
+    if isinstance(path, str) and os.path.isfile(path) and os.access(path, os.X_OK):
+        return path
+    return None
+
+
+def source_of(adb_path):
+    """按路径推断来源：system / imeituan / bundled / none（仅用于诊断展示）。"""
+    if not adb_path:
+        return "none"
+    if adb_path == "adb":
+        return "system"
+    real = os.path.realpath(adb_path)
+    roots = (("bundled", bundle.INSTALL_ROOT), ("imeituan", _IMEITUAN_BIN_DIR))
+    for name, root in roots:
+        root_real = os.path.realpath(root)
+        if real == root_real or real.startswith(root_real + os.sep):
+            return name
+    return "system"
+
+
+def version_of(adb_path):
+    """`adb version` 的版本号（如 "1.0.41"）；读不到返回 None。"""
+    if not adb_path:
         return None
+    rc, out = _run([adb_path, "version"], timeout=5)
+    m = _VERSION_RE.search(out or "")
+    return ".".join(m.groups()) if rc == 0 and m else None
 
 
-def _download_platform_tools(dest_dir):
-    """从 Google 官方下载 platform-tools，解压到 dest_dir/platform-tools/。
-
-    dest_dir 是父目录（与 zip 内 platform-tools/ 平级），
-    返回 adb 可执行文件路径。
-    """
-    zip_path = os.path.join(dest_dir, "platform-tools.zip")
-    os.makedirs(dest_dir, exist_ok=True)
-    rc, out = _run(["curl", "-sL", "-o", zip_path, _DOWNLOAD_URL], timeout=120)
-    if rc != 0:
-        raise RuntimeError(f"curl 失败: {out}")
-    with zipfile.ZipFile(zip_path) as zf:
-        members = [
-            m for m in zf.namelist()
-            if m.startswith("platform-tools/adb") or m.startswith("platform-tools/lib64/")
-        ]
-        zf.extractall(dest_dir, members=members)
-    adb_path = os.path.join(dest_dir, "platform-tools", "adb")
-    os.chmod(adb_path, 0o755)
-    return adb_path
-
-
-def _is_path_in_current_session():
-    """检查 adb 是否在当前会话 PATH 中可见（非交互 Shell 检测）。"""
-    rc, _ = _run(["adb", "version"], timeout=5)
-    return rc == 0
+def _reuse(path, status):
+    """命中即 prepend PATH + 持久化缓存目录。"""
+    _prepend_path(os.path.dirname(path))
+    update_env({"adb_dir": os.path.dirname(path)})
+    return path, status
 
 
 def ensure_adb(install=True):
-    """确保存在可用的 adb，返回 (path, status)。
+    """确保存在可用的 adb，返回 `(path, status)`（不可用时 `(None, None)`）。
 
     Args:
-        install: 未找到时是否自动下载安装
-
-    Returns:
-        (path, status):
-            path  — 可执行文件路径，不可用时为 None
-            status — 三态字符串或 None：
-                "session_available" — 当前会话 PATH 中直接可用
-                "path_not_loaded"   — 已由 imeituan 管理，但非交互会话未加载 PATH，
-                                      已使用绝对路径继续
-                "temp_available"    — 自下载的持久化副本，非受管环境
-                None                — 不可用
-
-    查找链：PATH → 用户级工具链缓存 → imeituan status → ~/.imeituan/bin → 固定目录 → adbutils(Linux) → 自下载。
-    找到后自动 prepend PATH 并持久化到用户级工具链缓存（.toolchain/toolchain.json）。
+        install: 未找到时是否解压内置离线包。False = 纯探测：不解压、不触发
+                 imeituan 安装（只读体检用）。
     """
-    # ── ① 当前进程 PATH 直接可用 ──
-    rc, out = _run(["adb", "version"], timeout=5)
-    if rc == 0:
-        m = re.search(r"(\d+)\.(\d+)\.(\d+)", out)
-        if m and int(m.group(3)) >= ADB_MIN_VERSION:
-            return "adb", "session_available"
-        sys.stderr.write(f"[device:adb] adb 版本过旧 ({out.splitlines()[0]})，查找新版...\n")
-    # 注：adb 不在 PATH 时不再在此处打印提示 —— 本函数被 run_with_guard 对**每条命令**
-    # 调用（install=False），若在此打印会在每条命令输出里刷屏；真正找不到时下面的
-    # 下载分支会给出明确提示。
+    # PATH 上的 adb 必须先解析成绝对路径再校验：`_verify_adb("adb")` 里的
+    # `os.path.isfile("adb")` 对裸命令名恒为 False，会让本分支形同废码，
+    # 进而把「系统已装 adb」的机器误判为缺失、白解压 24MB 内置包。
+    found = shutil.which("adb")
+    if found and _verify_adb(found)[0]:
+        return "adb", "session_available"
 
-    cache = read_env()
+    cached_dir = read_env().get("adb_dir") or ""
+    if cached_dir and _verify_adb(os.path.join(cached_dir, "adb"))[0]:
+        return _reuse(os.path.join(cached_dir, "adb"), "session_available")
 
-    # ── ② 用户级工具链缓存中的持久化路径 ──
-    if cache.get("adb_dir") and os.path.isdir(cache["adb_dir"]):
-        adb_path = os.path.join(cache["adb_dir"], "adb")
-        ok, _ = _verify_adb(adb_path)
-        if ok:
-            _prepend_path(cache["adb_dir"])
-            return adb_path, "session_available"
+    managed = _imeituan_managed_adb()
+    if managed and _verify_adb(managed)[0]:
+        # `_reuse` 会把所在目录 prepend 进 PATH，本进程内即刻可用，无需再区分
+        # 「PATH 未加载」这种中间态（历史上那套判断在 prepend 之后恒为假）
+        return _reuse(managed, "session_available")
 
-    # ── ③ imeituan device environment status 查询受管路径 ──
-    imeituan_adb = _imeituan_managed_adb()
-    if imeituan_adb:
-        adb_dir = os.path.dirname(imeituan_adb)
-        ok, _ = _verify_adb(imeituan_adb)
-        if ok:
-            _prepend_path(adb_dir)
-            update_env({"adb_dir": adb_dir})
-            status = "session_available" if _is_path_in_current_session() else "path_not_loaded"
-            if status == "path_not_loaded":
-                sys.stderr.write(
-                    f"[device:adb] ADB 已由 imeituan 管理 ({imeituan_adb})，"
-                    f"但当前非交互会话未加载 PATH，已使用绝对路径继续\n"
-                )
-            return imeituan_adb, status
-
-    # ── ④ 固定目录 ──
-    _candidate_dirs = [
-        _IMEITUAN_BIN_DIR,
-        # 自下载持久化副本：即使工具链缓存缺失也能直接命中，避免重复下载。
-        os.path.join(_ADB_PERSISTENT_BASE, "platform-tools"),
-        "/tmp/platform-tools",
-        "/tmp/adb-tools/platform-tools",
-        "/usr/local/lib/android/platform-tools",
-        os.path.expanduser("~/.local/lib/android/platform-tools"),
-        os.path.expanduser("~/platform-tools"),
-        "/opt/homebrew/lib/android/platform-tools",
-    ]
-
-    for d in _candidate_dirs:
-        if not os.path.isdir(d):
-            continue
-        adb_path = os.path.join(d, "adb")
-        ok, _ = _verify_adb(adb_path)
-        if ok:
-            _prepend_path(d)
-            update_env({"adb_dir": d})
-            status = "session_available" if _is_path_in_current_session() else "path_not_loaded"
-            return adb_path, status
+    meta = bundle.installed()
+    if meta and _verify_adb(meta["bin"])[0]:
+        return _reuse(meta["bin"], "installed")
 
     if not install:
         return None, None
 
-    # ── ⑤ adbutils 内置 ADB（仅 Linux 沙箱有效） ──
-    if sys.platform == "linux":
-        adbutils_adb, newly_installed = _get_adbutils_adb()
-        if adbutils_adb:
-            adb_dir = os.path.dirname(adbutils_adb)
-            ok, checks = _verify_adb(adbutils_adb)
-            if ok:
-                _prepend_path(adb_dir)
-                update_env({"adb_dir": adb_dir})
-                tag = "（来自 adbutils 包，本次新安装）" if newly_installed else "（来自 adbutils 包）"
-                sys.stderr.write(f"[device:adb] adb 已就绪: {adbutils_adb}{tag}\n")
-                return adbutils_adb, "temp_available"
-        sys.stderr.write("[device:adb] Linux 沙箱未能通过 adbutils 获取 adb，请检查 PyPI 镜像配置\n")
+    log = lambda m: sys.stderr.write(f"[device:adb] {m}\n")  # noqa: E731
+    try:
+        res = bundle.install(log=log)
+        if res["ok"] and not _verify_adb(res["bin"])[0]:
+            # 已装副本损坏（解压中断 / 被外部改动）：强制重解一次内置包
+            sys.stderr.write("[device:adb] 已安装副本不可用，重新解压内置包\n")
+            res = bundle.install(force=True, log=log)
+    except Exception as e:  # noqa: BLE001 —— 坏包/超时统一降级为「adb 不可用」
+        sys.stderr.write(f"[device:adb] 解压内置包异常：{type(e).__name__}: {e}\n")
+        return None, None
+    if not res["ok"]:
+        sys.stderr.write(f"[device:adb] 内置离线包不可用（{res['action']}）：{res['error']}\n")
         return None, None
 
-    # ── ⑥ 非 Linux 环境：自下载到持久化目录 ──
-    sys.stderr.write("[device:adb] 未找到可用 adb，自动下载 platform-tools...\n")
-    try:
-        adb_path = _download_platform_tools(_ADB_PERSISTENT_BASE)
-        adb_dir = os.path.join(_ADB_PERSISTENT_BASE, "platform-tools")
-        _prepend_path(adb_dir)
-        update_env({"adb_dir": adb_dir})
-        # 三重验证
-        ok, checks = _verify_adb(adb_path)
-        if not ok:
-            sys.stderr.write(f"[device:adb] 下载后验证失败: {checks}\n")
-            return None, None
-        sys.stderr.write(f"[device:adb] adb 已就绪: {adb_path}（持久化目录，非受管环境）\n")
-        return adb_path, "temp_available"
-    except Exception as e:
-        sys.stderr.write(f"[device:adb] adb 下载失败: {e}\n")
-        return None, None
+    action = "复用已有副本" if res["action"] == "already-installed" else "本次解压"
+    sys.stderr.write(f"[device:adb] adb 已就绪: {res['bin']}"
+                     f"（内置包 {res['version']}，{action}）\n")
+    return _reuse(res["bin"], "installed")
 
 
 def list_devices(adb_bin="adb"):

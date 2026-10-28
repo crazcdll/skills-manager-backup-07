@@ -398,9 +398,7 @@ class WebViewProbe(RendererProbe):
 
         自动处理云模拟器场景：如果 host adb 尚未连接设备，先 adb connect 再重试。
         """
-        adb_bin = ensure_adb(install=False)
-        if isinstance(adb_bin, tuple):
-            adb_bin = adb_bin[0]
+        adb_bin, _ = ensure_adb(install=False)
         if not adb_bin:
             return None
 

@@ -3,7 +3,7 @@
 """控制台服务进程：HTTP + SSE + MJPEG（Python 标准库，无第三方依赖）。
 
 鉴权模型（简单）：
-  · 一个**全局 token**（持久化于 `.console/token`，重启不变）；
+  · 一个**全局 token**（持久化于机器级 console 目录，重启不变）；
   · 页面打开时由服务端**注入**该 token（`__CONSOLE_TOKEN__` 占位符），
     因此浏览器直接访问 `http://127.0.0.1:<port>/` 即可用，URL 无需带 token；
   · 其余接口（/api/*、/events、/device/*/mjpeg）统一校验该全局 token。
@@ -13,7 +13,7 @@
 后台线程：
   · discovery ：周期扫描 run / device 快照（同时维护 run→device 索引）
   · tailer    ：增量 tail run-events.jsonl / steps.jsonl / 各 workspace 的 console-ingest.jsonl 并广播
-  · heartbeat ：周期重写服务名片与 token 文件（误删 .console 可自愈）
+  · heartbeat ：周期重写服务名片与 token 文件（误删可自愈，只写机器级目录）
 """
 import argparse
 import json
@@ -37,7 +37,7 @@ from console.store import HUB  # noqa: E402
 from console.tailer import Tailer  # noqa: E402
 from shared.json_utils import write_json_atomic  # noqa: E402
 from shared.paths import (  # noqa: E402
-    console_server_json, console_singleton_lock_path, console_token_path,
+    console_dir, console_server_json, console_singleton_lock_path, console_token_path,
     iter_console_ingest_paths,
 )
 
@@ -55,16 +55,36 @@ _RAW_MAX_LINE_CHARS = 600
 # ═══════════════════════════════════════════════════════════════════
 
 def _discovery_loop():
-    """周期刷新 run / device / session 快照与「会话(task)→设备」索引。"""
+    """周期刷新快照与「会话(task)→设备」索引。
+
+    两类数据的成本差一个数量级，所以拆成两个节奏：
+      · run / session —— 纯本地文件，`DISCOVERY_INTERVAL_SEC`（2s）；
+      · 设备池 —— 每轮要打 2 次 `/device/list`（HTTP + 两次 DB 聚合 + 可能的过期回收），
+        按 `DEVICE_DISCOVERY_INTERVAL_SEC`（10s）刷新。面板最多晚 10s 看到别人领机。
+
+    设备刷新失败（服务端抖动）时**保留上一轮快照**：设备面板不该因为一次网络超时闪空。
+    """
+    devices = []
+    devices_ready_at = 0.0
     while True:
         try:
-            runs, devices, sessions = discovery.discover()
-            for d in devices:
-                # scrcpy 认的 udid 未必等于 device_serial（那是设备内部网卡地址）→ 查一次真实值
-                d["scrcpy_udid"] = resolve_udid(d.get("scrcpy_url", ""), d.get("adb_address", ""))
+            runs = discovery.discover_runs()
+            sessions = discovery.discover_sessions(runs)
+            now = time.time()
+            if now >= devices_ready_at:
+                try:
+                    fresh = discovery.discover_devices(runs)
+                    for d in fresh:
+                        # scrcpy 认的 udid 未必等于 device_serial（那是设备内部网卡地址）→ 查一次真实值
+                        d["scrcpy_udid"] = resolve_udid(
+                            d.get("scrcpy_url", ""), d.get("adb_address", ""))
+                    devices = fresh
+                except Exception as e:  # noqa: BLE001 —— 后端抖动：沿用旧快照
+                    sys.stderr.write(f"[console] 设备快照刷新失败（沿用上一轮）: {e}\n")
+                devices_ready_at = now + config.DEVICE_DISCOVERY_INTERVAL_SEC
             HUB.set_snapshot(runs, devices, sessions)
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as e:  # noqa: BLE001
+            sys.stderr.write(f"[console] 快照刷新失败: {e}\n")
         time.sleep(config.DISCOVERY_INTERVAL_SEC)
 
 
@@ -130,8 +150,12 @@ def _tail_loop():
 
 
 def _heartbeat_loop(info):
-    """周期重写服务名片与 token 文件：即使 `.console/` 被误删（或技能更新清空），
-    也能自动重建，避免发现失效 / 令牌漂移 / 孤儿进程。"""
+    """周期重写服务名片与 token 文件（写到**机器级** console 目录，误删可自愈）。
+
+    ⚠️ home 固定为 `~/.local/share/ai-ui-autotest-engine/console/`，**不再**写回
+    Skill 目录：否则 Skill 每多一份副本（.catpaw / .claude / 各项目）就会多出一个
+    `.console`，而且删掉后 15s 就被本心跳重建，表现为「删不掉的幽灵目录」。
+    """
     while True:
         time.sleep(config.SERVER_HEARTBEAT_SEC)
         try:
@@ -226,8 +250,11 @@ class Handler(BaseHTTPRequestHandler):
         path, q = parsed.path, self._query()
 
         if path == "/healthz":
+            # 暴露 home：调用方据此识别“不是本机实例”（home 缺失/不匹配）并回收，
+            # 避免多个副本各自拉起常驻服务、或旧实例继续写自己的状态目录
             return self._json({"ok": True, "service": "catpaw-console",
-                               "version": config.CONSOLE_VERSION, "pid": os.getpid()})
+                               "version": config.CONSOLE_VERSION, "pid": os.getpid(),
+                               "home": console_dir()})
         if path in _STATIC:
             return self._static(*_STATIC[path])
         # 字体（@font-face 引用，CSS 请求不携带 token → 免鉴权）
@@ -476,6 +503,7 @@ def main():
         "port": port,
         "url": url,
         "token": TOKEN,
+        "home": console_dir(),
         "started_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
     }
     write_json_atomic(console_server_json(), info)

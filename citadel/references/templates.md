@@ -57,6 +57,8 @@ createDocument --title <标题> --templateId <id>
 
 ## 复制文档创建（适合学城 2.0 文档）
 
+原生 MD 文档同样复用 `createDocument --copyFrom`，按 [MD 整篇复制说明](markdown-documents.md#复制整篇文档) 执行。MD 复制继承来源类型，不属于模板功能；MD 仍不支持 `--templateId`。
+
 当用户说"先复制模板再填充内容""按模板生成"等，并且模板给的是 `km.sankuai.com/collabpage/<id>` / `km.sankuai.com/page/<id>` 链接（尤其学城文档 2.0）时，默认使用复制命令，不要先读取模板内容再重建：
 
 ```bash

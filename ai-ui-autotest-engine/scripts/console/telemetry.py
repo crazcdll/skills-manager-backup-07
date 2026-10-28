@@ -6,7 +6,7 @@
   · 服务未启动 → `maybe_install_tee()` 直接返回，**零开销、不包裹任何流**；
   · 服务在线 → 原 stdout/stderr **原样透传**（AI 照旧解析 JSON），仅把文本
     非阻塞地放入内存队列；由后台守护线程批量追加到**本 workspace** 的
-    `console-ingest.jsonl`（随 post-clean 回收，不进常驻 .console/）。
+    `console-ingest.jsonl`（随 post-clean 回收，不进常驻的 `$STATE/console/`）。
     **不做任何网络调用**（服务端 tail 该文件即可），也不阻塞主线程。
   · 进程退出（含短命令）→ atexit 兜底 flush，保证日志不丢。
 """
@@ -18,6 +18,7 @@ import sys
 import threading
 import time
 
+from shared.output_guard import redact_text, secrets_from
 from shared.paths import console_ingest_path
 
 _ENABLED = None
@@ -25,6 +26,7 @@ _INSTALLED = False
 _QUEUE = queue.Queue(maxsize=4000)
 _CTX = {"task": "", "run": "", "cmd": ""}
 _WORKER = None
+_SECRETS = ()
 
 
 def _console_alive():
@@ -90,7 +92,7 @@ def _enqueue(stream_name, text):
             _QUEUE.put_nowait({
                 "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
                 "task": ctx["task"], "run": ctx["run"], "cmd": ctx["cmd"],
-                "stream": stream_name, "line": line,
+                "stream": stream_name, "line": redact_text(line, _SECRETS),
             })
         except queue.Full:
             return
@@ -156,9 +158,14 @@ def maybe_install_tee(task="", run="", cmd=""):
     无 task（ws-init / console 等 workspace 之外的命令）→ 不装 tee：遥测必须落到
     某个 workspace，不存在「无归属」的共享遥测。
     """
-    global _INSTALLED
+    global _INSTALLED, _SECRETS
     if _INSTALLED or not task or not enabled():
         return False
+    try:
+        from shared.intake import read_intake
+        _SECRETS = tuple(secrets_from(read_intake()))
+    except Exception:
+        _SECRETS = ()
     set_context(task, run, cmd)
     _ensure_worker()
     sys.stdout = _Tee(sys.stdout, "stdout")

@@ -4,7 +4,7 @@ score_commit.py — AI-Ready 仓库 commit 程序化评分 CLI
 
 工作流：
   1) 浅克隆 (repo, commit) 到本地缓存目录
-  2) 识别是否为 mono-repo；单仓评分根目录，mono-repo 评分每个清单成员
+  2) 识别是否为 mono-repo；单仓评分根目录，mono-repo 评分每个权威清单成员
   3) 为每个评分单元写 prompt，并调用 `mc --code -p --output-format json`
   4) 校验成员结果；mono-repo 对全部成员综合分取等权平均值
 
@@ -299,7 +299,7 @@ def build_prompt(
     if mono_member:
         scope_block = (
             "## 评分范围\n\n"
-            "当前目录是父 mono-repo 的一个构建清单一级成员。只把当前成员作为单仓执行 "
+            "当前目录是父 mono-repo 的一个权威清单成员。只把当前成员作为单仓执行 "
             "11 维评分，不再递归识别其内部 workspace；可以沿父仓导航读取共享治理文档。\n"
             f"父仓根目录：{repository_root}\n"
         )

@@ -22,8 +22,12 @@ const MAX_EVENTS = 6000;    // 内存事件上限
 const RENDER_LIMIT = 700;   // 一次渲染的行数上限
 const STREAM_KEEP = 900;    // DOM 行数上限
 
-const STATUS_LABEL = { active: 'LIVE', idle: 'IDLE', stale: 'STALE' };
-const STATUS_ORDER = ['active', 'idle', 'stale'];
+// active/stale 是「本轮运行态」（由 workspace 心跳推导）；其余是服务端池状态（device.state）。
+const STATUS_LABEL = {
+  active: 'LIVE', idle: 'IDLE', stale: 'STALE',
+  draining: 'DRAIN', quarantined: 'QUAR', broken: 'BROKEN',
+};
+const STATUS_ORDER = ['active', 'idle', 'draining', 'quarantined', 'broken', 'stale'];
 const PLATFORM_LABEL = { android: 'Android', harmony: 'Harmony', ios: 'iOS' };
 const ACCESS_LABEL = { sandbox: '云模拟器', cloud_device: '云真机', local: '本地真机' };
 const LOG_MODES = [

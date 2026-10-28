@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""设备池命令入口：create / query / release / pool-gc。
+"""设备池命令入口：create / query / release。
 
 池化命令（依赖设备池）居于 `resources` 层；设备级命令（setup / register /
 check-version）留在 `devices` 层，由 `cli.py` 按子命令路由——依赖方向
@@ -12,14 +12,15 @@ check-version）留在 `devices` 层，由 `cli.py` 按子命令路由——依�
 import json
 import os
 import sys
+import time
 
-from platform.sandbox_api import SandboxApiError, api_post
 from shared.context import create_device_lifecycle
 from shared.errors import DeviceError, soft_fail
 from shared.workspace import render_cmd
 from shared.case_utils import resolve_mis
-from shared.paths import get_active_task, require_active_task
+from shared.paths import require_active_task
 from devices.device_commands import (
+    _clear_lease_meta,
     _emit,
     _emit_err,
     _emit_guidance,
@@ -28,16 +29,31 @@ from devices.device_commands import (
     _write_sandbox_state,
 )
 
-from resources.device_pool.device_lease import DeviceLeaseManager, lease_owner
-from resources.device_pool.lease_store import LocalFileLeaseStore
+from resources.device_pool.device_lease import (
+    PROVIDER_CONAN, PROVIDER_SANDBOX, REUSE_QUARANTINE_TTL, DevicePool, lease_owner,
+)
+from resources.device_pool.pool_api import DevicePoolError
 
 # cli.py 依此路由"池化命令 → resources；其余 → devices"（单一事实来源）
-POOLED_SUBCMDS = ("create", "query", "release", "pool-gc")
+POOLED_SUBCMDS = ("create", "query", "release")
+
+# 只有这两类设备进池。本地真机 / 本地模拟器不跨机共享、无需排队，不参与租约。
+_PROVIDER_BY_DEVICE_TYPE = {
+    "sandbox": PROVIDER_SANDBOX,
+    "cloud-emulator": PROVIDER_CONAN,
+}
 
 
-def _manager(lifecycle=None, device_type="sandbox") -> DeviceLeaseManager:
-    """构造绑定本地租约后端的设备池管理器（租约登记 device_type，便于观测/筛选）。"""
-    return DeviceLeaseManager(lifecycle, store=LocalFileLeaseStore(), device_type=device_type)
+def _provider_of(device_type: str) -> str:
+    provider = _PROVIDER_BY_DEVICE_TYPE.get(device_type)
+    if not provider:
+        _emit_err(f"设备类型 {device_type} 不进设备池（仅 sandbox / cloud-emulator）")
+    return provider
+
+
+def _pool(device_type: str, platform: str) -> DevicePool:
+    """按 device_type 构造服务端设备池客户端。"""
+    return DevicePool(provider=_provider_of(device_type), platform=platform)
 
 
 def _require_platform(meta: dict) -> str:
@@ -52,54 +68,18 @@ def _require_platform(meta: dict) -> str:
     return platform
 
 
-def _record_device_occupy(device_id, user_mis, *, device_type, platform, app,
-                          platform_state, connect_address, view_url, owner, action):
-    """best-effort 登记一次设备占用（写平台设备登记表 device_registry）。
-
-    通用登记（不限于 sandbox）：device_type × platform 区分设备类型；
-    仅为管理侧记录「谁在何时占用了哪台设备」，**绝不阻塞占用主流程**：
-    任何异常（网络/接口不存在/返回码非 0）都只记 soft_fail，不向上抛。
-    """
-    try:
-        if not device_id or not user_mis:
-            return
-        api_post("/node/api/data/monitor/device/occupy", {
-            "device_id": device_id,
-            "owner_mis": user_mis,
-            "device_type": device_type,
-            "platform": platform,
-            "app": app,
-            "platform_state": platform_state,
-            "connect_address": connect_address,
-            "view_url": view_url,
-            "owner_run": owner,
-            "owner_task": get_active_task(),
-            "action": action,
-        }, timeout=8)
-    except Exception as e:  # noqa: BLE001 —— 记录失败不影响占用
-        soft_fail("infra", "DEVICE_OCCUPY_RECORD_FAILED", e)
-        sys.stderr.write(f"[device] 占用登记失败（已忽略，不影响占用）: {e}\n")
-
-
-def _record_device_release(device_id, owner):
-    """best-effort 登记一次设备归还（写平台设备登记表 device_registry）。
-
-    与 `_record_device_occupy` 对称：只把设备行的 `last_action` 置 `release`、
-    刷新 `last_released_at`，**不销毁实例**。设备管理页据此把该设备判为「空闲」
-    （页面按 `last_action === 'release'` 派生占用态，不新增 DB 字段）。
-
-    仅为管理侧记录，**绝不阻塞收尾流程**：任何异常都只记 soft_fail，不向上抛。
-    """
-    try:
-        if not device_id:
-            return
-        api_post("/node/api/data/monitor/device/release", {
-            "device_id": device_id,
-            "owner_run": owner,
-        }, timeout=8)
-    except Exception as e:  # noqa: BLE001 —— 记录失败不影响收尾
-        soft_fail("infra", "DEVICE_RELEASE_RECORD_FAILED", e)
-        sys.stderr.write(f"[device] 归还登记失败（已忽略，不影响收尾）: {e}\n")
+def _row_view(row: dict) -> dict:
+    """把服务端行映射成旧的 status 视图（保持 `device query` 输出兼容）。"""
+    return {
+        "sandboxId": row.get("device_id"),
+        "serial": row.get("device_id"),
+        "remoteAddress": row.get("connect_address") or "",
+        "state": row.get("state"),
+        "status": row.get("state"),
+        "owner": row.get("lease_owner") or "",
+        "leaseExpiresAt": row.get("lease_expires_at"),
+        "useCount": row.get("use_count", 0),
+    }
 
 
 # ─── create ─────────────────────────────────────────────────────
@@ -153,6 +133,84 @@ def _create_local_emulator(args, meta):
     })
 
 
+# 池满后的有界等待：并发滑动窗口下，别的分片释放（含 120s 复用冷却）后本分片
+# 仍有机会拿到设备，而不是直接判死。0 = 不等待（旧行为）。
+CLAIM_WAIT_SECONDS = int(os.environ.get("AI_UITEST_CLAIM_WAIT_SECONDS", "120"))
+CLAIM_POLL_SECONDS = int(os.environ.get("AI_UITEST_CLAIM_POLL_SECONDS", "15"))
+
+
+def _claim_with_wait(pool, owner):
+    """领取 sandbox；仅对 NO_CAPACITY 做有界轮询等待，其余错误立即抛出。
+
+    为什么不无限等：池子可能被别的团队 / 别的机器占满，无限等会让分片卡死；
+    为什么不再立即失败：CLI 是滑动窗口（完成一个补一个），刚释放的设备过 120s
+    冷却就能再分，直接判死会造成“明明有 50 台却跑不满并发”。
+    """
+    deadline = time.time() + max(0, CLAIM_WAIT_SECONDS)
+    while True:
+        try:
+            return pool.claim(owner)
+        except DevicePoolError as e:
+            if e.code != "NO_CAPACITY" or time.time() >= deadline:
+                raise
+            wait = max(1, min(CLAIM_POLL_SECONDS, int(deadline - time.time())))
+            sys.stderr.write(
+                f"[device:create] 暂无空闲设备，{wait}s 后重试"
+                f"（最多等 {CLAIM_WAIT_SECONDS}s，可调 AI_UITEST_CLAIM_WAIT_SECONDS）\n")
+            sys.stderr.flush()
+            time.sleep(wait)
+
+
+def _release_previous_lease(meta, owner: str) -> None:
+    """换机前先归还本 run 对旧设备的租约。
+
+    重领/换设备时若直接 claim，会同时持有「旧设备 + 新设备」两条租约（同一个 owner），
+    旧设备因此被白白占用到本轮收尾。这里在领取前先还旧的；服务端只接受 owner 本人
+    的 release，所以不会误伤其他 workspace。
+    """
+    prev = str((meta or {}).get("sandbox_id") or "").strip()
+    prev_type = str((meta or {}).get("device_type") or "sandbox")
+    if not prev or prev_type not in _PROVIDER_BY_DEVICE_TYPE:
+        return
+    try:
+        pool = _pool(prev_type, _require_platform(meta))
+        pool.release(prev, owner, fence=meta.get("lease_fence"))
+        sys.stderr.write(f"[device:create] 已归还旧设备租约: {prev[:8]}\n")
+    except DevicePoolError as e:
+        sys.stderr.write(f"[device:create] 旧设备租约已失效（{e.code}），继续领取: {e}\n")
+
+
+def quarantine_current_device(args, reason: str, ttl: int = None) -> bool:
+    """把 flow-context 当前 sandbox 置为复用隔离（setup 自动换机路径的唯一入口）。
+
+    只对 cloud sandbox 生效；本地真机/模拟器不参与设备池。
+    """
+    try:
+        meta = _resolve_flow_context(args)
+    except Exception as e:  # noqa: BLE001 —— 隔离失败不能反向阻断主流程
+        sys.stderr.write(f"[device] 读取 flow-context 失败，跳过设备隔离: {e}\n")
+        return False
+    device_id = str(meta.get("sandbox_id") or "").strip()
+    device_type = str(meta.get("device_type") or "sandbox")
+    if not device_id or device_type not in _PROVIDER_BY_DEVICE_TYPE:
+        return False
+    entry_ttl = REUSE_QUARANTINE_TTL if ttl is None else int(ttl)
+    try:
+        pool = _pool(device_type, _require_platform(meta))
+        # quarantined 会自动摘掉租约（服务端把 conan 的占用留给 pending sweeper 补还）。
+        pool.report(device_id, "quarantined", error=reason,
+                    quarantine_seconds=entry_ttl)
+    except DevicePoolError as e:
+        sys.stderr.write(f"[device] 设备隔离失败（{e.code}，不影响主流程）: {e}\n")
+        return False
+    # 服务端已把 fence +1 并摘掉租约：本地旧的 fence 立刻作废，必须同步清掉，
+    # 否则后续心跳会一直拿旧 fence 续租（LEASE_LOST 噪音/围栏误失败）。
+    _clear_lease_meta(args.state_file)
+    sys.stderr.write(
+        f"[device] 已将 {device_id[:8]} 置为复用隔离（{entry_ttl}s，{reason}）\n")
+    return True
+
+
 def _create_cloud_emulator(args, meta):
     """Conan 云模拟器：从设备池领取（复用已占用的空闲 Conan 设备 / 占用新建）并登记 owner 租约。
 
@@ -167,87 +225,112 @@ def _create_cloud_emulator(args, meta):
     if not owner:
         _emit_err(f"未设置 active_run，请先执行 {render_cmd('flow-init')}")
 
-    manager = _manager(create_device_lifecycle("cloud-emulator", platform=platform),
-                       device_type="cloud-emulator")
+    lifecycle = create_device_lifecycle("cloud-emulator", platform=platform)
+    pool = _pool("cloud-emulator", platform)
+    # 上一轮崩溃留下的 pending 归还先补掉，避免 Conan 配额慢性泄漏。
+    pool.sweep_pending(owner)
+    _release_previous_lease(meta, owner)
+
     try:
-        info = manager.acquire(resolve_mis(), owner=owner, task=get_active_task())
+        info = lifecycle.acquire(resolve_mis())
     except ConanApiError as e:
         _emit_err(f"占用云模拟器失败: {e}", event="device_create_failed",
                   code="DEVICE_CREATE_FAILED", raw=getattr(e, "raw", "") or str(e))
 
     serial = info.get("sandboxId") or info.get("serial")
     remote = info.get("remoteAddress", "")
-    reused = bool(info.get("reused"))
     sys.stderr.write(
-        f"[device:create] Conan 云模拟器{'（复用池中空闲）' if reused else '已占用'}: "
-        f"serial={serial} remote={remote}（occupationId={info.get('occupationId')}）\n"
+        f"[device:create] Conan 云模拟器已占用: serial={serial} remote={remote}"
+        f"（occupationId={info.get('occupationId')}）\n"
     )
-    # 占用登记（best-effort）：记录到 device_registry（device_type=cloud-emulator），
-    # 沉淀为后续「鸿蒙候选」来源。仅为记录，不维护占用状态，失败不影响占用。
-    _record_device_occupy(
-        # 占用人 = 实际占用者 mis（云模拟器的“共享池”语义由 device_type=cloud-emulator 表达）
-        serial, resolve_mis(),
-        device_type="cloud-emulator", platform=platform, app=meta.get("app", "meituan"),
-        platform_state="running",
-        connect_address=remote,
-        view_url="",
-        owner=owner, action="reuse" if reused else "create",
-    )
+
+    # Conan 侧的排他性由平台 occupy 保证；这里补一条服务端租约，让「谁在用」对全队可见，
+    # 同时让过期回收 / 心跳 / 围栏对两类设备统一口径。绑定失败必须回滚平台占用，
+    # 否则本 run 会白占一枚配额（发布后由 sweeper 兜，但能当场回滚就不要留给它）。
+    try:
+        lease = pool.bind(
+            owner, serial,
+            connect_address=remote,
+            provider_lease_id=info.get("occupationId"),
+            form="emulator",
+        )
+    except DevicePoolError as e:
+        from platform import conan_api
+        conan_api.release(serial)
+        _emit_err(f"绑定 Conan 设备租约失败（已回滚平台占用）: {e}",
+                  event="device_create_failed", code="DEVICE_BIND_FAILED")
+
     _write_sandbox_state({
         "sandboxId": serial, "adbAddress": serial, "user": resolve_mis(),
         "remoteAddress": remote, "scrcpyUrl": "", "device_type": "cloud-emulator",
+        "lease_fence": lease.get("fence"),
+        "lease_expires_at": lease.get("lease_expires_at"),
     }, args.state_file)
     _emit({
-        "ok": True, "reused": reused, "leaseOwner": owner,
+        "ok": True, "reused": int(lease.get("use_count") or 1) > 1, "leaseOwner": owner,
         "sandboxId": serial, "serialNumber": serial, "remoteConnectAddress": remote,
         "occupationId": info.get("occupationId"), "model": info.get("model", ""),
         "version": info.get("version", ""), "device_type": "cloud-emulator",
+        "leaseFence": lease.get("fence"),
+        "leaseExpiresAt": lease.get("lease_expires_at"),
     })
 
 
 def _create_sandbox(args, meta):
-    """云模拟器：从设备池领取（复用空闲 / 新建）并登记 owner 租约。"""
+    """云模拟器：从设备池领取空闲实例并登记 owner 租约（**不再新建实例**）。"""
     platform = _require_platform(meta)
     _ensure_toolchain(platform)
     owner = lease_owner()
     if not owner:
         _emit_err(f"未设置 active_run，请先执行 {render_cmd('flow-init')}")
 
-    manager = _manager(create_device_lifecycle("sandbox", platform=platform))
+    pool = _pool("sandbox", platform)
+    _release_previous_lease(meta, owner)
     try:
-        info = manager.acquire(resolve_mis(), owner=owner, task=get_active_task())
-    except SandboxApiError as e:
-        _emit_err(f"创建设备失败: {e}", event="device_create_failed",
+        lease = _claim_with_wait(pool, owner)
+    except DevicePoolError as e:
+        if e.code == "NO_CAPACITY":
+            summary = pool.summary()
+            waited = f"；已等待 {CLAIM_WAIT_SECONDS}s" if CLAIM_WAIT_SECONDS > 0 else ""
+            _emit_err(
+                f"设备池已满：sandbox/{platform} 没有空闲设备"
+                f"（总量 {summary.get('total', 0)}，空闲 {summary.get('idle', 0)}{waited}）。"
+                f"不要立即重试——等待他人归还，或联系设备池维护者扩容。",
+                event="device_create_failed", code="POOL_EXHAUSTED",
+                raw=getattr(e, "raw", "") or str(e))
+        _emit_err(f"领取设备失败（{e.code}）: {e}", event="device_create_failed",
                   code="DEVICE_CREATE_FAILED", raw=getattr(e, "raw", "") or str(e))
 
-    if not info or not info.get("sandboxId"):
-        raise DeviceError("创建模拟器失败")
-
-    sid = info["sandboxId"]
-    addr = info.get("serial") or info.get("adbAddress") or ""
-    reused = bool(info.get("reused"))
+    sid = lease["device_id"]
+    addr = lease.get("connect_address") or ""
+    if not addr:
+        # 库存行缺连接地址（对账没拿到详情 / 人工插行）：当场标 broken 并在服务端
+        # 摘掉租约，否则本 run 会带着空 adb 地址跑到 setup 才失败，还白占一台。
+        try:
+            pool.report(sid, "broken", error="missing_connect_address")
+        except DevicePoolError as e:
+            sys.stderr.write(f"[device] 标记异常库存失败（{e.code}）: {e}\n")
+        _emit_err(f"领取到的 sandbox {sid} 缺少 connect_address（已标记 broken）",
+                  event="device_create_failed", code="DEVICE_INVALID_INVENTORY")
+    ip, _, port = addr.partition(":")
+    reused = int(lease.get("use_count") or 1) > 1
     sys.stderr.write(
-        f"[device] {'复用池中空闲' if reused else '新建'}模拟器 ({sid} @ {addr})\n")
-
-    # 占用登记（best-effort，失败不影响占用）
-    _record_device_occupy(
-        sid, resolve_mis(),
-        device_type="sandbox", platform=platform, app=meta.get("app", "meituan"),
-        platform_state=info.get("state") or "running",
-        connect_address=addr,
-        view_url=info.get("scrcpyUrl") or "",
-        owner=owner, action="reuse" if reused else "create",
-    )
+        f"[device] 已领取 sandbox {sid} @ {addr}"
+        f"（第 {lease.get('use_count')} 次使用，租约至 {lease.get('lease_expires_at')}）\n")
 
     output = {
         "ok": True, "reused": reused, "leaseOwner": owner,
         "sandboxId": sid, "serialNumber": addr, "remoteConnectAddress": addr,
-        "ip": info.get("ip", ""), "adbPort": info.get("adbPort", 8080),
-        "scrcpyUrl": info.get("scrcpyUrl", ""), "device_type": "sandbox",
+        "ip": ip, "adbPort": int(port) if port.isdigit() else 8080,
+        "scrcpyUrl": lease.get("view_url") or "", "device_type": "sandbox",
+        "leaseFence": lease.get("fence"),
+        "leaseExpiresAt": lease.get("lease_expires_at"),
     }
     _write_sandbox_state({
         "sandboxId": sid, "adbAddress": addr, "user": resolve_mis(),
         "scrcpyUrl": output["scrcpyUrl"], "device_type": "sandbox",
+        "lease_fence": lease.get("fence"),
+        "lease_expires_at": lease.get("lease_expires_at"),
     }, args.state_file)
 
     if not reused:
@@ -287,73 +370,68 @@ def cmd_create(args):
 
 # ─── query ──────────────────────────────────────────────────────
 def cmd_query(args):
-    """查询用户名下设备，叠加占用态（in_use / idle / stale）。按 meta.device_type 取设备源。"""
+    """查询池内设备与占用态（idle / in_use / draining / quarantined / broken）。
+
+    口径：读服务端单表，**不读本地文件**——本地只记本 run 自己的租约，
+    看不到别人占了什么，用它判断"有没有空闲"必然误判。
+    """
     meta = _resolve_flow_context(args)
-    mis = resolve_mis()
-    if not mis:
-        _emit_err("无法获取 user_mis")
-
-    from platform.conan_api import ConanApiError
-    device_type = meta.get("device_type", "sandbox")
     platform = _require_platform(meta)
-    manager = _manager(create_device_lifecycle(device_type, platform=platform),
-                       device_type=device_type)
+    device_type = meta.get("device_type", "sandbox")
+    if device_type not in _PROVIDER_BY_DEVICE_TYPE:
+        _emit_err(f"{device_type} 不进设备池；本地设备请用 `device setup` 探测")
+    pool = _pool(device_type, platform)
     try:
-        instances = manager.status(mis)
-    except (SandboxApiError, ConanApiError) as e:
-        raise DeviceError(str(e)) from e
+        rows = pool.list()
+        summary = pool.summary()
+    except DevicePoolError as e:
+        raise DeviceError(f"查询设备池失败（{e.code}）: {e}") from e
 
-    print(json.dumps({"ok": True, "count": len(instances), "sandboxes": instances},
-                     ensure_ascii=False, indent=2))
+    instances = [_row_view(r) for r in rows]
+    print(json.dumps({"ok": True, "count": len(instances), "summary": summary,
+                      "sandboxes": instances}, ensure_ascii=False, indent=2))
 
 
 # ─── release ────────────────────────────────────────────────────
 def cmd_release(args):
-    """归还本 run 名下的租约（**只还租约，不销毁实例**）；云模拟器额外显式归还 Conan 占用。"""
+    """归还本 run 名下全部租约（**只还租约，不销毁实例**）。
+
+    Conan 的"还平台占用"在 `DevicePool.release_owner` 内完成（先 conan-cli release
+    成功再改服务端状态），这里不再单独处理，避免两处顺序不一致造成配额泄漏。
+    """
     owner = lease_owner()
-    released = _manager().release(owner) if owner else 0
-
-    # 云模拟器（Conan）是消耗型资源（配额有限、占用会到期）：租约之外还需归还
-    # Conan 占用，避免设备泄漏。归还走平台唯一出口 platform.conan_api（属"归还
-    # 借用的设备"而非"销毁复用型实例"，不违反 DeviceLifecycle 不提供销毁能力的约定）。
-    cloud_released = False
-    try:
-        meta = _resolve_flow_context(args)
-    except Exception as e:
-        sys.stderr.write(f"[device:release] 读取 flow-context 失败（忽略）: {e}\n")
-        meta = {}
-    # 云模拟器（sandbox）归还登记：写平台设备管理表（last_action=release /
-    # last_released_at），供设备管理页把该设备展示为「空闲」。best-effort，不阻断。
-    if meta.get("device_type") == "sandbox":
-        _record_device_release(meta.get("sandbox_id"), owner)
-
-    if meta.get("device_type") == "cloud-emulator" and meta.get("device_serial"):
-        # 归还登记（best-effort）：只把 device_registry 行的 last_action 置 release。
-        _record_device_release(meta.get("device_serial"), owner)
-        from platform import conan_api
+    released = 0
+    if owner:
         try:
-            cloud_released = conan_api.release(meta["device_serial"])
-        except Exception as e:
-            sys.stderr.write(f"[device:release] 归还 Conan 占用失败（忽略，不阻断收尾）: {e}\n")
+            meta = _resolve_flow_context(args)
+        except Exception as e:  # noqa: BLE001 —— 收尾不能因读上下文失败而中断
+            sys.stderr.write(f"[device:release] 读取 flow-context 失败（按默认处理）: {e}\n")
+            meta = {}
+        device_type = meta.get("device_type", "sandbox")
+        if device_type in _PROVIDER_BY_DEVICE_TYPE:
+            # 收尾不因缺 platform 而失败：platform 只用于筛选，缺了也能按 owner 归还。
+            platform = str(meta.get("platform") or "").strip() or None
+            try:
+                released = _pool(device_type, platform).release_owner(owner)
+            except DevicePoolError as e:
+                sys.stderr.write(f"[device:release] 归还租约失败（{e.code}）: {e}\n")
+            # 服务端 fence 已前进、租约已作废：本地同步清掉，避免心跳继续拿旧 fence 续租。
+            _clear_lease_meta(args.state_file)
+        else:
+            sys.stderr.write(
+                f"[device:release] {device_type} 不进设备池，无需归还租约\n")
 
-    _emit({"ok": True, "owner": owner, "released": released, "cloudReleased": cloud_released})
-
-
-# ─── pool-gc ────────────────────────────────────────────────────
-def cmd_pool_gc(args):
-    """池维护：清理失效租约条目（**不销毁任何实例**）。"""
-    _emit({"ok": True, **_manager().gc()})
+    _emit({"ok": True, "owner": owner, "released": released})
 
 
 # ─── 分发 ───────────────────────────────────────────────────────
 def cmd_device(args):
-    """resources 层设备池命令分发（create / query / release / pool-gc）。"""
+    """resources 层设备池命令分发（create / query / release）。"""
     subcmd = args.device_subcmd
     args.command = subcmd
     handlers = {
         "create": cmd_create,
         "query": cmd_query,
         "release": cmd_release,
-        "pool-gc": cmd_pool_gc,
     }
     handlers[subcmd](args)

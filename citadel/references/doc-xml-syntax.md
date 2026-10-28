@@ -575,6 +575,8 @@ A -> B : 消息
 
 ### 支持的 Mark 类型
 
+下表适用于普通正文。注释区域 `<km-footnote-item>`（`footnote_list_item`）只允许 `quote` mark，也可不带 mark；禁止使用表中其他 marks。保留划词评论引用时使用 `<km-quote quoteId="原quoteId">文字</km-quote>`；已有 `quoteId` 必须原样保留，并满足原有 quote 属性校验。
+
 | mark 类型 | 说明 | 必填 attrs |
 | --- | --- | --- |
 | `strong` | 加粗 | 无 |
@@ -624,7 +626,7 @@ A -> B : 消息
 | `collapse` | 必须包含 `collapse_title` 和 `collapse_content` |
 | `note` | 必须包含 `note_title` 和 `note_content` |
 | `footnote_list` | 只能是 `footnote_list_item` |
-| `footnote_list_item` | 只能包含 `<p>`（至少一个，可以有多个）；每个 `<p>` 内**禁止插入图片**，其他 inline 节点不限 |
+| `footnote_list_item` | 只能包含 `<p>`（至少一个，可以有多个，不能为空）；每个 `<p>` 内**禁止插入图片**，其他合法 inline 节点仍可使用；注释区域只允许 `quote` mark（也可不带 mark），**禁止其他 marks**；已有 `footnoteNodeId` / `nodeId` 必须原样保留 |
 
 ### text 节点规则
 
@@ -633,7 +635,7 @@ A -> B : 消息
 
 ## 注意事项
 
-1. **仅支持 2.0 文档**：`getDocumentXml` / `updateDocumentByXml` 不支持学城 1.0 旧版文档（HTML 存储）；若文档是 1.0 格式，请改用 `getDocumentCitadelMd` / `updateDocumentByMd`
+1. **仅支持 2.0 文档**：`getDocumentXml` / `updateDocumentByXml` 不支持学城 1.0 旧版文档（HTML 存储）；1.0 文档仅支持通过 `getSimpleMarkdown` 读取，本 skill 不支持创建或编辑 1.0 文档
 2. **nodeId 保留规则**：已有节点的 `nodeId` 必须保留；新增节点省略 `nodeId` 即可（系统自动分配）
 3. **不要修改结构属性**：除非用户明确要求，禁止修改表格的 `colspan` / `rowspan` / `colwidth` / `numCell` 等布局属性；编辑已有单元格时必须保留原有 `numCell` 值
 4. **表格行列号保护规则**：编辑带行号/列号的表格时——(1) **识别行号列**：第一列 `<td>` 全部带 `numCell="true"` 且内容为空 → 这是自动行号列；(2) **新增行**：继承行号列的 `numCell="true"` + `colwidth`；(3) **新增列**：每一行（含表头和数据行）都要加对应的 `<th>`/`<td>`；(4) **删除行**：行号会自动重排，无需手动调整；(5) **`numCell="true"` 只允许在第一列**，禁止在其他列使用

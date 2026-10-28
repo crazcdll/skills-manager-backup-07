@@ -141,6 +141,72 @@
             }
           },
           "authorization_details": null
+        },
+        "resolve-unified": {
+          "id": "resolve-unified",
+          "description": "统一解析 L1 与可获取的生效 L2，支持无仓库目录",
+          "httpMethod": "POST",
+          "path": "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-distribution/v1/rule-bundles/resolve",
+          "relativePath": "/v1/rule-bundles/resolve",
+          "parameters": {
+            "X-Rule-Auth-Source": {
+              "type": "string",
+              "description": "规则分发认证来源",
+              "location": "header",
+              "required": true,
+              "enum": [
+                "mtcli-sso"
+              ]
+            },
+            "X-Rule-Protocol-Version": {
+              "type": "string",
+              "description": "规则分发协议版本",
+              "location": "header",
+              "required": true
+            },
+            "body": {
+              "type": "object",
+              "description": "规则包解析请求",
+              "location": "body",
+              "required": true,
+              "schema": {
+                "$ref": "unified_resolve_request"
+              }
+            }
+          },
+          "authType": "SSO",
+          "serverAppKey": "",
+          "clientId": "923a237244",
+          "clientIds": [
+            "923a237244"
+          ],
+          "timeout": 30000,
+          "contentType": "application/json",
+          "request": {
+            "$ref": "unified_resolve_request"
+          },
+          "response": {
+            "$ref": "unified_rule_bundle_response"
+          },
+          "serviceConfig": {
+            "prod": {
+              "address": "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-distribution",
+              "authType": "SSO",
+              "clientId": "923a237244",
+              "clientIds": [
+                "923a237244"
+              ]
+            },
+            "default": {
+              "address": "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-distribution",
+              "authType": "SSO",
+              "clientId": "923a237244",
+              "clientIds": [
+                "923a237244"
+              ]
+            }
+          },
+          "authorization_details": null
         }
       },
       "definitions": {
@@ -199,6 +265,19 @@
             },
             "execution": {
               "$ref": "pull_execution"
+            },
+            "bundle_contract": {
+              "type": "string",
+              "enum": [
+                "scope-domain-ruleset/v1"
+              ],
+              "description": "显式选择领域和规则集名称目录合同；不传保持旧调用方协议"
+            },
+            "agents_index_contract": {
+              "type": "string",
+              "enum": [
+                "rule-set-agents-index/v1"
+              ]
             }
           },
           "required": [
@@ -229,6 +308,19 @@
             },
             "known_snapshot_id": {
               "type": "string"
+            },
+            "bundle_contract": {
+              "type": "string",
+              "enum": [
+                "scope-domain-ruleset/v1"
+              ],
+              "description": "显式选择领域和规则集名称目录合同；不传保持旧调用方协议"
+            },
+            "agents_index_contract": {
+              "type": "string",
+              "enum": [
+                "rule-set-agents-index/v1"
+              ]
             }
           },
           "required": [
@@ -239,6 +331,263 @@
         "rule_bundle_response": {
           "type": "object",
           "description": "Edge 原始规则包或结构化错误响应"
+        },
+        "unified_resolve_request": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "schema_version",
+            "repository_locator",
+            "stage",
+            "scope",
+            "bundle_contract",
+            "agents_index_contract",
+            "target",
+            "execution"
+          ],
+          "properties": {
+            "schema_version": {
+              "type": "string",
+              "enum": [
+                "rule-bundle-resolve/v1"
+              ]
+            },
+            "repository_locator": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "standard_domain": {
+              "type": "string",
+              "enum": [
+                "frontend",
+                "backend"
+              ]
+            },
+            "stage": {
+              "type": "string",
+              "enum": [
+                "design",
+                "coding",
+                "cr"
+              ]
+            },
+            "scope": {
+              "type": "string",
+              "enum": [
+                "effective",
+                "l1"
+              ]
+            },
+            "bundle_contract": {
+              "type": "string",
+              "enum": [
+                "scope-domain-ruleset/v1"
+              ]
+            },
+            "agents_index_contract": {
+              "type": "string",
+              "enum": [
+                "rule-set-agents-index/v1"
+              ]
+            },
+            "known_snapshot": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "bundle_kind",
+                "snapshot_id"
+              ],
+              "properties": {
+                "bundle_kind": {
+                  "type": "string",
+                  "enum": [
+                    "effective",
+                    "l1"
+                  ]
+                },
+                "snapshot_id": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$"
+                }
+              }
+            },
+            "target": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "display_name",
+                "source"
+              ],
+              "properties": {
+                "display_name": {
+                  "type": "string",
+                  "maxLength": 4096
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "repository_locator",
+                    "local_directory"
+                  ]
+                }
+              }
+            },
+            "execution": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "pull_id",
+                "execution_agent",
+                "execution_agent_source",
+                "client_type",
+                "client_name",
+                "client_version",
+                "skill_name",
+                "skill_version"
+              ],
+              "properties": {
+                "pull_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "execution_agent": {
+                  "type": "string",
+                  "enum": [
+                    "catdesk",
+                    "catpaw",
+                    "claude",
+                    "codex",
+                    "agent_1024",
+                    "sandbox",
+                    "catx",
+                    "cli",
+                    "unknown"
+                  ]
+                },
+                "execution_agent_source": {
+                  "type": "string",
+                  "enum": [
+                    "runner_explicit_v1",
+                    "runner_heuristic_v1",
+                    "legacy_unknown_v1"
+                  ]
+                },
+                "client_type": {
+                  "type": "string",
+                  "enum": [
+                    "skill",
+                    "cli"
+                  ]
+                },
+                "client_name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "client_version": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "skill_name": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "mt-code-standards",
+                    "mt-code-standards-setup",
+                    null
+                  ]
+                },
+                "skill_version": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        "unified_rule_bundle_response": {
+          "type": "object",
+          "required": [
+            "schema_version",
+            "request_id",
+            "pull_id",
+            "bundle_kind",
+            "delivery_mode",
+            "selection_reason",
+            "standard_domain",
+            "stage",
+            "target",
+            "bundle"
+          ],
+          "properties": {
+            "schema_version": {
+              "type": "string",
+              "enum": [
+                "rule-bundle-resolution/v1"
+              ]
+            },
+            "bundle": {
+              "type": "object"
+            },
+            "bundle_kind": {
+              "type": "string",
+              "enum": [
+                "effective",
+                "l1"
+              ]
+            },
+            "delivery_mode": {
+              "type": "string",
+              "enum": [
+                "l1_only",
+                "l1_l2"
+              ]
+            },
+            "selection_reason": {
+              "type": "string",
+              "enum": [
+                "repository_identity_unavailable",
+                "repository_not_registered",
+                "l2_not_accessible",
+                "no_effective_l2",
+                "repository_effective",
+                "explicit_l1"
+              ]
+            },
+            "request_id": {
+              "type": "string"
+            },
+            "pull_id": {
+              "type": "string"
+            },
+            "standard_domain": {
+              "type": "string",
+              "enum": [
+                "frontend",
+                "backend"
+              ]
+            },
+            "stage": {
+              "type": "string",
+              "enum": [
+                "design",
+                "coding",
+                "cr"
+              ]
+            },
+            "target": {
+              "type": "object"
+            }
+          }
         }
       }
     }

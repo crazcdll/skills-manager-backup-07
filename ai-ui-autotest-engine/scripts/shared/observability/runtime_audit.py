@@ -4,6 +4,7 @@ import shutil
 import time
 
 from shared.json_utils import write_json_atomic, read_json
+from shared.output_guard import copy_for_archive, redact_tree, secrets_from
 
 def audit_dir(base_dir):
     return os.path.join(base_dir, "audit")
@@ -83,26 +84,35 @@ def verified_evidence(base_dir, evidence_type):
         and e.get("details", {}).get("evidence_status") == "verified"
     ]
 
-def _sanitize_archive(archive_dir):
-    for _root, _dirs, _files in os.walk(archive_dir):
-        for _name in _files:
-            if _name != "flow-context.json":
-                continue
-            _p = os.path.join(_root, _name)
-            try:
-                _ctx = read_json(_p, None)
-                if _ctx and isinstance(_ctx.get("env"), dict):
-                    if _ctx["env"].get("_password_raw") is not None:
-                        _ctx["env"]["_password_raw"] = "***"
-                        write_json_atomic(_p, _ctx)
-            except Exception:
-                pass
+def _archive_secrets(archive_dir):
+    """从归档副本收集已知 secret（intake 原文 + flow-context 的 _password_raw）。"""
+    secrets = set()
+    intake = read_json(os.path.join(archive_dir, "intake.json"), None)
+    if isinstance(intake, dict):
+        secrets |= secrets_from(intake)
+    for root, _dirs, files in os.walk(archive_dir):
+        if "flow-context.json" not in files:
+            continue
+        ctx = read_json(os.path.join(root, "flow-context.json"), None)
+        if isinstance(ctx, dict):
+            secrets |= secrets_from(ctx.get("env") or {})
+    return secrets
 
 def archive_run(base_dir, output_dir):
-    """归档【本 workspace】工作区：复制 `.run/tasks/<task>/` → `output/…/run/`。"""
+    """归档【本 workspace】工作区：`$STATE/run/tasks/<task>/` → `$STATE/reports/…/run/`。
+
+    两处关键改动：
+    1. **按类型拷贝**：媒体/二进制（截图、安装包）同盘硬链零成本；文本一律复制，
+       因为 workspace 级 append-only 日志（`console-ingest.jsonl`）在后续 run 中会被
+       继续追加，硬链会让归档快照随源文件漂移。
+    2. **整树脱敏**：先复制到隐藏临时目录并完成脱敏，再原子替换 `run/`——
+       崩溃不会破坏上一轮归档，读端也永远看不到半成品。
+    过程信息（inspect_tree / dumps / record_data / mock_baseline / tmp）全部保留。
+    """
     from shared.paths import task_dir
 
     archive_dir = os.path.join(output_dir, "run")
+    staging_dir = os.path.join(output_dir, ".run.tmp")
 
     # 先在原位置更新 manifest 状态并追加事件，再整目录复制
     manifest = read_json(manifest_path(base_dir), {})
@@ -111,19 +121,25 @@ def archive_run(base_dir, output_dir):
     write_json_atomic(manifest_path(base_dir), manifest)
     append_event(base_dir, "run.archived", {"archive_dir": archive_dir})
 
-    # 整目录批量复制【本 workspace】→ output/run/
     src = task_dir()
     if os.path.isdir(src):
-        shutil.copytree(src, archive_dir, dirs_exist_ok=True)
-        # 清理归档中的瞬态文件（run 指针）
-        _ptr = os.path.join(archive_dir, "active_run")
+        if os.path.isdir(staging_dir):
+            shutil.rmtree(staging_dir)
+        shutil.copytree(src, staging_dir, copy_function=copy_for_archive)
+
+        # 清理归档中的瞬态文件（run 指针 / 计时器）
+        _ptr = os.path.join(staging_dir, "active_run")
         if os.path.exists(_ptr):
             os.remove(_ptr)
-        for _root, _dirs, _files in os.walk(archive_dir):
+        for _root, _dirs, _files in os.walk(staging_dir):
             for _name in _files:
                 if _name == ".timer":
                     os.remove(os.path.join(_root, _name))
 
-    _sanitize_archive(archive_dir)
+        redact_tree(staging_dir, _archive_secrets(staging_dir))
+
+        if os.path.isdir(archive_dir):
+            shutil.rmtree(archive_dir)
+        os.replace(staging_dir, archive_dir)
 
     return archive_dir

@@ -35,15 +35,24 @@ SANDBOX_API_KEY = ''.join(_SANDBOX_API_KEY_PARTS)
 
 class SandboxApiError(InfraError):
     """Sandbox API 错误。raw 保留服务端原始返回（含内层 data 详情），避免仅丢出 msg 丢失排障上下文。"""
-    def __init__(self, message, raw=None):
+    def __init__(self, message, raw=None, code=None):
         super().__init__(message)
         self.raw = raw or message
+        # 业务错误码（服务端内层 data.code），如 NO_CAPACITY / LEASE_LOST / CONFLICT。
+        # 调用方靠它区分「不可重试的业务失败」与「传输失败」，不能只剩一句文案。
+        self.code = code
 
 def _unwrap(json_obj: dict) -> dict:
     """yooz-server 返回 { message, code, data: { code, msg, data } }，解包内层 data。"""
     inner = json_obj.get("data") or json_obj
     if inner.get("code") != 0:
-        raise SandboxApiError(inner.get("msg") or json.dumps(inner)[:300], raw=json.dumps(json_obj, ensure_ascii=False))
+        payload = inner.get("data")
+        biz_code = payload.get("code") if isinstance(payload, dict) else None
+        raise SandboxApiError(
+            inner.get("msg") or json.dumps(inner)[:300],
+            raw=json.dumps(json_obj, ensure_ascii=False),
+            code=biz_code,
+        )
     return inner.get("data")
 
 def _do_request(req: urllib.request.Request, path: str, timeout: int) -> dict:
@@ -93,9 +102,10 @@ def api_get(path: str, params: dict, timeout: int = 30) -> dict:
 def list_registry_devices(**params) -> list:
     """查询平台设备登记表 device_registry（经 yooz-server）。
 
-    用于「鸿蒙候选」等场景：按 device_type / platform 过滤出候选设备。
-    返回行列表，每行含 device_id / device_type / platform / last_action 等字段。
-    仅供复用判定/展示，不代表占用状态（占用以 Conan `status` 为准）。
+    用于「鸿蒙候选」等场景：按 `provider` + `state`（如 conan / external）过滤。
+    单表改造后**没有 device_type 字段**：传它会被服务端忽略，等于不筛设备，
+    所以调用方必须用 provider 表达设备类别。
+    返回行列表，每行含 device_id / provider / platform / state / lease_owner 等字段。
     """
     data = api_get("/node/api/data/monitor/device/list", params) or {}
     rows = data.get("rows") if isinstance(data, dict) else None

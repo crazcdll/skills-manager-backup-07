@@ -1,84 +1,36 @@
-# mt-code-standards CLI 接入 mtcli
+# mt-code-standards 统一拉取接入 mtcli
 
-本地命令为 `mt-code-standards pull --transport mtcli`。mtcli 负责发现服务、官方 SSO 和 HTTP 调用，本 CLI 负责仓库定位、规则包校验、增量更新、用户文件保护及 `.mdp/rules/` 原子安装。直接执行 `mtcli … bundles resolve` 只返回 JSON，不会安装本地文件。
+## 当前合同与发布前置
 
-本次适配以官方 `@dp/mtcli 1.1.20` 的实际 dry-run 和执行输出为依据。公司接入入口说明见 [mtcli 文档](https://km.sankuai.com/collabpage/2754306714)。
+CLI 使用 `mt-code-standards pull --transport mtcli --domain frontend --stage coding`。
+mtcli 负责服务发现、官方 SSO 与 HTTP；客户端负责本地上下文、响应校验和原子安装。
+本轮仅交付本地定义，不代表线上已登记。服务维护人应回读实际服务元数据，再追加 [assets/mtcli-service.json](../assets/mtcli-service.json) 的统一方法，保留其他方法和实际 ID，不以历史文件中的 ID 猜测管理入口。
 
-## 1. 补充已有服务定义
-
-2026-10-07 通过 CLIHub 管理接口回读：`mt-code-standards` 的工具 ID 为 `2851`，关联服务地址记录 ID 为 `1818`，类型为 `mtcli`，生产 SSO audience 为 `923a237244`。此前材料中的 `3469` 本次未能作为工具 ID 查到，不再据此定位管理页面。`bundles resolve` 的线上展开 Schema 已确认 `execution.skill_name` 枚举仅为 `mt-code-standards`，`skill_version` 为普通 string，不限定某个发布版本。数据库的新名称合同与生产 `rule-distribution` v7 曾在此前验收中回读；本轮没有重新执行生产拉取，bootstrap 也未补做真实未登记仓库验收。更新前应重新回读 [服务发现接口](https://friday.sankuai.com/open/cli/tool/services/mt-code-standards)，保留平台上其他人新增的方法及服务元数据。
-
-将 [原生定义](../assets/mtcli-service.json) 中的 `resources.bundles` 作为登记材料，交由有权限的服务维护人在 mtcli 管理入口补充。文件采用服务发现接口的原生格式；它不是已验证的管理接口写入 payload，不自行猜测导入/更新命令。保留已有服务 ID、名称和归属，按管理入口要求填写实际 owner、服务 AppKey（若要求），不要将空 `serverAppKey` 当成已完成配置。
-
-| 方法 | HTTP 路径 | 身份与用途 |
+| 方法 | 路径 | 用途 |
 | --- | --- | --- |
-| `mt-code-standards bundles resolve` | `POST /v1/effective-rule-bundles/resolve` | 正式仓库规则包，服务端写拉取记录 |
-| `mt-code-standards bundles bootstrap` | `POST /v1/l1-rule-bundles/bootstrap` | 确认未登记的单领域仓库公开 L1，不写正式仓库拉取记录 |
+| bundles resolve-unified | POST /v1/rule-bundles/resolve | 新默认统一解析 |
+| bundles resolve | POST /v1/effective-rule-bundles/resolve | 保留旧客户端兼容 |
+| bundles bootstrap | POST /v1/l1-rule-bundles/bootstrap | 保留旧客户端兼容 |
 
-两个方法的生产服务地址均为 `https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-distribution`，`authType=SSO`，目标 `clientId/clientIds` 为 `923a237244`。这是目标服务 audience，不是用户需要填写的调用方 secret。方法参数须保留 `body`（`type=object, location=body`），否则 mtcli 不会生成 `--json` 参数。
+统一入口固定 rule-distribution 网关、生产 schema/target、SSO audience `923a237244`。
+新请求 `rule-bundle-resolve/v1` 的 repository_locator 可空，stage 必填；standard_domain 可由可读登记配置补齐，否则必须提供。
+新 execution 支持 nullable skill_name/version（两个真实 Skill 名称 mt-code-standards、mt-code-standards-setup），以及 client_type/name/version。独立 CLI 上报真实 npm 名称与版本，Skill 字段为 null；Agent 来源独立记录。
+目标信息仅为 target.display_name/source，不重复传目录字段；无仓库地址时使用来源目录绝对路径，不用于 L2 匹配。
+响应 `rule-bundle-resolution/v1` 内包复用 effective-rule-bundle/v4 或 l1-bootstrap-bundle/v3，明确 bundle_kind、delivery_mode、selection_reason 与 request_id/pull_id。
+旧 --bootstrap 参数变成统一请求 scope=l1，不切换认证。未登记、没有可获取的 L2 时正常返回 L1，SSO/停用/数据故障仍明确失败。
 
-通过 `--params` 传入固定协议头：`X-Rule-Auth-Source=mtcli-sso`、`X-Rule-Protocol-Version=1.0`。请求体使用 `--json`。不在定义中放置 Authorization、Cookie、静态 token 或手工 MIS。`contentType=application/json`；真实 mtcli dry-run 不一定回显 Content-Type，适配器允许缺省，若回显则必须匹配。`authType=SSO` 的真实 mtcli 1.1.x 请求会自动携带目标 audience 对应的短期 `923a237244_ssoid` Cookie，不能假设它会发送 `Authorization: Bearer`；该来源只用于 mtcli 的短期 SSO 票据，网关严格提取目标 Cookie 后交由生产 NoCode 用户接口校验并记录返回的真实 MIS；显式 direct/Skill 路径继续使用原有 `nocode-agent-sso`。
+## dry-run 与真实验收
 
-## 2. 确认 SSO 与拉取审计
+每次调用先验证 dry-run 的完整 URL、POST、SSO、body、协议头和空 query，再执行 resolve-unified。Schema 丢失 nullable 字段、改变请求或仍指旧路径时明确停止，不回退旧方法/direct。
+子进程固定生产环境且不继承客户端 direct/Agent 票据；不输出原始 stdout/stderr 或认证凭据。
+包目录和索引分别遵守 scope-domain-ruleset/v1 与 rule-set-agents-index/v1，完整业务规则保持原大小预算。
 
-维护人与认证/服务负责人核对 mtcli 调用方是否已获得目标 audience 的官方 SSO 授权，及票据是否按 mtcli 约定传入。仅配置 `authType=SSO` 不能证明这一点；本地合成数据测试不代表真实 SSO 已联通。
+验收包含：已登记有 L2、无 L2、未登记、无地址目录、认证无关联、缺参数、非法参数、无匹配 L1、Hash 错误、幂等重放和本地文件保护。核对统一分发事件的已认证身份、真实客户端版本与字段来源；平台 ready 不代表本地 installed。
+发布顺序为数据库前向迁移 → rule-distribution → mtcli 服务定义更新与回读 → CLI Talos/Friday 独立发布 → 实际使用者 CatX 技能包。npm 版本由 Talos 管理，不手工改号。Friday 发布使用 Node.js 24，不能用源码提交替代运行时验收。
 
-mtcli-sso 分支兼容 mtcli 的 `923a237244_ssoid` Cookie（也保留 Bearer 兼容路径），由 Edge 调用生产 NoCode 用户接口校验短期票据并解析返回的真实 MIS；Skill 的 `nocode-agent-sso` 分支继续走同一接口。Edge 只接受精确目标 Cookie 名，拒绝错误 audience、空值、重复 Cookie 以及无效 Cookie。两条路径都不以 `--mis`、Git 作者或本机账号推断身份。无需新增数据库字段；正式 resolve 请求仍携带：
+## 历史 CLIHub 登记参考（2026-10-07）
 
-此前已确认 mtcli 1.1.20 的目标 audience Cookie 传输形态，并通过本地 mock 验证 Cookie 提取、拒绝异常 Cookie 及 Bearer 兼容路径。生产数据库合同和 Edge v7 已接受 `mt-code-standards`；本轮已回读 resolve 展开 Schema，但仍需用 Talos 实际发布的 npm 版本完成一次真实规范拉取和平台审计验收。
-
-```json
-{
-  "repository_locator": "hfe/your-repository",
-  "stage": "coding",
-  "execution": {
-    "pull_id": "<本次拉取 UUID>",
-    "execution_agent": "cli",
-    "execution_agent_source": "runner_explicit_v1",
-    "skill_name": "mt-code-standards",
-    "skill_version": "<当前 CLI 包版本>"
-  }
-}
-```
-
-当前 CLI 包版本可通过 `mt-code-standards --version` 查询，CLI 默认自动填入该值，不要求用户手工传入 `--skill-version`。
-
-平台的 `effective_rule_bundle_pull_events` 记录服务端分发结果 `ready/not_modified`。通过 receipt 的 `pull_id` 回读对应记录，核对 actor MIS、仓库、快照、规则和 Release 引用、CLI 来源；本地 `installed` 不替代平台审计回读，平台 `ready` 也不证明本地安装成功。bootstrap 请求只保留既有仓库定位、领域、阶段和快照字段，不冒充正式仓库记录。
-
-## 3. 服务定义回读与真实验收
-
-登记后回读服务发现接口，确认两个方法、生产 URL、POST、SSO、audience、JSON body 和协议头。使用 `mtcli --no-cache … --dry-run` 核对新定义；此步骤不调用业务接口。随后使用实际有权访问的仓库：
-
-```shell
-npm install -g @dp/mtcli@1.1.20 --registry=http://r.npm.sankuai.com
-mtcli auth sso login
-mtcli auth sso whoami
-mt-code-standards pull --repository '<namespace/repository>' \
-  --stage coding --transport mtcli --output-dir '<验收目录>' --json
-```
-
-先在当前构建的本地 tarball 安装版本上验收，再开放给团队：
-
-1. 在没有 `.git` 的目录按仓库名称拉取，确认 `.mdp/rules/`、manifest、逐文件 Hash 和 receipt 一致；指定输出目录时结果写入该目录。
-2. 再次拉取收到 `not_modified`，仍有新的 `pull_id` 审计；同一个幂等 ID 重放不重复记账。
-3. Java 仓库切换 `coding/cr`，核对阶段与文件集合，保留用户添加的规则。
-4. 对无权限、未登记、名称歧义、SSO 失败和 Hash 异常，确认无部分安装、旧文件不变；仅显式 bootstrap 且满足原有条件时才能安装公开 L1。
-5. 平台回读真实用户的正式拉取记录；登录成功但记录错误时不能作为接入验收通过。
-
-如认证或响应不兼容，停止 mtcli 上线；公开仓库继续使用默认 public 路径，需要用户权限时显式使用 direct。不要修改为共享账号、静态票据或伪造用户身份。
-
-## 4. 发布顺序与边界
-
-1. 数据库的新名称合同与 `rule-distribution` Edge v7 已部署并回读；真实验收前再次核对健康检查的版本和能力，不能以源码替代线上状态。
-2. 服务维护人回读 mtcli 服务定义，确认 `execution.skill_name` 的枚举只包含 `mt-code-standards`。保存后执行 `mtcli --no-cache --mtcli-schema-env prod schema mt-code-standards.bundles.resolve --resolve-refs`，确认展开结果与 [登记材料](../assets/mtcli-service.json) 一致，再完成真实 SSO 与审计验收。
-3. CLI 维护人在本仓库根目录使用 Node.js 20 执行 `npm run build`、`npm test` 和 `npm pack --dry-run`；当前已在 Node.js 20.20.2 下验证构建、测试和 pack 入口。用 `--pack-destination` 打包到临时目录，通过 `mnpm install --prefix <临时目录> <实际 tgz>` 验证。npm 包仅通过 Talos 应用 `1000376` 发布；Talos 构建环境使用 Node.js 20，并自动递增、回写 npm 版本，禁止本地执行 `npm version`、`npm publish` 或 `mnpm publish`，也不得为了同步版本而修改 `SKILL.md`。
-4. Friday Skill ID 为 `150847`，其版本与 npm 版本相互独立；后续必须单独执行 `nvm use 24`，再使用 `mtskills push --intro auto` 更新，不再次 `publish` 新条目。完成后如 CatX Managed Agent 实际使用该 Skill，再更新 CatX 技能包并回读实际版本；npm 发布不会更新 Friday 或 CatX。
-
-本次代码迁移不需要修改 NoCode Board、数据库迁移、Edge Function 或业务环境变量；这些线上单元的现状仍需在最终验收时独立回读。客户端要求 Node.js >=18、公司内网访问和已安装的官方 mtcli；Talos 发布与本轮测试使用 Node.js 20，当前验证版本为 20.20.2。Friday 的 `mtskills` 操作仍使用 Node.js 24。客户端固定 prod schema/target，禁止继承环境选择到测试服务。
-
-每次远程请求先校验 dry-run URL、POST、SSO、JSON body、协议头与空 query；拒绝附加静态认证头，业务响应仍限制 4 MiB。子进程只接收参数数组，不经 shell，不继承本 CLI 的 direct/Agent 票据；错误不回显原始 stdout/stderr。客户端关闭 mtcli 更新提示，保留 JSON 输出可解析性。
-
-dry-run 和执行是两个 mtcli 进程，不能固定同一份远程定义；认证和 HTTP 重定向由官方 mtcli 管理。这一路径依赖可信的 mtcli 安装及服务登记，不宣称与 direct 的 `redirect: error` 完全相同。服务迁址或认证方式变更时须重新验收。CLI 的 `--gateway-url` 不改写 mtcli 注册地址；两端不匹配会在 dry-run 停止。
+下文只保留历史平台注册与版本回执，版本、接口、参数和安装命令不代表当前发布状态；当前使用以上统一合同，所有新拉取必须明确 stage。
 
 ## 5. 已发布 npm 包登记到 CLIHub
 

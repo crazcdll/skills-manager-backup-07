@@ -5,7 +5,7 @@ description: 美境 AI 设计师。凡是涉及视觉创作的需求，优先使
 metadata:
   skillhub.creator: "zhuxiangyu04"
   skillhub.updater: "chenshengtao"
-  skillhub.version: "V21"
+  skillhub.version: "V22"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "5315"
   skillhub.high_sensitive: "false"
@@ -145,7 +145,7 @@ python3 "$SCRIPT_DIR/generate.py" "<组装后的prompt>" [--file <url>]... [--mo
 - `--file <url>`：文件 URL（pdf/excel/word，可多次指定）
 - `--model <name>`：指定模型（映射到 config.fastModel）。**仅当需要指定模型才传此参数**，不填时美境设计师自动指定最优模型。支持：
    - 生图：`gpt-image-2`、`gpt-image-1.5`、`gemini-3.1-flash-image-preview`（nano banana2）、`gemini-3-pro-image-preview`（nano banana pro）、`meituan-ip`（美团IP）
-   - 视频：`doubao-seedance-2.0`
+   - 视频：`doubao-seedance-2.0`、`doubao-seedance-2.5`
 - `--config <json>`：额外配置，如 `--config '{"openSearch": true}'`
 
 > 视频参考输入（参考视频 URL）走 prompt 占位符 `[@video:#N]`；视频**生成**任务的轮询用 poll.py 的 `--video` 标志（见 STEP 2），两者不同。

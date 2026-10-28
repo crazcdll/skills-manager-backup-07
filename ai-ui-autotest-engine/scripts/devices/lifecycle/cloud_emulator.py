@@ -66,7 +66,10 @@ class CloudEmulatorDeviceLifecycle(DeviceLifecycle):
         """
         try:
             from platform.sandbox_api import list_registry_devices
-            rows = list_registry_devices(device_type="cloud-emulator",
+            # 口径必须是 provider=conan + state=external（候选态）。
+            # 旧的 device_type 过滤在单表改造后已失效：服务端会忽略未知参数，
+            # 把整池 sandbox 行当成 conan 候选返回（`--numbers` 传错 UUID 直接占用失败）。
+            rows = list_registry_devices(provider="conan", state="external",
                                          platform=self._platform, pageSize="200")
             candidates = [r.get("device_id") for r in rows if r.get("device_id")]
         except Exception as e:  # noqa: BLE001 —— 读候选失败不阻断占用
@@ -92,6 +95,10 @@ class CloudEmulatorDeviceLifecycle(DeviceLifecycle):
         """查询用户名下已占用的 Conan 设备（供设备池复用判定）。"""
         result = []
         for d in conan_api.status():
+            # Conan status 是账号级全量（含鸿蒙 / iOS 云真机），必须按本次 platform 过滤，
+            # 否则会把别的平台的已占用设备当成“自己已占用”，污染复用判定。
+            if d.get("platform") and d["platform"] != self._platform:
+                continue
             result.append({
                 "sandboxId": d["serial"],
                 "serial": d["serial"],

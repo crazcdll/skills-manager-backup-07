@@ -103,6 +103,7 @@ INTENT_REASON_HOOK_MAP = {
 # 新增可 emit 的 reason 若忘了加映射，守卫会直接报红（避免静默死端）。
 REASONS_WITHOUT_HOOK = frozenset({
     "MISSING_COORDS", "MISSING_ANCHOR", "MISSING_INPUT_TEXT", "MISSING_URL",
+    "UNRESOLVED_PLACEHOLDER",
 })
 
 # 动作名 → 意图（未列出的动作一律按点击类处理）

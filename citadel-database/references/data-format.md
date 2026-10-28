@@ -118,10 +118,101 @@ interface ColumnConfig {
 - 修改已有单选/多选列时，`updateColumnConfig --columnConfig` 支持两种 options 项：
   - 字符串：`"已完成"`，按 label 匹配旧选项或新建选项
   - 对象：`{"id":123,"label":"进行中","color":"#E8F3FF"}`，用于保留/改名/改色已有选项
-- 修改 options 时必须保留所有已有选项；支持保留 id 后修改 label、调整数组顺序、新增 label；不支持删除已有选项，缺少已有选项会报错
+- 修改 options 时缺省必须保留所有已有选项；支持保留 id 后修改 label、调整数组顺序、新增 label；缺少已有选项会报错而不是被删除
+- 删除选项（危险操作）：显式传独立参数 `--dangerDeleteMissingOptions true`（不放在 `columnConfig` 中）后，`options` 视为全量列表，缺席的旧选项被删除；服务端同一版本内会清空引用这些选项的单元格值、剔除 `defaultValue` 中的死选项、清空各视图筛选条件里引用死选项的条件值（条件保留、值置空），不可撤销。执行前必须 `getTableMeta` 拿全量选项、向用户列出将删除的选项和上述后果并取得明确确认；被删选项对应的单元格在数据里表现为空值
 - 写入时可传 `--allowCreateOptions <true|false>`：
   - 默认 `true`：值不在 options 中时自动新建选项
   - 传 `false`：值必须已存在于 options 中，否则报错
+
+### 选项引用配置
+
+单选（type:3）和多选（type:5）支持 `columnConfig.refConfig`，**来源也只能是普通单选或多选列**，不能引用文本、数字、公式列或另一引用选项列。适用于 `createDatabase`、`createTable`、`addTableColumns` 和 `updateColumnConfig`。
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `tableId` | 正整数 | 来源数据表 ID |
+| `displayColumnId` | 正整数 | 来源单选/多选列 ID |
+| `displayColumnType` | `3` / `5` | 来源列类型：3=单选，5=多选，按真实元数据填写 |
+| `filter` | 数组 | 可选，按来源记录筛选候选选项；格式见下方「引用选项筛选」 |
+
+引用配置无需传入来源文档 `contentId`，只允许上表字段。创建前先用 `getTableMeta --tableId <来源表ID>` 查询真实列 ID、类型和选项，确认来源为未开启引用的单选/多选列，再填写三项来源字段。不要把文本列伪报为类型 3 或 5。
+
+- `refConfig` 为对象：开启或更新引用，**整体替换原引用配置**；`tableId`、`displayColumnId`、`displayColumnType` 三项必填，不接受 `{}` 或部分来源配置。修改时先读元数据，保留仍需使用的来源字段和筛选条件。不能同时传 `options` 或 `defaultValue`（即使为空数组或 null）。
+- 省略 `refConfig`：保持原值。
+- `refConfig: null`：仅用于修改已有列时关闭引用，不用于新建列。
+- 修改已有列前，先 `getTableMeta` 检查当前配置和来源，向用户说明切换引用后自定义选项、默认值不再适用，并取得确认；未确认即停止。引用配置不等于删除选项开关，不能用它绕过删除确认流程。
+
+```bash
+# 新增引用单选列，引用来源表的普通单选列（所有 ID 均为示例）
+oa-skills citadel-database addTableColumns --tableId 123 \
+  --columnMetas '[{"columnName":"项目","columnType":3,"columnConfig":{"refConfig":{"tableId":200,"displayColumnId":300,"displayColumnType":3}}}]'
+
+# 为已有单选/多选列配置引用，来源为普通多选列
+oa-skills citadel-database updateColumnConfig --tableId 123 --columnId 4 \
+  --columnConfig '{"refConfig":{"tableId":200,"displayColumnId":305,"displayColumnType":5}}'
+
+# 关闭引用
+oa-skills citadel-database updateColumnConfig --tableId 123 --columnId 4 \
+  --columnConfig '{"refConfig":null}'
+```
+
+#### 引用选项筛选
+
+筛选先选出**来源表记录**，再收集这些记录中来源选项列已选的值并去重。未被来源记录使用的选项不会成为候选项。筛选控制候选列表，Data API 写入不会按当前行的筛选结果校验候选项，不能用筛选代替权限控制。
+
+`refConfig.filter` 使用单层数组结构，不是 `queryTableData --filter` 的对象结构，也不支持嵌套条件组：
+
+```text
+["and" 或 "or", [
+  [操作符, 来源表筛选列ID, 筛选值, 来源表筛选列类型],
+  ...
+]]
+```
+
+- `and` 表示全部条件满足，`or` 表示任一条件满足；至少提供一个条件，每个条件的四项均必填，包括来源表筛选列类型。
+- 筛选列可以与 `displayColumnId` 不同，但必须属于来源表；先查询其真实类型和选项 ID。
+- 操作符按筛选列类型选择：文本/单选/多选使用 `==`、`!=`、`contains`、`notcontains`、`isnull`、`notnull`；数字/货币使用 `==`、`!=`、`>`、`>=`、`<`、`<=`、`isnull`、`notnull`；日期使用 `==`、`!=`、`>`、`<`、`isnull`、`notnull`。
+
+固定筛选值的格式：
+
+| 筛选列类型 | 筛选值 |
+|---|---|
+| 单选/多选 | **非空的正整数选项 ID JSON 数组字符串**，例如 `"[4001]"`；不要传选项名称或普通数组 `[4001]` |
+| 文本 | 富文本 JSON 数组字符串，例如 `"[{\"type\":\"text\",\"value\":\"项目A\"}]"` |
+| 数字/货币 | 有限数值，例如 `100`，不能传数字字符串 `"100"` |
+| 日期 | 毫秒时间戳，必须用代码从明确日期计算，禁止手写或估算 |
+| 为空/不为空 | `null` |
+
+**固定值示例**：来源表 `200` 的“状态”单选列 `301` 等于选项 ID `4001`，引用普通单选列 `300` 的值：
+
+```bash
+oa-skills citadel-database addTableColumns --tableId 123 \
+  --columnMetas '[{"columnName":"项目","columnType":3,"columnConfig":{"refConfig":{"tableId":200,"displayColumnId":300,"displayColumnType":3,"filter":["and",[["==",301,"[4001]",3]]]}}}]'
+```
+
+**按当前行取值示例**：来源表的数字列 `302` 等于当前表当前行的数字列 `101`：
+
+```json
+{
+  "refConfig": {
+    "tableId": 200,
+    "displayColumnId": 300,
+    "displayColumnType": 3,
+    "filter": ["and", [
+      ["==", 302, {"type": 3, "value": {"columnId": 101, "columnType": 2}}, 2]
+    ]]
+  }
+}
+```
+
+这里的 `type: 3` 表示“取当前行某列的值”，不是单选列类型；`value.columnId` 属于当前表，`value.columnId` 和 `value.columnType` 均须提供正整数。配置前需查询两张表的元数据，确认比较两侧类型和操作符兼容。
+
+**取消筛选但保留引用**：重传完整来源配置并省略 `filter`。不要传 `filter: []` 或 `["and", []]`；只省略整个 `refConfig` 会保留旧筛选。
+
+```bash
+oa-skills citadel-database updateColumnConfig --tableId 123 --columnId 4 \
+  --columnConfig '{"refConfig":{"tableId":200,"displayColumnId":300,"displayColumnType":3}}'
+```
 
 **人员配置 — `multiple`**（人员 type:4）
 - 说明：是否支持多人选择
@@ -181,7 +272,7 @@ oa-skills citadel-database getTableMeta --tableId "2750248577" --raw | \
 
 ## 富文本格式 (TextCellValue)
 
-文本列（columnType: 1）支持富文本节点数组 `IRichTextNode[]`。
+文本列（columnType: 1）支持富文本节点数组 `IRichTextNode[]`，节点类型为 `text`（纯文本）、`link`（超链接）、`mention`（@提及）、`paragraph`（段落换行）。以下节点示例均为单个单元格的值；可直接用于 `--data` 或 `--file` 的完整数据见[文本列类型示例](#1-文本列-columntype-1)。
 
 ### 节点类型
 
@@ -203,6 +294,8 @@ oa-skills citadel-database getTableMeta --tableId "2750248577" --raw | \
 
 #### 2. 超链接节点
 
+适用于文本列（`columnType: 1`），由 `addData` 或 `updateData` 写入。`value` 是显示文字，`link` 是目标 URL，两者都必须是字符串；地址字段使用 `link`，不是 `url` 或 `href`。
+
 ```typescript
 {
   type: "link",
@@ -218,6 +311,14 @@ oa-skills citadel-database getTableMeta --tableId "2750248577" --raw | \
   { "type": "link", "value": "美团官网", "link": "https://meituan.com" }
 ]
 ```
+
+上述数组是**一个单元格的值**。`--data` 和 `--file` 中的数据依次为「行数组 → 每行的单元格数组 → 富文本节点数组」；单行、单个超链接列的完整数据如下：
+
+```json
+[[[{"type":"link","value":"项目文档","link":"https://example.com/docs/project"}]]]
+```
+
+同一单元格可按显示顺序混合多个 `text` 和 `link` 节点。直接传节点数组，不要将单元格的节点数组再次 `JSON.stringify` 成字符串；Markdown 的 `[文字](URL)`、HTML 的 `<a>` 和普通 URL 字符串都会按普通文本节点写入，CLI 不会将它们解析为 `link` 节点。完整命令见[富文本列超链接写入](cli-reference.md#富文本列超链接写入)。
 
 #### 3. @提及节点
 
@@ -261,15 +362,20 @@ oa-skills citadel-database getTableMeta --tableId "2750248577" --raw | \
 
 #### 5. 混合格式
 
+同一单元格内同时写入全部四种节点，按数组顺序显示：
+
 ```json
 [
   { "type": "text", "value": "请 " },
   { "type": "mention", "value": "@张三", "empId": 2015739 },
   { "type": "text", "value": " 查看 " },
-  { "type": "link", "value": "项目文档", "link": "https://km.sankuai.com/page/123" },
-  { "type": "text", "value": " 并在本周五前完成" }
+  { "type": "link", "value": "项目文档", "link": "https://example.com/docs/project" },
+  { "type": "paragraph", "value": " " },
+  { "type": "text", "value": "请在本周五前完成" }
 ]
 ```
+
+完整 CLI 命令见[文本列完整写入示例](cli-reference.md#文本列完整写入示例)。`empId` 是示例值，实际写入前用 `getUserInfo` 从用户 MIS 获取真实 empId，不能用 MIS 或 UID 替代。
 
 ### 自动转换规则
 
@@ -284,6 +390,16 @@ CLI 会自动将简单字符串转换为富文本格式：
 ```
 
 如需使用超链接、@提及或段落节点，必须手动构造富文本节点数组。
+
+数字、布尔值和基础类型数组也可传入文本列，CLI 会将其转换为普通 `text` 节点；数组逐项转换，不额外插入分隔符：
+
+| 单元格输入 | 写入的节点数组 |
+|---|---|
+| `123` | `[{"type":"text","value":"123"}]` |
+| `false` | `[{"type":"text","value":"false"}]` |
+| `["标签 A", 2, true]` | `[{"type":"text","value":"标签 A"},{"type":"text","value":"2"},{"type":"text","value":"true"}]` |
+
+对应的三行单列完整数据为 `[[123],[false],[["标签 A",2,true]]]`。这些是便捷输入格式，写入文本列后仍是文本，不会变成数字列或其他列类型。
 
 ## 二维数组格式
 
@@ -312,28 +428,28 @@ CLI 会自动将简单字符串转换为富文本格式：
 
 #### 1. 文本列 (columnType: 1)
 
+以下是可直接传给 `--data` 或保存为 `--file` 内容的完整 JSON，共六行、每行一列，配合 `--columnIds "1"` 使用（列 ID 需替换为实际文本列）。依次展示简单字符串、`text`、`link`、`mention`、`paragraph`，以及四种节点混合；`empId` 和 URL 为示例值。
+
 ```json
-// 简单文本
-[["简单文本"]]
-
-// 富文本（超链接）
-[[[
-  {"type":"text","value":"查看"},
-  {"type":"link","value":"文档","link":"https://km.sankuai.com/page/123"}
-]]]
-
-// 富文本（段落）
-[[[
-  {"type":"text","value":"第一段"},
-  {"type":"paragraph", "value": " "},
-  {"type":"text","value":"第二段"}
-]]]
-
-// 富文本（@提及）
-[[[
-  {"type":"text","value":"负责人："},
-  {"type":"mention","value":"@张三","empId":2015739}
-]]]
+[
+  ["简单文本"],
+  [[{"type":"text","value":"显式纯文本节点"}]],
+  [[{"type":"link","value":"项目文档","link":"https://example.com/docs/project"}]],
+  [[{"type":"mention","value":"@张三","empId":2015739}]],
+  [[
+    {"type":"text","value":"第一段"},
+    {"type":"paragraph","value":" "},
+    {"type":"text","value":"第二段"}
+  ]],
+  [[
+    {"type":"text","value":"请 "},
+    {"type":"mention","value":"@张三","empId":2015739},
+    {"type":"text","value":" 查看 "},
+    {"type":"link","value":"项目文档","link":"https://example.com/docs/project"},
+    {"type":"paragraph","value":" "},
+    {"type":"text","value":"请在本周五前完成"}
+  ]]
+]
 ```
 
 #### 2. 数字列 (columnType: 2)
@@ -698,8 +814,11 @@ oa-skills citadel-database addData \
 // ❌ 错误（缺少外层数组）
 {"type":"text","value":"文本"}
 
-// ✅ 正确
+// ✅ 正确（单元格值）
 [{"type":"text","value":"文本"}]
+
+// ✅ 单行单列的完整 --data
+[[[{"type":"text","value":"文本"}]]]
 ```
 
 ### 4. 二维数组结构

@@ -155,13 +155,31 @@ run_with_retry() {
   local max=4
   local interval=2
   for i in $(seq 1 $max); do
-    local result
-    result=$("$@" 2>&1) && echo "$result" && return 0
+    local result status
+    if result=$("$@" 2>&1); then
+      echo "$result"
+      return 0
+    else
+      status=$?
+    fi
     echo "⚠️  第 $i 次失败: $result" >&2
+    # code_cli.py 用退出码 3 表示认证或权限失败，原样重试不会恢复。
+    [ "$status" -eq 3 ] && return "$status"
     [ "$i" -lt "$max" ] && sleep $interval
   done
   echo "❌ 重试 $max 次均失败" >&2
   return 1
+}
+
+comment_id_from_result() {
+  python3 -c '
+import json, sys
+data = json.load(sys.stdin)
+comment_id = data.get("id")
+if data.get("ok") is not True or (sys.argv[1] == "required" and not comment_id):
+    sys.exit("评论发送失败：缺少成功响应或评论 ID")
+print(comment_id or "")
+' "${1:-required}"
 }
 
 # ── 6. 执行对应操作 ───────────────────────────────────────────────────────────
@@ -189,25 +207,20 @@ case "$SUBCMD" in
 
     echo "$RESULT"
 
-    # Bitbucket API 返回 ok=true + id 即表示行内评论已创建
-    # 锚定结果由 Bitbucket 服务端决定，无需回查（回查接口结构与发送接口不一致）
-    COMMENT_ID_RETURNED=$(echo "$RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('id',''))" 2>/dev/null)
-    OK=$(echo "$RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('ok',''))" 2>/dev/null)
-
-    if [ "$OK" = "True" ] && [ -n "$COMMENT_ID_RETURNED" ]; then
-      echo "✅ 行内评论发送成功（id=$COMMENT_ID_RETURNED），已带 anchor 锚定到 $FILE:$LINE"
-    else
-      echo "❌ 评论发送失败，请检查返回信息" >&2; exit 1
-    fi
+    # API 返回 ok=true + id 仅确认评论已创建；锚定由调用方按评论指引回查。
+    COMMENT_ID_RETURNED=$(echo "$RESULT" | comment_id_from_result)
+    echo "✅ 评论发送成功（id=${COMMENT_ID_RETURNED}），已提交锚点 $FILE:$LINE，实际锚定待 verify 回查"
     ;;
 
   global)
     [ -z "$TEXT" ] && { echo "❌ global 需要 --text 参数" >&2; exit 1; }
     echo "📝 发全局评论"
-    run_with_retry $CODE_CLI comment-add \
+    RESULT=$(run_with_retry $CODE_CLI comment-add \
       --url "$PR_URL" \
-      --text "$TEXT"
-    echo "✅ 全局评论发送成功"
+      --text "$TEXT")
+    echo "$RESULT"
+    COMMENT_ID_RETURNED=$(echo "$RESULT" | comment_id_from_result optional)
+    echo "✅ 全局评论发送成功${COMMENT_ID_RETURNED:+（id=${COMMENT_ID_RETURNED}）}"
     ;;
 
   delete)

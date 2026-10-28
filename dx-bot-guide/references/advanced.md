@@ -62,6 +62,8 @@ dx-bot-cli card update-group \
   --template-id <tplId> --template-args '{"key":"value"}' --force
 ```
 
+> 新式排他卡片更新（`--request-id`）的内联 `--text` / `--markdown` / `--abstract` 同样自动还原 `\n` / `\t` / `\\` 转义；需要字面量反斜杠时加 `--no-unescape`，或改用 `--text-file` / `--markdown-file` / `--stdin-*`（不做转义处理）。
+
 ## 操作日志
 
 所有写操作自动落盘到 `~/.local/share/dx-bot-cli/logs/`。

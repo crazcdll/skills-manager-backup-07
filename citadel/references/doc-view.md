@@ -1,5 +1,7 @@
 # 理解学城文档内容（getSimpleMarkdown 阅读指南）
 
+> **原生 MD 文档（type=7、`/md/<id>`）请使用 [MD 文档操作说明](markdown-documents.md)。本页的 XML 命令用于 2.0 文档。**
+
 通过 `getSimpleMarkdown` 获取的文档内容为简化版 Markdown，专供阅读和总结使用。各类节点已转换为标准或接近标准的 Markdown 格式，按以下方式理解。
 
 ## 文字与结构

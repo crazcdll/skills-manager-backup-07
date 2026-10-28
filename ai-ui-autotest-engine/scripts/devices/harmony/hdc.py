@@ -78,10 +78,8 @@ def _imeituan_managed_hdc():
     从中提取 hdc 的完整路径。兼容 JSON envelope 和裸 JSON 两种输出格式。
     """
     try:
-        r = subprocess.run(
-            ["imeituan", "device", "environment", "status"],
-            capture_output=True, text=True, timeout=15,
-        )
+        from shared.imeituan import run as run_imeituan
+        r = run_imeituan(["device", "environment", "status"], timeout=15)
         if r.returncode != 0:
             return None
         try:
@@ -109,12 +107,6 @@ def _imeituan_managed_hdc():
         return None
 
 
-def _is_path_in_current_session():
-    """检查 hdc 是否在当前会话 PATH 中可见（非交互 Shell 检测）。"""
-    rc, _ = _run(["hdc", "-v"])
-    return rc == 0
-
-
 def ensure_hdc(install=True):
     """确保存在可用的 hdc，返回 (path, status)。
 
@@ -124,11 +116,9 @@ def ensure_hdc(install=True):
     Returns:
         (path, status):
             path  — 可执行文件路径，不可用时为 None
-            status — 三态字符串或 None：
-                "session_available" — 当前会话 PATH 中直接可用
-                "path_not_loaded"   — 已由 imeituan 管理，但非交互会话未加载 PATH，
-                                      已使用绝对路径继续
-                "temp_available"    — 通过 imeituan 安装后可用（非 PATH 原生可见）
+            status — 字符串或 None：
+                "session_available" — 可用（PATH 命中，或已把所在目录 prepend 进 PATH）
+                "temp_available"    — 本次通过 imeituan 安装后可用
                 None                — 不可用
 
     查找链：PATH → 用户级工具链缓存 → imeituan status → ~/.imeituan/bin → 自动安装。
@@ -158,13 +148,7 @@ def ensure_hdc(install=True):
         if ok:
             _prepend_path(hdc_dir)
             update_env({"hdc_dir": hdc_dir})
-            status = "session_available" if _is_path_in_current_session() else "path_not_loaded"
-            if status == "path_not_loaded":
-                sys.stderr.write(
-                    f"[device:hdc] HDC 已由 imeituan 管理 ({imeituan_hdc})，"
-                    f"但当前非交互会话未加载 PATH，已使用绝对路径继续\n"
-                )
-            return imeituan_hdc, status
+            return imeituan_hdc, "session_available"
 
     # ── ④ ~/.imeituan/bin/ 固定目录 ──
     if os.path.isdir(_IMEITUAN_BIN_DIR):
@@ -173,17 +157,18 @@ def ensure_hdc(install=True):
         if ok:
             _prepend_path(_IMEITUAN_BIN_DIR)
             update_env({"hdc_dir": _IMEITUAN_BIN_DIR})
-            status = "session_available" if _is_path_in_current_session() else "path_not_loaded"
-            return hdc_path, status
+            return hdc_path, "session_available"
 
     if not install:
         return None, None
 
     # ── ⑤ 自动安装（imeituan 是 HDC 的唯一官方分发渠道） ──
     sys.stderr.write(f"[device:hdc] 未找到可用 hdc，自动执行: {_INSTALL_CMD}\n")
-    rc, out = _run(["imeituan", "device", "environment", "install", "hdc"], timeout=180)
-    if rc != 0:
-        sys.stderr.write(f"[device:hdc] 安装失败: {out[:300]}\n")
+    from shared.imeituan import run as run_imeituan
+    r = run_imeituan(["device", "environment", "install", "hdc"], timeout=180)
+    if r.returncode != 0:
+        detail = ((r.stdout or "") + (r.stderr or ""))[:300]
+        sys.stderr.write(f"[device:hdc] 安装失败: {detail}\n")
         return None, None
 
     hdc_path = os.path.join(_IMEITUAN_BIN_DIR, "hdc")
@@ -196,6 +181,17 @@ def ensure_hdc(install=True):
 
     sys.stderr.write(f"[device:hdc] 安装命令执行成功但验证失败: {checks}\n")
     return None, None
+
+
+def source_of(hdc_path):
+    """按路径推断来源：system / imeituan / none（仅用于诊断展示）。"""
+    if not hdc_path:
+        return "none"
+    if hdc_path == "hdc":
+        return "system"
+    real = os.path.realpath(hdc_path)
+    root = os.path.realpath(_IMEITUAN_BIN_DIR)
+    return "imeituan" if real.startswith(root + os.sep) else "system"
 
 
 def hdc_version(hdc_path="hdc"):
@@ -237,7 +233,7 @@ class Hdc:
 
     def _bin_path(self) -> str:
         if self._bin is None:
-            path, _ = ensure_hdc(install=False) or (None, None)
+            path, _ = ensure_hdc(install=False)
             self._bin = path or "hdc"
         return self._bin
 

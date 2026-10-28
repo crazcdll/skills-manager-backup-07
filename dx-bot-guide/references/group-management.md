@@ -61,10 +61,17 @@ dx-bot-cli group list-joined --page-size 50
 ## 公告与更新
 
 ```bash
-dx-bot-cli group set-notice --gid <群ID> --text "公告内容"
+# 公告支持多行：\n 会自动还原为换行
+dx-bot-cli group set-notice --gid <群ID> --text "值班表\n周一: alice\n周二: bob"
+
+# 需要字面量反斜杠时加 --no-unescape
+dx-bot-cli group set-notice --gid <群ID> --text "C:\temp" --no-unescape
+
 dx-bot-cli group get-notice --gid <群ID>
 dx-bot-cli group update --gid <群ID> --name "新群名" --info "新简介"
 ```
+
+> `set-notice` 为非风险操作（直接执行），需预览时显式加 `--dry-run`。内联 `--text` 默认还原转义，字面量反斜杠用 `--no-unescape`。
 
 ## 群配置
 

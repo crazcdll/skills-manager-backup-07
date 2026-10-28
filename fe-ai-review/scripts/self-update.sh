@@ -116,8 +116,8 @@ compare_versions() {
 # ── 主流程（任何异常直接 exit 0） ─────────────────────────────────────────────
 
 {
-  # 0. 开发目录检测：存在 _authoring.md 说明是维护者本地开发环境，跳过更新（避免覆盖源码）
-  if [[ -f "$SKILL_DIR/_authoring.md" ]]; then
+  # 0. 开发目录跳过更新，兼容迁移前的根目录标记。
+  if [[ -d "$SKILL_DIR/dev_docs" || -f "$SKILL_DIR/_authoring.md" ]]; then
     echo "[fe-ai-review] 开发目录，跳过自动更新"
     exit 0
   fi

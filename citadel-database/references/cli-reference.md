@@ -2,17 +2,21 @@
 
 完整参数说明，基于 `src/citadel-database/cli.ts` 实际实现。
 
+涉及仪表盘或自动化时，必须先遵守 [SKILL.md 的仪表盘与自动化操作边界](../SKILL.md#仪表盘与自动化操作边界必须遵守)。
+
 ## 目录
 
 - [CLI 命令参考](#cli-命令参考)
   - [目录](#目录)
   - [通用选项](#通用选项)
   - [createDatabase](#createdatabase)
+  - [queryDatabaseTask](#querydatabasetask)
   - [createTable](#createtable)
   - [copyTable](#copytable)
     - [场景说明](#场景说明)
   - [listTables](#listtables)
   - [getTableMeta](#gettablemeta)
+  - [checkFormulaCalculation](#checkformulacalculation)
   - [queryTableData](#querytabledata)
   - [addData](#adddata)
   - [updateData](#updatedata)
@@ -22,15 +26,23 @@
   - [recoveryTable](#recoverytable)
   - [renameTable](#renametable)
   - [sortTable](#sorttable)
-  - [addTableColumns](#addtablecolumns)
-  - [updateColumnConfig](#updatecolumnconfig)
-  - [视图管理](view-management.md)
   - [copyTable](#copytable-1)
     - [使用场景](#使用场景)
     - [使用示例](#使用示例)
     - [注意事项](#注意事项)
+  - [addTableColumns](#addtablecolumns)
+    - [JSON 文件输入](#json-文件输入)
+    - [`columnMetas` 格式说明](#columnmetas-格式说明)
+    - [公式列 columnConfig 详细说明（columnType:9）](#公式列-columnconfig-详细说明columntype9)
+    - [使用示例](#使用示例-1)
+  - [updateColumnConfig](#updatecolumnconfig)
+    - [`--columnConfig` 各列类型支持字段](#--columnconfig-各列类型支持字段)
+    - [使用示例](#使用示例-2)
+  - [视图管理](#视图管理)
   - [列类型说明](#列类型说明)
     - [富文本节点类型](#富文本节点类型)
+    - [文本列完整写入示例](#文本列完整写入示例)
+    - [富文本列超链接写入](#富文本列超链接写入)
   - [文件上传工作流](#文件上传工作流)
     - [⭐ 推荐方式：uploadFileAndAddData（一步完成）](#-推荐方式uploadfileandadddata一步完成)
     - [🔧 低层 API：uploadFileByS3Url + addData（分步操作）](#-低层-apiuploadfilebys3url--adddata分步操作)
@@ -45,7 +57,7 @@
     - [使用场景](#使用场景-1)
     - [参数说明](#参数说明)
     - [返回字段](#返回字段)
-    - [使用示例](#使用示例-1)
+    - [使用示例](#使用示例-3)
       - [1. 查询单个用户信息](#1-查询单个用户信息)
       - [2. 批量查询多个用户](#2-批量查询多个用户)
       - [3. 输出原始 JSON（用于脚本处理）](#3-输出原始-json用于脚本处理)
@@ -58,8 +70,22 @@
     - [使用场景](#使用场景-2)
     - [参数说明](#参数说明-1)
     - [返回字段](#返回字段-1)
-    - [使用示例](#使用示例-2)
+    - [使用示例](#使用示例-4)
     - [注意事项](#注意事项-2)
+  - [多维表格高级权限](#多维表格高级权限)
+    - [getAdvancedPermStatus](#getadvancedpermstatus)
+    - [updateAdvancedPermStatus](#updateadvancedpermstatus)
+    - [listAdvancedPermRoles](#listadvancedpermroles)
+    - [getAdvancedPermRoleDetail](#getadvancedpermroledetail)
+    - [createAdvancedPermRole](#createadvancedpermrole)
+    - [renameAdvancedPermRole / deleteAdvancedPermRole](#renameadvancedpermrole--deleteadvancedpermrole)
+    - [updateAdvancedPermRolePermissions](#updateadvancedpermrolepermissions)
+    - [addAdvancedRoleMembers](#addadvancedrolemembers)
+    - [deleteAdvancedRoleMembers](#deleteadvancedrolemembers)
+      - [二期补充：管理员删除](#二期补充管理员删除)
+    - [searchAdvancedMemberRoles](#searchadvancedmemberroles)
+    - [updateAdvancedMemberRoles](#updateadvancedmemberroles)
+    - [getAdvancedUserTablePermissions](#getadvancedusertablepermissions)
   - [getTableMeta 实用技巧：jq 提取列配置](#gettablemeta-实用技巧jq-提取列配置)
     - [提取单选/多选列的可选项](#提取单选多选列的可选项)
     - [检查人员列是否支持多人](#检查人员列是否支持多人)
@@ -74,6 +100,7 @@
 | `--raw` | flag | false | 输出原始 JSON 响应 |
 | `--clear-cache` | flag | — | 清除认证缓存后退出，不需要指定命令 |
 | `--force-ciba` | flag | false | 强制走 CIBA 认证（仅在认证异常时兜底使用，正常不需要添加） |
+| `--kmGray <value>` | string | — | 为 `km.sankuai.com` 请求添加 `Cookie: kmGray=<value>`（可选） |
 
 ## createDatabase
 
@@ -89,6 +116,8 @@
 | `--columnMeta` | JSON | ❌ | — | 列定义 JSON 数组 |
 | `--sourceContentId` | string | ❌ | — | 复制来源文档 ID |
 | `--keepData` | boolean | ❌ | false | 复制时是否保留数据 |
+| `--schemaVersion` | 1 / 2 | ❌ | 服务端默认 1 | 1 为旧版，2 为多维表格新模型（V2，仍在灰度中，灰度资格由服务端判断） |
+| `--async` | true / false | ❌ | false | 异步创建后自动轮询最多 5 秒 |
 
 ```bash
 # 创建空白多维表格
@@ -118,7 +147,27 @@ oa-skills citadel-database createDatabase \
   --keepData true
 ```
 
-**输出**：文档 ID、表格 ID，以及后端实际返回的非空标题（若有）。
+**输出**：同步创建返回文档 ID、表格 ID。异步创建返回任务 ID，CLI 每秒查询一次，最多等待 5 秒（从创建请求受理后开始计时）；成功时显示文档和表格 ID，失败时显示创建失败。5 秒内未完成则提示“多维表格文档创建中，请稍后再试”，保留任务 ID，使用下方查询命令继续查询，**不要重复执行创建命令**。查询报错时也应保留任务 ID，先查询原任务。
+
+使用 `--schemaVersion 2` 创建 V2 文档；异步创建再加 `--async true`。
+
+`--raw` 输出中，异步创建的 `success` 表示请求已受理，不能据此判断创建完成；仅 `taskStatus: 2` 表示完成。未完成时没有 `tableId`，超时提示在 `message` 中。尚未查到状态时 `taskStatus` 可缺省。
+
+V2 创建无需指定灰度链路。创建失败时保留原始错误；返回业务错误码 `617` 或明确提示用户不在灰度范围时，可提醒用户加入试用群申请资格，普通权限不足不触发该提示。详见 [多维表格新模型试用](../SKILL.md#多维表格新模型试用)。
+
+## queryDatabaseTask
+
+查询已提交的异步创建任务，一次查询，不创建新文档。
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `--taskId` | 正整数 | ✅ | 异步创建返回的任务 ID |
+
+```bash
+oa-skills citadel-database queryDatabaseTask --taskId 1234567890
+```
+
+状态 `taskStatus`：`0` 初始化、`1` 处理中、`2` 成功、`3` 失败。成功时返回 `tableIdList`，任务 ID 即创建文档的 ID；`success` 表示查询接口调用成功。只有状态为 `2` 后，才继续写入数据或授权。状态为 `3` 时停止并告知用户失败。测试环境创建的任务应继续使用 `--access-env test` 查询。
 
 ## createTable
 
@@ -267,7 +316,7 @@ oa-skills citadel-database listTables --contentId "2750138424"
 
 ## getTableMeta
 
-查询表格元数据（列信息）。
+查询表格元数据（列信息、表版本与公式计算进度）。
 
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |---|---|---|---|---|
@@ -277,7 +326,44 @@ oa-skills citadel-database listTables --contentId "2750138424"
 oa-skills citadel-database getTableMeta --tableId "2750248577"
 ```
 
-**输出**：列信息列表（列名、列 ID、列类型、列配置）。
+**输出**：默认展示列信息列表（列名、列 ID、列类型、列配置）；加 `--raw` 获取 JSON，其中还包含服务端返回的 `stepVersion`、`formulaStepAppliedTSO`、`formulaStepPendingTSO`。
+
+检查公式是否计算完成时，使用下方 `checkFormulaCalculation`，无需解析这些内部字段。
+
+## checkFormulaCalculation
+
+检查当前版本或指定数据变更的公式是否计算完成。只查询状态，不修改数据；每次调用检查一次，不自动等待。
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|---|---|---|---|---|
+| `--tableId` | number | ✅ | — | 表格 ID，正安全整数 |
+| `--stepVersion` | number | ❌ | 查询时的当前表版本 | 同一张表成功写入返回的版本，非负安全整数；指定后只检查该次变更引起的计算 |
+
+```bash
+# 检查当前版本
+oa-skills citadel-database checkFormulaCalculation --tableId "1760355852"
+
+# 检查指定变更；67018 应替换为本次成功写入返回的 stepVersion
+oa-skills citadel-database checkFormulaCalculation \
+  --tableId "1760355852" --stepVersion 67018 --raw
+```
+
+默认输出“公式计算已完成”“公式计算尚未完成”或“暂时无法确认公式计算是否完成”。`--raw` 输出：
+
+```json
+{"tableId":1760355852,"status":"completed"}
+```
+
+| status | 含义 | 后续动作 |
+|---|---|---|
+| `completed` | 当前版本或指定变更引起的公式计算已完成 | 可用 `queryTableData` 读取结果，仍遵守默认 `--max-pages 10` 预览规则 |
+| `pending` | 尚未完成 | 如需等待，可间隔 1 秒重查，最多 30 次；不要重复写入 |
+| `unknown` | 服务端缺少有效进度信息或返回状态不一致，无法确认 | 停止等待并告知用户无法确认，不视为完成 |
+
+- 检查成功时退出码为 `0`，包括 `pending`、`unknown`；脚本应读取 `status`，不能仅凭退出码判定公式已完成。参数错误或请求失败时非零退出，保留原始错误。
+- 写入后需要公式结果时，保留该次成功响应的 `stepVersion`，每次检查都传入同一张表和该版本，无需等待后续其他变更完成。未取得写入版本时，可以检查当前表状态，但不能声称追踪到了该次写入。
+- 不传版本时，每次调用检查查询时的当前表状态。完成后再读数据仍可能遇到其他并发写入，不保证读取结果固定在检查时的版本。
+- 查询失败或达到等待上限时停止，说明“尚未确认公式计算完成”，不要将未确认的公式值当作最终结果。CLI 已封装版本判断，不需要调用方处理 meta、Applied 或 Pending 字段。
 
 ## queryTableData
 
@@ -333,6 +419,8 @@ oa-skills citadel-database queryTableData \
 
 向表格添加新数据（使用二维数组格式）。
 
+文本列支持的全部富文本节点见[文本列完整写入示例](#文本列完整写入示例)；链接专项示例见[富文本列超链接写入](#富文本列超链接写入)。
+
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |---|---|---|---|---|
 | `--tableId` | string | ✅ | — | 表格 ID |
@@ -355,17 +443,6 @@ oa-skills citadel-database addData \
   --columnIds "1,2,3" \
   --data '[["张三", 25, true], ["李四", 30, false]]'
 
-# 富文本格式（超链接）
-oa-skills citadel-database addData \
-  --tableId "2750248577" \
-  --columnIds "1" \
-  --data '[[
-    [
-      {"type":"text","value":"查看"},
-      {"type":"link","value":"文档","link":"https://km.sankuai.com/page/123"}
-    ]
-  ]]'
-
 # 从文件读取大数据量（推荐用于 > 10 行的数据）
 cat > data.json << 'EOF'
 [
@@ -383,6 +460,8 @@ oa-skills citadel-database addData \
 
 **⚠️ 自动分页**：如果 `data` 超过 500 行，系统会自动分批处理，避免 API 请求失败。
 
+**大数据量导入提醒**：Agent 在拆分批次前，按[多维表格新模型试用](../SKILL.md#多维表格新模型试用)规则统计本次导入总行数并提示用户。
+
 **💡 文件参数优先级**：当同时提供 `--data` 和 `--file` 时，使用 `--file` 中的数据。
 
 **输出**：成功状态、版本号、新增行的 rowIds。
@@ -390,6 +469,8 @@ oa-skills citadel-database addData \
 ## updateData
 
 更新表格中的现有数据。
+
+修改文本列中的链接或在原内容中追加链接，见[富文本列超链接写入](#富文本列超链接写入)。
 
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |---|---|---|---|---|
@@ -438,6 +519,8 @@ oa-skills citadel-database updateData \
 ```
 
 **⚠️ 自动分页**：如果 `data` 超过 500 行，系统会自动分批处理，避免 API 请求失败。
+
+**大数据量导入提醒**：通过 `updateData` 导入数据时，同样遵循[多维表格新模型试用](../SKILL.md#多维表格新模型试用)规则，按本次导入总行数判断。
 
 **💡 文件参数优先级**：
 - 当同时提供 `--rowIds` 和 `--rowIdsFile` 时，使用 `--rowIdsFile`
@@ -648,7 +731,48 @@ oa-skills citadel-database copyTable \
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |---|---|---|---|---|
 | `--tableId` | string | ✅ | — | 表格 ID |
-| `--columnMetas`| JSON | ✅ | — | 新增列信息的 JSON 数组 |
+| `--columnMetas` | JSON | ✅* | — | 新增列信息的 JSON 数组 |
+| `--columnMetasFile` | string | ❌ | — | 从 UTF-8 JSON 文件读取新增列数组 |
+
+\* `--columnMetas` 和 `--columnMetasFile` 至少提供一个；同时提供时，**文件优先**。
+
+### JSON 文件输入
+
+Windows 下传复杂 JSON 或带引号的公式时，推荐使用文件参数。文件保存为 UTF-8（支持 UTF-8 BOM），内容是原始 JSON：新增列用数组，修改列配置用对象，不要把整个内容再次编码为字符串。公式内的双引号仍按 JSON 规则写为 `\"`，无需再叠加 shell 转义。简单配置仍可使用原有内联参数。
+
+先用 `getTableMeta` 获取真实列 ID；下面的 `103`、`200` 和表格 ID 均需替换。
+
+新增列文件 `columns.json`：
+
+```json
+[
+  {
+    "columnName": "完成提示",
+    "columnType": 9,
+    "columnConfig": {
+      "formula": "IF([#103] = \"完成\", \"已完成\", \"处理中\")"
+    }
+  }
+]
+```
+
+```powershell
+oa-skills citadel-database addTableColumns --tableId 1234567890 --columnMetasFile .\columns.json
+```
+
+修改配置文件 `config.json`（顶层直接是配置对象，不包裹 `columnConfig`）：
+
+```json
+{
+  "formula": "IF([#103] = \"完成\", \"已完成\", \"处理中\")"
+}
+```
+
+```powershell
+oa-skills citadel-database updateColumnConfig --tableId 1234567890 --columnId 200 --columnConfigFile .\config.json
+```
+
+直接传文件路径，让 CLI 读取内容。用 `Get-Content` 读取后再传给 `--columnMetas` 或 `--columnConfig`，仍会经过命令行参数转发，不能规避引号问题。上面的 PowerShell 命令均为单行；本页其他 `bash` 示例中的 `\` 续行符不适用于 PowerShell。
 
 ### `columnMetas` 格式说明
 
@@ -807,21 +931,25 @@ oa-skills citadel-database addTableColumns \
 | `--columnId` | string | ✅ | — | 列 ID |
 | `--columnName` | string | ❌ | — | 要修改成的新列名 |
 | `--columnConfig` | JSON | ❌ | — | 列配置 JSON，只传需要修改的字段，其他字段保持原值 |
+| `--columnConfigFile` | string | ❌ | — | 从 UTF-8 JSON 文件读取列配置对象，字段与 `--columnConfig` 一致 |
 | `--formula` | string | ❌ | — | 公式表达式（等价于 `--columnConfig '{"formula":"..."}'`，兼容旧版参数） |
+| `--dangerDeleteMissingOptions` | `true`/`false` | ❌ | `false` | ⚠️ 危险操作，仅单选/多选列。`true` 时 `columnConfig.options` 视为全量列表，缺席的旧选项被删除，服务端清空引用它们的单元格值、默认值与视图筛选条件值，不可撤销；必须在内联或文件提供的列配置中包含 `options`，且先取得用户确认 |
 
-> `--columnName`、`--formula`、`--columnConfig` 三者至少需要提供一个。
+> `--columnName`、`--formula`、`--columnConfig`、`--columnConfigFile` 至少需要提供一个。同时提供 `--columnConfig` 和 `--columnConfigFile` 时，**文件优先**。Windows 复杂 JSON 的文件示例见 [JSON 文件输入](#json-文件输入)。
 
 ### `--columnConfig` 各列类型支持字段
 
 | 列类型 | columnType | 支持修改的 columnConfig 字段 | 说明 |
 |--------|-----------|------------------------------|------|
 | 数字 | 2 | `formatter` | 数字格式（见下方格式表） |
-| 单选 | 3 | `options` | 支持字符串列表或包含 `id`/`label`/`color` 的对象列表；支持改名、排序、新增；不支持删除已有选项 |
+| 单选 | 3 | `options` / `refConfig` | 支持字符串列表或包含 `id`/`label`/`color` 的对象列表；支持改名、排序、新增；缺省不删除已有选项，删除需显式 `--dangerDeleteMissingOptions true`（独立参数，见上表） |
 | 人员 | 4 | `multiple` | 是否允许多人：`true` / `false` |
-| 多选 | 5 | `options` | 同单选，支持改名、排序、新增；不支持删除已有选项 |
+| 多选 | 5 | `options` / `refConfig` | 同单选 |
 | 日期 | 7 | `formatter` | 日期格式（见下方格式表） |
 | 货币 | 8 | `currencyCode` / `formatter` | 货币代码和数字格式 |
 | **公式** | **9** | `formula` / `formulaFormat` / `formatter` / `currencyCode` | 公式表达式、结果类型、显示格式 |
+
+`refConfig` 用于选项引用，来源仅支持普通单选(3)/多选(5)列。对象开启或整体替换引用配置，修改时 `null` 关闭；与 `options`、`defaultValue` 互斥。支持 `filter` 筛选来源记录，使用单层数组条件；固定值、按当前行取值和取消筛选的格式见 [选项引用配置](data-format.md#选项引用配置)。也可在创建文档、创建表格或新增列的 `columnConfig` 中设置。
 
 **数字/货币 formatter 可选值：**
 `""` (无格式) / `"0"` (整数) / `"0.0"` / `"0.00"` / `"0.000"` / `"0,0"` (千分位) / `"0,0.00"` / `"0%"` / `"0.00%"`
@@ -865,11 +993,19 @@ oa-skills citadel-database updateColumnConfig \
   --columnConfig '{"multiple":true}'
 
 # 修改已有单选/多选列的 options
-# 💡 必须保留所有已有选项；支持改名、排序、新增，不支持删除
+# 💡 缺省必须保留所有已有选项；支持改名、排序、新增；缺席的旧选项会报错而不是被删除
 oa-skills citadel-database updateColumnConfig \
   --tableId "1234567890" \
   --columnId "105" \
   --columnConfig '{"options":[{"id":123,"label":"未开始","color":"#E8F3FF"},{"id":124,"label":"进行中","color":"#FFF7E6"},"已完成"]}'
+
+# 删除单选/多选列的选项（⚠️ 危险操作：options 为全量列表，缺席的 id:124 会被删除，
+# 引用它的单元格值、默认值与视图筛选条件值被清空且不可撤销；先 getTableMeta 拿全量选项并向用户确认后再执行）
+oa-skills citadel-database updateColumnConfig \
+  --tableId "1234567890" \
+  --columnId "105" \
+  --columnConfig '{"options":[{"id":123,"label":"未开始","color":"#E8F3FF"},{"id":125,"label":"已完成","color":"#E6FFED"}]}' \
+  --dangerDeleteMissingOptions true
 
 # 修改公式列的公式表达式（数字结果）
 # 💡 先用 getTableMeta 获取列的真实 colId
@@ -941,6 +1077,76 @@ oa-skills citadel-database updateColumnConfig \
 // 段落（发送前会统一补成 value: " "）
 { type: "paragraph", value: " " }
 ```
+
+### 文本列完整写入示例
+
+文本列（`columnType: 1`）支持 `text`、`link`、`mention`、`paragraph` 四种节点，字段说明见[富文本格式](data-format.md#富文本格式-textcellvalue)。以下命令在一个单元格内写入全部四种类型：
+
+```bash
+oa-skills citadel-database addData \
+  --tableId 2750248577 \
+  --columnIds "1" \
+  --data '[[[
+    {"type":"text","value":"请 "},
+    {"type":"mention","value":"@张三","empId":2015739},
+    {"type":"text","value":" 查看 "},
+    {"type":"link","value":"项目文档","link":"https://example.com/docs/project"},
+    {"type":"paragraph","value":" "},
+    {"type":"text","value":"请在本周五前完成"}
+  ]]]'
+```
+
+执行前用 `getTableMeta` 确认真实表格和文本列 ID，用 `getUserInfo --misList <用户MIS>` 获取真实 empId，并替换示例中的人员、URL。`mention.value` 使用 `@显示名称`，`empId` 传数字；`paragraph.value` 使用单个空格。
+
+更新已有行时，将命令改为 `updateData` 并加上 `--rowIds '[123456]'`（替换为目标行 ID），传入完整单元格内容。各类型单独写入的完整 JSON 以及可保存到文件的多行示例见[文本列类型示例](data-format.md#1-文本列-columntype-1)。
+
+### 富文本列超链接写入
+
+先用 `getTableMeta --tableId <id>` 确认目标列为文本列（`columnType: 1`），再用 `addData` 新增行或 `updateData` 更新已有行。以下表格 ID、行 ID、列 ID 和 URL 均为示例，执行时替换为实际值。节点字段、数组层级及字符串处理规则见[超链接节点](data-format.md#2-超链接节点)。
+
+**新增一行，单个单元格写入超链接**：
+
+```bash
+oa-skills citadel-database addData \
+  --tableId 2750248577 \
+  --columnIds "1" \
+  --data '[[[{"type":"link","value":"项目文档","link":"https://example.com/docs/project"}]]]'
+```
+
+**更新已有单元格，混合普通文字和多个链接**：
+
+```bash
+oa-skills citadel-database updateData \
+  --tableId 2750248577 \
+  --rowIds "123456" \
+  --columnIds "1" \
+  --data '[[[
+    {"type":"text","value":"相关资料："},
+    {"type":"link","value":"项目文档","link":"https://example.com/docs/project"},
+    {"type":"text","value":" / "},
+    {"type":"link","value":"验收清单","link":"https://example.com/docs/checklist"}
+  ]]]'
+```
+
+`updateData` 写入的是目标单元格的完整内容。若只改一个链接或追加链接，先用 `queryTableData --tableId <id> --columnIds <列ID> --max-pages 10 --raw` 查询，按 `rowId` 定位目标行并读取 `textCellValue`；未取到目标行时继续定位，不能当作空内容。保留其他节点，在原数组上修改后整体写回。
+
+**从 JSON 文件写入多行、多列**：以下第 1 列为名称，第 2 列为资料链接，均是文本列；每行的单元格顺序与 `--columnIds "1,2"` 一致。
+
+```bash
+cat > hyperlink-data.json << 'EOF'
+[
+  ["项目 A", [{"type":"link","value":"项目 A 文档","link":"https://example.com/docs/a"}]],
+  ["项目 B", [{"type":"link","value":"项目 B 文档","link":"https://example.com/docs/b"}]]
+]
+EOF
+
+oa-skills citadel-database addData \
+  --tableId 2750248577 \
+  --columnIds "1,2" \
+  --file hyperlink-data.json
+```
+
+同一文件也可用于 `oa-skills citadel-database updateData --tableId 2750248577 --rowIds '[123456,123457]' --columnIds "1,2" --file hyperlink-data.json`，两行数据依次对应两个行 ID。写入后用 `queryTableData --raw` 核对目标行的 `textCellValue` 中显示文字 `value` 和地址 `link`。
 
 ## 文件上传工作流
 

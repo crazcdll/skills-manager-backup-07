@@ -13,16 +13,36 @@ import {
   EXTERNAL_AUTH_AGENTS,
   parseArgs,
   selectAuthenticationRoute,
-  syncWithOfficialSso,
+  syncWithOfficialSso as runWithOfficialSso,
   tokenFromOfficialExchange,
 } from "./sync-effective-rules-with-sso.mjs";
 
-const bundle = (stage) => {
-  const files = [{ relative_path: "l1/frontend-l1.md", content: "# L1\n" }];
+// Authentication scenarios share a new-protocol server fixture and an explicit
+// coding stage; each still executes the real wrapper, validator and installer.
+const syncWithOfficialSso = (args) => runWithOfficialSso({
+  ...args, options: { stage: "coding", ...args.options },
+  ...(args.fetchImpl ? { fetchImpl: async (url, init) => {
+    const response = await args.fetchImpl(url, init);
+    const body = JSON.parse(await response.text());
+    if (!response.ok || !["effective-rule-bundle/v4", "l1-bootstrap-bundle/v3"].includes(body.schema_version)) return { ...response, text: async () => JSON.stringify(body) };
+    const request = JSON.parse(init.body);
+    return { ...response, text: async () => JSON.stringify({
+      schema_version: "rule-bundle-resolution/v1", request_id: "sso-request-test", pull_id: request.execution.pull_id,
+      bundle_kind: body.schema_version === "effective-rule-bundle/v4" ? "effective" : "l1",
+      delivery_mode: body.snapshot.release_refs.some(ref => ref.scope_level === "L2") ? "l1_l2" : "l1_only",
+      selection_reason: request.scope === "l1" ? "explicit_l1" : "no_effective_l2",
+      standard_domain: body.snapshot.repository?.standard_domain || body.snapshot.standard_domain,
+      stage: request.stage, target: { canonical_key: request.repository_locator, ...request.target }, bundle: body,
+    }) };
+  } } : {}),
+});
+
+const bundle = (stage = "coding") => {
+  const files = [{ relative_path: "l1/frontend-l1.md", rule_set_id: "frontend-l1", release_id: "frontend-l1@test", content: "# L1\n" }];
   const projection = files.map((file) => ({ ...file, sha256: sha256Hex(file.content), byte_size: Buffer.byteLength(file.content) }));
-  const manifestHash = sha256Hex(canonicalJson(projection.map(({ relative_path, sha256, byte_size }) => ({ relative_path, sha256, byte_size }))));
-  const refs = [{ rule_set_id: "frontend-l1", release_id: "frontend-l1@test", scope_level: "L1" }];
-  const resolverVersion = stage ? "effective-rule-bundle/v3" : "effective-rule-bundle/v2";
+  const manifestHash = sha256Hex(canonicalJson(projection.map(({ relative_path, rule_set_id, release_id, sha256, byte_size }) => ({ relative_path, rule_set_id, release_id, sha256, byte_size }))));
+  const refs = [{ rule_set_id: "frontend-l1", release_id: "frontend-l1@test", scope_level: "L1", standard_domain: "frontend", local_rule_set_name: "前端规范" }];
+  const resolverVersion = "effective-rule-bundle/v4";
   const dependencyHash = sha256Hex("delivery-dependency");
   const snapshotId = sha256Hex(canonicalJson({ resolver_version: resolverVersion, repository_id: "repo:test", canonical_key: "hfe/test", standard_domain: "frontend", manifest_hash: manifestHash, release_refs: refs, ...(stage ? { stage, dependency_hash: dependencyHash } : {}) }));
   return { schema_version: resolverVersion, status: "ready", snapshot: { resolver_version: resolverVersion, snapshot_id: snapshotId, repository: { repository_id: "repo:test", canonical_key: "hfe/test", standard_domain: "frontend" }, release_refs: refs, manifest_hash: manifestHash, total_bytes: projection[0].byte_size, ...(stage ? { stage, dependency_hash: dependencyHash } : {}) }, files: projection };
@@ -67,7 +87,7 @@ test("standalone CLI keeps an injected user token first and records cli", async 
       standaloneCli: true,
       transport: "direct",
       agent: "cli",
-      repositoryLocator: "hotel-web",
+      repositoryLocator: "hfe/test",
       outputDir: root,
     },
     fetchImpl: async (_url, init) => {
@@ -97,7 +117,7 @@ test("default public transport bypasses inherited SSO and uses the anonymous rep
       return response(bundle());
     },
   });
-  assert.match(url, /\/v1\/public\/effective-rule-bundles\/resolve$/u);
+  assert.match(url, /\/v1\/public\/rule-bundles\/resolve$/u);
   assert.equal(receipt.authentication_mode, "public_repository");
   assert.equal(receipt.authentication_route_reason, "default_public_transport");
 });
@@ -118,9 +138,7 @@ test("runner arguments default to public and require direct for authentication o
     repositoryLocator: "hfe/test",
   });
   for (const extra of [
-    ["--mis", "zhangce07"],
     ["--auth-agent", "cursor"],
-    ["--bootstrap"],
   ]) {
     assert.throws(
       () => parseArgs(["--repository", "hfe/test", ...extra]),
@@ -130,11 +148,9 @@ test("runner arguments default to public and require direct for authentication o
   assert.equal(parseArgs(["--transport", "direct", "--mis", "zhangce07"]).transport, "direct");
 });
 
-test("programmatic public calls reject authentication and bootstrap options before network access", async () => {
+test("programmatic public calls reject authentication-only options before network access", async () => {
   for (const extra of [
-    { mis: "zhangce07" },
     { authAgent: "cursor" },
-    { bootstrap: true },
   ]) {
     let calls = 0;
     await assert.rejects(
@@ -189,7 +205,7 @@ test("rejects an explicit empty delivery stage before the SSO wrapper calls Edge
       options: { transport: "direct", repoRoot: root, repositoryLocator: "hfe/test", stage: "" },
       fetchImpl: async () => { calls += 1; return response(bundle()); },
     }),
-    (error) => error.code === "RULE_BUNDLE_STAGE_INVALID",
+    (error) => error.code === "rule_parameters_invalid",
   );
   assert.equal(calls, 0);
 });
@@ -305,19 +321,19 @@ test("keeps unknown and explicitly internal execution agents on the official exc
   }
 });
 
-test("forwards an explicit bootstrap domain through the SSO wrapper", async () => {
+test("legacy bootstrap alias keeps direct authentication and requests scope l1", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "setup-domain-forward-"));
   await mkdir(path.join(root, ".git"));
-  const files = [{ relative_path: "l1/java-l1/java.md", content: "# Java\n" }];
+  const files = [{ relative_path: "l1/java-l1/java.md", rule_set_id: "java-l1", release_id: "java-l1@test", content: "# Java\n" }];
   const projected = files.map((file) => ({
     ...file, sha256: sha256Hex(file.content), byte_size: Buffer.byteLength(file.content),
   }));
-  const refs = [{ rule_set_id: "java-l1", release_id: "java-l1@test", scope_level: "L1" }];
+  const refs = [{ rule_set_id: "java-l1", release_id: "java-l1@test", scope_level: "L1", standard_domain: "backend", local_rule_set_name: "Java规范" }];
   const manifestHash = sha256Hex(canonicalJson(projected.map(({
-    relative_path, sha256, byte_size,
-  }) => ({ relative_path, sha256, byte_size }))));
+    relative_path, rule_set_id, release_id, sha256, byte_size,
+  }) => ({ relative_path, rule_set_id, release_id, sha256, byte_size }))));
   const snapshotId = sha256Hex(canonicalJson({
-    bootstrap_version: "l1-bootstrap-bundle/v1",
+    bootstrap_version: "l1-bootstrap-bundle/v3", stage: "coding", dependency_hash: sha256Hex("stage-coding"),
     standard_domain: "backend",
     manifest_hash: manifestHash,
     release_refs: refs,
@@ -325,16 +341,19 @@ test("forwards an explicit bootstrap domain through the SSO wrapper", async () =
   const requests = [];
   const receipt = await syncWithOfficialSso({
     environment: { RULE_OBSERVABILITY_USER_TOKEN: "official-token" },
-    options: { transport: "direct", repoRoot: root, repositoryLocator: "team/new-java", domain: "backend", bootstrap: true },
+    options: { transport: "direct", repoRoot: root, repositoryLocator: "team/new-java", domain: "backend", bootstrap: true, mis: "aicr-agent" },
+    execute: async () => { throw new Error("bootstrap must not authenticate"); },
     fetchImpl: async (url, init) => {
+      assert.equal(init.headers.Authorization, "Bearer official-token");
+      assert.match(url, /\/v1\/rule-bundles\/resolve$/u);
       requests.push(JSON.parse(init.body));
       return url.endsWith("/v1/effective-rule-bundles/resolve")
         ? errorResponse("repository_not_registered", 404)
         : response({
-          schema_version: "l1-bootstrap-bundle/v1",
+          schema_version: "l1-bootstrap-bundle/v3",
           status: "ready",
           snapshot: {
-            bootstrap_version: "l1-bootstrap-bundle/v1", snapshot_id: snapshotId,
+            bootstrap_version: "l1-bootstrap-bundle/v3", snapshot_id: snapshotId, stage: "coding", dependency_hash: sha256Hex("stage-coding"),
             standard_domain: "backend", release_refs: refs,
             manifest_hash: manifestHash, total_bytes: projected[0].byte_size,
           },
@@ -342,8 +361,13 @@ test("forwards an explicit bootstrap domain through the SSO wrapper", async () =
         });
     },
   });
-  assert.equal(requests[1].standard_domain, "backend");
-  assert.equal(receipt.domain_source, "user_explicit");
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].standard_domain, "backend");
+  assert.equal(requests[0].declared_actor, undefined);
+  assert.equal(requests[0].scope, "l1");
+  assert.equal(requests[0].bundle_contract, "scope-domain-ruleset/v1");
+  assert.equal(receipt.authentication_mode, "injected_user_token");
+  assert.equal(receipt.standard_domain, "backend");
 });
 
 test("accepts official JSON tokens and gateway placeholders and passes the explicit environment", async () => {
@@ -582,7 +606,7 @@ test("standalone CLI refreshes a rejected injected token with its explicit MIS",
       transport: "direct",
       agent: "cli",
       mis: "current-user",
-      repositoryLocator: "hotel-web",
+      repositoryLocator: "hfe/test",
       outputDir: root,
     },
     execute: async (_command, args) => {
@@ -653,7 +677,7 @@ test("runs the SSO wrapper when its Skill directory is installed as a symbolic l
   const result = spawnSync(process.execPath, [entry, "--unexpected"], { encoding: "utf8" });
   assert.equal(result.status, 2);
   assert.match(result.stderr, /RULE_BUNDLE_ARGUMENT_INVALID/);
-  const invalidAuthAgent = spawnSync(process.execPath, [entry, "--transport", "direct", "--auth-agent", "vscode"], {
+  const invalidAuthAgent = spawnSync(process.execPath, [entry, "--stage", "coding", "--transport", "direct", "--auth-agent", "vscode"], {
     encoding: "utf8",
     env: { ...process.env, RULE_OBSERVABILITY_USER_TOKEN: "" },
   });

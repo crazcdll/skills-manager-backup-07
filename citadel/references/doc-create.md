@@ -1,5 +1,7 @@
 # 创建学城文档详细说明
 
+> **原生 MD 文档（type=7、`/md/<id>`）请使用 [MD 文档操作说明](markdown-documents.md)。本页的 XML 命令用于 2.0 文档。**
+
 ## 内容传递格式自动识别
 
 `createDocument` 的 `--file` / `--content` 参数自动识别以下格式，**优先使用原始 Markdown 文件传入**，无需转换为 XML：
@@ -8,7 +10,6 @@
 |------|--------|------|
 | 原生 Markdown | `.md` | 直接支持，内容按标准 Markdown 语法解析 |
 | CitadelXML | `.xml` | 含 `<km-doc>` 根节点的学城扩展 XML |
-| CitadelMD | `.citadelmd` | 含学城专属宏语法的 Markdown 变体 |
 | ProseMirror JSON | `.json` | 文档底层 JSON |
 
 ## 场景一：用户已有 Markdown 文件（最常见，直接 --file 传入）
@@ -82,7 +83,7 @@ oa-skills citadel grant \
 > - **严禁**手写、猜测或复用来历不明的 `xtableId`
 > - 唯一合法来源：`createTable --contentId <当前文档ID>` 或 `copyTable --targetType 3 --targetParentId <当前文档ID>` 的返回值
 > - **同一张表格在同一文档中只应嵌入一次**：编辑时不要复制已有 `<km-xtable>` 节点；本次编辑新增的重复嵌入会在写入前被拒绝。需要在文档多处展示相同数据时，用 `copyTable` 复制出新表分别嵌入
-> - `updateDocumentByXml` / `updateDocumentByMd` 对本次**新增**的 xtableId 做两阶段校验：① 写入前，不存在/已删除/无权限的表格 ID（伪造 ID、他人无权限文档的表格）直接报错拒绝；② 写入后自动审计归属，未关联到本文档的（跨文档引用）报错并要求用 `copyTable` 复制新表替换节点——收到该报错时按报错指引修复，禁止原样重试。创建文档时初始内容包含 `<km-xtable>` 会直接报错（新文档尚无 ID，表格不可能已关联到它）
+> - `updateDocumentByXml` 对本次**新增**的 xtableId 做两阶段校验：① 写入前，不存在/已删除/无权限的表格 ID（伪造 ID、他人无权限文档的表格）直接报错拒绝；② 写入后自动审计归属，未关联到本文档的（跨文档引用）报错并要求用 `copyTable` 复制新表替换节点——收到该报错时按报错指引修复，禁止原样重试。创建文档时初始内容包含 `<km-xtable>` 会直接报错（新文档尚无 ID，表格不可能已关联到它）
 
 1. **先创建或复制多维表格**
    - 在现有学城文档内新建表格：调用 `oa-skills citadel-database createTable --contentId <目标文档ID> --tableTitle <表格名>`，其中 `contentId` 就是目标学城文档 ID，不需要先创建多维表格文档；返回值里的 `tableId` 仅用于后续数据读写

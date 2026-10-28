@@ -34,17 +34,17 @@ react | 17.0.2 | 18.2.0 | major
 
 ### 2. 获取新旧版本代码
 
-对每个需要扫描的包，通过 `npm pack` 下载到临时目录：
+对每个需要扫描的包，调用随 Skill 提供的 [dep-scan.sh](../../../scripts/dep-scan.sh)：
 
 ```bash
-mkdir -p /tmp/dep-upgrade-scan/{pkg-name}/{old,new}
-npm pack <pkg>@<old-version> --pack-destination /tmp/dep-upgrade-scan/{pkg-name}/
-npm pack <pkg>@<new-version> --pack-destination /tmp/dep-upgrade-scan/{pkg-name}/
-tar -xzf /tmp/dep-upgrade-scan/{pkg-name}/<old-tarball> -C /tmp/dep-upgrade-scan/{pkg-name}/old/
-tar -xzf /tmp/dep-upgrade-scan/{pkg-name}/<new-tarball> -C /tmp/dep-upgrade-scan/{pkg-name}/new/
+bash "<skill_dir>/scripts/dep-scan.sh" fetch "<pkg>" "<old-version>" "<new-version>"
 ```
 
-> `npm pack` 失败（registry 不可达、包不存在）→ 降级到仅扫描新版代码 + 项目使用方式，标注"旧版不可获取，无法做精确对比"。
+`<skill_dir>` 为本 Skill 的绝对路径。脚本用 `npm pack` 获取新旧包，每次返回独立的 `scan_dir`，以及 `old_status` / `new_status` 和对应的 `old_dir` / `new_dir`。
+
+- 状态为 `ready` 时读取对应目录；`unavailable` 的目录字段为空，按下方降级策略处理。
+- 退出码 `0` 表示新旧包均可用；非 `0` 时仍检查输出，保留成功取得的一侧。没有 `scan_dir` 表示未能开始下载。
+- 保存每次返回的 `scan_dir`，分析完成后逐个清理；不复用上次扫描目录。
 
 ### 3. 提取 API 签名
 
@@ -124,18 +124,20 @@ grep -r "require(['\"]<pkg>" --include="*.tsx" --include="*.ts" --include="*.jsx
 
 ### 8. 清理临时文件
 
-扫描完成后删除临时目录：
+扫描完成后，对每次 fetch 返回的 `scan_dir` 执行清理（下载失败的扫描也需清理）：
 
 ```bash
-rm -rf /tmp/dep-upgrade-scan/
+bash "<skill_dir>/scripts/dep-scan.sh" clean "<scan_dir>"
 ```
+
+只清理本次扫描目录，不删除其它任务的临时文件。
 
 ## 降级策略
 
 | 场景 | 处理 |
 |------|------|
-| `npm pack` 旧版失败 | 仅分析新版代码 + 项目使用方式，置信度标注"低"，建议人工确认 |
-| `npm pack` 新版失败 | 从当前 `node_modules` 读取（如已 install）；仍失败则跳过该包 |
+| 旧版下载或解压失败 | 仅分析新版代码 + 项目使用方式，置信度标注"低"，建议人工确认 |
+| 新版下载或解压失败 | 从当前 `node_modules` 读取（如已 install）；仍失败则跳过该包 |
 | 包内无 `.d.ts` 也无可读源码 | 标注"无法分析该包 API 变化"，降为 Open Questions |
 | 升级包数量过多（> 10 个） | 优先处理 major 升级和内部业务组件；其余仅列清单不做深入分析 |
 

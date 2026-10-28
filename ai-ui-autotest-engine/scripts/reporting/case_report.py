@@ -4,7 +4,7 @@
 import json
 import os
 
-from reporting.data_collector import _read_skill_version, list_dir
+from reporting.data_collector import list_dir, skill_version
 from reporting.model import normalize_step_records
 from reporting.schema import assertion_summary, summary
 from reporting.steps import _note_report, _record_report, _stage_report, build_step
@@ -195,7 +195,7 @@ def build_case(manifest, context, records, images):
         "case_name": manifest.get("case_name", ""),
         "case_index": case_index,
         "status": case_status,
-        "skill_version": _read_skill_version(),
+        "skill_version": skill_version(),
         "landing_scheme": manifest.get("landing_scheme", ""),
         # timeline 在 build_run 中统一构建（合并所有数据源），此处仅保留 SOP 阶段
         "timeline": case_stages,

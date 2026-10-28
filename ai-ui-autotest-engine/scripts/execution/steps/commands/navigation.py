@@ -2,6 +2,7 @@
 
 from shared.errors import DeviceError
 from shared.context import get_platform_ops
+from shared.placeholders import find_unresolved_placeholders
 from execution.screen.page_stability import wait_page_stable
 from execution.steps.assertion_utils import _try_shoot_for_diagnosis, format_visual_check_hint
 
@@ -10,6 +11,12 @@ def _cmd_open_url(args):
     """独立命令：通过 scheme 加载页面。"""
     ops = get_platform_ops()
     url = args.url
+    unresolved = find_unresolved_placeholders(url)
+    if unresolved:
+        raise DeviceError(
+            f"open-url URL 含未解析占位符: {', '.join(unresolved)}；"
+            f"请检查 flow-init 是否完成日期/动态参数解析"
+        )
     print(f"  OPEN-URL: {url}")
     ok = ops.open_url(url)
     if not ok:

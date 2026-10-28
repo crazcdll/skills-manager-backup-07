@@ -204,7 +204,7 @@ _BATCH_TAIL_STAGES = [
         "cmds": list(_T2_CLEANUP_CMDS),
         "notes": "flow-finalize 必须在 post-clean 之前执行：它标记 T2 completed、执行唯一的"
                  " batch-upload（生成报告 + 入库 + archive_run）。archive_run 已将 本 workspace归档到"
-                 " output/run-<ts>/run/，所以随后 post-clean 清空本 workspace 不会丢失执行产物。",
+                 " $STATE/reports/<batch>/<run>/run/，所以随后 post-clean 清空本 workspace 不会丢失执行产物。",
         "on_fail": dict(_ON_FAIL_BEST_EFFORT),
         "terminal": True,
         "layer": "batch_tail",

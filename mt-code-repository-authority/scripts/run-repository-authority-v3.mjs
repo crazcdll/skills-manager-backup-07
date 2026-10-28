@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { parseCallbackError, callbackErrorDiagnostics, readCallbackErrorResponse } from "./callback-error.mjs";
 
 import { chmod, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -230,8 +231,18 @@ export const scanCitadelSource = async ({ source, actorMis, authEnvironment, res
     catch { return { exitCode: 1, stdout: Buffer.alloc(0), stderr: Buffer.alloc(0) }; }
   };
   const authArgs = ["--mis", actorMis, "--sso-strategy", "sso-ciba", "--raw", "--no-version-check"];
+  const hasExplicitError = (result) => {
+    const payload = jsonFrom(result?.stdout);
+    return Boolean(payload && typeof payload === "object" && (payload.error || payload.success === false || payload.ok === false ||
+      (Object.hasOwn(payload, "code") && ![0, "0", 200, "200", "OK", "SUCCESS"].includes(payload.code) &&
+        (typeof payload.message === "string" || typeof payload.msg === "string"))));
+  };
   const terminalFailureCode = (result) => {
-    const output = `${Buffer.from(result?.stdout ?? "").toString("utf8")}\n${Buffer.from(result?.stderr ?? "").toString("utf8")}`;
+    const receipt = jsonFrom(result?.stdout);
+    const explicitMessages = [receipt?.error?.message, receipt?.message, receipt?.msg]
+      .filter((value) => typeof value === "string" && value.length <= 4096);
+    const output = `${explicitMessages.join("\n")}\n${Buffer.from(result?.stdout ?? "").toString("utf8")}\n${Buffer.from(result?.stderr ?? "").toString("utf8")}`;
+    if (/(?:citadel_secure_environment_required|(?:C4|高密|安全屋|secure environment|secure house).{0,160}(?:失败|拒绝|required|需要|only|仅|不可用|不支持|访问))/iu.test(output)) return "citadel_secure_environment_required";
     const authRequired = /(?:citadel_auth_required|MOA_NOT_LOGGED_IN|MOA_AUTH_REQUEST_PENDING|ric_feedback_required|authorization_pending|slow_down|auth(?:entication|orization)?.{0,60}required|需要.{0,12}(?:认证|授权)|请.{0,12}(?:认证|授权)|前往大象.{0,20}(?:确认|授权))/iu.test(output);
     if (/(?:citadel_auth_rejected|MOA_USER_REJECTED|MOA_REJECT_COOLDOWN|(?:认证|授权).{0,30}(?:被?拒绝|冷却)|user.{0,20}rejected)/iu.test(output)) return "citadel_auth_rejected";
     if (/(?:citadel_auth_expired|expired_token|invalid_grant|token.{0,20}expired|auth(?:entication|orization)?.{0,30}expired|(?:认证|授权|令牌).{0,30}过期)/iu.test(output)) return "citadel_auth_expired";
@@ -250,32 +261,32 @@ export const scanCitadelSource = async ({ source, actorMis, authEnvironment, res
       : { scan_status: "failed", repositories: [], issues: [{ source: sourceLocation, error_code: errorCode }] };
   };
   const markdown = await read(["citadel", "getSimpleMarkdown", "--contentId", contentId, ...authArgs], 4 * 1024 * 1024);
-  const markdownTerminal = markdown.exitCode !== 0 ? terminalFailureCode(markdown) : null;
+  const markdownTerminal = (markdown.exitCode !== 0 || hasExplicitError(markdown)) ? terminalFailureCode(markdown) : null;
   if (markdownTerminal) return terminalFailure("document", markdownTerminal);
-  const markdownPayload = markdown.exitCode === 0 ? jsonFrom(markdown.stdout) : null;
+  const markdownPayload = markdown.exitCode === 0 && !hasExplicitError(markdown) ? jsonFrom(markdown.stdout) : null;
   if (markdownPayload) extract(markdownPayload, "document");
   else addReadError("document", "citadel_document_unavailable");
   const document = await read(["citadel", "getDocumentJson", "--contentId", contentId, ...authArgs], 4 * 1024 * 1024);
-  const documentTerminal = document.exitCode !== 0 ? terminalFailureCode(document) : null;
+  const documentTerminal = (document.exitCode !== 0 || hasExplicitError(document)) ? terminalFailureCode(document) : null;
   if (documentTerminal) return terminalFailure("document-references", documentTerminal);
-  const documentPayload = document.exitCode === 0 ? jsonFrom(document.stdout) : null;
+  const documentPayload = document.exitCode === 0 && !hasExplicitError(document) ? jsonFrom(document.stdout) : null;
   if (!documentPayload) addReadError("document-references", "citadel_document_references_unavailable");
   else if (typeof documentPayload.body === "string" && !jsonFrom(documentPayload.body) && /xtable/iu.test(documentPayload.body)) {
     addReadError("document-references", "citadel_legacy_references_unavailable");
   }
   const tables = await read(["citadel-database", "listTables", "--contentId", contentId, ...authArgs], 1024 * 1024);
-  const tablesTerminal = tables.exitCode !== 0 ? terminalFailureCode(tables) : null;
+  const tablesTerminal = (tables.exitCode !== 0 || hasExplicitError(tables)) ? terminalFailureCode(tables) : null;
   if (tablesTerminal) return terminalFailure("database-list", tablesTerminal);
-  const tablePayload = tables.exitCode === 0 ? jsonFrom(tables.stdout) : null;
+  const tablePayload = tables.exitCode === 0 && !hasExplicitError(tables) ? jsonFrom(tables.stdout) : null;
   const tableIds = [...new Set([...extractCitadelTableIds(tablePayload), ...extractCitadelTableIds(documentPayload)])];
   if (tables.exitCode !== 0 || !tablePayload) addReadError("database-list", "citadel_database_list_unavailable");
   for (const tableId of tableIds) {
     if (deadline - now() <= 61_000) { addReadError(`database:${tableId}`, "citadel_scan_timeout"); break; }
     if (!Number.isSafeInteger(Number(tableId))) { addReadError(`database:${tableId}`, "citadel_database_meta_unavailable", false); continue; }
     const meta = await read(["citadel-database", "getTableMeta", "--tableId", tableId, ...authArgs], 1024 * 1024);
-    const metaTerminal = meta.exitCode !== 0 ? terminalFailureCode(meta) : null;
+    const metaTerminal = (meta.exitCode !== 0 || hasExplicitError(meta)) ? terminalFailureCode(meta) : null;
     if (metaTerminal) return terminalFailure(`database:${tableId}`, metaTerminal);
-    const columnIds = jsonFrom(meta.stdout)?.columns?.map((column) => column.colId);
+    const columnIds = !hasExplicitError(meta) ? jsonFrom(meta.stdout)?.columns?.map((column) => column.colId) : null;
     if (meta.exitCode !== 0 || !Array.isArray(columnIds) || !columnIds.length || columnIds.some((id) => !/^\d{1,30}$/u.test(String(id)))) {
       addReadError(`database:${tableId}`, "citadel_database_meta_unavailable");
       continue;
@@ -287,9 +298,9 @@ export const scanCitadelSource = async ({ source, actorMis, authEnvironment, res
       page += 1;
       if (deadline - now() <= 61_000) { addReadError(`database:${tableId}:page:${page}`, "citadel_scan_timeout"); break; }
       const rows = await read([TABLE_PAGE_READER, tableId, JSON.stringify(columnIds), pageToken, actorMis], 16 * 1024 * 1024, process.execPath);
-      const rowsTerminal = rows.exitCode !== 0 ? terminalFailureCode(rows) : null;
+      const rowsTerminal = (rows.exitCode !== 0 || hasExplicitError(rows)) ? terminalFailureCode(rows) : null;
       if (rowsTerminal) return terminalFailure(`database:${tableId}:page:${page}`, rowsTerminal);
-      const payload = rows.exitCode === 0 ? jsonFrom(rows.stdout) : null;
+      const payload = rows.exitCode === 0 && !hasExplicitError(rows) ? jsonFrom(rows.stdout) : null;
       if (!payload || !Array.isArray(payload.rows) || payload.rows.some((row) => !row || !Array.isArray(row.cellData) || row.cellData.some((cell) => !cell || typeof cell !== "object"))) {
         addReadError(`database:${tableId}:page:${page}`, "citadel_database_page_unavailable");
         break;
@@ -354,7 +365,8 @@ export const deliverSourceResult = async ({ context, result, fetchImpl = fetch, 
         if (receipt.schema_version !== receiptSchema || !["accepted", "duplicate"].includes(receipt.status) || receipt.run_id !== context.source.runId || receipt.shard_id !== context.shardId || receipt.generation !== context.generation || receipt.chunk_index !== result.chunk_index || receipt.result_hash !== resultHash) throw new AuthorityRunnerError("source callback receipt is invalid", { phase: "callback", errorCode: "callback_receipt_invalid" });
         return receipt;
       }
-      lastError = new AuthorityRunnerError("source callback failed", { phase: "callback", errorCode: response.status === 401 || response.status === 403 ? "callback_unauthorized" : "callback_delivery_failed", retriable: response.status === 408 || response.status === 425 || response.status === 429 || response.status >= 500 });
+      const details = parseCallbackError(await readCallbackErrorResponse(response), [context.source.callback.token]);
+      lastError = new AuthorityRunnerError(details.message || "source callback failed", { ...details, phase: "callback", errorCode: response.status === 401 || response.status === 403 ? "callback_unauthorized" : "callback_delivery_failed", retriable: response.status === 408 || response.status === 425 || response.status === 429 || response.status >= 500 });
     } catch (error) {
       lastError = error instanceof AuthorityRunnerError ? error : new AuthorityRunnerError("source callback failed", { phase: "callback", errorCode: "callback_network_error", retriable: true });
     }
@@ -375,7 +387,7 @@ export const executeV3Task = async ({ taskPath, taskArtifactHash, outputPath, ru
     catch (error) { setupError = error; }
     const items = await mapLimit(context.items, V3_WORKERS, async (item) => {
       try { return await executeAuthorityItem({ context: { ...item, actorMis: context.actorMis, deadline: context.deadline }, runtime, setupError, processRunner, callbackRequest, now }); }
-      catch (error) { return { item_id: item.itemId, status: "callback_failed", error: errorShape(error) }; }
+      catch (error) { return { item_id: item.itemId, status: "callback_failed", error: { ...errorShape(error), ...callbackErrorDiagnostics(error) } }; }
     });
     receipt = { schema_version: V3_LOCAL_RECEIPT_SCHEMA, mode: context.mode, shard_id: context.shardId, generation: context.generation, items };
   } else if (context.mode === V3_MODE_SOURCE_SCAN) {
@@ -460,5 +472,5 @@ const args = (argv) => {
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url))) {
   try { process.stdout.write(`${JSON.stringify(await executeV3Task(args(process.argv.slice(2))))}\n`); }
-  catch (error) { process.stderr.write(`${JSON.stringify(errorShape(error))}\n`); process.exitCode = 1; }
+  catch (error) { process.stderr.write(`${JSON.stringify({ ...errorShape(error), ...callbackErrorDiagnostics(error) })}\n`); process.exitCode = 1; }
 }

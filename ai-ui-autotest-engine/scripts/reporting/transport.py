@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from urllib import request
 
 from platform.ssl_helper import SSL_CONTEXT
+from shared.output_guard import link_or_copy, redact_obj
 from shared.records import FRAMES_DIRNAME
 
 # ── 域名/凭证 base64 编码存储，运行时解码（规避安全扫描静态匹配，与项目其他模块同策略）──
@@ -75,8 +76,8 @@ def upload_images(s3, case_workspace, output_dir, run_id, case_tag):
             continue
         destination = os.path.join(frames_dir, name)
         if not os.path.exists(destination):
-            with open(source, "rb") as input_file, open(destination, "wb") as output_file:
-                output_file.write(input_file.read())
+            # 同盘硬链：报告目录与归档引用同一 inode，不再存第二份截图字节
+            link_or_copy(source, destination)
         key = f"{s3['uploadPrefix']}{run_id}/{case_tag}/frames/{name}" if s3 else ""
         tasks.append((name, destination, key))
     urls = {}
@@ -177,6 +178,8 @@ def _report_id(run):
 
 
 def insert_report(run):
+    # 平台是最终外部出口：即使上游漏了脱敏，这里也必须兜住
+    run = redact_obj(run)
     batch = run["batch_summary"]
     # 共用报告 id → 走 append（upsert + 原子追加 cases）；否则走 insert（整行 upsert，行为与现状一致）
     append = bool((os.environ.get(REPORT_ID_ENV) or "").strip())
@@ -190,6 +193,9 @@ def insert_report(run):
         if val is not None:
             run_meta[key] = val
     run_meta["run_index"] = _build_run_index(run)
+    # 每个 case 自身的计数快照：平台侧按「Σ run_index_own」重算 cases[0].run_index，
+    # 从而支持"重跑覆盖"且不自我放大（1 case/run 时两者相等）
+    run_meta["run_index_own"] = run_meta["run_index"]
     cases_with_meta = []
     for case in run["cases"]:
         enriched = dict(case)

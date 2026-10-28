@@ -1,3 +1,5 @@
 .temp/
-_background.md
-_authoring.md
+dev_docs/
+__pycache__/
+*.pyc
+.pytest_cache/

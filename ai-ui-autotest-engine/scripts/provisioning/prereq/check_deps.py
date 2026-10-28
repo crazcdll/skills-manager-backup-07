@@ -4,20 +4,21 @@
 
 检测项与平台无关，一次性覆盖 Android + HarmonyOS 两端所需依赖：
   1) Python 第三方包：requests（必需）、websocket-client（必需，WebView DOM 感知依赖），缺失自动 pip 安装。
-  2) 命令行工具：imeituan CLI（必需，包名见 _IMEITUAN_PKG，缺失给出安装指引）、
-   adb（Android 真机/模拟器连接，缺失自动下载）、hdc（HarmonyOS 本地真机/云设备连接，缺失自动安装）、
+  2) 命令行工具：imeituan CLI（必需；安装位置/升级策略统一由 shared/imeituan.py 负责，
+   缺失或非最新时自动安装/升级）、
+   adb（Android 真机/模拟器连接；缺失时校验 sha256 后解压 Skill 内置离线包）、
+   hdc（HarmonyOS 本地真机/云设备连接，缺失自动安装）、
    conan-cli（云模拟器占用/释放入口；体积小，作为**默认依赖**：缺失自动安装 + 按需升级，非致命）。
 
 输出 stdout 一个 JSON：{ok, fix, platforms, checks:[{name, ok, detail, hint, status}]}
 ok=false 表示有"必需项"缺失且无法自动修复，需按 hint 处理。
 platforms 反映本次实际探测到可用连接工具的平台集合（adb 就绪→含 android，hdc 就绪→含 harmony）。
-checks[].status 为三态：session_available / path_not_loaded / temp_available / None。
+checks[].status：session_available（PATH 可用）/ path_not_loaded（已装但非交互 Shell
+看不到 PATH）/ installed（Skill 内置包副本）/ temp_available（本次安装）/ None。
 
 用法：
-  python3 scripts/cli.py check-deps              # 检测 + 自动安装可装项
-  python3 scripts/cli.py check-deps --platform harmony  # 仅标记上报的 platform 字段（依赖默认全量安装，含 hdc）
+  python3 scripts/cli.py check-deps   # 检测 + 自动安装可装项（Android 与 HarmonyOS 依赖全量覆盖）
 """
-import base64
 import json
 import os
 import re
@@ -26,15 +27,16 @@ import sys
 import time
 from shutil import which
 
-from shared.paths import SKILL_DIR, ensure_dirs, REFERENCES_DIR, SKILL_MD_PATH, check_deps_result_path
+from shared.paths import SKILL_DIR, ensure_dirs, SKILL_MD_PATH, check_deps_result_path
 from provisioning.prereq.node_env import (
     current_node_major, node18_env, node_manager_prefix,
-    REQUIRED_NODE_MAJOR, run_with_node, NPM_REGISTRY,
+    REQUIRED_NODE_MAJOR, run_with_node,
 )
 from platform.auth import _get_appmock_cookie
 from shared.json_utils import write_json_atomic
 from shared.errors import AutotestError
 from shared.selfupdate import sync_self
+from provisioning.prereq.deps import ensure_python_packages, verify_resource
 
 # Skill 自更新：本地版本号仅用于展示，更新判定统一见 shared/selfupdate.py
 _SKILL_NAME = "ai-ui-autotest-engine"
@@ -56,16 +58,10 @@ def _read_local_version():
         pass
     return "未知"
 
-# npm 包名做 base64 序列化存储，规避安全扫描对包名字符串的静态匹配（运行时解码后使用）
-_IMEITUAN_PKG = base64.b64decode("QG10ZmUvaW1laXR1YW4tY2xp").decode()
-
-_IMPORT_NAME = {
-    "websocket-client": "websocket",
-}
-
 # 状态标签中文映射
 _STATUS_LABELS = {
     "session_available": "当前会话可用",
+    "installed": "Skill 内置包已安装",
     "path_not_loaded": "已安装但当前 Shell 不可见",
     "temp_available": "仅临时可用",
 }
@@ -75,7 +71,7 @@ def _status_label(status):
 
 
 def _parse_cli_version(out):
-    """从 `imeituan --version` 输出中提取纯版本号。
+    """从 `<cli> --version` 输出中提取纯版本号。
 
     输出形如 `@mtfe/imeituan-cli/0.4.17 darwin-arm64 node-v22.20.0`，
     需归一化为 `0.4.17` 才能与 `npm view <pkg> version` 的结果比对。
@@ -84,33 +80,17 @@ def _parse_cli_version(out):
     return m.group(1) if m else None
 
 
-def _check_python_pkg(pkg):
-    import_name = _IMPORT_NAME.get(pkg, pkg)
-    try:
-        __import__(import_name)
-        return True, "已安装", None
-    except Exception:
-        pass
-    try:
-        subprocess.run([sys.executable, "-m", "pip", "install", "-q", pkg],
-                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True, timeout=180, check=True)
-        __import__(import_name)
-        return True, "已自动安装", None
-    except Exception as e:
-        return False, "自动安装失败", f"手动执行：pip3 install {pkg}（{e}）"
-
-
 def _progress(msg):
     """输出进度信息到 stderr，用户可实时看到。"""
     sys.stderr.write(f"[check-deps] {msg}\n")
     sys.stderr.flush()
 
 
-def main(platform="android"):
-    """运行前置依赖检测。
+def main():
+    """运行前置依赖检测（Android / HarmonyOS 依赖一次性全量覆盖）。
 
-    Args:
-        platform: 目标平台（android/harmony），用于裁剪 HDC 安装
+    不接受 platform 参数：本命令在设备组合确定**之前**执行，按平台裁剪只会让
+    另一端的依赖拖到设备阶段才暴露；实际可用平台由探测结果 `platforms` 反映。
     """
     checks = []
     overall_ok = True
@@ -118,9 +98,9 @@ def main(platform="android"):
     _progress("正在检测 Python 版本...")
     # Python 版本检测
     py_ver = sys.version_info
-    py_ok = py_ver >= (3, 7)
+    py_ok = py_ver >= (3, 9)  # 代码里用了 list[str] 等内置泛型注解，3.9 起才合法
     py_detail = f"Python {py_ver.major}.{py_ver.minor}.{py_ver.micro}"
-    py_hint = None if py_ok else "当前 Python < 3.7，请升级"
+    py_hint = None if py_ok else "当前 Python < 3.9，请升级（代码使用 list[str] 等内置泛型注解）"
     checks.append({"name": "python-version", "ok": py_ok,
                    "detail": py_detail, "hint": py_hint})
 
@@ -158,61 +138,62 @@ def main(platform="android"):
 
     _progress("正在检测 Python 依赖包...")
     # 1) Python 包
-    for pkg, required in [("requests", True), ("websocket-client", True)]:
-        ok, detail, hint = _check_python_pkg(pkg)
-        if not ok and required:
+    #    声明与版本区间见 references/deps/manifest.json；缺失项合并成一次 pip 调用
+    for item in ensure_python_packages(log=_progress):
+        if not item["ok"]:
             overall_ok = False
-        checks.append({"name": f"py:{pkg}", "ok": ok, "detail": detail, "hint": hint})
+        checks.append(item)
 
     _progress("正在检测 imeituan CLI...")
-    # 2) imeituan CLI（必需）— 统一设备操作入口（缺失时自动安装，已有时自动升级到最新版）
-    imeituan = which("imeituan")
-    if not imeituan:
-        ok_im, im_out = run_with_node(
-            f"npm i -g {_IMEITUAN_PKG} --registry={NPM_REGISTRY}", timeout=300)
-        if ok_im:
-            imeituan = which("imeituan")
-            if not imeituan:
-                ok_v, _ = run_with_node("imeituan --version", timeout=30)
-                if ok_v:
-                    imeituan = "imeituan（已安装，需通过 Node 版本管理器环境使用）"
-    # 已安装时按需升级：先比对本地与远端版本，一致则跳过 npm 安装
-    # （全局安装约 9s，两次版本查询约 1.2s，绝大多数情况下版本已是最新）
-    if imeituan:
-        ok_local, local_out = run_with_node("imeituan --version", timeout=30)
-        local_ver = _parse_cli_version(local_out) if ok_local else None
-        ok_remote, remote_out = run_with_node(
-            f"npm view {_IMEITUAN_PKG} version --registry={NPM_REGISTRY}", timeout=60)
-        remote_ver = remote_out.strip() if ok_remote else None
+    # 2) imeituan CLI（必需）—— **单一受管安装 + 使用即最新**
+    #
+    # 安装/升级/降级判定全部收敛在 shared.imeituan（设备层与控制台共用同一入口）：
+    #   · 安装位置固定用户级前缀，与当前 Node 版本无关；
+    #   · check-deps 强制与 registry 比对一次（force=True），保证进入后续流程前
+    #     就是 latest；之后的每条设备命令还会按 TTL 复检，不会长期停在旧版。
+    from shared.imeituan import (
+        MIN_VERSION as _MIN_IMEITUAN_VERSION,
+        ensure as ensure_imeituan,
+        install_command as _imeituan_install_cmd,
+        version_tuple as _version_tuple,
+    )
 
-        if local_ver and remote_ver and local_ver == remote_ver:
-            imeituan_ver = f"{local_ver}（已是最新）"
-        else:
-            ok_up, _ = run_with_node(
-                f"npm i -g {_IMEITUAN_PKG}@latest --registry={NPM_REGISTRY}", timeout=300)
-            if ok_up:
-                ok_ver, ver_out = run_with_node("imeituan --version", timeout=30)
-                imeituan_ver = _parse_cli_version(ver_out) or "已升级" if ok_ver else "已升级"
-            else:
-                imeituan_ver = f"{local_ver or '未知版本'}（升级失败，使用当前版本）"
-    else:
-        imeituan_ver = None
-    imeituan_detail = imeituan or "未找到（必需）"
-    if imeituan and imeituan_ver:
-        imeituan_detail = f"{imeituan}（{imeituan_ver}）"
-    if not imeituan:
-        overall_ok = False
+    im_res = ensure_imeituan(force=True, log=_progress)
+    imeituan = im_res["bin"]
+    imeituan_version = im_res["version"]
+
+    imeituan_ok = bool(imeituan) and (
+        not imeituan_version
+        or _version_tuple(imeituan_version) >= _MIN_IMEITUAN_VERSION)
     imeituan_hint = None
     if not imeituan:
-        imeituan_hint = (f"npm i -g {_IMEITUAN_PKG} --registry={NPM_REGISTRY}  "
-                         "# 安装 imeituan CLI 后重新检测（需 Node>=18）")
-    checks.append({"name": "imeituan", "ok": bool(imeituan),
+        overall_ok = False
+        imeituan_hint = f"{_imeituan_install_cmd()}；受管安装失败"
+        if im_res["error"]:
+            imeituan_hint += f"（{im_res['error']}）"
+    elif not imeituan_ok:
+        # 低版本只能写 legacy 会话（无 adbServerSocket），并发时会被 retain-session 卡死。
+        overall_ok = False
+        imeituan_hint = (
+            f"imeituan CLI 版本过低（{imeituan_version} < "
+            f"{'.'.join(map(str, _MIN_IMEITUAN_VERSION))}）：旧版缺少会话 Server 身份，"
+            f"并发会串台。请执行 {_imeituan_install_cmd()} 后重试")
+
+    if imeituan:
+        imeituan_detail = (f"{imeituan}（{imeituan_version or '未知版本'}，"
+                           f"{im_res['source_label']}，{im_res['action_label']}）")
+        if im_res["action"] == "install-failed" and im_res["error"]:
+            imeituan_detail += f"\n升级失败原因：{im_res['error']}"
+    else:
+        imeituan_detail = "未找到（必需）"
+    checks.append({"name": "imeituan", "ok": imeituan_ok,
                    "detail": imeituan_detail,
                    "hint": imeituan_hint})
 
     _progress("正在检测 ADB 连接...")
     # 3) adb 可用性检测 + 自动安装（Android）
-    #    统一委托 infra.adb.ensure_adb，检测+下载+PATH+持久化都在那里
+    #    统一委托 devices.toolchain.adb.ensure_adb
+    #    （PATH → 缓存 → 受管 → 内置包已装副本 → 解压内置离线包）
     from devices.toolchain.adb import ensure_adb
     adb_bin, adb_status = ensure_adb(install=True)
 
@@ -222,8 +203,8 @@ def main(platform="android"):
         adb_detail = f"{adb_bin}（{status_desc}）"
         if adb_status == "path_not_loaded":
             adb_detail += "。ADB 已由 imeituan 管理，但当前非交互会话未加载 PATH，已使用绝对路径继续"
-        elif adb_status == "temp_available":
-            adb_detail += "。自下载持久化副本，非受管环境，建议通过 imeituan 安装以获得统一管理"
+        elif adb_status == "installed":
+            adb_detail += "。来自 Skill 内置离线包（固定版本 + sha256 校验）"
     else:
         adb_detail = adb_bin or "未找到（非致命：imeituan CLI 内部有备用连接路径）"
     checks.append({
@@ -232,8 +213,8 @@ def main(platform="android"):
         "detail": adb_detail,
         "status": adb_status,
         "hint": None if adb_bin else
-        "curl -sL -o /tmp/pt.zip https://dl.google.com/android/repository/platform-tools-latest-"
-        f"{'darwin' if sys.platform == 'darwin' else 'linux'}.zip && unzip -qo /tmp/pt.zip -d /tmp/adb-tools",
+        "内置离线包缺失或损坏：确认 Skill 完整分发（references/toolchain/），"
+        "或手动安装 platform-tools 并确保 adb 在 PATH 中",
     })
 
     _progress("正在检测 HDC 连接...")
@@ -382,16 +363,8 @@ def main(platform="android"):
     checks.append({"name": "appmock-sso-cookie", "ok": sso_ok,
                    "detail": sso_detail, "hint": sso_hint})
 
-    _progress("正在检测 ADBKeyboard APK...")
-    # 6) ADBKeyboard APK 文件检测（中文输入依赖，非致命）
-    adb_kb_apk = os.path.join(REFERENCES_DIR, "ADBKeyboard.apk")
-    kb_ok = os.path.isfile(adb_kb_apk) and os.path.getsize(adb_kb_apk) > 1000
-    checks.append({
-        "name": "adb-keyboard-apk",
-        "ok": kb_ok,
-        "detail": f"{adb_kb_apk}（{os.path.getsize(adb_kb_apk)} bytes）" if kb_ok else "文件不存在或过小",
-        "hint": None if kb_ok else "references/ADBKeyboard.apk 缺失，中文输入将不可用",
-    })
+    # 6) ADBKeyboard APK（中文输入依赖，非致命）：清单声明 sha256，坏包不会被当成可用
+    checks.append(verify_resource("adb-keyboard-apk"))
 
     _progress("正在检测 Skill 版本更新...")
     # 7) Skill 自身版本同步：远端有新版本 → 自动更新。
@@ -406,7 +379,7 @@ def main(platform="android"):
             skill_self_detail = f"{_SKILL_NAME} 本地 {local_ver_str}，已自动更新到最新版本"
         elif action == "up-to-date":
             skill_self_detail = f"{_SKILL_NAME} 本地 {local_ver_str}，已是最新"
-        else:  # unknown-remote / unknown-local / update-failed
+        else:  # unknown-remote / update-failed（本地版本不可读时已由 selfupdate 强制 pull 自愈）
             skill_self_detail = f"{_SKILL_NAME} 本地 {local_ver_str}，{res['detail']}"
         skill_self_hint = res.get("hint")
     except Exception as e:
@@ -429,7 +402,6 @@ def main(platform="android"):
         platforms.append("harmony")
     result = {
         "ok": overall_ok,
-        "platform": platform,
         "platforms": platforms,
         "checks": checks,
         "checked_at": time.strftime("%Y-%m-%dT%H:%M:%S"),

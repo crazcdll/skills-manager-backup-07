@@ -11,6 +11,7 @@ Session 在 setup 阶段由 device register 创建并持久化到 flow-context.j
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 
@@ -26,6 +27,102 @@ from provisioning.prereq.node_env import imeituan_run
 # 全局活跃会话，而是把「本 run 的 session_id」显式注入每个子进程（IMEITUAN_SESSION），
 # 达成 run 级隔离（session_id 持久化于 flow-context.json meta.session_id）。
 SESSION_ENV = "IMEITUAN_SESSION"
+
+# ═══════════════════════════════════════════════════════════
+# 错误分类 —— 「确定性错误不重试」的唯一事实来源
+# ═══════════════════════════════════════════════════════════
+# 会话层的错误分两类：
+#   · 确定性（deterministic）：同一磁盘状态下重试必然复现，只能通过隔离/修环境解决。
+#     典型是 legacy 会话缺少 ADB Server 身份（CLI 会 retain-session，越重试越卡）。
+#   · 瞬态（transient）：网络/云 Server 排队/设备刚启动，退避后重试有意义。
+# 由 CLI 输出（error.message / stderr）解析错误码；解析不出按瞬态处理（保守）。
+# 设备复用阻塞：同一台 sandbox 的上一个 session/ADB 操作尚未退出。
+# 重试同一台无意义，正确处理是「隔离该设备 + 换一台」，不能判成 case 失败。
+DEVICE_REUSE_ERRORS = (
+    "SESSION_CLEANUP_PENDING",
+    "SESSION_RESOURCES_ACTIVE",
+    "SESSION_CLOSING",
+)
+
+# Cloud ADB Server 协调台账错误：这是 Android ADB 传输的全局台账状态，不是单台
+# 设备问题。命中时 repair 该端口的调度台账并退避重试，禁止通过换 sandbox 解决。
+ADB_COORDINATION_ERRORS = (
+    "ADB_SERVER_COORDINATION_QUARANTINED",
+    "ADB_SERVER_COORDINATION_UNAVAILABLE",
+    "ADB_SERVER_COORDINATION_CORRUPT",
+)
+
+_DETERMINISTIC_ERRORS = (
+    "ADB_SERVER_LEGACY_IDENTITY_UNKNOWN",
+    "ADB_RUNTIME_MIGRATION_REQUIRED",
+    "ADB_PORT_OWNERSHIP_CONFLICT",
+    "ADB_SDK_UPGRADE_REQUIRED",
+    "ADB_SERVER_PROFILE_UNSUPPORTED",
+    "SESSION_CLEANUP_PENDING",
+    "SESSION_RESOURCES_ACTIVE",
+    "SESSION_CLOSING",
+)
+_TRANSIENT_ERRORS = (
+    "ADB_SHARED_SERVER_UNRESPONSIVE",
+    "ADB_QUEUE_TIMEOUT",
+    "ADB_SERVER_RECOVERY_FAILED",
+    "SESSION_TIMEOUT",
+    "TIMEOUT",
+)
+# 设备侧连接失败：多数是实例刚创建/端口未就绪，可退避重试一次。
+_DEVICE_UNREACHABLE_MARKERS = ("transport-disconnect", "ECONNREFUSED", "connection refused",
+                               "device offline", "cannot connect")
+
+
+def classify_error(text: str) -> dict:
+    """从 CLI 输出中提取错误码与可重试性，返回 `{code, retryable}`。
+
+    只做**字符串分类**，不改变调用结果；供注册重试与收尾逻辑分支使用。
+    """
+    raw = str(text or "")
+    upper = raw.upper()
+    # 会话已经不存在：断开操作应视为“已收尾”（幂等）；注册侧由 reestablisher 处理。
+    if "NOT_FOUND" in upper or ("SESSION" in upper and "DOES NOT EXIST" in upper):
+        return {"code": "SESSION_NOT_FOUND", "retryable": False}
+    # Cloud ADB 协调台账：交给 imeituan_run 的 repair + 退避，不能换 sandbox。
+    for code in ADB_COORDINATION_ERRORS:
+        if code in upper:
+            return {"code": code, "retryable": False, "coordination": True}
+    # 设备复用阻塞优先分类：这些错误重试同一台设备必然复现，但可以换设备恢复。
+    for code in DEVICE_REUSE_ERRORS:
+        if code in upper:
+            return {"code": code, "retryable": False, "device_reuse": True}
+    for code in _DETERMINISTIC_ERRORS:
+        if code in upper:
+            return {"code": code, "retryable": False}
+    # 有些 AppMock/设备命令只透出中文文案，不带 errorCode；同样按协调台账处理。
+    if "旧设备操作尚未安全退出" in raw:
+        return {"code": "ADB_SERVER_COORDINATION_QUARANTINED",
+                "retryable": False, "coordination": True}
+    if "设备连接状态无法读取" in raw or "ADB 调度记录损坏" in raw:
+        return {"code": "ADB_SERVER_COORDINATION_CORRUPT",
+                "retryable": False, "coordination": True}
+    for code in _TRANSIENT_ERRORS:
+        if code in upper:
+            return {"code": code, "retryable": True}
+    if any(marker.lower() in raw.lower() for marker in _DEVICE_UNREACHABLE_MARKERS):
+        return {"code": "DEVICE_UNREACHABLE", "retryable": True}
+    return {"code": "SESSION_REGISTER_FAILED", "retryable": True}
+
+
+def is_deterministic(text: str) -> bool:
+    return not classify_error(text)["retryable"]
+
+
+def _error_fields(payload) -> dict:
+    """从 CLI JSON envelope 提取 `{code, detail}`（解析不出时回退空值）。"""
+    if not isinstance(payload, dict):
+        return {"code": "", "detail": ""}
+    err = payload.get("error") or {}
+    if isinstance(err, dict):
+        return {"code": str(err.get("code") or ""),
+                "detail": str(err.get("message") or "")}
+    return {"code": "", "detail": str(err)}
 
 # 不需会话的命令前缀（注册/连接/销毁会话本身、工具链环境、纯本地子命令）。
 _SESSION_FREE_PREFIXES = (
@@ -276,12 +373,59 @@ def imeituan_exec(args, timeout=30):
     return _run(args, timeout=timeout)
 
 
+def stop_adb_server(port: int) -> None:
+    """停止指定端口的 ADB Server；供 Android workspace 端口收尾使用。"""
+    adb = shutil.which("adb")
+    if not adb:
+        return
+    try:
+        subprocess.run(
+            [adb, "-P", str(port), "kill-server"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return
+
+
 # ═══════════════════════════════════════════════════════════
 # Session 管理命令
 # ═══════════════════════════════════════════════════════════
 
+def _session_result(r, missing_sid_detail: str) -> dict:
+    """把「创建会话」类命令的返回统一成结构化结果。
+
+    返回字段固定为 `{ok, code, retryable, session_id, detail}`：
+      · code/retryable 由 `classify_error` 解析 CLI 输出得到，调用方据此决定是否重试；
+      · 不再只返回一句字符串 detail —— 重试策略需要机器可判定的身份。
+    """
+    payload = _parse_json(r)
+    if not isinstance(payload, dict):
+        detail = (r.stderr or "未知错误")[:300]
+        cls = classify_error(detail)
+        return {"ok": False, "code": cls["code"], "retryable": cls["retryable"],
+                "device_reuse": bool(cls.get("device_reuse")),
+                "coordination": bool(cls.get("coordination")),
+                "session_id": "", "detail": detail}
+
+    if payload.get("code") != 0:
+        fields = _error_fields(payload)
+        text = (fields["detail"] or r.stderr or fields["code"] or "未知错误").strip()
+        cls = classify_error(text or fields["code"])
+        return {"ok": False, "code": cls["code"], "retryable": cls["retryable"],
+                "device_reuse": bool(cls.get("device_reuse")),
+                "coordination": bool(cls.get("coordination")),
+                "session_id": "", "detail": text[:300]}
+
+    sid = (payload.get("data") or {}).get("sessionId", "")
+    if sid:
+        return {"ok": True, "code": "", "retryable": False,
+                "session_id": sid, "detail": ""}
+    return {"ok": False, "code": "SESSION_ID_MISSING", "retryable": True,
+            "session_id": "", "detail": missing_sid_detail}
+
+
 def imeituan_register_device(serial, platform, remote_address=None):
-    """注册外部设备到 CLI session，返回 {ok, session_id, detail}。
+    """注册外部设备到 CLI session，返回结构化结果。
 
     适用于"设备在远程 server 上"的场景（云真机 / 云模拟器 / Android sandbox）：
     `device register --remote-address <RA>`，RA 缺省回退为 serial（Android sandbox
@@ -291,67 +435,41 @@ def imeituan_register_device(serial, platform, remote_address=None):
     r = _run(["device", "register", "-p", platform,
               "--serial", serial, "--remote-address", remote_address or serial,
               "--force"], timeout=30)
-    payload = _parse_json(r)
-    if not isinstance(payload, dict):
-        return {"ok": False, "detail": (r.stderr or "未知错误")[:200]}
-
-    if payload.get("code") != 0:
-        return {"ok": False, "detail": payload.get("error", {}).get("message", "")[:200]}
-
-    sid = payload.get("data", {}).get("sessionId", "")
-    if sid:
-        return {"ok": True, "session_id": sid, "detail": ""}
-    return {"ok": False, "detail": "register 成功但未返回 session_id"}
+    return _session_result(r, "register 成功但未返回 session_id")
 
 
 def imeituan_connect_local_emulator(serial, platform):
-    """连接本地模拟器并创建 CLI session，返回 {ok, session_id, detail}。
+    """连接本地模拟器并创建 CLI session，返回结构化结果。
 
     对应 `imeituan device connect --target local-emulator`，适用于本地启动的 iOS / Android 模拟器。
     """
     r = _run(["device", "connect", "--target", "local-emulator", "-p", platform,
               "--serial", serial, "--force"], timeout=30)
-    payload = _parse_json(r)
-    if not isinstance(payload, dict):
-        return {"ok": False, "detail": (r.stderr or "未知错误")[:200]}
-
-    if payload.get("code") != 0:
-        return {"ok": False, "detail": payload.get("error", {}).get("message", "")[:200]}
-
-    sid = payload.get("data", {}).get("sessionId", "")
-    if sid:
-        return {"ok": True, "session_id": sid, "detail": ""}
-    return {"ok": False, "detail": "connect 成功但未返回 session_id"}
+    return _session_result(r, "connect 成功但未返回 session_id")
 
 
 def imeituan_connect_local_device(serial, platform):
-    """连接本地已物理连接的真机并创建 CLI session，返回 {ok, session_id, detail}。
+    """连接本地已物理连接的真机并创建 CLI session，返回结构化结果。
 
     对应 `imeituan device connect --target local-device`，会跳过网络连接
     探测，是本地 USB/HDC 直连设备的正确入口（区别于面向云真机的 device register）。
     """
     r = _run(["device", "connect", "--target", "local-device", "-p", platform,
               "--serial", serial, "--force"], timeout=30)
-    payload = _parse_json(r)
-    if not isinstance(payload, dict):
-        return {"ok": False, "detail": (r.stderr or "未知错误")[:200]}
-
-    if payload.get("code") != 0:
-        return {"ok": False, "detail": payload.get("error", {}).get("message", "")[:200]}
-
-    sid = payload.get("data", {}).get("sessionId", "")
-    if sid:
-        return {"ok": True, "session_id": sid, "detail": ""}
-    return {"ok": False, "detail": "connect 成功但未返回 session_id"}
+    return _session_result(r, "connect 成功但未返回 session_id")
 
 
 
 
 def imeituan_disconnect_device(session_id=None) -> dict:
-    """断开会话，返回 {ok, detail}。
+    """断开会话，返回结构化结果 `{ok, code, retryable, detail}`。
 
     只断开**指定或当前绑定**的会话，**绝不做全量断开**——`disconnect --all`
     会把并发 run 的会话一并踢掉，是并发串台的根源之一。
+
+    注意：legacy 会话的断开本身就会抛 `ADB_SERVER_LEGACY_IDENTITY_UNKNOWN`
+    （CLI 拒绝执行无身份的 adb 清理）。调用方（session.py）应把这类确定性错误
+    当作"会话已不可用"，走隔离而不是重试。
     """
     target = str(session_id or "").strip() or current_session()
     args = ["device", "disconnect"]
@@ -361,8 +479,18 @@ def imeituan_disconnect_device(session_id=None) -> dict:
     r = _run(args, timeout=15)
     payload = _parse_json(r)
     if not isinstance(payload, dict):
-        return {"ok": r.returncode == 0, "detail": (r.stderr or "")[:200]}
+        text = (r.stderr or "")[:300]
+        cls = classify_error(text)
+        return {"ok": r.returncode == 0, "code": cls["code"],
+                "retryable": cls["retryable"],
+                "device_reuse": bool(cls.get("device_reuse")),
+                "coordination": bool(cls.get("coordination")), "detail": text}
 
     if payload.get("code") == 0:
-        return {"ok": True, "detail": ""}
-    return {"ok": False, "detail": payload.get("error", {}).get("message", "")[:200]}
+        return {"ok": True, "code": "", "retryable": False, "detail": ""}
+    fields = _error_fields(payload)
+    text = (fields["detail"] or fields["code"] or "未知错误").strip()
+    cls = classify_error(text)
+    return {"ok": False, "code": cls["code"], "retryable": cls["retryable"],
+            "device_reuse": bool(cls.get("device_reuse")),
+            "coordination": bool(cls.get("coordination")), "detail": text[:300]}

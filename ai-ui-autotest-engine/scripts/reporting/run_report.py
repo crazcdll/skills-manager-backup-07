@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """批次报告构建（build_run）与平台/App/设备类型标签。"""
 from reporting.case_report import resolve_case_status
-from reporting.data_collector import _load_check_deps, _read_skill_version
+from reporting.data_collector import _load_check_deps, skill_version
 from reporting.schema import aggregate_assertion_summaries
 from reporting.timeline import _build_timeline_events
 
@@ -91,5 +91,5 @@ def build_run(context, cases, audit_events, timestamp, duration_ms_value):
             # 需人工复核的步骤数（断言非精确 或 动作非精确命中）
             "step_needs_review": sum(int(item.get("step_needs_review") or 0) for item in case_summaries),
         },
-        "skill_version": _read_skill_version(),
+        "skill_version": skill_version(),
     }

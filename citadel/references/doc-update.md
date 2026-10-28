@@ -1,5 +1,7 @@
 > ❌ **严禁调用 `updateDocument`**：该命令会将 Markdown 文本直接追加写入文档后端，导致文档出现重复 title、结构错乱，且**无法自动回滚**。所有文档内容编辑必须且只能通过下方的流程完成。
 
+> **原生 MD 文档（type=7、`/md/<id>`）请使用 [MD 文档操作说明](markdown-documents.md)。本页的 XML 命令用于 2.0 文档。**
+
 # 编辑/更新/插入新内容到学城文档指南
 
 编辑/更新/插入新内容到学城文档是一个高危操作。学城文档的底层数据是基于 ProseMirror 生成的 JSON 结构，其中可能包含大量 Markdown 语法无法描述的特殊定制宏（如：包含合并单元格的表格，表格嵌套表格，特定的卡片、嵌入的第三方组件、文字颜色/背景色/对齐方式、展开卡片等）。
@@ -132,14 +134,15 @@ oa-skills citadel updateDocumentByXml --contentId <id> --file doc.xml --step-ver
 | `<km-note>` | 必须包含且只包含 `<km-title>`（标题）和 `<km-content>`（正文） |
 | `<km-title>` | 只能有**纯文本**子节点，且该节点**不能携带任何文字样式** |
 | `<km-footnote-list>` | 只能包含 `<km-footnote-item>` |
-| `<km-footnote-item>` | 只能包含 `<p>`（至少一个，可以有多个，不能为空）；每个 `<p>` 内**禁止插入图片**，其他 inline 节点不限 |
+| `<km-footnote-item>` | 只能包含 `<p>`（至少一个，可以有多个，不能为空）；每个 `<p>` 内**禁止插入图片**，其他合法 inline 节点仍可使用；注释区域只允许 `quote` mark（也可不带 mark），**禁止其他 marks** |
 | `<ul>`/`<ol>`/`<km-task-list>`/`<blockquote>` | `content` **不能为空**，至少有一个子节点 |
 
 #### 文字样式（marks）约束
 
 | 约束 | 规则 |
 |------|------|
-| 样式类型必须合法 | 只支持 `strong`（加粗）/`em`（斜体）/`underline`/`strikethrough`/`code`/`color`/`backgroundcolor`/`font`/`sub`/`sup`/`quote` |
+| 普通正文样式类型必须合法 | 只支持 `strong`（加粗）/`em`（斜体）/`underline`/`strikethrough`/`code`/`color`/`backgroundcolor`/`font`/`sub`/`sup`/`quote` |
+| 注释区域（`<km-footnote-item>`） | 只允许 `quote` mark，也可使用无 mark 的内容；禁止加粗、斜体、下划线、删除线、行内代码、颜色、背景色、字号、上标和下标等其他 marks；此限制不适用于普通正文 |
 | `color` | XML 写法：`<span color="#hex">文字</span>`，`color` 属性不能为空 |
 | `backgroundcolor` | XML 写法：`<span bg="#hex">文字</span>`，`bg` 属性不能为空 |
 | `font`（字号） | XML 写法：`<span font-size="14">文字</span>`，`font-size` 属性不能为空 |
@@ -183,7 +186,6 @@ oa-skills citadel copyImageToDocument \
 返回结果包含：
 - `url`：目标文档的新图片 URL（已绑定目标文档权限）
 - `imageXml`：可直接粘贴到 CitadelXML 的节点片段，如 `<p><img src="..." name="..." width="..." height="..." /></p>`
-- `imageMd`：CitadelMD 图片语法
 
 #### ⚠️ 来源图片 URL 必须是学城 CDN URL
 

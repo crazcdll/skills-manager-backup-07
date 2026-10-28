@@ -9,7 +9,7 @@
 安装 App、首次启动引导、前台校验）跑完，并把设备身份写进 flow-context.json。
 其中 `_emit*` / `_write_sandbox_state` / `_register_with_retry` / `_resolve_*` 是设备
 状态与输出的公共底座，被 `resources/device_pool/commands.py` 复用（池化命令
-create/query/release/pool-gc 在那边）。
+create/query/release 在那边）。
 
 工具链按 meta.platform 分发（android: adb, harmony: hdc）；标准流程：create → setup。
 """
@@ -23,17 +23,26 @@ from devices.toolchain.app_installer import (
     check_version, ensure_app_installed, ensure_app_installed_if_missing,
 )
 from devices.toolchain.session import imeituan_register
-from devices.toolchain.imeituan_cli import imeituan_exec
+from devices.toolchain.imeituan_cli import DEVICE_REUSE_ERRORS, imeituan_exec
 from shared.context import create_platform_ops, create_device_lifecycle, get_app_descriptor, get_onboarding_profile
 from execution.engine.flow.flow_context import update_meta_fields, read_meta_fields
 from execution.engine.sop.constants import FLOW_CONTEXT_FILENAME
 from shared.case_utils import resolve_case_path
 from shared.paths import get_active_run
 from shared.workspace import render_text
-from devices.base import get_device_category, get_device_form, is_device_platform_supported
+from devices.base import get_device_category, get_device_form
 
-_REGISTER_MAX_RETRIES = 3
-_REGISTER_RETRY_INTERVAL = 5
+# 注册尝试次数：只对**瞬态错误**生效；确定性错误（legacy 会话、端口归属冲突等）
+# 立即终止，不做无意义的重复（详见 imeituan_cli.classify_error）。
+_REGISTER_ATTEMPTS = 3
+_REGISTER_BACKOFF = (3, 8)          # 第 1/2 次失败后的退避秒数
+
+# 这些确定性错误可以通过"隔离出问题的会话"自愈一次，其余确定性错误直接终止。
+_SESSION_SELF_HEAL_CODES = (
+    "ADB_SERVER_LEGACY_IDENTITY_UNKNOWN",
+    "ADB_RUNTIME_MIGRATION_REQUIRED",
+    "SESSION_CLEANUP_PENDING",
+)
 
 
 def _ensure_toolchain(platform: str):
@@ -54,47 +63,81 @@ def _ensure_toolchain(platform: str):
 
 def _register_with_retry(adb_address, platform, state_file, log=None, device_type="sandbox",
                          remote_address=None):
-    """注册设备到 imeituan session（带重试 + session_id 持久化）。
-    重试前自动修复 ADB Server 陈旧状态。
+    """注册设备到 imeituan session（按错误类型重试 + session_id 持久化）。
+
+    重试策略（唯一实现，调用方不再自己加循环）：
+      · 瞬态错误（超时 / 云 Server 排队 / 设备刚启动）→ 退避后重试，最多 `_REGISTER_ATTEMPTS` 次；
+      · 确定性错误（legacy 会话、端口归属冲突、SDK 版本不达标）→ **不重试**；
+        其中"会话记录卡死"类错误先做一次定向隔离（把点名会话移入 `.stale/`）再试一次；
+      · 任何情况下都**不再执行 `adb kill-server`**：那是全局副作用，会打断同机其他
+        并发 run 的 adb 连接，并制造"无启动身份"的共享 Server（ADB_PORT_OWNERSHIP_CONFLICT）。
 
     并发隔离：只断开「本 run 已有的旧会话」（若有），绝不做全量断开——全量会把
     并发 run 的会话一并踢掉。注册成功后由 imeituan_register 绑定本 run 会话。
     云设备需传 remote_address（远程 server 地址）。
     """
+    from devices.toolchain.session import disconnect_session, remediate_failed_session
+
     prev_sid = (read_meta_fields(state_file) or {}).get("session_id", "")
     if prev_sid:
-        from devices.toolchain.imeituan_cli import imeituan_disconnect_device
-        imeituan_disconnect_device(prev_sid)
+        closed = disconnect_session(prev_sid)
+        if closed.get("ok"):
+            update_meta_fields(state_file, {"session_id": ""})
+        else:
+            # 瞬态断开失败不阻断注册：新会话会覆盖 flow-context 的 session_id。
+            sys.stderr.write(f"[device:session] 旧会话断开暂未完成（{closed.get('code') or '?'}），继续注册\n")
 
     reg_result = None
-    for attempt in range(_REGISTER_MAX_RETRIES):
+    healed = False
+    for attempt in range(_REGISTER_ATTEMPTS):
         reg_result = imeituan_register(adb_address, platform=platform, device_type=device_type,
                                        remote_address=remote_address)
         if reg_result["ok"]:
             break
-        if attempt < _REGISTER_MAX_RETRIES - 1:
-            sys.stderr.write(f"注册失败，等待 {_REGISTER_RETRY_INTERVAL}s 后重试（{attempt + 1}/{_REGISTER_MAX_RETRIES}）...\n")
-            time.sleep(_REGISTER_RETRY_INTERVAL)
-            # 修复措施：ADB Server 陈旧状态导致连接失败，重启 ADB Server
-            if is_device_platform_supported(device_type, "android"):
-                try:
-                    import subprocess
-                    r = subprocess.run(["adb", "kill-server"], capture_output=True, timeout=15)
-                    if r.returncode == 0:
-                        sys.stderr.write("[device:session] 已重启 ADB Server（修复陈旧连接状态），准备重试注册...\n")
-                    else:
-                        sys.stderr.write(f"[device:session] adb kill-server 执行异常: {r.stderr.decode()[:200]}\n")
-                except Exception as e:
-                    sys.stderr.write(f"[device:session] adb kill-server 失败: {e}\n")
+
+        code = reg_result.get("code") or ""
+        retryable = bool(reg_result.get("retryable"))
+
+        # 确定性 + 可自愈：只隔离"错误信息里点名的那个会话"，然后重试一次（不是盲重试）。
+        if not retryable and not healed and code in _SESSION_SELF_HEAL_CODES:
+            healed = True
+            fix = remediate_failed_session(reg_result.get("detail", ""))
+            # 错误里点名了会话就再试一次：
+            #   · 隔离成功 → 坏记录已移走；
+            #   · 文件已不存在（被 CLI 自己清掉）→ 状态已变化，同样值得再试一次。
+            # 都不是“盲重试”，而是针对已知状态的定向重试。
+            if fix.get("session_id"):
+                sys.stderr.write(
+                    f"[device:session] 故障会话 {fix['session_id']} 已处理"
+                    f"（{'已隔离' if fix.get('quarantined') else '记录已不存在'}），重新注册一次\n")
+                continue
+
+        if not retryable:
+            sys.stderr.write(f"[device:session] 确定性失败[{code}]，不再重试："
+                             f"{reg_result.get('detail', '')[:200]}\n")
+            break
+
+        if attempt < _REGISTER_ATTEMPTS - 1:
+            wait = _REGISTER_BACKOFF[min(attempt, len(_REGISTER_BACKOFF) - 1)]
+            sys.stderr.write(f"[device:session] 瞬态失败[{code}]，{wait}s 后重试"
+                             f"（{attempt + 1}/{_REGISTER_ATTEMPTS}）...\n")
+            time.sleep(wait)
+
     if log:
-        log("imeituan_register", reg_result["ok"], reg_result["detail"])
+        log("imeituan_register", reg_result["ok"], reg_result.get("detail", ""))
     if reg_result["ok"] and reg_result.get("session_id"):
         update_meta_fields(state_file, {"session_id": reg_result["session_id"]})
         sys.stderr.write(f"session_id 已写入 flow-context.json: {reg_result['session_id']}\n")
     return reg_result
 
 def _write_sandbox_state(state: dict, path: str):
-    """create 成功后将设备信息写入 flow-context.json 的 meta 字段。"""
+    """create 成功后将设备信息写入 flow-context.json 的 meta 字段。
+
+    额外落 `lease_fence` / `lease_expires_at`：服务端租约用 fence 做乐观锁，
+    后续 renew/release 必须带同一个 fence；到期时间用于心跳节流
+    （剩余充足就不打网络，避免每条 CLI 命令多 1–2 次 HTTP）。
+    本地真机 / 本地模拟器不产生这两个字段（为 None，心跳按 device_type 跳过）。
+    """
     update_meta_fields(path, {
         "sandbox_id": state.get("sandboxId", ""),
         "device_serial": state.get("adbAddress", ""),
@@ -102,7 +145,19 @@ def _write_sandbox_state(state: dict, path: str):
         "sandbox_user": state.get("user", ""),
         "scrcpyUrl": state.get("scrcpyUrl", ""),
         "device_type": state.get("device_type", "sandbox"),
+        "lease_fence": state.get("lease_fence"),
+        "lease_expires_at": state.get("lease_expires_at"),
     })
+
+def _clear_lease_meta(path: str):
+    """清掉本 run 的租约 fence / 到期时间（设备被隔离或已归还后调用）。
+
+    为什么要清：`report`/`release` 都会让服务端 fence +1、租约失效。
+    本地若继续留着旧 fence，之后每条命令的心跳都会拿它去 renew，稳定报
+    LEASE_LOST（噪音），围栏开启时甚至直接失败。
+    """
+    update_meta_fields(path, {"lease_fence": None, "lease_expires_at": None})
+
 
 def _emit(obj, ok_exit=True):
     print(json.dumps(obj, ensure_ascii=False, indent=2))
@@ -273,12 +328,35 @@ def _register_session(args, steps, log_step):
     device_type = meta.get("device_type", "sandbox")
     reg_result = _register_with_retry(args.adb_address, platform, args.state_file, log=log_step, device_type=device_type,
                                       remote_address=meta.get("device_remote_address") or None)
+
+    # 设备复用阻塞（上一轮 session/ADB 尚未退出）：不判失败、不盲重试同一台；
+    # 交由 CLI 组合根执行「隔离旧 sandbox → 换一台 → 再注册一次」。
+    if not reg_result["ok"] and reg_result.get("code") in DEVICE_REUSE_ERRORS:
+        recover = getattr(args, "device_reuse_recover", None)
+        if recover is not None:
+            try:
+                switched = bool(recover(reg_result))
+            except Exception as e:  # noqa: BLE001 —— 换机失败则按原错误上报
+                sys.stderr.write(f"[device:setup] 设备复用恢复失败: {e}\n")
+                switched = False
+            if switched:
+                meta = read_meta_fields(args.state_file)
+                platform = meta.get("platform", platform)
+                device_type = meta.get("device_type", device_type)
+                reg_result = _register_with_retry(
+                    args.adb_address, platform, args.state_file, log=log_step,
+                    device_type=device_type,
+                    remote_address=meta.get("device_remote_address") or None)
+
     if not reg_result["ok"]:
+        code = reg_result.get("code") or "SESSION_REGISTER_FAILED"
+        detail = reg_result.get("detail") or "未知错误"
         print(json.dumps({
-            "ok": False, "steps": steps,
-            "error": f"imeituan 注册失败（{_REGISTER_MAX_RETRIES} 次重试后仍失败），无法继续 setup: {reg_result['detail']}",
+            "ok": False, "steps": steps, "errorCode": code,
+            "error": f"imeituan 会话注册失败[{code}]，无法继续 setup: {detail}",
         }, ensure_ascii=False, indent=2))
-        raise DeviceError(f"imeituan 注册失败（{_REGISTER_MAX_RETRIES} 次重试后仍失败），无法继续 setup: {reg_result['detail']}")
+        raise DeviceError(f"imeituan 会话注册失败[{code}]，无法继续 setup: {detail}",
+                          code=code, stage="B1_device")
 
     ops = create_platform_ops(args.adb_address, platform=platform,
                               remote_address=meta.get("device_remote_address") or None)
@@ -483,6 +561,9 @@ def cmd_setup(args):
 
     ops, package, main_activity = _register_session(args, steps, log_step)
 
+    # 设备复用恢复可能已换机：后续步骤一律以最新的 flow-context 为准
+    meta = read_meta_fields(args.state_file)
+
     # 用前自动清理 —— 必须在 session 就绪**之后**：清理走设备 shell 命令，session 未注册
     # 时必然失败（历史上放在 device create 里，冷启动会稳定报一条 warning）。仅云设备需要
     # （共享设备历次占用会在 /data/local/tmp 堆积安装/传输产物）；本地真机是用户自己的手机，
@@ -651,16 +732,52 @@ def cmd_register(args):
     result = _register_with_retry(args.adb_address, platform, args.state_file, device_type=device_type,
                                   remote_address=meta.get("device_remote_address") or None)
     print(json.dumps({
-        "ok": result["ok"], "adbAddress": args.adb_address, "detail": result["detail"],
+        "ok": result["ok"], "adbAddress": args.adb_address,
+        "errorCode": result.get("code") or "", "detail": result.get("detail") or "",
     }, ensure_ascii=False, indent=2))
     if not result["ok"]:
-        raise DeviceError("查询设备失败")
+        raise DeviceError(f"会话注册失败[{result.get('code') or '?'}]: {result.get('detail') or '未知错误'}",
+                          code=result.get("code") or "SESSION_REGISTER_FAILED")
+
+# ─── 子命令：disconnect ────────────────────────────────────
+def cmd_disconnect(args):
+    """收尾断开本 run 的 imeituan 会话（并清空 flow-context 的 session_id）。
+
+    与 `device release`（归还**租约**）职责分离：
+      · release  → 设备池层面「这台机器我不用了」，实例保留；
+      · disconnect → CLI 会话层面「这个会话可以回收」，避免 `~/.imeituan/sessions`
+        无限累积、污染后续注册。
+
+    legacy / 迁移类确定性失败由 `disconnect_session()` 隔离后视为已收尾（返回 ok），
+    瞬态失败返回非 0 让清理序列留痕（不阻断后续步骤）。
+    """
+    from devices.toolchain.session import disconnect_session
+
+    meta = read_meta_fields(args.state_file)
+    sid = (meta.get("session_id") or "").strip()
+    result = disconnect_session(sid)
+    if result.get("ok") and sid:
+        update_meta_fields(args.state_file, {"session_id": ""})
+
+    payload = {
+        "ok": bool(result.get("ok")),
+        "sessionId": sid,
+        "code": result.get("code") or "",
+        "quarantined": bool(result.get("quarantined")),
+        "detail": result.get("detail") or "",
+    }
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    if not result.get("ok"):
+        raise DeviceError(f"断开 imeituan 会话失败[{payload['code'] or '?'}]: "
+                          f"{payload['detail'] or '未知错误'}",
+                          code=payload["code"] or "SESSION_DISCONNECT_FAILED")
+
 
 # ─── 子命令分发（池化命令在 resources/device_pool/commands.py）────
 def cmd_device(args):
-    """devices 层设备子命令分发：setup / check-version / register。
+    """devices 层设备子命令分发：setup / check-version / register / disconnect。
 
-    池化命令（create / query / release / pool-gc）由 `cli.py` 路由到
+    池化命令（create / query / release）由 `cli.py` 路由到
     `resources.device_pool.commands`，不在本层处理——避免 devices 反向依赖 resources。
     """
     subcmd = args.device_subcmd
@@ -670,6 +787,7 @@ def cmd_device(args):
         "setup": cmd_setup,
         "check-version": cmd_check_version,
         "register": cmd_register,
+        "disconnect": cmd_disconnect,
         "clean-tmp": cmd_clean_tmp,
     }
     handlers[subcmd](args)

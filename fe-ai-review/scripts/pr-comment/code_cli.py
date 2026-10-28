@@ -149,7 +149,7 @@ def get_cookies(args_cookie=None):
     sys.exit(1)
 
 
-def api_request(method, path, cookies, data=None, api_version="2.0"):
+def api_request(method, path, cookies, data=None, api_version="2.0", optional=False):
     url = f"{BASE_URL}/rest/api/{api_version}/{path.lstrip('/')}"
     body = json.dumps(data).encode("utf-8") if data else None
     headers = {"Cookie": cookies, "Content-Type": "application/json"}
@@ -162,11 +162,18 @@ def api_request(method, path, cookies, data=None, api_version="2.0"):
         body_text = e.read().decode("utf-8", errors="replace")
         try:
             err = json.loads(body_text, strict=False)
-            return {"error": err.get("errors", [{"message": f"HTTP {e.code}"}])}
-        except:
-            return {"error": [{"message": f"HTTP {e.code}: {body_text[:200]}"}]}
+            error = err.get("errors", [{"message": f"HTTP {e.code}"}])
+        except (ValueError, AttributeError):
+            error = [{"message": f"HTTP {e.code}: {body_text[:200]}"}]
+        if optional:
+            return {"error": error, "status": e.code}
+        print(json.dumps({"error": error, "status": e.code}, ensure_ascii=False))
+        sys.exit(3 if e.code in (401, 403) else 1)
     except Exception as e:
-        return {"error": [{"message": str(e)}]}
+        if optional:
+            return {"error": [{"message": str(e)}]}
+        print(json.dumps({"error": [{"message": str(e)}]}, ensure_ascii=False))
+        sys.exit(1)
 
 
 def parse_pr_url(url):
@@ -281,8 +288,10 @@ def cmd_pr_comments(args, cookies):
                 "replies": [{"id": r.get("id"), "author": r.get("author", {}).get("name"), "text": r.get("text")} for r in c.get("comments", [])],
             })
     # assignments (line comments)
-    assign_data = api_request("GET", f"projects/{project}/repos/{repo}/pull-requests/{pr_id}/assignments?path=&states=open,resolved", cookies, api_version="5.0")
-    if not assign_data.get("error"):
+    assign_data = api_request("GET", f"projects/{project}/repos/{repo}/pull-requests/{pr_id}/assignments?path=&states=open,resolved", cookies, api_version="5.0", optional=True)
+    if "error" in assign_data:
+        print("WARNING: assignments 查询失败，当前仅返回普通评论，行内评论未验证；不要据此重发。", file=sys.stderr)
+    else:
         for a in assign_data.get("values", []):
             anchor = a.get("anchor", {})
             comments.append({

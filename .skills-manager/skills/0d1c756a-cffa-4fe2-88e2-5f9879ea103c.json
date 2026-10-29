@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "0d1c756a-cffa-4fe2-88e2-5f9879ea103c",
+  "path": "trade-stability-issue-diagnosis",
+  "path_key": "trade-stability-issue-diagnosis",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

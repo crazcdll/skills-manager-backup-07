@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "ca70cdf8-fab3-45fa-acee-226b577effe1",
+  "path": "trade-ones-multica",
+  "path_key": "trade-ones-multica",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

@@ -1,0 +1,14 @@
+skill-manifest-version: 1
+skill-id: 4ee0c8f70bab24b6823433d8f237f4c8159c7c50c83edb1f658f202481ad6657
+
+files:
+  3deefb060fae66f8b1d0fcbed0ecf305317262209a400edbfdeff9f9ad163448  SKILL.md
+  d343d593d715b3777cea6d95ab76de2c889651accbba90594a91d914d4e558c0  references/app-client-investigation.md
+  eedb11db4c935f70cfe7d18cab2677b7e021a8c731d08c446723d8772beed14e  references/assets/food-dev-assets.md
+  d8036a2a6f7f314e6071e9a1a36467419aeab366b2326a1bbb30414e1df1c5cf  references/assets/gc-dev-assets.md
+  5b7153fc6b6e3c2dfa6bb7d36182d2647630a64db09aa8090d7d63e1cc79c009  references/assets/hotel-dev-assets.md
+  7556e8f8701c972ae39562e7414e8f1789ca7c51c1a5fdddb3955087915baeab  references/assets/travel-dev-assets.md
+  b70c62b7149eb289891592c827e292d27360e23ccadaca34bb75396f1b48101c  references/diva-bundle-version-query.md
+  e1fab54b19662777183851290c5e45a0b3914287dfcc8f4e423b1cc054b0af7d  references/get-uuid.md
+  071dde29aa7090e0ef89a177812d17e6c9aec46090b98f2afdbec7a366dc5c38  references/miniapp-investigation.md
+  f44249b3dd19d93fe265dde9fd9f7a3cbcf2b99abe9c8f7af9dba97bda28270d  references/useful-links.md

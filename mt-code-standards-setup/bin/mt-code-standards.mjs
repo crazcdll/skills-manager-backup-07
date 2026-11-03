@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { createDownloadObservation } from "../scripts/download-observation.mjs";
+
 import { readFile } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import process from "node:process";
@@ -155,6 +157,7 @@ export const runCli = async ({
   createTransport = createMtcliTransport,
   fetchImpl = globalThis.fetch,
   cwd = process.cwd(),
+  observation,
 } = {}) => {
   let parsed;
   try {
@@ -162,8 +165,11 @@ export const runCli = async ({
     if (parsed.action === "help") { process.stdout.write(HELP); return 0; }
     if (parsed.action === "version") { process.stdout.write(`${packageInfo.version}\n`); return 0; }
     const options = parsed.options;
+    observation?.update({ client_type: "cli", client_name: packageInfo.name, client_version: packageInfo.version,
+      transport: options.transport, standard_domain: options.domain, stage: options.stage });
     const detected = detectExecutionAgent(environment);
     const agent = options.agent || (detected.agent === "unknown" ? "cli" : detected.agent);
+    observation?.update({ execution_agent: agent });
     const execution = { agent, source: options.agent || detected.agent === "unknown" ? "runner_explicit_v1" : detected.source,
       skillName: null, skillVersion: null, clientType: "cli", clientName: packageInfo.name, clientVersion: packageInfo.version };
     const pullId = options.pullId || randomUUID();
@@ -190,7 +196,7 @@ export const runCli = async ({
         mis: options.mis,
         stage: options.stage,
         publicPull: true,
-        fetchImpl,
+        fetchImpl, observation,
         execution: {
           pullId,
           ...execution,
@@ -203,6 +209,7 @@ export const runCli = async ({
           ? "explicit_public_transport"
           : "default_public_transport",
       } };
+      await observation?.finish(receipt);
       process.stdout.write(`${JSON.stringify(options.json ? result : result.receipt, null, options.json ? 0 : 2)}\n`);
       return 0;
     }
@@ -216,6 +223,7 @@ export const runCli = async ({
         domain: options.domain,
         bootstrap: options.bootstrap,
         stage: options.stage,
+        observation,
         requestTransport: createTransport({
           service: options.mtcliService,
           environment,
@@ -231,9 +239,11 @@ export const runCli = async ({
         authentication_mode: "mtcli_sso",
         authentication_route_reason: "standalone_cli_mtcli",
       } };
+      await observation?.finish(receipt);
       process.stdout.write(`${JSON.stringify(options.json ? result : result.receipt, null, options.json ? 0 : 2)}\n`);
       return 0;
     }
+    observation?.phase("auth");
     const injectedToken = String(environment.RULE_OBSERVABILITY_USER_TOKEN || "").trim();
     const configuredMis = String(
       options.mis || environment.SSO_USER_ID || readLocalGitMis(prepared?.sourceRoot || options.repoRoot || cwd) || "",
@@ -241,8 +251,9 @@ export const runCli = async ({
     const mis = configuredMis || (injectedToken
       ? ""
       : await promptForMis(environment, options.nonInteractive));
+    observation?.phase("auth");
     const receipt = await sync({
-      environment,
+      environment, observation,
       options: {
         ...options,
         cwd,
@@ -255,9 +266,11 @@ export const runCli = async ({
       },
     });
     const result = { ok: true, receipt };
+    await observation?.finish(receipt);
     process.stdout.write(`${JSON.stringify(parsed.options.json ? result : receipt, null, parsed.options.json ? 0 : 2)}\n`);
     return 0;
   } catch (error) {
+    await observation?.finish(null, error);
     printError(error, parsed?.options?.json === true || argv.includes("--json"));
     return 2;
   }
@@ -273,5 +286,15 @@ const isDirectExecution = () => {
 };
 
 if (isDirectExecution()) {
-  process.exitCode = await runCli();
+  // Help/version are not rule-install executions.
+  const passive = process.argv.slice(2).some(arg => ["--help", "-h", "--version", "-v"].includes(arg));
+  let initial;
+  try { initial = parseCliArgs(process.argv.slice(2)).options; } catch { /* runCli records the original failure */ }
+  const detected = detectExecutionAgent(process.env);
+  const observation = passive ? undefined : createDownloadObservation({ metadata: {
+    client_type: "cli", client_name: packageInfo.name, client_version: packageInfo.version, execution_agent: initial?.agent || (detected.agent === "unknown" ? "cli" : detected.agent),
+    transport: initial?.transport, standard_domain: initial?.domain, stage: initial?.stage,
+  } });
+  await observation?.start();
+  process.exitCode = await runCli({ observation });
 }

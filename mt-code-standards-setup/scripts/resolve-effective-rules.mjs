@@ -21,7 +21,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { AGENTS_INDEX_CONTRACT, validateAgentsIndexes, renderAgentsIndexes, agentsManifestFields, validateAgentsManifest, agentsIndexDestinations } from "./agents-index.mjs";
 
-const DEFAULT_GATEWAY =
+export const DEFAULT_GATEWAY =
   "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-distribution";
 const GATEWAY_HOSTNAME = "db0y7dgg85gphojyva.database.sankuai.com";
 const GATEWAY_PATHNAME = "/functions/v1/rule-distribution";
@@ -484,6 +484,7 @@ const serviceRequest = async ({
   requestTransport,
   serviceLabel,
   publicRequest = false,
+  setupRunId, observation,
 }) => {
   const trustedGateway = validateGatewayUrl(gatewayUrl);
   const allowAgentsIndexes = body?.agents_index_contract === AGENTS_INDEX_CONTRACT;
@@ -495,6 +496,7 @@ const serviceRequest = async ({
     method: "POST",
     headers: Object.freeze({
       "Content-Type": "application/json",
+      ...(setupRunId ? { "X-Setup-Run-Id": setupRunId } : {}),
       ...(publicRequest ? {} : { "X-Rule-Auth-Source": "nocode-agent-sso" }),
       "X-Rule-Protocol-Version": "1.0",
     }),
@@ -509,6 +511,7 @@ const serviceRequest = async ({
       if (error instanceof RuleBundleError) throw error;
       fail("RULE_BUNDLE_NETWORK_FAILED", `${serviceLabel}不可用：${error.message}`);
     }
+    observation?.phase("response_validation");
     const status = Number(result?.status);
     if (!Number.isInteger(status) || status < 100 || status > 599 || !("body" in (result || {}))) {
       fail("RULE_BUNDLE_RESPONSE_INVALID", `${serviceLabel} transport 返回了非法响应`);
@@ -540,6 +543,7 @@ const serviceRequest = async ({
     fail("RULE_BUNDLE_NETWORK_FAILED", `${serviceLabel}不可用：${error.message}`);
   }
   const rawBody = await response.text().catch(() => "");
+  observation?.phase("response_validation");
   if (Buffer.byteLength(rawBody, "utf8") > maxResponseBytes) {
     fail("RULE_BUNDLE_RESPONSE_TOO_LARGE", `${serviceLabel}响应超过 ${maxResponseBytes / 1024 / 1024} MiB 安全上限`);
   }
@@ -1838,8 +1842,9 @@ const serviceErrorDetails = (error) => {
 };
 
 export const syncUnifiedRuleBundle = async ({ gatewayUrl, token, repositoryLocator, repoRoot, outputDir, cwd,
-  domain, stage, bootstrap = false, execution, publicPull = false, mis, fetchImpl = globalThis.fetch, requestTransport,
+  domain, stage, bootstrap = false, execution, publicPull = false, mis, fetchImpl = globalThis.fetch, requestTransport, observation,
 } = {}) => {
+  observation?.phase("preflight");
   const prepared = await prepareUnifiedSyncRequest({ gatewayUrl, repositoryLocator, repoRoot, outputDir, cwd, domain, stage, bootstrap, execution });
   if (!publicPull && !token && !requestTransport) fail("RULE_BUNDLE_AUTH_REQUIRED", "认证拉取需要有效用户票据");
   const declaredActor = publicPull ? text(mis) : "";
@@ -1872,10 +1877,12 @@ export const syncUnifiedRuleBundle = async ({ gatewayUrl, token, repositoryLocat
     ...(known ? { known_snapshot: known } : {}),
     ...(declaredActor ? { declared_actor: declaredActor } : {}),
   };
+  observation?.request(prepared.execution.pull_id);
   const result = await serviceRequest({ gatewayUrl: prepared.gatewayUrl, token,
     resourcePath: publicPull ? "/v1/public/rule-bundles/resolve" : "/v1/rule-bundles/resolve",
-    body, fetchImpl, requestTransport, serviceLabel: "统一规范服务", publicRequest: publicPull });
+    body, fetchImpl, requestTransport, serviceLabel: "统一规范服务", publicRequest: publicPull, setupRunId: requestTransport ? undefined : observation?.runId, observation });
   if (!result.ok) {
+    observation?.phase("request");
     const error = result.body?.error;
     const details = serviceErrorDetails(error);
     const unsupported = result.status === 404 && (!error?.code || error.code === "not_found");
@@ -1884,6 +1891,7 @@ export const syncUnifiedRuleBundle = async ({ gatewayUrl, token, repositoryLocat
     throw new RuleBundleError(code, unsupported ? "当前服务尚不支持统一规范拉取，请升级 rule-distribution；本地规则未修改。"
       : details.message || "规则服务返回异常，请凭请求编号排查。", details);
   }
+  observation?.phase("response_validation");
   const resolved = result.body;
   if (!isObject(resolved) || resolved.schema_version !== UNIFIED_RESPONSE_SCHEMA
     || !["effective", "l1"].includes(resolved.bundle_kind)
@@ -1912,6 +1920,7 @@ export const syncUnifiedRuleBundle = async ({ gatewayUrl, token, repositoryLocat
     || (resolved.bundle_kind === "effective" && (bundle.snapshot.repository.canonical_key !== resolved.target.canonical_key
       || bundle.snapshot.repository.standard_domain !== resolved.standard_domain))) fail("RULE_BUNDLE_RESOLUTION_INVALID", "分发模式与实际规则包不一致，本地规则未修改");
   const context = resolutionContext(resolved, prepared.scope, prepared.domain ? "user_explicit" : "repository_configuration");
+  observation?.phase("install");
   let manifest;
   if (bundle.status === "not_modified") {
     if (!previous || previous.resolution.bundle_kind !== context.bundle_kind

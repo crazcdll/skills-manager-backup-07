@@ -674,12 +674,12 @@ test("runs the SSO wrapper when its Skill directory is installed as a symbolic l
   const root = await mkdtemp(path.join(os.tmpdir(), "setup-symlink-runner-"));
   const entry = path.join(root, "sync-effective-rules-with-sso.mjs");
   await symlink(fileURLToPath(new URL("./sync-effective-rules-with-sso.mjs", import.meta.url)), entry);
-  const result = spawnSync(process.execPath, [entry, "--unexpected"], { encoding: "utf8" });
+  const result = spawnSync(process.execPath, [entry, "--unexpected"], { encoding: "utf8", env: { ...process.env, MT_CODE_STANDARDS_OBSERVATION: "off" } });
   assert.equal(result.status, 2);
   assert.match(result.stderr, /RULE_BUNDLE_ARGUMENT_INVALID/);
   const invalidAuthAgent = spawnSync(process.execPath, [entry, "--stage", "coding", "--transport", "direct", "--auth-agent", "vscode"], {
     encoding: "utf8",
-    env: { ...process.env, RULE_OBSERVABILITY_USER_TOKEN: "" },
+    env: { ...process.env, MT_CODE_STANDARDS_OBSERVATION: "off", RULE_OBSERVABILITY_USER_TOKEN: "" },
   });
   assert.equal(invalidAuthAgent.status, 2);
   assert.match(invalidAuthAgent.stderr, /RULE_BUNDLE_AUTH_AGENT_INVALID/);

@@ -63,11 +63,11 @@ test("parses the delivery stage for stage-aware backend pulls", () => {
 });
 
 test("help and version do not require authentication", () => {
-  const help = spawnSync(process.execPath, [cli, "--help"], { encoding: "utf8", env: {} });
+  const help = spawnSync(process.execPath, [cli, "--help"], { encoding: "utf8", env: { MT_CODE_STANDARDS_OBSERVATION: "off" } });
   assert.equal(help.status, 0);
   assert.match(help.stdout, /mt-code-standards pull/);
   assert.equal(help.stderr, "");
-  const version = spawnSync(process.execPath, [cli, "--version"], { encoding: "utf8", env: {} });
+  const version = spawnSync(process.execPath, [cli, "--version"], { encoding: "utf8", env: { MT_CODE_STANDARDS_OBSERVATION: "off" } });
   assert.equal(version.status, 0);
   assert.equal(version.stdout.trim(), packageInfo.version);
 });
@@ -76,7 +76,7 @@ test("the installed bin symlink still executes the CLI", async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "setup-cli-bin-"));
   const linked = path.join(directory, "mt-code-standards");
   await symlink(cli, linked);
-  const result = spawnSync(process.execPath, [linked, "--version"], { encoding: "utf8", env: {} });
+  const result = spawnSync(process.execPath, [linked, "--version"], { encoding: "utf8", env: { MT_CODE_STANDARDS_OBSERVATION: "off" } });
   assert.equal(result.status, 0);
   assert.equal(result.stdout.trim(), packageInfo.version);
 });
@@ -114,7 +114,7 @@ test("preflight lists missing domain and stage without requiring a repository", 
   const directory = await mkdtemp(path.join(os.tmpdir(), "setup-cli-no-git-"));
   const result = spawnSync(process.execPath, [
     cli, "pull", "--output-dir", directory, "--json", "--non-interactive",
-  ], { encoding: "utf8", cwd: directory, env: {} });
+  ], { encoding: "utf8", cwd: directory, env: { MT_CODE_STANDARDS_OBSERVATION: "off" } });
   assert.equal(result.status, 2);
   const body = JSON.parse(result.stdout);
   assert.equal(body.error.code, "rule_parameters_invalid");
@@ -127,7 +127,7 @@ test("non-interactive pull requires MIS only after request preflight succeeds", 
   const result = spawnSync(process.execPath, [
     cli, "pull", "--stage", "coding", "--repository", "hfe/hotel-web", "--output-dir", directory, "--transport", "direct",
     "--json", "--non-interactive",
-  ], { encoding: "utf8", cwd: directory, env: {} });
+  ], { encoding: "utf8", cwd: directory, env: { MT_CODE_STANDARDS_OBSERVATION: "off" } });
   assert.equal(result.status, 2);
   const body = JSON.parse(result.stdout);
   assert.equal(body.error.code, "RULE_BUNDLE_PORTABLE_MIS_REQUIRED");
@@ -282,6 +282,7 @@ if (args.includes("--dry-run")) {
     encoding: "utf8",
     cwd: directory,
     env: {
+      MT_CODE_STANDARDS_OBSERVATION: "off",
       PATH: `${fakeBin}${path.delimiter}${process.env.PATH}`,
       RULE_OBSERVABILITY_USER_TOKEN: "must-not-reach-mtcli",
       SSO_ACCESS_TOKEN: "must-not-reach-mtcli",

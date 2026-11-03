@@ -15,6 +15,8 @@ import {
   syncUnifiedRuleBundle as syncEffectiveRuleBundle,
 } from "./resolve-effective-rules.mjs";
 
+import { createDownloadObservation } from "./download-observation.mjs";
+
 const execFileAsync = promisify(execFile);
 const AUDIENCE = "923a237244";
 const OFFICIAL_TIMEOUT_MS = 30_000;
@@ -350,8 +352,9 @@ const selectRunnerAuthenticationRoute = ({ environment, options, executionAgent 
 };
 
 export const syncWithOfficialSso = async ({
-  options = {}, environment = process.env, execute, fetchImpl,
+  options = {}, environment = process.env, execute, fetchImpl, observation,
 } = {}) => {
+  observation?.phase("preflight");
   const skill = options.standaloneCli ? { skillName: null, skillVersion: null } : await readSkillMetadata();
   const client = options.standaloneCli
     ? { clientType: "cli", clientName: options.clientName ?? null, clientVersion: options.clientVersion ?? null }
@@ -381,7 +384,7 @@ export const syncWithOfficialSso = async ({
       mis: options.mis,
       stage: options.stage,
       publicPull: true,
-      fetchImpl,
+      fetchImpl, observation,
       execution: {
         pullId,
         agent: explicitAgent || detected.agent,
@@ -430,7 +433,7 @@ export const syncWithOfficialSso = async ({
     domain: options.domain,
     bootstrap: options.bootstrap,
     stage: options.stage,
-    fetchImpl,
+    fetchImpl, observation,
     execution: {
       pullId,
       agent: explicitAgent || detected.agent,
@@ -439,6 +442,7 @@ export const syncWithOfficialSso = async ({
     },
   });
   const mis = text(options.mis || environment.SSO_USER_ID || readLocalGitMis(prepared.sourceRoot));
+  observation?.phase("auth");
   let credential = await tokenFromSelectedRoute({
     selection, environment, execute, mis,
   });
@@ -457,6 +461,7 @@ export const syncWithOfficialSso = async ({
       options,
       executionAgent: explicitAgent,
     });
+    observation?.phase("auth");
     credential = await tokenFromSelectedRoute({
       selection, environment: retryEnvironment, execute, mis,
     });
@@ -469,9 +474,28 @@ export const syncWithOfficialSso = async ({
   }
 };
 
+export const runSkill = async ({ argv = process.argv.slice(2), environment = process.env,
+  observationFactory = createDownloadObservation, sync = syncWithOfficialSso, skillUrl, ...dependencies } = {}) => {
+  const skill = await readSkillMetadata(skillUrl);
+  let options, argumentError;
+  try { options = parseArgs(argv); } catch (error) { argumentError = error; }
+  const observation = observationFactory({ metadata: { client_type: "skill", client_name: skill.skillName,
+    client_version: skill.skillVersion, skill_name: skill.skillName, skill_version: skill.skillVersion,
+    execution_agent: options?.agent || detectExecutionAgent(environment).agent,
+    transport: options?.transport, standard_domain: options?.domain, stage: options?.stage } });
+  await observation.start();
+  try {
+    if (argumentError) throw argumentError;
+    const receipt = await sync({ options, environment, ...dependencies, observation });
+    await observation.finish(receipt);
+    return receipt;
+  } catch (error) {
+    await observation.finish(null, error);
+    throw error;
+  }
+};
 const main = async () => {
-  const options = parseArgs(process.argv.slice(2));
-  const receipt = await syncWithOfficialSso({ options });
+  const receipt = await runSkill();
   process.stdout.write(`${JSON.stringify(receipt, null, 2)}\n`);
 };
 

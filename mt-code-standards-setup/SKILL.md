@@ -6,7 +6,7 @@ description: "按用户指定的仓库名称或当前 Git 仓库，从业务研�
 metadata:
   skillhub.creator: "zhangce07"
   skillhub.updater: "zhangce07"
-  skillhub.version: "V21"
+  skillhub.version: "V22"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "141006"
   skillhub.high_sensitive: "false"
@@ -140,8 +140,20 @@ manifest 的 managed_file_releases、来源路径、Hash、大小及索引参与
 - skill_name/skill_version 从实际运行目录 SKILL.md 读取，setup 包记录 setup 名称；读取失败为 null，不固定兜底。client_type/name/version 独立记录，CLI 不冒充 Skill。
 - public 未自报身份时为 anonymous；direct 为 verified_mis；显式匿名自报标记 self_reported，不提升为可信身份。
 - 服务端记录实际快照、Release、逐条规则 UID、总字节数、分发模式和原因。ready/not_modified 是分发结果，不代表本地安装成功。
-- 本地成功 receipt 为 mt-rule-bundle-install/v1，status=installed/not_modified；本轮没有安装结果回传。
+- 本地成功 receipt 为 mt-rule-bundle-install/v1，status=installed/not_modified；新版 Runner 将执行开始与安装终态通过独立观测接口回传；旧版本仍仅有服务端下发回执。观测上报失败不改变下载或安装结果。
 - 失败展示安全 code/message、issues 和 request_id；不要用“public_rule_bundle_unavailable”一概替代具体问题。参数错误请补齐对应字段；认证、限流与服务故障不要自动切换身份或反复重试。
+
+## 执行观测与兼容
+
+两个 Skill 共用同一 Runner，以实际发行目录中的 SKILL.md 记录名称与版本；CLI 单独记录，不冒充 Skill。
+执行事件只发送随机 run/event/pull 标识、名称版本、Agent、传输方式、领域阶段、状态、耗时及安全错误码。
+不发送 MIS、Token、错误原文、绝对路径、源码、文件清单或提示词；客户端结果作为低信任声明，不等于服务端验证事实。
+现有严格下发请求正文不变，仅原生 HTTP 可选携带 X-Setup-Run-Id；mtcli 保持旧请求头合同，不携带该头。
+服务端应先部署独立 `/v1/public/rule-download-events` 的 `rule-download-event/v1`，再逐步更新两个 Skill。
+旧服务返回 404/503、超时或非法回执时不影响下发，事件暂存到用户目录 `.mt-code-standards/download-events-v1/`。
+队列最多 100 条、保留 30 天、每条最多 8 次尝试，单次发送最长 350ms，每轮最多 2 条，开始和结束分别尝试补报。
+补报按事件 ID 去重，跨日按 started_at 归属；只有开始没有结束的执行应显示未知，不推断失败。
+禁用观测可设置 `MT_CODE_STANDARDS_OBSERVATION=off`。首次离线后不再运行、强杀及队列淘汰仍可能造成缺口。
 
 ## 验收与发布前置
 

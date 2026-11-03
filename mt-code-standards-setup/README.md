@@ -2,8 +2,10 @@
 
 ## 安装
 
+当前源码的 npm 包名为 `@nibfe/mt-coding-standards`，新包尚待 Talos 发布并回读公司源确认；以下安装命令在发布后使用。CLI 命令、Friday Skill 和 mtcli 服务名仍为 `mt-code-standards`。
+
 ```shell
-npm install -g @nibfe/mt-code-standards --registry=http://r.npm.sankuai.com
+npm install -g @nibfe/mt-coding-standards --registry=http://r.npm.sankuai.com
 ```
 
 ## 统一拉取
@@ -58,7 +60,9 @@ mnpm install --prefix "$VERIFY_DIR" "$PACKAGE_DIR/$PACKAGE_TGZ"
 "$VERIFY_DIR/node_modules/.bin/mt-code-standards" --version
 ```
 
-npm 只通过 Talos 应用 `1000376` 发布，不在本地执行 `npm publish` 或 `mnpm publish`；`mnpm` 仅用于公司源安装与发布结果查询。Talos 构建环境使用 Node.js 20（当前验证版本为 20.20.2），发布插件的包名必须为 `@nibfe/mt-code-standards`。npm 版本由 Talos 流水线自动递增并回写，开发者不在本地执行 `npm version`，也不为发布手工修改 `package.json`、`package-lock.json` 或 `SKILL.md` 的版本。npm 包与 Friday Skill 分别发布、分别管理版本；以 Talos 发布回执和公司 npm 源中的实际版本为准。不要直接套用其他项目的 `npmVersionType`、`npmDistTag`、`usePackageJsonVersion`、`onlyPushProdVersion` 或生产依赖选项；以应用 `1000376` 的实际 Talos 配置和本包合同为准。
+npm 只通过 Talos 应用 `1000376` 发布，不在本地执行 `npm publish` 或 `mnpm publish`；`mnpm` 仅用于公司源安装与发布结果查询。Talos 构建环境使用 Node.js 20（当前验证版本为 20.20.2），发布插件的包名必须为 `@nibfe/mt-coding-standards`。npm 版本由 Talos 流水线自动递增并回写，开发者不在本地执行 `npm version`，也不为发布手工修改 `package.json`、`package-lock.json` 或 `SKILL.md` 的版本。npm 包与 Friday Skill 分别发布、分别管理版本；以 Talos 发布回执和公司 npm 源中的实际版本为准。不要直接套用其他项目的 `npmVersionType`、`npmDistTag`、`usePackageJsonVersion`、`onlyPushProdVersion` 或生产依赖选项；以应用 `1000376` 的实际 Talos 配置和本包合同为准。
+
+本次包名调整须由维护人在 Talos 应用 `1000376` 核对新包发布权限、发布插件包名及实际版本，再发布新包并更新 CLIHub 的 npm 安装配置。旧包 `@nibfe/mt-code-standards` 不会自动改名或迁移；升级前先卸载旧全局包，再安装新包，避免两包竞争同一 `mt-code-standards` 命令。旧包保留策略及线上安装状态需单独核验，本次未执行下架或迁移。
 
 Friday 上维护两个既有条目，均复用本仓库的同一套源码，不在仓库中维护第二份 Setup 源码：
 
@@ -86,3 +90,20 @@ npm run ps
 正式 Setup 发布命令会先运行仓库校验，再从公司 npm 源全局更新 `@mtfe/mtskills`，最后在临时包目录固定执行 `mtskills push --intro auto`。更新全局发布工具是该命令的明确副作用；脚本不会发布 npm、提交或推送 Git，也不会安装全局 Skill。临时包在成功或失败后都会删除。发布完成后仍须从 Friday 回读 ID `141006` 的实际版本和文件内容；源码提交或命令调用成功不能替代线上回读。本轮加入发布脚本本身不表示已实际发布。
 
 npm、Friday、CatX 和 mtcli 是独立发布单元；按 [接入说明](references/mtcli-integration.md) 分别回读和验收，本仓库提交不会自动完成任一线上发布。
+
+
+## 下发执行观测
+
+`mt-code-standards` 和 `mt-code-standards-setup` 的共享 Runner 在启动及结束时上报独立执行事件。
+服务端收到请求、成功下发回执、客户端安装完成是三个不同事实；旧版不更新也可继续下发，但没有客户端执行终态。
+匿名客户端事件不能证明用户身份或真实 AI 采用。CLI 独立分组，help/version 不记执行。
+
+先部署数据库及 rule-distribution 的事件接收与统计，再更新两个 Friday Skill；npm 由 Talos 管理版本。
+本改动不要求修改现有 resolve 请求或响应正文，不自动发布。mtcli 保持原有严格头合同，其客户端运行可统计，
+HTTP 与 run 的关联在该传输下尚不可用；不得把客户端 request_count 当服务端收到的请求数。
+
+事件队列位于用户目录 `.mt-code-standards/download-events-v1/`，最多 100 条/30 天/每事件 8 次尝试；
+每轮至多 2 次发送、每次 350ms，指数退避且不在下载流程中循环等待。开始和结束分别 flush。
+队列故障、旧服务不支持、无网络均不影响安装。`MT_CODE_STANDARDS_OBSERVATION=off` 可关闭采集。
+测试运行该开关并注入观测 fetch，可避免访问线上服务。程序内调用 syncWithOfficialSso 不默认上报，
+需要执行观测时使用 runSkill 或显式传入 observation；不要额外包两层 start/finish。

@@ -2,6 +2,8 @@
 
 ## 当前合同与发布前置
 
+2026-10-27：当前源码 npm 包名调整为 `@nibfe/mt-coding-standards`，CLI 命令、Skill 与 mtcli 服务名保持不变。新包待 Talos 发布，不能把下方旧包的历史回执视为新包已发布。维护人须先回读公司源中的新包实际版本，再把 CLIHub 的 npm 包及安装命令更新为 `npm install -g @nibfe/mt-coding-standards --registry=http://r.npm.sankuai.com`；独立 CLI 的 `client_name` 随实际 package name 上报。已有旧包的用户先卸载 `@nibfe/mt-code-standards`，再安装新包，避免同名 bin 冲突。
+
 CLI 使用 `mt-code-standards pull --transport mtcli --domain frontend --stage coding`。
 mtcli 负责服务发现、官方 SSO 与 HTTP；客户端负责本地上下文、响应校验和原子安装。
 本轮仅交付本地定义，不代表线上已登记。服务维护人应回读实际服务元数据，再追加 [assets/mtcli-service.json](../assets/mtcli-service.json) 的统一方法，保留其他方法和实际 ID，不以历史文件中的 ID 猜测管理入口。

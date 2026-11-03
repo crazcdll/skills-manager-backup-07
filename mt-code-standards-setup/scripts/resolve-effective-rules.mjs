@@ -31,6 +31,9 @@ const BUNDLE_SCHEMA = "effective-rule-bundle/v2";
 const STAGED_BUNDLE_SCHEMA = "effective-rule-bundle/v3";
 const LAYOUT_BUNDLE_SCHEMA = "effective-rule-bundle/v4";
 export const LOCAL_LAYOUT = "scope-domain-ruleset/v1";
+const FLAT_L1_LAYOUT = "domain-flat/v1";
+const manifestL1Layout = (manifest) => manifest?.local_l1_layout ?? "ruleset/v1";
+const validManifestL1Layout = (manifest) => !Object.hasOwn(manifest, "local_l1_layout") || manifest.local_l1_layout === FLAT_L1_LAYOUT;
 const LEGACY_LAYOUT_LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v5";
 const PREVIOUS_LAYOUT_LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v6";
 const LAYOUT_LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v7";
@@ -1101,14 +1104,15 @@ const suffixFileName = (fileName, sourcePath, attempt = 0) => {
   return `${stem}--${sha256Hex(`${sourcePath}\0${attempt}`).slice(0, 16)}${extension}`;
 };
 
-const isLayoutManagedPath = (value) => {
+const isLayoutManagedPath = (value, l1Layout = FLAT_L1_LAYOUT) => {
   const pathValue = normalizeRelativePath(value, true);
   const parts = pathValue.split("/");
+  if (parts[0] === "company" && l1Layout === FLAT_L1_LAYOUT) return parts.length === 3 && ["fe", "java"].includes(parts[1]);
   return parts.length === 4 && ["company", "team"].includes(parts[0])
     && ["fe", "java"].includes(parts[1]) && normalizeLocalRuleSetName(parts[2]) === parts[2];
 };
 
-const localFilesForBundle = (bundle, { indexPlacement = "named-team" } = {}) => {
+const localFilesForBundle = (bundle, { indexPlacement = "named-team", l1Layout = FLAT_L1_LAYOUT } = {}) => {
   const layout = bundle.snapshot.resolver_version === LAYOUT_BUNDLE_SCHEMA;
   const versionTwo = bundle.snapshot.resolver_version !== LEGACY_BUNDLE_SCHEMA;
   const directoryOwners = new Map();
@@ -1130,7 +1134,7 @@ const localFilesForBundle = (bundle, { indexPlacement = "named-team" } = {}) => 
     const owner = owners[0];
     const inferredRuleSetId = parts.length > 2 ? parts[1] : fileName.replace(/[.]md$/iu, "");
     const candidate = layout
-      ? `${scope === "l1" ? "company" : "team"}/${owner.standard_domain === "frontend" ? "fe" : "java"}/${owner.local_rule_set_name}/${fileName}`
+      ? `${scope === "l1" ? "company" : "team"}/${owner.standard_domain === "frontend" ? "fe" : "java"}/${scope === "l1" && l1Layout === FLAT_L1_LAYOUT ? "" : `${owner.local_rule_set_name}/`}${fileName}`
       : scope === "l1" ? `company/${fileName}` : `team/${inferredRuleSetId}/${fileName}`;
     return { ...file, source_relative_path: sourcePath, local_relative_path: candidate };
   });
@@ -1157,7 +1161,7 @@ const localFilesForBundle = (bundle, { indexPlacement = "named-team" } = {}) => 
       const parts = localPath.split("/");
       localPath = [...parts.slice(0, -1), suffixFileName(parts.at(-1), file.source_relative_path, attempt++)].join("/");
     }
-    if (!(layout ? isLayoutManagedPath(localPath) : isFlatManagedPath(localPath, versionTwo))) fail("RULE_BUNDLE_FILE_PATH_INVALID", `规则本地路径非法：${localPath}`);
+    if (!(layout ? isLayoutManagedPath(localPath, l1Layout) : isFlatManagedPath(localPath, versionTwo))) fail("RULE_BUNDLE_FILE_PATH_INVALID", `规则本地路径非法：${localPath}`);
     occupied.add(pathKey(localPath));
     return { ...file, local_relative_path: localPath };
   }).sort((left, right) => binaryPathOrder(left.local_relative_path, right.local_relative_path));
@@ -1190,6 +1194,7 @@ const validateLocalManifestStructure = (manifest) => {
   ) return false;
   const flat = isFlatLocalManifest(manifest);
   const layout = isNamedLocalManifest(manifest);
+  if (!validManifestL1Layout(manifest)) return false;
   if (manifest.schema_version === LAYOUT_LOCAL_MANIFEST_SCHEMA && !layout) return false;
   const bundleSchema = manifestBundleSchema(manifest);
   if (![LEGACY_BUNDLE_SCHEMA, BUNDLE_SCHEMA, STAGED_BUNDLE_SCHEMA, LAYOUT_BUNDLE_SCHEMA].includes(bundleSchema)) return false;
@@ -1219,7 +1224,7 @@ const validateLocalManifestStructure = (manifest) => {
   for (const managedPath of [...uniquePaths].sort(pathOrder)) {
     if (typeof managedPath !== "string") return false;
     if (!flat && !managedPath.startsWith(`${manifest.standard_domain}/`)) return false;
-    if (flat && !(layout ? isLayoutManagedPath(managedPath) : isFlatManagedPath(managedPath, bundleSchema))) return false;
+    if (flat && !(layout ? isLayoutManagedPath(managedPath, manifestL1Layout(manifest)) : isFlatManagedPath(managedPath, bundleSchema))) return false;
     const sourcePath = manifestSourcePath(manifest, managedPath);
     if (flat && !Object.hasOwn(manifest.managed_file_sources, managedPath)) return false;
     const fileHash = manifest.managed_file_hashes[managedPath];
@@ -1246,7 +1251,7 @@ const validateLocalManifestStructure = (manifest) => {
   if (layout || indexPlacement === "flat-team") {
     if (layout && Object.keys(manifest.managed_file_releases).length !== uniquePaths.size) return false;
     const derived = localFilesForBundle({ snapshot: { resolver_version: bundleSchema, release_refs: releaseRefs },
-      files: projection, agents_indexes: manifest.agents_indexes }, { indexPlacement });
+      files: projection, agents_indexes: manifest.agents_indexes }, { indexPlacement, l1Layout: manifestL1Layout(manifest) });
     if (canonicalJson(Object.fromEntries(derived.map(file => [file.local_relative_path, file.source_relative_path])))
       !== canonicalJson(manifest.managed_file_sources)) return false;
   }
@@ -1307,6 +1312,7 @@ const validateBootstrapManifestStructure = (manifest) => {
     AGENTS_BOOTSTRAP_MANIFEST_SCHEMA,
     LAYOUT_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA,
   ].includes(manifest.schema_version)
+    || !validManifestL1Layout(manifest)
     || ![BOOTSTRAP_BUNDLE_SCHEMA, STAGED_BOOTSTRAP_BUNDLE_SCHEMA, LAYOUT_BOOTSTRAP_BUNDLE_SCHEMA].includes(manifest.bundle_schema)
     || manifest.local_layout !== (isNamedBootstrapManifest(manifest) ? LOCAL_LAYOUT : FLAT_LOCAL_LAYOUT)
     || !SHA256_PATTERN.test(text(manifest.snapshot_id))
@@ -1334,7 +1340,7 @@ const validateBootstrapManifestStructure = (manifest) => {
     || Object.keys(manifest.managed_file_sources).length !== uniquePaths.size) return false;
   const projection = [];
   for (const managedPath of [...uniquePaths].sort(binaryPathOrder)) {
-    if (typeof managedPath !== "string" || !(layout ? isLayoutManagedPath(managedPath) : isFlatManagedPath(managedPath, BUNDLE_SCHEMA))
+    if (typeof managedPath !== "string" || !(layout ? isLayoutManagedPath(managedPath, manifestL1Layout(manifest)) : isFlatManagedPath(managedPath, BUNDLE_SCHEMA))
       || !managedPath.startsWith("company/")
       || !Object.hasOwn(manifest.managed_file_sources, managedPath)) return false;
     const sourcePath = normalizeRelativePath(manifest.managed_file_sources[managedPath], true);
@@ -1353,7 +1359,7 @@ const validateBootstrapManifestStructure = (manifest) => {
   if (releaseRefs.some((release) => release.scope_level !== "L1" || (layout && release.standard_domain !== manifest.standard_domain))) return false;
   if (layout) {
     if (Object.keys(manifest.managed_file_releases).length !== uniquePaths.size) return false;
-    const derived = localFilesForBundle({ snapshot: { resolver_version: LAYOUT_BUNDLE_SCHEMA, release_refs: releaseRefs }, files: projection }, { indexPlacement: "separate" });
+    const derived = localFilesForBundle({ snapshot: { resolver_version: LAYOUT_BUNDLE_SCHEMA, release_refs: releaseRefs }, files: projection }, { indexPlacement: "separate", l1Layout: manifestL1Layout(manifest) });
     if (derived.some((file) => !uniquePaths.has(file.local_relative_path) || manifest.managed_file_sources[file.local_relative_path] !== file.relative_path)) return false;
   }
   const indexCapable = manifest.schema_version === LAYOUT_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA
@@ -1390,6 +1396,7 @@ const buildLocalManifest = (bundle) => {
   return {
     schema_version: LAYOUT_LOCAL_MANIFEST_SCHEMA,
     local_layout: LOCAL_LAYOUT,
+    local_l1_layout: FLAT_L1_LAYOUT,
     resolver_version: bundle.snapshot.resolver_version || LEGACY_BUNDLE_SCHEMA,
     snapshot_id: bundle.snapshot.snapshot_id,
     manifest_hash: bundle.snapshot.manifest_hash,
@@ -1440,6 +1447,7 @@ const buildBootstrapManifest = (bundle, domainSource, domainEvidence) => {
     schema_version: LAYOUT_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA,
     bundle_schema: bundle.snapshot.bootstrap_version,
     local_layout: LOCAL_LAYOUT,
+    local_l1_layout: FLAT_L1_LAYOUT,
     snapshot_id: bundle.snapshot.snapshot_id,
     manifest_hash: bundle.snapshot.manifest_hash,
     standard_domain: bundle.snapshot.standard_domain,
@@ -1865,6 +1873,7 @@ export const syncUnifiedRuleBundle = async ({ gatewayUrl, token, repositoryLocat
   if (!previousCanonical && baseline?.resolution?.target.source === "local_directory"
     && baseline.resolution.target.display_name !== prepared.sourceRoot) fail("RULE_BUNDLE_REPOSITORY_CONFLICT", "本地规则属于其他来源目录，未覆盖现有规则");
   const known = previous && validateResolutionManifest(previous)
+    && manifestL1Layout(previous) === FLAT_L1_LAYOUT
     && previous.stage === stage && (!prepared.domain || previous.standard_domain === prepared.domain)
     && previous.resolution.scope === prepared.scope
     && previous.resolution.target.canonical_key === prepared.repositoryLocator
@@ -2050,6 +2059,7 @@ export const syncEffectiveRuleBundle = async ({
     ? text(previousManifest.stage)
     : "";
   const knownSnapshotId = previousCurrent && previousManifest?.schema_version === LAYOUT_LOCAL_MANIFEST_SCHEMA
+    && manifestL1Layout(previousManifest) === FLAT_L1_LAYOUT
     && previousStage === deliveryStage
     ? previousManifest.snapshot_id
     : "";
@@ -2084,6 +2094,7 @@ export const syncEffectiveRuleBundle = async ({
       ? text(bootstrapManifest.stage)
       : "";
     const bootstrapKnownSnapshotId = bootstrapCurrent && bootstrapManifest?.schema_version === LAYOUT_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA && bootstrapStage === deliveryStage
+      && manifestL1Layout(bootstrapManifest) === FLAT_L1_LAYOUT
       ? bootstrapManifest.snapshot_id
       : "";
     const bootstrapBody = await requestBootstrapBundle({

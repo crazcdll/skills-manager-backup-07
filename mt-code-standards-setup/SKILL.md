@@ -6,7 +6,7 @@ description: "按用户指定的仓库名称或当前 Git 仓库，从业务研�
 metadata:
   skillhub.creator: "zhangce07"
   skillhub.updater: "zhangce07"
-  skillhub.version: "V22"
+  skillhub.version: "V23"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "141006"
   skillhub.high_sensitive: "false"
@@ -119,14 +119,14 @@ CatDesk、CatPaw IDE、CatPaw 云端 Agent 和美团沙箱沿用同一份 Skill�
 .mdp/rules/
 ├── .mt-effective-rule-bundle.json   # 生效包 manifest v8
 ├── .mt-l1-bootstrap.json           # 仅 L1 包 manifest v5；与上项互斥
-├── company/fe/<规则集名称>/<文件>.md
-├── company/java/<规则集名称>/<文件>.md
+├── company/fe/<文件>.md
+├── company/java/<文件>.md
 ├── team/fe/<规则集名称>/<文件>.md
 ├── team/java/<规则集名称>/<文件>.md
 └── project/                       # L3，项目自管
 ```
 
-文件归属通过 Release 的 scope_level、standard_domain、local_rule_set_name 决定；一个 Release/来源文件对应一个物理 Markdown。
+L1 按 Release 的 scope_level、standard_domain 放到领域目录，L2 继续使用 local_rule_set_name 区分团队规则集；一个 Release/来源文件对应一个物理 Markdown。升级后再次拉取会迁移旧清单管理的 L1 文件，保留用户自建文件；已修改的受管文件须先处理，不能强制覆盖。
 manifest 的 managed_file_releases、来源路径、Hash、大小及索引参与验证；新版另以 resolution_hash 绑定分发上下文。
 安装使用暂存和原子替换；仅 L1 与 L1+L2 双向迁移时清理原清单认领且未被修改的旧规则/索引，保留未知文件和 L3。
 本地被修改的文件、Hash 损坏、路径冲突、符号链接或不同仓库身份必须停止。无仓库请求不能覆盖一个已知 canonical 的正式包。

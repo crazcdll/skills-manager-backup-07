@@ -203,7 +203,7 @@ test("default CLI pull uses the public endpoint without inheriting credentials",
   const result = JSON.parse(output.join(""));
   assert.equal(result.receipt.authentication_mode, "public_repository");
   assert.equal(result.receipt.authentication_route_reason, "default_public_transport");
-  assert.equal(await readFile(path.join(directory, ".mdp/rules/company/fe/前端规范/frontend-l1.md"), "utf8"), content);
+  assert.equal(await readFile(path.join(directory, ".mdp/rules/company/fe/frontend-l1.md"), "utf8"), content);
 });
 
 test("mtcli transport performs verified dry-run and installs without MIS or inherited user token", async () => {
@@ -294,7 +294,7 @@ if (args.includes("--dry-run")) {
   assert.equal(output.receipt.execution_agent, "cli");
   assert.match(output.receipt.pull_id, /^[0-9a-f-]{36}$/u);
   assert.equal(
-    await readFile(path.join(directory, ".mdp/rules/company/fe/前端规范/frontend-l1.md"), "utf8"),
+    await readFile(path.join(directory, ".mdp/rules/company/fe/frontend-l1.md"), "utf8"),
     content,
   );
 });

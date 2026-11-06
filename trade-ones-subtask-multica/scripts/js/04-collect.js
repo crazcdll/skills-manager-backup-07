@@ -4,8 +4,9 @@
   const WEEK_ITERATION_ID  = __WEEK_ITERATION_ID__;
 
   const byIssue = {};
+  const pendingRows = [];          // 待确认 / 无 newId 的行不进回查，但要保留进 verified
   for (const r of RESULTS) {
-    if (!r.newId) continue;
+    if (!r.newId) { pendingRows.push(r); continue; }
     (byIssue[r.issueId] = byIssue[r.issueId] || []).push(r);
   }
 
@@ -54,17 +55,48 @@
     }
   }
 
+  // 待确认行不查 ONES，直接落 verified（newId=null、found=false），保证文档里不丢行
+  for (const row of pendingRows) {
+    verified.push({
+      issueId: Number(row.issueId),
+      projectId: row.projectId,
+      newId: null,
+      taskTitle: row.taskTitle,
+      person: row.person,
+      uid: row.uid,
+      empId: row.empId || '',
+      duration: row.duration,
+      dateRange: row.dateRange,
+      labelNames: row.labelNames || '',
+      status: row.status || '待确认',
+      skipReason: row.skipReason || null,
+      ignoredStale: row.ignoredStale || null,
+      labelCode: null,
+      found: false,
+      liveAssignedMisId: null,
+      liveIterationId: null,
+      liveName: null
+    });
+  }
+
+  // 按 RESULTS 原顺序回排列，避免待确认行全跑到表尾
+  const orderKey = r => `${r.issueId}::${r.uid}::${r.taskTitle}::${r.dateRange}`;
+  const pos = new Map(RESULTS.map((r, i) => [orderKey(r), i]));
+  verified.sort((a, b) => (pos.get(orderKey(a)) ?? 1e9) - (pos.get(orderKey(b)) ?? 1e9));
+
   const counts = verified.reduce((acc, v) => {
     acc.total += 1;
     if (v.status === '已存在') acc.existing += 1;
+    else if (v.status === '待确认') acc.pending += 1;
     else if (v.found) acc.created += 1;
     else acc.missing += 1;
     return acc;
-  }, { total: 0, created: 0, existing: 0, missing: 0 });
+  }, { total: 0, created: 0, existing: 0, missing: 0, pending: 0 });
 
   return JSON.stringify({
     verified, counts,
     weekIterationId: WEEK_ITERATION_ID,
-    notFound: verified.filter(v => !v.found)
+    notFound: verified.filter(v => !v.found && v.status !== '待确认'),
+    pending: verified.filter(v => v.status === '待确认')
   });
 })()

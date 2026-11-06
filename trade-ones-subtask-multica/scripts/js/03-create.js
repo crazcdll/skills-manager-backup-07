@@ -32,11 +32,17 @@
   const results = [];
   for (const t of ALL_TASKS) {
     // ── 三层重复检测：本周迭代 → W{n}- 前缀 → 任务名完全一致 ──────────
+    // 守卫：迭代被挪到本周、但任务名仍带其他周次前缀（如 W44-）时，不算本周已存在
+    //       —— 那是上周建的旧任务，本周应新建 W{WEEK_NUM}- 任务，否则会静默漏建
     const children = freshExistingMap[t.issueId] || [];
     let existingId = null, skipReason = null;
+    const ignoredStale = [];
     for (const c of children) {
       if ((c.assignedMisId || '').toLowerCase() !== (t.uid || '').toLowerCase()) continue;
-      if (WEEK_ITERATION_ID && String(c.iterationId) === String(WEEK_ITERATION_ID)) {
+      const nameWeek = /^W(\d+)-/.exec(c.name || '');
+      const otherWeekNamed = !!nameWeek && nameWeek[1] !== String(WEEK_NUM);
+      if (otherWeekNamed) ignoredStale.push(`${c.id}:${c.name}`);
+      if (!otherWeekNamed && WEEK_ITERATION_ID && String(c.iterationId) === String(WEEK_ITERATION_ID)) {
         existingId = c.id; skipReason = '本周iterationId匹配'; break;
       }
       if (!c.iterationId && c.name?.startsWith('W' + WEEK_NUM + '-')) {
@@ -46,8 +52,16 @@
         existingId = c.id; skipReason = '任务名完全匹配'; break;
       }
     }
+    const staleNote = ignoredStale.length ? ignoredStale : undefined;
     if (existingId) {
-      results.push({ ...t, newId: existingId, status: '已存在', skipReason, isSuccess: true });
+      results.push({ ...t, newId: existingId, status: '已存在', skipReason, ignoredStale: staleNote, isSuccess: true });
+      continue;
+    }
+    // 同名旧任务仍在（周次前缀不符）→ 不擅自新建，标「待确认」交给用户决定
+    if (staleNote) {
+      results.push({ ...t, newId: null, status: '待确认',
+        skipReason: '同名旧任务仍在且迭代已挪到本周，需用户决定新建 / 沿用 / 跳过',
+        ignoredStale: staleNote, needsDecision: true, isSuccess: false });
       continue;
     }
 
@@ -93,7 +107,7 @@
       ...t, newId,
       status: isSuccess ? '新创建' : `创建失败(${cd.code})`,
       errMsg: isSuccess ? null : (cd.message || cd.msg || ''),
-      isSuccess, labelCode
+      ignoredStale: staleNote, isSuccess, labelCode
     });
     await sleep(500);
   }

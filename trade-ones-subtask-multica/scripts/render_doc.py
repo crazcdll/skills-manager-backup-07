@@ -119,7 +119,7 @@ def ones_detail_table(results):
             cell(r.get("dateRange", "")),
             cell(r.get("status", "")),
             cell(r.get("labelNames", "")),
-            cell("", link=(str(r.get("newId", "")), task_url)),
+            cell("", link=(str(r.get("newId")), task_url)) if r.get("newId") else cell("—"),
         ])
     return table(rows)
 
@@ -129,16 +129,19 @@ def ones_person_table(results):
     for r in results:
         if r["uid"] not in agg:
             agg[r["uid"]] = {"name": r["person"], "uid": r["uid"], "empId": r.get("empId", ""),
-                             "count": 0, "days": 0, "new": 0, "exist": 0}
+                             "count": 0, "days": 0, "new": 0, "exist": 0, "pending": 0}
             order.append(r["uid"])
         a = agg[r["uid"]]
         a["count"] += 1
         a["days"] += r.get("duration", 0) or 0
         if r.get("status") == "新创建":
             a["new"] += 1
-        else:
+        elif r.get("status") == "已存在":
             a["exist"] += 1
-    rows = [[head("开发人员"), head("任务数"), head("总人天"), head("新创建"), head("已存在")]]
+        else:
+            a["pending"] += 1
+    rows = [[head("开发人员"), head("任务数"), head("总人天"),
+             head("新创建"), head("已存在"), head("待确认")]]
     for uid in order:
         a = agg[uid]
         rows.append([
@@ -147,12 +150,16 @@ def ones_person_table(results):
             cell("%s天" % num(round(a["days"], 2))),
             cell(str(a["new"])),
             cell(str(a["exist"])),
+            cell(str(a["pending"])),
         ])
     total = len(results)
     new_cnt = sum(1 for r in results if r.get("status") == "新创建")
+    exist_cnt = sum(1 for r in results if r.get("status") == "已存在")
+    pending_cnt = total - new_cnt - exist_cnt
     days = round(sum(r.get("duration", 0) or 0 for r in results), 2)
-    text = "人力投入汇总：总任务 %s 个（新创建 %s 个，已存在 %s 个），总人力 %s 人天，参与 %s 人" % (
-        total, new_cnt, total - new_cnt, num(days), len(order))
+    extra = "，待确认 %s 个" % pending_cnt if pending_cnt else ""
+    text = "人力投入汇总：总任务 %s 个（新创建 %s 个，已存在 %s 个%s），总人力 %s 人天，参与 %s 人" % (
+        total, new_cnt, exist_cnt, extra, num(days), len(order))
     return para(text), table(rows)
 
 

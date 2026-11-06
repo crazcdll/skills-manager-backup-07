@@ -1,0 +1,17 @@
+skill-manifest-version: 1
+skill-id: 2190449d4578244b0c46bd26f963f8540b6aec8195c3dfcddad0a98bba975dc1
+
+files:
+  82f6833931502531bc036be34df58fdec711db510d8d0bf363c810ac7cdc8ddc  SKILL.md
+  3dd98874d6ca6c41cef18991ffb8452dc676bb92ac4c22b8a90ce583ef3a6fd1  scripts/js/01-setup.js
+  4a770a1d9149a60201252f18d8bb2d41da9bec7ea45090a8a44866c8d9a9f2fa  scripts/js/02-prepare.js
+  adf7426c9a6c0c49139c426462710115e1db75ea553ced0437fe355dad1f68e1  scripts/js/03-create.js
+  297ca8956f46546e362ff818e85a791998882c67d1a23e34ee19c5d0ebdcfc97  scripts/js/04-collect.js
+  7b631b40d621e6748dbfd98aad8507b78d6ed58d2e5186d47d7eeba21391e737  scripts/map_page.py
+  14441571e2bf44a13965ee860b16a480ae110da3067aef7a389cfae81e163b1e  scripts/multica_input.py
+  ceac7d6a99318eef796b772aa2083d46ec22a7ebe2c4d206e9491710fad9b4fc  scripts/multica_result.py
+  cc7ce71f70b821de520d9ee39aa902a125c330e636fa6d5f3ce34277c6823e08  scripts/render_doc.py
+  eec6994e5d8668ee31bdebcb849cc1e16f0063ab3dfa2c322585d224e65e3d6b  scripts/run_js.py
+  448f2caf66ac0e44dfdf6a2e7525fc38fd9fe94b8f46dcd114db62e01fa70398  scripts/schedule.py
+  3d7c57e3be6bbb81327d2991dbdb576dea91f296eedb16e37e3478b139db6f7d  scripts/state_set.py
+  775e9af38ba128ffc53688a2f56c1ebd0691b3e83090c3ecdc34231b7c079f24  scripts/xtable_stats.py

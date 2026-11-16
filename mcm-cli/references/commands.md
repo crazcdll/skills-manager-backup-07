@@ -51,21 +51,17 @@
 
 | 命令 | 说明 |
 |---|---|
-| `mcm login --mis <mis>` | CIBA 认证（推荐）：大象 App 确认授权，token 有效期 3 天，支持 refresh_token 自动续期 |
-| `mcm login` | 交互式提示输入 MIS 号，然后走 CIBA 流程 |
-| `mcm login --token <ssoid>` | 手动指定 ssoid（从浏览器 DevTools 复制） |
-| `mcm logout` | 清除本地认证缓存 |
-| `mcm whoami` | 查看当前认证状态（认证方式、用户信息、有效期剩余） |
-| `mcm refresh` | 强制刷新（优先用 refresh_token，失败则从浏览器 Cookie fallback） |
+| `mcm login` | MOA 无感登录；本地电脑可使用浏览器 OIDC |
+| `mcm login --token <token>` | 注入 MCM 用户票据或兼容的 ssoid；可用 `--mis` 附带本地用户标识 |
+| `mcm logout` | 清除本地认证及派生票据缓存 |
+| `mcm whoami` | 查看当前认证状态；OIDC 模式会静默校验票据 |
+| `mcm refresh` | 按当前认证来源静默刷新；失败返回非零退出码 |
 
 ### 认证机制说明
 
-执行任何业务命令时，鉴权优先级依次为：
+业务命令复用有效票据；OIDC 由 SDK 校验和续期，MOA 按需重新换票。原有 Cookie 来源仍可读取浏览器登录态。无法续期时执行 `mcm login`，外部票据则通过 `mcm login --token` 更新。
 
-1. **本地缓存 token**（未过期）
-2. **refresh_token 静默续期**（CIBA 模式下自动触发）
-3. **浏览器 Cookie 自动读取**（fallback，需提前在 Chrome/Edge 中登录 https://mcm.mws.sankuai.com）
-4. **以上均失败**：提示用户执行 `mcm login --mis <mis>`
+无浏览器的远程环境使用 MOA 或平台注入的 MCM 用户票据。登录返回退出码 `42` 时，展示业务指引并停止，待授权或权限问题处理后继续。
 
 配置文件存储在 `~/.mcm-cli/config.json`。
 
@@ -2207,7 +2203,7 @@ mcm cloudtrail detail 82f47822-ec18-4edb-a4c4-e64218886860 --begin "2026-06-10 0
 
 > ⚠️ **路径规则**：脚本路径必须相对 `SKILL.md` 所在的 skill 安装目录（`<skill_dir>/scripts/paas-trace.sh`）定位，禁止假设当前工作目录就是 skill 目录或 mcm-cli 源码仓库根目录。skill 可能安装在全局（如 `~/.catpaw/skills/skills-market/mcm-cli/`）或项目级（如 `{workspace}/.catpaw/skills/skills-market/mcm-cli/`），执行前请先确认 `SKILL.md` 文件自身的实际路径，再据此拼接出 `scripts/paas-trace.sh` 的绝对路径后调用。
 
-> ⚠️ **脚本失败时严禁降级（最重要）**：`paas-trace.sh` 若因 MWS SSO 认证失败（输出含"无法获取 MWS 认证票据"）而退出，**必须停下来告知用户认证失败，并引导用户按脚本提示完成认证后重试，绝对禁止自行降级改用 `mcm cloudtrail list --appkey` 直查 Squirrel/Mafka/RDS/Eagle 作为替代**（该命令用业务 appkey 直查这 4 个系统会混入 Rocket/HULK/OCTO 等主机运维平台的变更，且查不到真正的完整变更记录；注意此限制仅针对这 4 个已验证需要先换取资源标识的系统，常规系统按上表直接用 `cloudtrail list --appkey` 查即可）。正确处理：**步骤一（优先）**：读取并执行 `mtsso-skills-official` skill 换取用户身份票据，执行 `mcm login --token "${user_access_token}"` 完成无感登录后重试脚本；**步骤二（仅步骤一失败时）**：将脚本 stderr 原文展示给用户，引导执行 `mcm login --mis <MIS号>` 完成 CIBA 登录（大象确认）后重试。
+> ⚠️ **脚本失败时严禁降级（最重要）**：`paas-trace.sh` 若因 MWS SSO 认证失败（输出含"无法获取 MWS 认证票据"）而退出，**必须停下来告知用户认证失败，并引导用户按脚本提示完成认证后重试，绝对禁止自行降级改用 `mcm cloudtrail list --appkey` 直查 Squirrel/Mafka/RDS/Eagle 作为替代**（该命令用业务 appkey 直查这 4 个系统会混入 Rocket/HULK/OCTO 等主机运维平台的变更，且查不到真正的完整变更记录；注意此限制仅针对这 4 个已验证需要先换取资源标识的系统，常规系统按上表直接用 `cloudtrail list --appkey` 查即可）。正确处理：展示脚本错误，按指引执行 `mcm login` 或通过 `mcm login --token` 更新当前用户票据；退出码 `42` 时先处理权限或人工确认，完成后再重试原脚本。
 
 > ⚠️ **stdout/stderr 区分**：脚本执行过程中打印的 `[paas-trace] ...` 系列日志均输出到 **stderr**，是过程日志，**不属于展示内容，必须完全忽略**——"完全忽略"不仅指禁止原文复述/粘贴到回复正文，也**禁止提炼其含义、换个说法、去掉 `[paas-trace]` 前缀后改写成"看起来更像正文"的句子**（例如把 stderr 里的 `[paas-trace] 共 0 条变更事件（appkey=xxx）` 改写成"该服务在 XX 系统近一天内无变更记录"这类总结句，同样违规）；只有 **stdout**（以 `>` 开头的条数提示行 + Markdown 表格）才是要展示给用户的结果，按上方全局[输出规则](#cloudtrail-全局通用规则调用前必读对-cloudtrail-list-和-paas-tracesh-均适用)表逐字粘贴渲染即可，stdout 为空就是零展示、禁止在表格前后插入 stderr 日志或基于 stderr 生成的任何替代性描述。
 >

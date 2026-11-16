@@ -5,7 +5,7 @@ description: 当用户要对学城/KM/WIKI 协作文档做编辑器原生结构�
 metadata:
   skillhub.creator: "pingxumeng"
   skillhub.updater: "pingxumeng"
-  skillhub.version: "V26"
+  skillhub.version: "V27"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "4621"
   skillhub.high_sensitive: "false"
@@ -201,6 +201,7 @@ cat ./structured-ops.json | kmedit patch --doc-id <docId>
 
 ## 关键 Gotchas
 
+- **正文／表格单元格换行**：原生 JSON 使用 `{"type":"hard_break"}`，放在同一 `paragraph.content` 的文本节点之间；需要分段时使用多个 `paragraph`。不要在 `text.text` 中写 `<br>`、`<br/>` 或换行字符来代替原生换行。Markdown 导入路径（`paste.clipboard.textMarkdown`、`full --markdown-file`）不解析内联 HTML，`<br>` 会显示为普通文本；Markdown 表格需要单元格内换行时，优先用原生节点 patch。显式 `clipboard.textHtml` 是另一条 HTML 导入路径，不要与 Markdown 混用。修复历史内容时只转换确实表示换行的普通文本，保留代码示例中的字面标签、链接和 @mention；写后读回确认 `hard_break` 并抽查渲染。示例见 [表格单元格内换行](references/patch.md#表格单元格内换行)。
 - API `schema` 同时返回字段类型、必填条件、枚举、范围和节点规则；生成原生 JSON 前定向查询相关节点。`check`、`patch`、`full` 和原生 paste 共享语义校验，错误中的 `path/expected/actual` 可直接用于修正输入，详见 `references/api-only.md`。历史异常未改动时允许编辑其他内容，不要通过换 nodeId 绕过校验。
 - 默认 API：`inspect`、`schema`、`copy`、`check`、`patch`、HTML/图片快捷命令和本地 DrawIO 草稿。`schema`、`copy`、HTML/图片快捷命令用 `--transport cdp` 显式选择兼容路径。
 - API-only paste 接受 HTML、Markdown、纯文本、文件和原生 copy capsule。未知 custom MIME 和 XTable/同步块等专属 Provider 节点会明确失败，不能通过通用节点 JSON 绕过生命周期。

@@ -14,8 +14,8 @@ logo: “mws-official”
 
 metadata:
   skillhub.creator: "jie.li.sh"
-  skillhub.updater: "liyuang"
-  skillhub.version: "V22"
+  skillhub.updater: "yangkaiqi04"
+  skillhub.version: "V23"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "3708"
 ---
@@ -27,11 +27,18 @@ mcm-cli 是 MCM（变更管理平台）的命令行工具，默认输出 JSON �
 ## 前置条件
 
 ### 第一步：检查并安装/更新 mcm-cli
-**仅在对话中首次使用 mcm 命令前**，检查并更新到最新版本：
+
+**仅在对话中首次使用 `mcm` 命令前检查一次，最低版本为 `0.1.36`。**
 
 ```bash
-mcm --version                                                          # 检查版本（版本 < 0.1.35 或未安装**：**必须立即安装或更新到最新版本**后再继续，否则核心AI功能不可用）
-npm install -g @dp/mcm-cli@latest --registry=http://r.npm.sankuai.com  # 安装/更新到最新版（需美团内网）
+mcm --version
+```
+
+未安装或版本低于最低要求时，安装/更新后再次检查，确认满足最低版本要求再继续：
+
+```bash
+npm install -g @dp/mcm-cli@latest --registry=http://r.npm.sankuai.com
+mcm --version
 ```
 > 如果 node/npm 未安装或版本过低，提示用户先安装/升级 Node.js（推荐通过 nvm 管理）。
 
@@ -42,23 +49,15 @@ mcm whoami  # 先检查认证状态，已认证则跳过登录
 
 若 `mcm whoami` 返回认证状态为**已认证**，**直接跳过登录步骤**，继续执行后续命令。
 
-若未认证或 token 已过期，按以下顺序尝试登录：
-
-**步骤一（必须先执行，不可跳过）：无感换票登录**
-
-> ⚠️ **必须先读取并执行 `mtsso-skills-official` skill，通过 MOA 换取用户身份票据后再登录，不可直接跳到步骤二。**
+若未认证或 token 已过期，执行：
 
 ```bash
-mcm login --token "${user_access_token}"   # ${user_access_token} 须由 mtsso-skills-official 换票后替换为真实 token
+mcm login  # 沙箱使用 MOA 无感登录；本地电脑按浏览器 SSO 提示完成登录
 ```
 
-**步骤二（仅在步骤一失败时回退）：CIBA 手动登录**
+平台已通过 `mtsso-skills-official` 提供 MCM 用户票据时，可直接使用 `mcm login --token "${user_access_token}"`。无浏览器的远程环境需使用 MOA 或注入票据。
 
-> 步骤一失败的判断标准：`mtsso-skills-official` 不存在或执行报错，或换票后 token 为空。
-
-```bash
-mcm login --mis <MIS>
-```
+登录失败时展示错误并停止；退出码 `42` 表示需处理授权或权限，按返回指引处理后再继续。
 
 ## ⚡ 路由决策：`mcm` 命令 vs `mcm ai`
 
@@ -227,7 +226,7 @@ mcm ai stop <sessionId>
 
 #### 认证相关
 ```bash
-mcm login                  # CIBA 认证（推荐）
+mcm login                  # MOA 无感登录 / 本地浏览器 OIDC
 mcm whoami                 # 查看当前认证状态
 mcm refresh                # 强制刷新 token
 mcm logout                 # 清除本地认证缓存

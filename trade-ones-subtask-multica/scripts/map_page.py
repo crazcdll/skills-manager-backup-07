@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""「涉及页面」→ Multica 项目 的映射（与 trade-ones-multica/scripts/map_page.py 内容一致，改一处必须同步另一处）。
+"""「涉及页面」→ Multica 项目 的映射（本 skill 自带，不依赖其他 skill）。
 
 一个项目对应多个页面叫法，所以不能只做完全匹配：
 先按别名/项目名做归一化精确匹配，再做包含匹配（取最长别名），都命中不了就留空。
+
+新增/改名项目时只改下面的 PAGE_ALIASES，改完用 --pretty 自测。
 
 用法：
   multica --workspace-id "$WS" project list --output json > /tmp/projects.json

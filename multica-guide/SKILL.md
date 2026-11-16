@@ -7,8 +7,8 @@ description: >
 
 metadata:
   skillhub.creator: "qiuchenjie"
-  skillhub.updater: "hejun10"
-  skillhub.version: "V4"
+  skillhub.updater: "qiuchenjie"
+  skillhub.version: "V5"
   skillhub.source: "ssh://git@git.sankuai.com/mcp/general-ai-marketplace.git"
   skillhub.skill_id: "119642"
 ---
@@ -124,7 +124,13 @@ Lite 前端版依赖多个外部 Skill（来自 Friday SkillHub），通过 `sdl
 | `ingee-flex` | sdlc-lite-fe-coding-agent | 视觉稿分析 |
 | `citadel` / `citadel-database` | 全部 agent | 学城文档读写 |
 | `mtsso-skills-official` | 全部 agent | SSO 鉴权 |
-| `ai-app-flow` / `hotel-ui-autotest` | sdlc-lite-fe-autotest-agent | 自动化测试用例 + 执行 |
+| `ai-app-flow` / `ai-ui-autotest-engine` | sdlc-lite-fe-autotest-agent（旧版）/ 拆分版 5 Agent | 自动化测试用例 + 执行 |
+| `trade-ec-suite` / `case-quality-evaluator` / `ec-toolkit` | sdlc-lite-fe-testprep-case-agent | EC 用例设计 + 质量评估 + EC 同步（拆分版，2026-09 起） |
+| `ec-toolkit` / `test-case-param-builder` | sdlc-lite-fe-testprep-data-agent | 数据构造 + 接口参数回写 EC（拆分版） |
+| `ai-app-flow` / `ec-toolkit` | sdlc-lite-fe-flowgen-agent | Flow 产出 + 批次/分片编排计划（拆分版） |
+| `ai-ui-autotest-engine` / `ai-auto-test-report` / `ai-auto-test-analysis` | sdlc-lite-fe-testexec-agent | 执行链三段（[测试执行-P0]/-P1/-P2）自链推进 + 末段聚合/指标/诊断（拆分版） |
+| — | （无独立 Agent） | 缺陷分诊已收敛为 sdlc-lite-fe-testexec-agent 的**阶段 D**（无外部 Skill 依赖，2026-10 收敛） |
+> 拆分版 4 Agent（2026-09 autotest-agent 拆分 + 2026-10 分诊收敛）当前仅 `sdlc-lite-fe-pde-hotel.env` 启用；其他团队 env 继续用旧版 `sdlc-lite-fe-autotest-agent`，切换时改 `FRIDAY_SKILLS_MOUNTS` 对应行即可。
 | `ee-fedo` | sdlc-lite-fe-deploy-agent | CI/CD 部署 |
 
 部署前先确认 `mtskills` 已安装（`npm i -g @mtfe/mtskills --registry=http://r.npm.sankuai.com`），且运行 deploy 的 MIS 有对应 Skill 的 Friday 下载权。任一 Skill 拉取失败直接 `exit 1`。
@@ -233,6 +239,7 @@ setup 成功后 Claude 自动跑一遍自查，确认部署健康：
 multica agent list --output json | jq -r '.[] | .name' | grep '^sdlc-'
 # Lite 后端期望：sdlc-lite-dispatcher / chain-analysis / design / contract / coding / review / knowledge
 # Lite 前端期望：sdlc-lite-fe-pmo / fe-review-agent / fe-requirement-agent / fe-design-agent / fe-coding-agent / fe-autotest-agent / fe-deploy-agent
+#              （拆分版 workspace 另有：fe-testprep-case / fe-testprep-data / fe-flowgen / fe-testexec，共 11 个；缺陷分诊已并入 fe-testexec 阶段 D）
 # Pipeline 期望：sdlc-tech-design / sdlc-coding / sdlc-test-prep / sdlc-integration-test / sdlc-ai-pmo（等）
 
 # 2. squad 存在
@@ -289,7 +296,11 @@ PR 创建/合入后，告知用户"部署完成，可以创建第一个需求 Is
 1. 你想定制的是 **产出流程**（overview 章节 / design 接口格式 / plans 拆 Task 方式 / 单测断言库 / mock 手法等）？→ 走 L2 skill 定制（本节）
 2. 还是想定制 **调度流转 / R-Gate 语义 / metadata schema**？→ **不允许**，见 [`multica/CLAUDE.md`](../../../../multica/CLAUDE.md) 铁律 3（Agent 指令零业务定制，跨 agent 契约官方定死）
 
-只有 4 个 L2 slot 可定制：`chain-analysis-strategy` / `design-strategy` / `contract-strategy` / `coding-strategy`。
+通用 L2 slot：`chain-analysis-strategy` / `design-strategy` / `contract-strategy` / `coding-strategy`。Pipeline 前端另支持 `fe-coding-strategy`，共 5 个；前端映射注入 `SKILL_FE_CODING_STRATEGY`，归属 `sdlc-fe-coding-agent`。
+
+Pipeline 前端由 Agent 按阶段委托 fe-coding-strategy，仅执行当前任务生产与测试验证，跳过该 Skill 的 Step 4 自审和修改循环，统一由 Leader 组织 R6-fe 预审及 RD 确认；最后一个适用阶段执行整体审核。简单路径维持原有 R6-fe 跳过规则与 RD 确认，不补跑 strategy 自审。所有前端编码、审核和推送完成后才统一构建测试 bundle，再创建/更新 Draft PR。`frontend_stage_plan` / `test_bundles` 契约见共享 metadata schema §6.4；bundle 失败不算交付完成。共享 Skill 本身及 Lite-FE 默认执行方式不变。
+
+已有 Pipeline workspace 首次接入前端 strategy 时，需在包含本改造的仓库版本上线后运行 `bash multica/setup.sh --env <团队配置>`，完成 Skill 创建、挂载与 env 配置，再增量 deploy。`deploy-pipeline.sh` 仍不创建官方 Skill；更新前端 Agent 前会校验 strategy 已挂载且 env 与配置一致，缺项则停止并提示 setup。`--dry-run` 仅提示此前置缺项。
 
 ### B.2 方式 A：同名 override（简单，团队 skill 与官方同名）
 
@@ -341,7 +352,7 @@ setup 自动做 4 件事（详见 [`pipeline-guide.md`](../../../../multica/docs
 
 ### B.4 混用与回退
 
-- **混用**：4 个 L2 slot 各选各自方式。比如 `design-strategy` 用方式 A（同名 override）、`coding-strategy` 用方式 B（role-map）——OK。
+- **混用**：各 L2 slot 可分别选择方式，Pipeline 包括 `fe-coding-strategy`。比如 `design-strategy` 用方式 A（同名 override）、`coding-strategy` 用方式 B（role-map）——OK。
 - **回退到官方**：删掉 `SKILL_PROTECT` / `SKILL_ROLE_MAP` 里的条目 → 重跑 setup → 官方版重新覆盖。
 
 ### B.5 常见坑
@@ -388,6 +399,8 @@ R0 chain-analysis → R1 overview → R2 design → R3 plans →
 └─ R-code（本仓所有 Task 完成一次评审）→ R-code-tail（per-repo 全量自审）
 → R7 全量验证 → 知识官复盘 → 关闭
 ```
+
+**回环（REWORK，2026-09 起，Pipeline + Lite 后端通用）**：流程推进后发现问题要改**已评审的上游产物**时，在对应 Issue 评论描述即可（自然语言即可触发，无需命令；dispatcher/PMO 识别 → 影响分析 → @你确认 → 重置受影响 R-Gate 并重做）。简单变更代码先行不回退阶段；复杂变更会暂停编码、重开设计流程。判断规则唯一真源 `multica/skills/rework-strategy/core.md`（本地 `/loop-rework` 同源）。
 
 ### C.2b Lite 前端版进度快照
 
@@ -440,6 +453,27 @@ R1 overview → R2 design → R3 plans → R3.5 testcases → R4 yaml-skeletons 
 R5（per-repo sdlc-review-agent 评审）→ R6（per-repo ai-pr-code-review 自审）→
 contract-test → R7 全量验证 → R8 上线部署
 ```
+
+Pipeline 编码 AI 预审按 P0–P9 和编码侧选择依据，只核对实际编码输入与实现的一致性：
+
+先判断是否跳过 ReviewAgent：P0/P1/P3/P5 的实际编码侧跳过；P6 后端跳过、前端执行；P7 前端跳过、后端执行；P2/P4/P8/P9 的实际编码侧执行。跳过仍保留 RD 确认。下表只定义执行评审时使用的文档，不改变跳过规则，不要求跳过侧补齐评审文档。
+
+| 路径 | 前端 R6-fe 输入 | 后端 R5 输入 |
+|---|---|---|
+| P0 | 用户输入的需求文档 | 用户输入的需求文档 |
+| P1 | 需求 SPEC | 无后端 |
+| P2 | tech-design.md + dev-tasks.md | 无后端 |
+| P3 | 无前端 | 需求 SPEC |
+| P4 | 无前端 | design.md + repo-plan |
+| P5 | 需求 SPEC | 需求 SPEC |
+| P6 | tech-design.md + dev-tasks.md | 需求 SPEC |
+| P7 | 需求 SPEC | design.md + repo-plan |
+| P8 | tech-design.md + dev-tasks.md | design.md + repo-plan |
+| P9 | 无前端 | design.md + repo-plan |
+
+> **P9 延迟编译（Deferred Build）**：编码阶段只写实现与单测（本地 commit，不编译/不跑单测）；全部 Task 完成后统一 push + 建 Draft PR，再请 RD 确认；确认通过后才执行全仓编译 + 全量单测（`p9_build_status=passed`），随后才触发 R5。R5 的验证证据取编译门禁结果，R5 PASS 后不再重复人工确认。
+
+“方案设计结果”指表中本端方案与任务规划，repo-plan 为本仓 `backend/plans/<repo>-plan.md`。P0 包括用户直接在 Issue 中给出的原始需求。Leader 提供输入路径/版本及待审代码版本，逐条核验需求条目/AC 或 Task 的代码和验证证据；自主 Task 不能缩减需求覆盖。无需核对矩阵外文档，不要求补造跳过的设计产物。前端按当前阶段审核，最后一个适用阶段覆盖全部约定前端需求/任务及依赖。
 
 ### C.4 输出模板
 
@@ -544,7 +578,7 @@ multica issue comment list <issue-key> --output json | \
 | R3 开发任务 PASS | 去学城看 dev-tasks → 在父 Issue 回复 `通过`。R3 通过后 pmo 并行创建 R4（编码）+ R5（测试准备）子 Issue |
 | R4 编码实现 PASS | 去看物料组件源码 + DUO 协议 + 业务代码 diff → 在编码子 Issue 回复 `通过`。组件按仓库并行，各仓库子 Issue 全部 done 后进项目编码 |
 | R5 测试准备 PASS | 去学城看 testcases + testdata → 在测试准备子 Issue 回复 `通过` |
-| R6 测试执行 PASS | 去看 test-report.md + Flow 用例执行情况 → 在测试执行子 Issue 回复 `通过`（R4+R5 均完成后才创建） |
+| R6 测试执行 PASS | 去看 test-report.md + Flow 用例执行情况 → 在执行链末段子 Issue 回复 `通过`（R4+R5 均完成后 PMO 只建 [测试执行-P0]，P1/P2 由执行 Agent 自链创建；fail-fast：P0 有失败即阻断链路）。发现缺陷时自动进入测试外循环：[测试反馈] 编码修复+review → [缺陷修复部署] 泳道增量部署 → [回归测试] 只跑 regression_flows 受影响用例（≤3 轮，回归通过才进 R7） |
 | R7 部署验证 PASS | 去看泳道部署结果 + 集成验证报告 → 在部署子 Issue 回复 `通过` |
 | R8 上线部署 | 合并 PR + 生产发布，无需 AI 预审，人工确认即完成 → 回复 `通过` → 收尾 |
 
@@ -553,11 +587,12 @@ multica issue comment list <issue-key> --output json | \
 | 当前 Gate | 你需要做 |
 |---|---|
 | R1/R2/R3 PASS | 去学城看对应文档 → 在对应子 Issue 回复 `通过` |
+| R3.5/R4 AI PASS，待人工确认 | 打开契约 Issue 消息中的 Code PR，核对待确认 SHA 并查看累计文件差异 → 回原 Issue 回复 `通过` 或具体意见。两道门禁共用同一 Workspace PR，R4 通过并完成机械交付后才合入主分支；无需打开 Agent 本地文件 |
 | R3.5/R4 有 ❌ must-fix | 不需要操作，leader 自动通知 agent 修改（新规则） |
 | R4 通过，分配开发员 | 在编码入口 Issue 回复 `甲负责 <仓A> 乙负责 <仓B>` + @coding-leader |
 | R5 PASS（per-repo 评审）| 去看代码 → 回复 `通过` |
 | R6 完成 | 不需要人工——coding-agent 自跑 |
-| Contract-test 完成 | 去看接口级单测报告 → 回复 `通过` |
+| Contract-test 报告交付（Pipeline） | 查看 `$WORKSPACE/contracttest/{repo}/test-report.md`；两个 Skill 的执行证据、YAML 快照和复核队列均在同目录。按队列确认或处理问题，报告交付不等于可信放行 |
 | R7 PASS | 去看全量验证 → 回复 `通过` → 收尾 |
 
 **格式**：永远在最后用「**你现在需要做**：」明确告诉用户。
@@ -601,7 +636,7 @@ multica issue comment list <issue-key> --output json | \
 | **R-code**（Lite 后端/前端）| 对齐 Pipeline R5：per-repo 评审 + LGTM（后端 `sdlc-lite-review-agent`，前端 `sdlc-lite-fe-review-agent`） |
 | **R-code-tail**（Lite 后端/前端）| 对齐 Pipeline R6：per-repo 全量自审（后端 `ai-pr-code-review`，前端 `fe-ai-review`） |
 | **R6**（Lite 前端）| PR + CI/CD（委托 duo-fedo + ee-code）+ 评审 + LGTM —— 前端版独有 gate |
-| **R7** | 全量验证 + 评审 + LGTM（后端 YamlScenarioRunner 跑 CT，前端交付报告） |
+| **R7** | 全量验证 + 评审 + LGTM（后端统一 contract-test-execution 执行并交结果报告，前端交付报告） |
 
 **⚠️ 2026-07-26 语义变更**：
 - 老 R5 = per-Task 单测 AI 自审（DELETED），老 R6 = per-Task 实现评审（DELETED）
@@ -613,7 +648,7 @@ multica issue comment list <issue-key> --output json | \
 - 前端版 R4 编码阶段：组件开发按物料仓库分组（一仓一子 Issue 可并行），全部仓库完成后进项目编码（DUO 协议→业务逻辑）
 - 分支创建由 **dlc-branch Skill** 统一处理（识别 DUO 类型仓库 / 集成 ONES 关联），分支名仅进程内使用不写入 metadata
 - 前端版 R5 = 测试准备（用例+数据+参数），可与 R4 并行创建
-- 前端版 R6 = 测试执行（Flow 用例 + 执行 + 报告），依赖 R4+R5 均完成
+- 前端版 R6 = 测试执行链（[测试执行-P0]/-P1/-P2 三个子 Issue 自链，空组跳段，末段聚合报告），依赖 R4+R5 均完成；缺陷转测试外循环（[测试反馈]→[缺陷修复部署]→[回归测试]，只跑 regression_flows 不重跑全量，≤3 轮）
 - 前端版 R7/R8 = 部署验证 + 上线部署（deploy-agent + ee-fedo）
 
 ### G.3 常见问题
@@ -698,4 +733,3 @@ multica issue comment list <issue-key> --output json | \
 - **Pipeline 使用指南**：[`multica/docs/pipeline-guide.md`](../../../../multica/docs/pipeline-guide.md)
 - **CLAUDE.md 铁律**：[`multica/CLAUDE.md`](../../../../multica/CLAUDE.md)（尤其铁律 3/4 关于定制机制）
 - **回归测试 skill**：`/multica-lite-regression`（端到端跑 Lite 流水线自动化验证）
-

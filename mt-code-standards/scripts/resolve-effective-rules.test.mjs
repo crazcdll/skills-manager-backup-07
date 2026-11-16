@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
-import { access, mkdtemp, mkdir, readFile, writeFile, symlink } from "node:fs/promises";
+import { access, mkdtemp, mkdir, readFile, writeFile, symlink, rename } from "node:fs/promises";
 import { syncBuiltinESMExports } from "node:module";
 import os from "node:os";
 import path from "node:path";
@@ -398,7 +398,7 @@ test("uses one bundle request and atomically installs L1 plus matching L2", asyn
   });
   assert.equal(JSON.stringify(request).includes("short-lived-user-token"), false);
   assert.equal(receipt.status, "installed");
-  assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/frontend-l1/frontend-l1.md"), "utf8"), "# L1\n");
+  assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/frontend-l1.md"), "utf8"), "# L1\n");
   assert.equal(await readFile(path.join(root, ".mdp/rules/team/fe/team-fe-l2/team-fe-l2.md"), "utf8"), "# L2\n");
   const manifest = JSON.parse(await readFile(
     path.join(root, ".mdp/rules/.mt-effective-rule-bundle.json"),
@@ -406,7 +406,7 @@ test("uses one bundle request and atomically installs L1 plus matching L2", asyn
   ));
   assert.equal(manifest.snapshot_id, body.snapshot.snapshot_id);
   assert.deepEqual(manifest.managed_files, [
-    "company/fe/frontend-l1/frontend-l1.md",
+    "company/fe/frontend-l1.md",
     "team/fe/team-fe-l2/team-fe-l2.md",
   ]);
   assert.equal(JSON.stringify(manifest).includes("short-lived-user-token"), false);
@@ -482,8 +482,8 @@ test("does not reuse a snapshot across stages and removes files from the previou
     },
   });
   assert.equal("known_snapshot_id" in request, false);
-  await assert.rejects(readFile(path.join(root, ".mdp/rules/company/fe/frontend-l1/compact.md")));
-  assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/frontend-l1/full.md"), "utf8"), "# full\n");
+  await assert.rejects(readFile(path.join(root, ".mdp/rules/company/fe/compact.md")));
+  assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/full.md"), "utf8"), "# full\n");
   assert.equal(await readFile(customPath, "utf8"), "# custom\n");
 });
 
@@ -624,9 +624,9 @@ test("replaces frontend managed rules after the same registered repository chang
     fetchImpl: async () => response(backend),
   });
   assert.equal(receipt.repository.standard_domain, "backend");
-  await assert.rejects(readFile(path.join(root, ".mdp/rules/company/fe/frontend-l1/frontend-l1.md")));
+  await assert.rejects(readFile(path.join(root, ".mdp/rules/company/fe/frontend-l1.md")));
   await assert.rejects(readFile(path.join(root, ".mdp/rules/team/fe/team-fe-l2/team-fe-l2.md")));
-  assert.equal(await readFile(path.join(root, ".mdp/rules/company/java/java-l1/java-current.md"), "utf8"), "# Java L1\n");
+  assert.equal(await readFile(path.join(root, ".mdp/rules/company/java/java-current.md"), "utf8"), "# Java L1\n");
   assert.equal(await readFile(path.join(root, ".mdp/rules/team/java/team-java-l2/team-current.md"), "utf8"), "# Java L2\n");
   assert.equal(await readFile(customPath, "utf8"), "# custom\n");
 
@@ -635,7 +635,7 @@ test("replaces frontend managed rules after the same registered repository chang
   const manifest = JSON.parse(installed);
   assert.equal(manifest.standard_domain, "backend");
   assert.deepEqual(manifest.managed_files, [
-    "company/java/java-l1/java-current.md",
+    "company/java/java-current.md",
     "team/java/team-java-l2/team-current.md",
   ]);
 
@@ -682,18 +682,18 @@ test("replaces an old dual-domain bundle with the selected backend rules only", 
   });
   await syncEffectiveRuleBundle({ ...options, fetchImpl: async () => response(backend) });
   for (const removed of [
-    "company/fe/frontend-l1/frontend-old.md",
-    "company/java/java-l1/java-old.md",
+    "company/fe/frontend-old.md",
+    "company/java/java-old.md",
     "team/fe/team-fe-l2/frontend-team-old.md",
     "team/java/team-java-l2/java-team-old.md",
   ]) {
     await assert.rejects(readFile(path.join(root, ".mdp/rules", removed)));
   }
-  assert.equal(await readFile(path.join(root, ".mdp/rules/company/java/java-l1/java-current.md"), "utf8"), "# Java current\n");
+  assert.equal(await readFile(path.join(root, ".mdp/rules/company/java/java-current.md"), "utf8"), "# Java current\n");
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
   assert.equal(manifest.schema_version, "mt-effective-rule-bundle-manifest/v7");
   assert.equal(manifest.standard_domain, "backend");
-  assert.deepEqual(manifest.managed_files, ["company/java/java-l1/java-current.md"]);
+  assert.deepEqual(manifest.managed_files, ["company/java/java-current.md"]);
 });
 
 test("changes legacy v1 and v2 domain-directory manifests to backend without leaving old managed files", async () => {
@@ -746,7 +746,7 @@ test("changes legacy v1 and v2 domain-directory manifests to backend without lea
     });
     assert.equal("known_snapshot_id" in request, false);
     await assert.rejects(readFile(oldPath));
-    assert.equal(await readFile(path.join(root, ".mdp/rules/company/java/java-l1/current.md"), "utf8"), "# Java current\n");
+    assert.equal(await readFile(path.join(root, ".mdp/rules/company/java/current.md"), "utf8"), "# Java current\n");
   }
 });
 
@@ -755,7 +755,7 @@ test("keeps the frontend installation unchanged when a backend replacement is in
   const options = { token: "token", repositoryLocator: "hfe/hotel-web", repoRoot: root };
   await syncEffectiveRuleBundle({ ...options, fetchImpl: async () => response(bundleBody()) });
   const manifestPath = path.join(root, ".mdp/rules/.mt-effective-rule-bundle.json");
-  const frontendPath = path.join(root, ".mdp/rules/company/fe/frontend-l1/frontend-l1.md");
+  const frontendPath = path.join(root, ".mdp/rules/company/fe/frontend-l1.md");
   const originalManifest = await readFile(manifestPath, "utf8");
   const originalFrontend = await readFile(frontendPath, "utf8");
 
@@ -772,7 +772,7 @@ test("keeps the frontend installation unchanged when a backend replacement is in
   assert.equal(await readFile(manifestPath, "utf8"), originalManifest);
   assert.equal(await readFile(frontendPath, "utf8"), originalFrontend);
 
-  const collisionPath = path.join(root, ".mdp/rules/company/java/java-l1/java.md");
+  const collisionPath = path.join(root, ".mdp/rules/company/java/java.md");
   await mkdir(path.dirname(collisionPath), { recursive: true });
   await writeFile(collisionPath, "# user owned\n", "utf8");
   const valid = bundleBody({
@@ -820,7 +820,7 @@ test("runs without Git when repository is explicit and writes to the current dir
   });
   assert.equal(requested.repository_locator, "hotel-web");
   assert.equal(receipt.repository.canonical_key, "hfe/hotel-web");
-  assert.equal(await readFile(path.join(currentDirectory, ".mdp/rules/company/fe/frontend-l1/frontend-l1.md"), "utf8"), "# L1\n");
+  assert.equal(await readFile(path.join(currentDirectory, ".mdp/rules/company/fe/frontend-l1.md"), "utf8"), "# L1\n");
 });
 
 test("uses output-dir before repo-root while repo-root remains the Git discovery source", async () => {
@@ -895,7 +895,7 @@ test("refuses to replace another repository in the same output directory", async
     token: "token", repositoryLocator: "hotel-web", cwd: outputRoot,
     fetchImpl: async () => response(bundleBody()),
   });
-  const original = await readFile(path.join(outputRoot, ".mdp/rules/company/fe/frontend-l1/frontend-l1.md"), "utf8");
+  const original = await readFile(path.join(outputRoot, ".mdp/rules/company/fe/frontend-l1.md"), "utf8");
   const otherRepository = {
     repository_id: "repo:other-web",
     canonical_key: "hfe/other-web",
@@ -908,7 +908,7 @@ test("refuses to replace another repository in the same output directory", async
     }),
     (error) => error.code === "RULE_BUNDLE_REPOSITORY_CONFLICT",
   );
-  assert.equal(await readFile(path.join(outputRoot, ".mdp/rules/company/fe/frontend-l1/frontend-l1.md"), "utf8"), original);
+  assert.equal(await readFile(path.join(outputRoot, ".mdp/rules/company/fe/frontend-l1.md"), "utf8"), original);
 });
 
 test("preserves unrelated local files outside the managed company and team paths", async () => {
@@ -999,7 +999,7 @@ test("migrates a verified legacy domain tree to the named domain layout", async 
     },
   });
   assert.equal("known_snapshot_id" in request, false);
-  assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/frontend-l1/基础规范.md"), "utf8"), "# L1\n");
+  assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/基础规范.md"), "utf8"), "# L1\n");
   assert.equal(await readFile(path.join(root, ".mdp/rules/team/fe/team-fe-l2/团队规范.md"), "utf8"), "# L2\n");
   assert.equal(await readFile(userFile, "utf8"), "keep\n");
   await assert.rejects(readFile(path.join(root, ".mdp/rules/frontend/l1/frontend-l1/旧目录/基础规范.md")));
@@ -1022,9 +1022,9 @@ test("keeps one company file per L1 source inside its named rule set when basena
   assert.equal(manifest.managed_files.length, 2);
   assert.equal(manifest.managed_files.filter((file) => file.startsWith("company/")).length, 2);
   assert.equal(new Set(manifest.managed_files).size, 2);
-  const baseContent = await readFile(path.join(root, ".mdp/rules/company/fe/frontend-l1/README.md"), "utf8");
-  const suffixed = manifest.managed_files.find((file) => file !== "company/fe/frontend-l1/README.md");
-  assert.match(suffixed, /^company\/fe\/frontend-l1\/README--[a-f0-9]{16}\.md$/);
+  const baseContent = await readFile(path.join(root, ".mdp/rules/company/fe/README.md"), "utf8");
+  const suffixed = manifest.managed_files.find((file) => file !== "company/fe/README.md");
+  assert.match(suffixed, /^company\/fe\/README--[a-f0-9]{16}\.md$/);
   const suffixedContent = await readFile(path.join(root, ".mdp/rules", suffixed), "utf8");
   assert.deepEqual(new Set([baseContent, suffixedContent]), new Set(["# 甲\n", "# 乙\n"]));
 });
@@ -1038,7 +1038,7 @@ test("preserves the installed bundle when a local managed file was changed", asy
     repoRoot: root,
     fetchImpl: async () => response(ready),
   });
-  const managedPath = path.join(root, ".mdp/rules/company/fe/frontend-l1/frontend-l1.md");
+  const managedPath = path.join(root, ".mdp/rules/company/fe/frontend-l1.md");
   const manifestPath = path.join(root, ".mdp/rules/.mt-effective-rule-bundle.json");
   const manifestBefore = await readFile(manifestPath, "utf8");
   await writeFile(managedPath, "changed\n", "utf8");
@@ -1291,7 +1291,7 @@ test("keeps the previous bundle when staging cannot be created", async () => {
   await syncEffectiveRuleBundle({ ...options, fetchImpl: async () => response(initial) });
   const rulesRoot = path.join(root, ".mdp/rules");
   const manifestPath = path.join(rulesRoot, ".mt-effective-rule-bundle.json");
-  const managedPath = path.join(rulesRoot, "company/fe/frontend-l1/frontend-l1.md");
+  const managedPath = path.join(rulesRoot, "company/fe/frontend-l1.md");
   const manifestBefore = await readFile(manifestPath, "utf8");
   const managedBefore = await readFile(managedPath, "utf8");
   const next = bundleBody({
@@ -1325,7 +1325,7 @@ test("keeps the previous bundle when staging cannot be created", async () => {
   }
   assert.equal(await readFile(manifestPath, "utf8"), manifestBefore);
   assert.equal(await readFile(managedPath, "utf8"), managedBefore);
-  await assert.rejects(readFile(path.join(rulesRoot, "company/fe/frontend-l1/next.md")));
+  await assert.rejects(readFile(path.join(rulesRoot, "company/fe/next.md")));
 });
 
 test("fails closed on content hash mismatch without creating managed files", async () => {
@@ -1341,7 +1341,7 @@ test("fails closed on content hash mismatch without creating managed files", asy
     }),
     (error) => error.code === "RULE_BUNDLE_FILE_HASH_MISMATCH",
   );
-  await assert.rejects(readFile(path.join(root, ".mdp/rules/company/fe/frontend-l1/frontend-l1.md")));
+  await assert.rejects(readFile(path.join(root, ".mdp/rules/company/fe/frontend-l1.md")));
 });
 
 test("rejects traversal paths and unmanaged target collisions", async () => {
@@ -1357,7 +1357,7 @@ test("rejects traversal paths and unmanaged target collisions", async () => {
     (error) => error.code === "RULE_BUNDLE_FILE_PATH_INVALID",
   );
 
-  const collision = path.join(root, ".mdp/rules/company/fe/frontend-l1/frontend-l1.md");
+  const collision = path.join(root, ".mdp/rules/company/fe/frontend-l1.md");
   await mkdir(path.dirname(collision), { recursive: true });
   await writeFile(collision, "user-owned\n", "utf8");
   await assert.rejects(
@@ -1435,7 +1435,7 @@ test("bootstraps published frontend L1 only after the server proves an exact rep
   assert.equal(receipt.schema_version, "mt-l1-bootstrap-install/v1");
   assert.equal(receipt.mode, "l1_bootstrap");
   assert.equal(receipt.domain_source, "git_tracked_evidence");
-  assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/frontend-l1/async.md"), "utf8"), "# L1\n");
+  assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/async.md"), "utf8"), "# L1\n");
   const manifest = JSON.parse(await readFile(path.join(root, ".mdp/rules/.mt-l1-bootstrap.json"), "utf8"));
   assert.equal(manifest.schema_version, "mt-l1-bootstrap-manifest/v4");
   await assert.rejects(readFile(path.join(root, ".mdp/rules/.mt-effective-rule-bundle.json")));
@@ -1523,8 +1523,8 @@ test("a formal effective bundle atomically replaces the isolated bootstrap manif
     fetchImpl: async () => response(formal),
   });
   await assert.rejects(readFile(path.join(root, ".mdp/rules/.mt-l1-bootstrap.json")));
-  await assert.rejects(readFile(path.join(root, ".mdp/rules/company/fe/frontend-l1/async.md")));
-  assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/frontend-l1/current.md"), "utf8"), "# Current\n");
+  await assert.rejects(readFile(path.join(root, ".mdp/rules/company/fe/async.md")));
+  assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/current.md"), "utf8"), "# Current\n");
   assert.equal(JSON.parse(await readFile(
     path.join(root, ".mdp/rules/.mt-effective-rule-bundle.json"), "utf8",
   )).schema_version, "mt-effective-rule-bundle-manifest/v7");
@@ -1560,9 +1560,9 @@ test("a dual-domain formal bundle replaces a backend bootstrap even when its pri
     fetchImpl: async () => response(formal),
   });
   await assert.rejects(readFile(path.join(root, ".mdp/rules/.mt-l1-bootstrap.json")));
-  await assert.rejects(readFile(path.join(root, ".mdp/rules/company/java/backend-l1/bootstrap-java.md")));
-  assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/frontend-l1/frontend-current.md"), "utf8"), "# Frontend\n");
-  assert.equal(await readFile(path.join(root, ".mdp/rules/company/java/java-l1/java-current.md"), "utf8"), "# Java\n");
+  await assert.rejects(readFile(path.join(root, ".mdp/rules/company/java/bootstrap-java.md")));
+  assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/frontend-current.md"), "utf8"), "# Frontend\n");
+  assert.equal(await readFile(path.join(root, ".mdp/rules/company/java/java-current.md"), "utf8"), "# Java\n");
   const manifest = JSON.parse(await readFile(
     path.join(root, ".mdp/rules/.mt-effective-rule-bundle.json"), "utf8",
   ));
@@ -1680,14 +1680,14 @@ test("updates ASCII source filenames to Chinese filenames and preserves user fil
   } });
   assert.equal(request.known_snapshot_id, legacy.snapshot.snapshot_id);
   assert.notEqual(next.snapshot.snapshot_id, legacy.snapshot.snapshot_id);
-  assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/frontend-l1/ASYNC-异步与异常处理.MD"), "utf8"), content);
-  await assert.rejects(readFile(path.join(root, ".mdp/rules/company/fe/frontend-l1/async--.md")));
+  assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/ASYNC-异步与异常处理.MD"), "utf8"), content);
+  await assert.rejects(readFile(path.join(root, ".mdp/rules/company/fe/async--.md")));
   assert.equal(await readFile(userFile, "utf8"), "user notes\n");
   const manifestPath = path.join(root, ".mdp/rules/.mt-effective-rule-bundle.json");
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
   assert.equal(manifest.schema_version, "mt-effective-rule-bundle-manifest/v7");
   assert.equal(manifest.resolver_version, "effective-rule-bundle/v4");
-  assert.deepEqual(manifest.managed_files, ["company/fe/frontend-l1/ASYNC-异步与异常处理.MD"]);
+  assert.deepEqual(manifest.managed_files, ["company/fe/ASYNC-异步与异常处理.MD"]);
   const replay = await syncEffectiveRuleBundle({ ...options, fetchImpl: async (_url, init) => {
     assert.equal(JSON.parse(init.body).known_snapshot_id, next.snapshot.snapshot_id);
     return response({ ...next, status: "not_modified", files: [] });
@@ -1700,13 +1700,13 @@ test("blocks a user-owned case alias of a new Chinese filename before replacing 
   const legacy = bundleBody();
   const options = { token: "token", repositoryLocator: "hfe/hotel-web", repoRoot: root };
   await syncEffectiveRuleBundle({ ...options, fetchImpl: async () => response(legacy) });
-  const userFile = path.join(root, ".mdp/rules/company/fe/frontend-l1/async-异步.md");
+  const userFile = path.join(root, ".mdp/rules/company/fe/async-异步.md");
   await writeFile(userFile, "user-owned\n", "utf8");
   const next = bundleBody({ files: [{ relative_path: "l1/ASYNC-异步.md", content: "server\n" }] });
   await assert.rejects(syncEffectiveRuleBundle({ ...options, fetchImpl: async () => response(next) }),
     (error) => error.code === "RULE_BUNDLE_LOCAL_COLLISION");
   assert.equal(await readFile(userFile, "utf8"), "user-owned\n");
-  assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/frontend-l1/frontend-l1.md"), "utf8"), "# L1\n");
+  assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/frontend-l1.md"), "utf8"), "# L1\n");
 });
 
 test("rejects unsafe paths, Unicode-equivalent duplicates and symlink targets", async () => {
@@ -1729,7 +1729,7 @@ test("rejects unsafe paths, Unicode-equivalent duplicates and symlink targets", 
   const outside = path.join(repoRoot, "outside.md");
   await writeFile(outside, "outside\n", "utf8");
   await mkdir(path.join(repoRoot, ".mdp/rules/company/fe/frontend-l1"), { recursive: true });
-  await symlink(outside, path.join(repoRoot, ".mdp/rules/company/fe/frontend-l1/规范.md"));
+  await symlink(outside, path.join(repoRoot, ".mdp/rules/company/fe/规范.md"));
   await assert.rejects(syncEffectiveRuleBundle({ ...options, repoRoot, fetchImpl: async () => response(bundleBody({ files: [{ relative_path: "l1/规范.md", content: "server" }] })) }),
     (error) => error.code === "RULE_BUNDLE_LOCAL_SYMLINK");
   assert.equal(await readFile(outside, "utf8"), "outside\n");
@@ -1753,8 +1753,8 @@ test("migrates a v1 reserved source filename to a safe named domain path", { ski
   const options = { token: "token", repositoryLocator: "hfe/hotel-web", repoRoot: root };
   await seedLegacyManifest(root, bundleBody({ version: 1, legacy: true, files: [{ relative_path: "l1/con.md", content: "legacy\n" }] }), 1);
   await syncEffectiveRuleBundle({ ...options, fetchImpl: async () => response(bundleBody({ files: [{ relative_path: "l1/_CON.md", content: "current\n" }] })) });
-  await assert.rejects(readFile(path.join(root, ".mdp/rules/company/fe/frontend-l1/con.md")));
-  assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/frontend-l1/_CON.md"), "utf8"), "current\n");
+  await assert.rejects(readFile(path.join(root, ".mdp/rules/company/fe/con.md")));
+  assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/_CON.md"), "utf8"), "current\n");
 });
 
 test("named domain layout flattens source directories and preserves unrelated company files", async () => {
@@ -1764,11 +1764,11 @@ test("named domain layout flattens source directories and preserves unrelated co
     const root = await createRepository();
     const opts = { token: "token", repositoryLocator: "hfe/hotel-web", repoRoot: root };
     await syncEffectiveRuleBundle({ ...opts, fetchImpl: async () => response(legacy) });
-    const userFile = path.join(root, ".mdp/rules/company/fe/frontend-l1/个人.md");
+    const userFile = path.join(root, ".mdp/rules/company/fe/个人.md");
     if (withUserFile) await writeFile(userFile, "user\n");
     await syncEffectiveRuleBundle({ ...opts, fetchImpl: async () => response(next) });
-    await assert.rejects(readFile(path.join(root, ".mdp/rules/company/fe/frontend-l1/async--.md")));
-    assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/frontend-l1/ASYNC-异步.md"), "utf8"), "rule\n");
+    await assert.rejects(readFile(path.join(root, ".mdp/rules/company/fe/async--.md")));
+    assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/ASYNC-异步.md"), "utf8"), "rule\n");
     if (withUserFile) assert.equal(await readFile(userFile, "utf8"), "user\n");
   }
 });
@@ -1779,13 +1779,79 @@ test("backend v4 installs Java L1 and Spring L2 Chinese files under named java d
   const files = [{ relative_path: "l1/java-l1/Java-日期处理.md", content: "# Java 日期处理\n" }, { relative_path: "l2/team-java-l2/Spring-依赖注入.md", content: "# Spring 依赖注入\n" }];
   const body = bundleBody({ domain: "backend", files, refs: [{ rule_set_id: "java-l1", release_id: "java-l1@test", scope_level: "L1" }, { rule_set_id: "team-java-l2", release_id: "team-java-l2@test", scope_level: "L2" }] });
   await syncEffectiveRuleBundle({ token: "token", repositoryLocator: "team/java-service", repoRoot: root, fetchImpl: async () => response(body) });
-  assert.equal(await readFile(path.join(root, ".mdp/rules/company/java/java-l1/Java-日期处理.md"), "utf8"), files[0].content);
+  assert.equal(await readFile(path.join(root, ".mdp/rules/company/java/Java-日期处理.md"), "utf8"), files[0].content);
   assert.equal(await readFile(path.join(root, ".mdp/rules/team/java/team-java-l2/Spring-依赖注入.md"), "utf8"), files[1].content);
   await assert.rejects(readFile(path.join(root, ".mdp/rules/frontend/Java-日期处理.md")));
 });
 
 const layoutOptions = (root, extra = {}) => ({ token: "token", mis: "aicr-agent", repositoryLocator: "hfe/hotel-web", repoRoot: root, ...extra });
 const installBody = (root, body, extra = {}) => syncEffectiveRuleBundle({ ...layoutOptions(root), ...extra, fetchImpl: async () => response(body) });
+
+// A literal old named-directory installation: keep this fixture four levels deep.
+const restoreNamedL1Fixture = async (root, bootstrap = false) => {
+  const rulesRoot = path.join(root, ".mdp/rules");
+  const manifestPath = path.join(rulesRoot, bootstrap ? ".mt-l1-bootstrap.json" : ".mt-effective-rule-bundle.json");
+  const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+  const fields = ["managed_file_sources", "managed_file_hashes", "managed_file_sizes", "managed_file_releases"];
+  for (const current of [...manifest.managed_files]) {
+    if (!current.startsWith("company/")) continue;
+    const ref = manifest.release_refs.find(ref => ref.rule_set_id === manifest.managed_file_releases[current].rule_set_id);
+    const parts = current.split("/");
+    const old = `company/${parts[1]}/${ref.local_rule_set_name}/${parts[2]}`;
+    await mkdir(path.dirname(path.join(rulesRoot, old)), { recursive: true });
+    await rename(path.join(rulesRoot, current), path.join(rulesRoot, old));
+    manifest.managed_files = manifest.managed_files.map(file => file === current ? old : file);
+    for (const field of fields) {
+      manifest[field][old] = manifest[field][current];
+      delete manifest[field][current];
+    }
+  }
+  delete manifest.local_l1_layout;
+  await writeFile(manifestPath, JSON.stringify(manifest));
+  return manifest;
+};
+
+test("formal and bootstrap named L1 layouts migrate even for the same snapshot, preserving user files and L2", async () => {
+  for (const bootstrap of [false, true]) {
+    const root = await createRepository();
+    const body = bootstrap ? bootstrapBody() : bundleBody();
+    const options = layoutOptions(root, bootstrap ? { bootstrap: true, domain: "frontend" } : {});
+    const fetch = (bundle, inspect = () => {}) => async (url, init) => {
+      if (bootstrap && url.endsWith("/v1/effective-rule-bundles/resolve")) return response({ error: { code: "repository_not_registered" } }, 404);
+      inspect(JSON.parse(init.body)); return response(bundle);
+    };
+    await syncEffectiveRuleBundle({ ...options, fetchImpl: fetch(body) });
+    const old = await restoreNamedL1Fixture(root, bootstrap);
+    const oldFile = old.managed_files.find(file => file.startsWith("company/"));
+    const userFile = path.join(root, ".mdp/rules", path.dirname(oldFile), "personal.md");
+    await writeFile(userFile, "user content");
+    await syncEffectiveRuleBundle({ ...options, fetchImpl: fetch(body, request => assert.equal(request.known_snapshot_id, undefined)) });
+    await assert.rejects(access(path.join(root, ".mdp/rules", oldFile)), { code: "ENOENT" });
+    assert.equal(await readFile(userFile, "utf8"), "user content");
+    const current = JSON.parse(await readFile(path.join(root, ".mdp/rules", bootstrap ? ".mt-l1-bootstrap.json" : ".mt-effective-rule-bundle.json"), "utf8"));
+    assert.equal(current.local_l1_layout, "domain-flat/v1");
+    assert.equal(current.snapshot_id, old.snapshot_id);
+    assert.ok(current.managed_files.filter(file => file.startsWith("company/")).every(file => file.split("/").length === 3));
+    if (!bootstrap) assert.equal(await readFile(path.join(root, ".mdp/rules/team/fe/team-fe-l2/team-fe-l2.md"), "utf8"), "# L2\n");
+    const result = await syncEffectiveRuleBundle({ ...options, fetchImpl: fetch({ ...body, status: "not_modified", files: [] }, request => assert.equal(request.known_snapshot_id, old.snapshot_id)) });
+    assert.equal(result.status, "not_modified");
+  }
+});
+
+test("named L1 migration rejects edited managed files and unrelated files at the flat destination", async () => {
+  for (const mode of ["edited", "collision", "bad-layout"]) {
+    const root = await createRepository();
+    await installBody(root, bundleBody());
+    const old = await restoreNamedL1Fixture(root);
+    const oldFile = path.join(root, ".mdp/rules/company/fe/frontend-l1/frontend-l1.md");
+    if (mode === "edited") await writeFile(oldFile, "edited");
+    if (mode === "collision") await writeFile(path.join(root, ".mdp/rules/company/fe/frontend-l1.md"), "personal");
+    if (mode === "bad-layout") await writeFile(path.join(root, ".mdp/rules/.mt-effective-rule-bundle.json"), JSON.stringify({ ...old, local_l1_layout: "unknown" }));
+    await assert.rejects(installBody(root, bundleBody()));
+    assert.equal(await readFile(oldFile, "utf8"), mode === "edited" ? "edited" : "# L1\n");
+    if (mode === "collision") assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/frontend-l1.md"), "utf8"), "personal");
+  }
+});
 
 test("v4 installs real Chinese rule-set names and each file's declared domain in a mixed repository", async () => {
   const root = await createRepository();
@@ -1799,7 +1865,7 @@ test("v4 installs real Chinese rule-set names and each file's declared domain in
   const receipt = await installBody(root, body);
   assert.equal(receipt.local_layout, "scope-domain-ruleset/v1");
   assert.deepEqual(receipt.managed_files, [
-    "company/fe/前端公司规范/规则.md", "company/java/Java公司规范/规则.md",
+    "company/fe/规则.md", "company/java/规则.md",
     "team/fe/交易团队规范/规则.md", "team/java/交易团队规范/规则.md",
   ]);
   for (let index = 0; index < refs.length; index += 1) assert.equal(await readFile(path.join(root, ".mdp/rules", receipt.managed_files[index]), "utf8"), refs[index].rule_set_id);
@@ -1887,7 +1953,7 @@ test("migrates both old bootstrap manifests to the named domain layout and repla
     assert.equal(Object.hasOwn(known, "known_snapshot_id"), false);
     assert.equal(known.bundle_contract, "scope-domain-ruleset/v1");
     await assert.rejects(readFile(path.join(root, ".mdp/rules/company/base.md")));
-    assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/公司前端规范/async.md"), "utf8"), "# L1\n");
+    assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/async.md"), "utf8"), "# L1\n");
     const manifestPath = path.join(root, ".mdp/rules/.mt-l1-bootstrap.json");
     const before = await readFile(manifestPath, "utf8");
     assert.equal(JSON.parse(before).schema_version, "mt-l1-bootstrap-manifest/v4");
@@ -1973,19 +2039,18 @@ test("refuses a malformed existing manifest without making a network request", a
   assert.equal(await readFile(path.join(rules, ".mt-effective-rule-bundle.json"), "utf8"), "{broken");
 });
 
-test("rule-set name changes update the snapshot and move only previous managed files", async () => {
+test("L1 rule-set name changes update the snapshot without moving the domain-level files", async () => {
   const root = await createRepository();
   const files = [{ relative_path: "l1/frontend-l1/base.md", content: "same\n" }];
   const old = bundleBody({ refs: [{ ...releaseRefs[0], local_rule_set_name: "旧名称" }], files });
   await installBody(root, old);
-  const user = path.join(root, ".mdp/rules/company/fe/旧名称/个人补充.md");
+  const user = path.join(root, ".mdp/rules/company/fe/个人补充.md");
   await writeFile(user, "keep\n");
   const next = bundleBody({ refs: [{ ...releaseRefs[0], local_rule_set_name: "新名称" }], files });
   assert.equal(old.snapshot.manifest_hash, next.snapshot.manifest_hash);
   assert.notEqual(old.snapshot.snapshot_id, next.snapshot.snapshot_id);
   await installBody(root, next);
-  await assert.rejects(readFile(path.join(root, ".mdp/rules/company/fe/旧名称/base.md")));
-  assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/新名称/base.md"), "utf8"), "same\n");
+  assert.equal(await readFile(path.join(root, ".mdp/rules/company/fe/base.md"), "utf8"), "same\n");
   assert.equal(await readFile(user, "utf8"), "keep\n");
 });
 
@@ -2008,7 +2073,7 @@ test("missing release layout metadata and unknown domain fail before altering an
 
 test("rejects a legal name whose complete local path exceeds the UTF-8 path budget", async () => {
   const root = await createRepository();
-  const body = bundleBody({ refs: [{ ...releaseRefs[0], local_rule_set_name: "规".repeat(66) }], files: [{ relative_path: "l1/frontend-l1/long-document-name-that-exceeds-budget.md", content: "x" }] });
+  const body = bundleBody({ refs: [{ ...releaseRefs[1], local_rule_set_name: "规".repeat(66) }], files: [{ relative_path: "l2/team-fe-l2/long-document-name-that-exceeds-budget.md", content: "x" }] });
   await assert.rejects(installBody(root, body), (error) => error.code === "RULE_BUNDLE_FILE_PATH_INVALID");
   await assert.rejects(access(path.join(root, ".mdp/rules")));
 });
@@ -2050,14 +2115,14 @@ test('installs index beside rules with independent manifest and caches verified 
   const receipt = await syncEffectiveRuleBundle({ ...options, fetchImpl: async (_, init) => {
     assert.equal(JSON.parse(init.body).agents_index_contract, 'rule-set-agents-index/v1'); return response(body);
   } });
-  assert.equal(await readFile(indexPath(root), 'utf8'), indexTable('.mdp/rules/company/fe/frontend-l1/async.md'));
+  assert.equal(await readFile(indexPath(root), 'utf8'), indexTable('.mdp/rules/company/fe/async.md'));
   assert.equal(await readFile(path.join(root, 'AGENTS.md'), 'utf8'), '# User instructions\n');
   assert.deepEqual(receipt.managed_agents_indexes, ['agents-index/frontend-l1/AGENTS.md']);
   const manifest = await indexManifest(root);
   assert.equal(manifest.schema_version, 'mt-effective-rule-bundle-manifest/v7');
   assert.equal(manifest.total_bytes, base.snapshot.total_bytes);
   assert.equal(manifest.manifest_hash, base.snapshot.manifest_hash);
-  assert.deepEqual(manifest.managed_files, ['company/fe/frontend-l1/async.md']);
+  assert.deepEqual(manifest.managed_files, ['company/fe/async.md']);
   assert.equal(manifest.agents_indexes[0].index.content, indexTable('rules/async.md'));
   const replay = await syncEffectiveRuleBundle({ ...options, fetchImpl: async (_, init) => {
     assert.equal(JSON.parse(init.body).known_snapshot_id, body.snapshot.snapshot_id);
@@ -2171,7 +2236,7 @@ test('bootstrap index repeats safely and formal bundle atomically takes over its
   };
   await syncEffectiveRuleBundle({ ...options, fetchImpl: fetchBootstrap(bootstrap) });
   assert.equal((await indexManifest(root, true)).schema_version, 'mt-l1-bootstrap-manifest/v4');
-  assert.equal(await readFile(indexPath(root), 'utf8'), indexTable('.mdp/rules/company/fe/frontend-l1/async.md'));
+  assert.equal(await readFile(indexPath(root), 'utf8'), indexTable('.mdp/rules/company/fe/async.md'));
   const replay = await syncEffectiveRuleBundle({ ...options, fetchImpl: fetchBootstrap({ ...bootstrap, status: 'not_modified', files: [] }) });
   assert.equal(replay.status, 'not_modified');
   const formal = bundleBody({ version: 2, refs: [releaseRefs[0]], files: [{ relative_path: 'l1/frontend-l1/async.md', content: '# Formal\n' }] });
@@ -2322,7 +2387,7 @@ test('migrates the historical flat indexed formal v5 and bootstrap v3 without lo
     const current = await indexManifest(root, bootstrap);
     assert.equal(current.schema_version, bootstrap ? 'mt-l1-bootstrap-manifest/v4' : 'mt-effective-rule-bundle-manifest/v7');
     assert.equal(current.local_layout, 'scope-domain-ruleset/v1');
-    assert.equal(await readFile(indexPath(root), 'utf8'), indexTable('.mdp/rules/company/fe/frontend-l1/async.md'));
+    assert.equal(await readFile(indexPath(root), 'utf8'), indexTable('.mdp/rules/company/fe/async.md'));
     assert.equal(current.agents_indexes[0].index.content, old.manifest.agents_indexes[0].index.content);
     await assert.rejects(readFile(path.join(root, '.mdp/rules/company/async.md')), { code: 'ENOENT' });
     const before = await readFile(old.file, 'utf8');
@@ -2370,7 +2435,7 @@ test('historical indexed manifests protect edited AGENTS and reject swapped layo
   }
 });
 
-test('rule-set renames rerender index links while preserving index source and the source manifest hash', async () => {
+test('L1 rule-set renames preserve domain-level index links and the source manifest hash', async () => {
   const root = await createRepository();
   const bodyFor = (name) => withAgents(bundleBody({
     refs: [{ ...releaseRefs[0], local_rule_set_name: name }],
@@ -2383,8 +2448,8 @@ test('rule-set renames rerender index links while preserving index source and th
   assert.notEqual(first.snapshot.snapshot_id, next.snapshot.snapshot_id);
   await installBody(root, first);
   await installBody(root, next);
-  assert.equal(await readFile(indexPath(root), 'utf8'), indexTable('.mdp/rules/company/fe/新规范名称/async.md'));
-  await assert.rejects(readFile(path.join(root, '.mdp/rules/company/fe/原规范名称/async.md')), { code: 'ENOENT' });
+  assert.equal(await readFile(indexPath(root), 'utf8'), indexTable('.mdp/rules/company/fe/async.md'));
+  assert.equal(await readFile(path.join(root, '.mdp/rules/company/fe/async.md'), 'utf8'), '# Same rule\n');
   assert.equal((await indexManifest(root)).agents_indexes[0].index.content, indexTable('rules/async.md'));
 });
 

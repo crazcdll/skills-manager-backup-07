@@ -25,6 +25,33 @@ kmedit inspect --doc-id <docId> --snapshot-file /tmp/current.json
 
 ## 支持的结构化 operations
 
+### 表格单元格内换行
+
+学城表格支持原生换行。先用 `inspect` 获取目标单元格内 **paragraph 的 nodeId**，在该段落的 inline 内容之间插入 `hard_break`，无需替换整张表：
+
+```json
+[
+  {
+    "op": "replace",
+    "target": { "nodeId": "cell-paragraph-node-id" },
+    "content": {
+      "type": "paragraph",
+      "content": [
+        { "type": "text", "text": "风险描述" },
+        { "type": "hard_break" },
+        { "type": "text", "text": "关联服务" }
+      ]
+    }
+  }
+]
+```
+
+这是最小示例；实际替换时基于最新节点保留段落属性、文本 marks、链接和 @mention。同类型 `replace` 会保留目标 paragraph 的 nodeId。`hard_break` 没有 `text` 或 `content` 字段。
+
+不要把 `<br>` / `<br/>` 当作 Markdown 表格换行语法，也不要在原生 `text.text` 中塞入换行字符。Markdown 导入不解析内联 HTML，标签会变成可见文本。需要分段时，在单元格中使用多个 `paragraph`。
+
+验证：先 `kmedit check`，提交后 `inspect --snapshot-file` 确认目标段落含 `hard_break`，并在页面抽查确实分行。清理已有 `<br>` 时不要全局替换代码示例或链接中的字面内容。
+
 ### 精确文本替换
 
 ```json

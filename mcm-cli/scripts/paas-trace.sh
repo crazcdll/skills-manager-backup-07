@@ -22,7 +22,7 @@
 #     - Mafka 路径A（appkey 直查）：--appkey <业务appkey> --account-name Mafka
 #     - Mafka 路径B（Topic 精确过滤，需与路径A合并才完整）：--custom-resource-type + --custom-resource-names
 #
-# 认证：步骤一需要 yun_portal_ssoid（由 mcm login 的 CIBA token 自动换取，换到的
+# 认证：步骤一需要 yun_portal_ssoid（由 mcm login 保存的用户票据自动换取，换到的
 # 票据会连同过期时间缓存进 ~/.mcm-cli/config.json，未过期前复用、避免重复换票，
 # 万一被服务端提前吊销也会在请求时按 401/403/3xx 正确识别为认证失败，不产生假阴性）；
 # 步骤二的认证由 mcm CLI 自身处理。
@@ -216,8 +216,7 @@ fi
 
 # ── 获取 MWS SSO 票据（步骤一查 Avatar/Mafka/Eagle 等平台 API 用） ──
 #
-# 优先级：0. 环境变量 MCM_MWS_SSOID；1. Token Exchange 换票（仅 authMode=ciba 时可用）；
-#         2. 直接读浏览器 Cookie（authMode=cookie 或换票失败时兜底）；3. 失败报错
+# 优先级：环境变量 MCM_MWS_SSOID → 当前用户的 MWS 缓存 → 用户票据换票；失败时停止。
 
 _MCM_CONFIG="${HOME}/.mcm-cli/config.json"
 _MWS_AUDIENCE="60921859"
@@ -281,34 +280,52 @@ _persist_mws_ssoid() {
   ' "$_MCM_CONFIG" "$ssoid" "$expires_at" 2>/dev/null || true
 }
 
-# 用当前 access_token 做 Token Exchange，输出 MWS 票据（成功返回 0，失败返回 1）
+# 用途：将当前用户票据换成 MWS audience 的票据，并按服务端有效期缓存。
+# 参数：$1 = 当前用户 access_token。
+# 返回：成功时向 stdout 输出票据并返回 0；业务拒绝返回 42，其他失败返回 1。
 _do_token_exchange() {
   local subject_token="$1"
   local mtsso_bin="" mtsso_script=""
   _find_mtsso_exchange || return 1
   _pt_debug "尝试 Token Exchange 换取 MWS 票据（audience=${_MWS_AUDIENCE}）"
-  local resp access_tok expires_in
+  local resp access_tok expires_in status=0 error_code message
   if [ -n "$mtsso_bin" ]; then
     resp=$("$mtsso_bin" --subject_token "$subject_token" --audience "$_MWS_AUDIENCE" \
-      --client_id "$_MCM_CLIENT_ID" --client_secret "$_MCM_CLIENT_SECRET" 2>/dev/null || true)
+      --client_id "$_MCM_CLIENT_ID" --client_secret "$_MCM_CLIENT_SECRET" 2>/dev/null) || status=$?
   else
     resp=$(node "$mtsso_script" --subject_token "$subject_token" --audience "$_MWS_AUDIENCE" \
-      --client_id "$_MCM_CLIENT_ID" --client_secret "$_MCM_CLIENT_SECRET" 2>/dev/null || true)
+      --client_id "$_MCM_CLIENT_ID" --client_secret "$_MCM_CLIENT_SECRET" 2>/dev/null) || status=$?
   fi
-  access_tok=$(echo "$resp" | jq -r '.access_token // empty' 2>/dev/null || true)
+  error_code=$(printf '%s' "$resp" | jq -r '.code // .error // empty' 2>/dev/null || true)
+  access_tok=$(printf '%s' "$resp" | jq -er '.access_token | select(type == "string") | select(test("\\S") and . != "null")' 2>/dev/null || true)
+  case "$error_code" in
+    sub_access_denied|act_access_denied|sub_act_access_denied|ric_feedback_required) status=42 ;;
+  esac
+  if [ "$status" -eq 42 ]; then
+    message=$(printf '%s' "$resp" | jq -r '.message // .error_description // empty | select(type == "string")' 2>/dev/null || true)
+    message="${message//"$subject_token"/[REDACTED]}"
+    message="${message//"$_MCM_CLIENT_SECRET"/[REDACTED]}"
+    if [ -n "$access_tok" ]; then
+      message="${message//"$access_tok"/[REDACTED]}"
+    fi
+    printf '[paas-trace] %s\n' "${message:-MWS 换票需要用户处理授权或权限，本次调用已停止}" >&2
+    return 42
+  fi
+  [ "$status" -eq 0 ] || return 1
   if [ -n "$access_tok" ]; then
-    _pt_debug "Token Exchange 换票成功"
-    expires_in=$(echo "$resp" | jq -r '.expires_in // 0' 2>/dev/null || echo 0)
+    expires_in=$(printf '%s' "$resp" | jq -r '.expires_in // 0' 2>/dev/null || echo 0)
     if [ "${expires_in:-0}" -gt 0 ] 2>/dev/null; then
       _persist_mws_ssoid "$access_tok" "$expires_in" || true
     fi
-    echo "$access_tok"
+    printf '%s\n' "$access_tok"
     return 0
   fi
-  _pt_debug "Token Exchange 换票失败（resp=${resp:-<empty>}）"
+  _pt_debug "Token Exchange 未返回有效票据"
   return 1
 }
 
+# 用途：取得当前用户用于资源发现的 MWS 票据，只复用受支持认证来源的缓存，不触发交互登录。
+# 返回：成功时输出票据并返回 0；权限拒绝返回 42，其他失败返回 1。
 get_mws_ssoid() {
   # 0. 环境变量直接注入
   if [ -n "${MCM_MWS_SSOID:-}" ]; then
@@ -321,6 +338,10 @@ get_mws_ssoid() {
   if [ -f "$_MCM_CONFIG" ]; then
     auth_mode=$(jq -r '.authMode // empty' "$_MCM_CONFIG" 2>/dev/null || echo "")
   fi
+  case "$auth_mode" in
+    oidc|moa|manual|cookie) ;;
+    *) return 1 ;;
+  esac
 
   # 0.5 复用本地已缓存且未过期的 mwsSsoid（无论来自上次 Token Exchange 换票还是
   #     浏览器 Cookie 兜底），避免每次调用都重新发起一次 Token Exchange 网络请求
@@ -347,69 +368,37 @@ get_mws_ssoid() {
     fi
   fi
 
-  # 1. CIBA/manual 模式：Token Exchange 换票（最优路径，无需浏览器/Keychain）
-  # authMode=ciba：mcm login --mis 完成 CIBA 登录写入
-  # authMode=manual：mcm login --token 写入（mtsso 无感换票场景）
-  if { [ "$auth_mode" = "ciba" ] || [ "$auth_mode" = "manual" ]; } && command -v node >/dev/null 2>&1; then
+  # 1. 使用当前 OIDC、MOA 或外部注入的用户票据换票。
+  if { [ "$auth_mode" = "oidc" ] || [ "$auth_mode" = "moa" ] || [ "$auth_mode" = "manual" ]; } && command -v node >/dev/null 2>&1; then
     access_token=$(jq -r '.accessToken // empty' "$_MCM_CONFIG" 2>/dev/null || echo "")
     if [ -n "$access_token" ]; then
-      local tok
-      tok=$(_do_token_exchange "$access_token" || echo "")
-      if [ -n "$tok" ]; then
-        echo "$tok"; return 0
+      local tok status=0
+      tok=$(_do_token_exchange "$access_token") || status=$?
+      if [ "$status" -eq 42 ]; then
+        return 42
       fi
-      echo "[paas-trace] ⚠ Token Exchange 换票失败（网络/配置问题）" >&2
-      echo "[paas-trace]   [AI 指令] 优先（无需用户介入、无需重新走大象 CIBA 确认）：读取并执行 mtsso-skills-official skill 换取 user_access_token，执行 mcm login --token \"\${user_access_token}\" 后重试本脚本；仅当该 skill 不存在或执行报错时，才回退执行 mcm login --mis <MIS号> 重新登录后重试" >&2
-      return 1
-    fi
-  fi
-
-  # 2. 非 CIBA/manual 模式（authMode=cookie 或未配置）：
-  #    先尝试自动发起 mcm login --mis 完成 CIBA 认证，再走 Token Exchange。
-  #    这样用户只需在大象点一次授权，之后永久走换票路径，彻底告别 Keychain 弹框。
-  if [ "$auth_mode" != "ciba" ] && [ "$auth_mode" != "manual" ] && command -v mcm >/dev/null 2>&1; then
-    # 尝试从已有 config 获取 mis（复用历史登录的 MIS，无需用户输入）
-    local mis=""
-    if [ -f "$_MCM_CONFIG" ]; then
-      mis=$(jq -r '.userMis // empty' "$_MCM_CONFIG" 2>/dev/null || echo "")
-    fi
-    if [ -n "$mis" ]; then
-      echo "[paas-trace] ℹ 检测到未使用 CIBA 认证（当前：${auth_mode:-未配置}），正在自动发起 CIBA 登录（MIS: ${mis}）..." >&2
-      echo "[paas-trace]   请在大象 App 中点击「授权」按钮，完成后脚本自动继续（无需再操作 Chrome/Keychain）" >&2
-      if mcm login --mis "$mis" >&2 2>&1; then
-        # 登录成功，重读 config 拿新 token，立刻换票
-        auth_mode=$(jq -r '.authMode // empty' "$_MCM_CONFIG" 2>/dev/null || echo "")
-        access_token=$(jq -r '.accessToken // empty' "$_MCM_CONFIG" 2>/dev/null || echo "")
-        if [ "$auth_mode" = "ciba" ] && [ -n "$access_token" ]; then
-          local tok
-          tok=$(_do_token_exchange "$access_token" || echo "")
-          if [ -n "$tok" ]; then
-            echo "[paas-trace] ✔ CIBA 登录成功，已通过 Token Exchange 获取 MWS 票据，后续无需 Keychain 授权" >&2
-            echo "$tok"; return 0
-          fi
-        fi
+      if [ "$status" -eq 0 ] && [ -n "$tok" ]; then
+        printf '%s\n' "$tok"
+        return 0
       fi
-      echo "[paas-trace] ⚠ CIBA 自动登录未完成（超时/取消），请重新执行 mcm login --mis <MIS号> 后重试" >&2
-      return 1
-    else
-      # 读不到历史 MIS，无法无感发起登录
-      echo "[paas-trace] ℹ 未检测到 CIBA 认证，请执行 mcm login --mis <MIS号> 完成一次 CIBA 登录（大象确认）后重试" >&2
-      return 1
+      echo "[paas-trace] ⚠ MWS 换票失败，请检查用户授权和目标系统权限后再继续" >&2
     fi
   fi
 
   return 1
 }
 
-MWS_SSOID=$(get_mws_ssoid || true)
+mws_auth_status=0
+MWS_SSOID=$(get_mws_ssoid) || mws_auth_status=$?
+if [ "$mws_auth_status" -eq 42 ]; then
+  exit 42
+fi
 if [ -z "$MWS_SSOID" ]; then
   echo "[paas-trace] ✗ 无法获取 MWS 认证票据，步骤一（查 Avatar 依赖关系）无法执行" >&2
-  echo "[paas-trace]   [AI 指令] 请按以下优先级处理，不要跳过步骤 1 直接问用户或降级查询：" >&2
-  echo "[paas-trace]   1.（优先，无需用户介入）读取并执行 mtsso-skills-official skill 换取 user_access_token，" >&2
-  echo "[paas-trace]      执行 mcm login --token \"\${user_access_token}\" 完成无感登录后重新执行本脚本；" >&2
-  echo "[paas-trace]   2.（仅步骤 1 失败/skill 不存在时）执行 mcm login --mis <MIS号> 完成 CIBA 登录（大象确认）后重试；" >&2
-  echo "[paas-trace]   3.（临时排查用）直接设置 export MCM_MWS_SSOID=<token> 后重试。" >&2
-  echo "[paas-trace] ⛔ 禁止跳过本脚本、改用业务 appkey 直接调用 mcm cloudtrail list 查询 Squirrel/Mafka/RDS/Eagle：直查会混入 Rocket/HULK/OCTO 等主机运维变更，且查不全这 4 个系统真正的变更记录，会给用户呈现错误结果。请解决上述认证问题后重新执行本脚本。" >&2
+  echo "[paas-trace]   执行 mcm login 完成认证；已有平台注入票据时使用 mcm login --token，然后重试本脚本。" >&2
+  echo "[paas-trace]   无浏览器的远程环境需恢复 Agent 的 MOA 授权，或注入当前用户的 MCM 票据。" >&2
+  echo "[paas-trace]   临时排查可通过 MCM_MWS_SSOID 注入当前用户的 MWS 票据。" >&2
+  echo "[paas-trace] ⛔ 禁止跳过本脚本、改用业务 appkey 直接调用 mcm cloudtrail list 查询 Squirrel/Mafka/RDS/Eagle：直查会混入主机运维变更且查不全目标系统的变更记录。" >&2
   exit 1
 fi
 
@@ -425,6 +414,9 @@ fi
 #   0=成功（body 写入 MWS_RESP） 1=瞬时失败（MWS_RESP 置空） 2=认证失败（调用方须立即 exit 1）
 MWS_RESP=""
 
+# 用途：使用当前 MWS 票据请求平台 API，将响应保存到 MWS_RESP。
+# 参数：$1 = 请求域名；$2 = 请求路径（可含查询参数）。
+# 返回：成功返回 0，普通请求失败返回 1，认证失败返回 2。
 mws_get() {
   local host="$1" path="$2"
   local tmp http_code body
@@ -447,12 +439,12 @@ mws_get() {
       return 0
       ;;
     401|403)
-      echo "[paas-trace] ✗ MWS 认证失败 (${http_code})，请执行 mcm login --mis <MIS号> 后重试" >&2
+      echo "[paas-trace] ✗ MWS 认证失败 (${http_code})，请执行 mcm login 或通过 mcm login --token 更新用户票据后重试" >&2
       return 2
       ;;
     3*)
       # 重定向通常是被打回登录页 = Cookie 失效，按认证失败处理
-      echo "[paas-trace] ✗ MWS 认证失败（被重定向到登录页），请执行 mcm login --mis <MIS号> 后重试" >&2
+      echo "[paas-trace] ✗ MWS 认证失败（被重定向到登录页），请执行 mcm login 或通过 mcm login --token 更新用户票据后重试" >&2
       return 2
       ;;
     000|5*)

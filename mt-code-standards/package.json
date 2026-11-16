@@ -1,6 +1,6 @@
 {
-  "name": "@nibfe/mt-code-standards",
-  "version": "2.0.1-beta.0",
+  "name": "@nibfe/mt-coding-standards",
+  "version": "2.0.1",
   "description": "业务研发平台编码规范独立拉取 CLI",
   "type": "module",
   "bin": {
@@ -10,6 +10,7 @@
     "bin/mt-code-standards.mjs",
     "assets/mtcli-service.json",
     "references/mtcli-integration.md",
+    "scripts/download-observation.mjs",
     "scripts/mtcli-transport.mjs",
     "scripts/portable-user-auth.mjs",
     "scripts/agents-index.mjs",

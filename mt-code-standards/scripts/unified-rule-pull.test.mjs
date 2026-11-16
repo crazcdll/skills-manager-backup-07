@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { realpathSync } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, mkdir, readFile, writeFile, access } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, writeFile, access, rename } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import test from "node:test";
@@ -193,6 +193,38 @@ test("same context sends a validated kind-bound snapshot and accepts not_modifie
     assert.deepEqual(request.known_snapshot, { bundle_kind: "l1", snapshot_id: ready.snapshot.snapshot_id });
   }) });
   assert.equal(result.status, "not_modified");
+});
+
+test("unified effective and bootstrap pulls migrate named L1 files before reusing the same snapshot", async () => {
+  for (const kind of ["effective", "l1"]) {
+    const root = await rootDir();
+    const body = kind === "effective" ? bundleBody({ stage: "coding" }) : bootstrapBody({ stage: "coding" });
+    const options = { repositoryLocator: "hfe/hotel-web" };
+    await pull(root, { ...options, fetchImpl: server(body) });
+    const rulesRoot = path.join(root, ".mdp/rules");
+    const filename = path.join(rulesRoot, kind === "effective" ? ".mt-effective-rule-bundle.json" : ".mt-l1-bootstrap.json");
+    const manifest = JSON.parse(await readFile(filename, "utf8"));
+    for (const current of [...manifest.managed_files].filter(file => file.startsWith("company/"))) {
+      const parts = current.split("/");
+      const ref = manifest.release_refs.find(ref => ref.rule_set_id === manifest.managed_file_releases[current].rule_set_id);
+      const old = `company/${parts[1]}/${ref.local_rule_set_name}/${parts[2]}`;
+      await mkdir(path.dirname(path.join(rulesRoot, old)), { recursive: true });
+      await rename(path.join(rulesRoot, current), path.join(rulesRoot, old));
+      manifest.managed_files = manifest.managed_files.map(file => file === current ? old : file);
+      for (const field of ["managed_file_sources", "managed_file_hashes", "managed_file_sizes", "managed_file_releases"]) {
+        manifest[field][old] = manifest[field][current]; delete manifest[field][current];
+      }
+    }
+    delete manifest.local_l1_layout;
+    await writeFile(filename, JSON.stringify(manifest));
+    await pull(root, { ...options, fetchImpl: server(body, request => assert.equal(request.known_snapshot, undefined)) });
+    for (const old of manifest.managed_files.filter(file => file.startsWith("company/"))) await assert.rejects(access(path.join(rulesRoot, old)), { code: "ENOENT" });
+    const current = JSON.parse(await readFile(filename, "utf8"));
+    assert.equal(current.local_l1_layout, "domain-flat/v1");
+    assert.equal(current.snapshot_id, manifest.snapshot_id);
+    const result = await pull(root, { ...options, fetchImpl: server({ ...body, status: "not_modified", files: [] }, request => assert.equal(request.known_snapshot.snapshot_id, manifest.snapshot_id)) });
+    assert.equal(result.status, "not_modified");
+  }
 });
 
 test("tampering bound resolution context is rejected before sending a request", async () => {

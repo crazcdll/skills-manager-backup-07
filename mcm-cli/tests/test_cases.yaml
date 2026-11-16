@@ -68,17 +68,17 @@
 - name: trigger-neg-code-review
   type: trigger
   input: "帮我做一下这个 PR 的代码审查"
-  expect: "mcm-cli skill 不应被激活；该请求是 PR 代码审查，应由代码审查类 skill 处理，而非 MCM 变更管理操作。"
+  expect: "不触发 mcm-cli skill，该请求是代码审查而非变更管理操作"
 
 - name: trigger-neg-git-branch
   type: trigger
   input: "帮我拉一个功能分支"
-  expect: "mcm-cli skill 不应被激活；该请求是创建 Git 功能分支，应由代码仓库或 Git 操作类 skill 处理，而非 MCM 变更管理操作。"
+  expect: "不触发 mcm-cli skill，该请求是创建 Git 分支而非变更管理操作"
 
 - name: trigger-neg-architecture
   type: trigger
   input: "帮我设计一下这个系统的微服务架构"
-  expect: "mcm-cli skill 不应被激活；该请求是微服务架构设计，应由架构设计或技术方案类 skill 处理，而非 MCM 变更管理操作。"
+  expect: "不触发 mcm-cli skill，该请求是架构设计而非变更管理操作"
 
 # ==================== flow 用例（路由决策）====================
 
@@ -201,7 +201,7 @@
 - name: edge-paas-trace-mws-auth-failed
   type: edge
   input: "执行 bash skill/mcm-cli/scripts/paas-trace.sh --appkey com.sankuai.xxx 时提示「无法获取 MWS 认证票据（yun_portal_ssoid）」"
-  expect: "识别这是脚本独立实现的第二套 MWS 认证体系失败（非 mcm-cli 的 401/403 场景），不得直接执行 mcm refresh 或 mcm login 后原样重试；应引导用户确认已执行过 mcm login --mis <mis>（CIBA 模式，脚本会复用该登录态换票），必要时设置 MCM_MWS_SSOID 环境变量直接注入票据后重试"
+  expect: "识别这是脚本独立实现的第二套 MWS 认证体系失败（非 mcm-cli 的 401/403 场景），不得直接执行 mcm refresh 或 mcm login 后原样重试；应展示脚本错误，按指引执行 mcm login 或通过 mcm login --token 更新当前用户票据；退出码 42 时先处理权限或人工确认，完成后重试原脚本"
 
 - name: edge-paas-trace-no-paas-dependency
   type: edge

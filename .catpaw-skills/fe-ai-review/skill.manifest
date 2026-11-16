@@ -1,0 +1,26 @@
+skill-manifest-version: 1
+skill-id: c92287b3118bbb5884ab24c16ef67833fa5c9858d6418ed2176a1698e4f1992b
+
+files:
+  01a2156c28c84ab12b2096e46a59ef7c87793c17c4f326a37bdb8937e4d97fc2  .skillignore
+  701993d5eb95007bedcc4ea8f77654d275cfadd070d69d68af4508b33a6501fe  SKILL.md
+  5219e9f90f1916c2b94bfbeda627804232fadc2d48c2923da72caccc69367d8f  references/context/duo-context.md
+  79005d11095d9780b306769336d2f949f8dfb003020d99b3727f0f39bb69256a  references/context/max-context.md
+  d9826c448cf5c849f82d07846511d92311ef463243e881d7b476cff3124cf2b0  references/context/mrn-context.md
+  fbba86947b9eafa8def8ab3118aa496f4e1a6ccbaa884c724fff81245314037d  references/modes/local.md
+  a5f2ec16b9ff3b631fc801f027c33f528e4d51bc45d45a9a0c2f332f21f77714  references/modes/pr-only.md
+  f2afb05471e40d4ce5375aa1481ab4fb1f8ec86bef66449f3632a2d33ac10805  references/output.md
+  413662721e77fabe813e9802c4b6865faa0e2ea0ad85ecdf15b6e883424201bb  references/pr-comment.md
+  396e4fd465f6367cdfc3832225ce1c21c741e723a8249b9efb4f46937439efae  references/report-submit.md
+  b2449ccb2141c845be71e4be483a5c49e21da17133c684b4e437f5fad4aadf15  references/rules-loading.md
+  a7e4d67c0c56acebfd503c00070d2eb40830394c14b3923fc0e73649c0d9f2bf  references/rules/base/dep-upgrade-rules.md
+  d3b06ed831563f59d7f1ff1dd91b53ae68ed92573595ba2e661905a6e3a1644b  references/rules/base/msi-api-review-rules.md
+  30d87bd693b061d856694da80e1122083f30f30969909a03df5d3e9f1d6d1ccc  references/rules/fallback-rules.md
+  584a5192403f49f99258ef66b73364aa91f8239dbe010dd193910e83bc605146  references/severity.md
+  668867de547913900bbcabe646ded83b0198db038f47786244292b45b581ac03  references/stack-detection.md
+  cf86641bc4bc1cf90f0a8caa2af25a7616c5fe2aab2f41e7f8848baed4a68730  references/tpl-report.md
+  372925c08ce53711078cc567ace08b3e4e063f0a37efbfe19837f5a6c5d2b8cc  scripts/dep-scan.sh
+  38edde3f4a42c532db1b9bcffc2be33d1489cfc3449af86ed308b712f253458c  scripts/pr-comment/code_cli.py
+  41f8acc034ee25814b548f9821623a5e857dff1626afda7f657a01ba183371c4  scripts/pr-comment/cr-comment.sh
+  d0421041bf65b8a2597302eeb448cefe5d988a9af15c43c4b53370b19a5387bf  scripts/report-submit.sh
+  b6651b73d323229b9b810ca586b0e16fe7db41aa994204d8f91617004b1860a4  scripts/self-update.sh

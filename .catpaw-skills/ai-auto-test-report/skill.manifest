@@ -1,0 +1,12 @@
+skill-manifest-version: 1
+skill-id: d920dc9c68a4b931635ec8a169ea49999cc0d1420b6ee9c6a289a74b602de504
+
+files:
+  34d0ba8e3d40d0798e6f640d604acfc11e0cade1c36326516b9308645750dc86  SKILL.md
+  41d96068581ff0063d7ec3c52b70dbbd333f15b3400b60f6e5221affe67afaa0  scripts/calculator.py
+  91c0483df9efc80e219f17d592b64446ad56faf16e2d7f19b75875d782c7d85e  scripts/cleaner.py
+  935c51196e476fe903847aef8e7ed26731efa8c52ac8c3695a58b8399586dd97  scripts/collector.py
+  efd4fab4d25d8f12b97cf464b35bd56bc045ade0a1f995295ad1a27fce9df671  scripts/labeler.py
+  ea7581742a8f7739574b93c954c7339cbca037d7694a2f9777d6b1d9e8dcf16d  scripts/pipeline.py
+  5ee0b7a62f5b51c3cd605644d05296dd985e36e71c3e5e8e07d2152d9663cdb4  scripts/reporter.py
+  1ddd4c6e41c83360072c7ddcf0db82619048c33ed362d4dc32a8b527e824c45e  scripts/run.sh

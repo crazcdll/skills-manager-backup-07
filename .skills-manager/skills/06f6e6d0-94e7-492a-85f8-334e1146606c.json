@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "06f6e6d0-94e7-492a-85f8-334e1146606c",
+  "path": ".catpaw-skills",
+  "path_key": ".catpaw-skills",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

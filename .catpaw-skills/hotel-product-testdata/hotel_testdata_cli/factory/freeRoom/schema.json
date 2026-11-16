@@ -1,0 +1,129 @@
+{
+  "_comment": "闲置房充值（子产品生产）参数说明 - batchRechargeFreeHouse（Thrift RPC 直调）",
+  "_protocol": "THRIFT",
+  "_appkey": "com.sankuai.hotel.biz.platform",
+  "_service": "com.meituan.hotel.biz.platform.goods.service.thrift.adapter.EbPcGoodsFacade",
+  "_method": "batchRechargeFreeHouse",
+  "_auth_note": "入参 JSON 需额外携带 \"user\" 字段（商家账号登录名），服务端内部会自行做 SSO_B_NO_PW_LOGIN 免密登录换票并转发下游 HTTP 接口，客户端无需自己换票/拼 Cookie，只需通过 merchant-testdata-cli 查到商家账号登录名即可",
+  "_dependency_note": "闲置房是子产品，rechargeGoods[].goodsId 必须是已成功上线的母产品（境内全日房，见 W1）goodsId",
+
+  "cli_params": {
+    "--poi-id": {
+      "required": true,
+      "desc": "门店ID（poiId），须与 partnerId 已绑定",
+      "example": "5142338"
+    },
+    "--partner-id": {
+      "required": true,
+      "desc": "供应商ID（partnerId），用于反查商家账号（merchant-testdata-cli）及组装入参",
+      "example": "4374834"
+    },
+    "--customer-id": {
+      "required": false,
+      "desc": "客户ID（业务 customerId，非 partnerId）。不传则脚本自动用工具464（客户ID互查）由 partnerId 换算得到 platformCustomerId",
+      "example": "1026936262"
+    },
+    "--goods-id": {
+      "required": true,
+      "desc": "母产品 goodsId（必须是已成功上线的境内全日房，见 W1 create-fullday.py 返回值）",
+      "example": "411377656"
+    },
+    "--goods-name": {
+      "required": false,
+      "desc": "母产品商品名（建议与 W1 创建时保持一致，仅用于展示）",
+      "default": "<mis>闲置房母产品_<时间戳>"
+    },
+    "--login-name": {
+      "required": false,
+      "desc": "已知商家账号登录名时可直接传入，跳过 merchant-testdata-cli 账号查询",
+      "example": "merchant_test_xxx"
+    },
+    "--start-days": {
+      "required": false,
+      "default": 0,
+      "desc": "售卖开始时间：今天 + N 天（对应原始 body 的 \"$+0 day\"）"
+    },
+    "--end-days": {
+      "required": false,
+      "default": 365,
+      "desc": "售卖结束时间：今天 + N 天（对应原始 body 的 \"$+365 day\"）"
+    },
+    "--no-sell-rule": {
+      "required": false,
+      "default": "5,6,7",
+      "desc": "不可售规则（周几不可售，逗号分隔，5,6,7 无实际意义仅示例，含义以研发文档为准）"
+    },
+    "--min": {
+      "required": false,
+      "default": 3,
+      "desc": "单次充值最小间夜数"
+    },
+    "--max": {
+      "required": false,
+      "default": 20,
+      "desc": "单次充值最大间夜数"
+    },
+    "--free-room-num": {
+      "required": false,
+      "default": 10,
+      "desc": "赠送房间数量"
+    },
+    "--simple-value": {
+      "required": false,
+      "default": 10000,
+      "desc": "单价（分）"
+    },
+    "--total-value": {
+      "required": false,
+      "default": 100000,
+      "desc": "总价值（分）"
+    },
+    "--sale-on-holidays": {
+      "required": false,
+      "default": 1,
+      "desc": "节假日是否可售，1=可售"
+    },
+    "--daily-sale-threshold": {
+      "required": false,
+      "default": -1,
+      "desc": "每日销售阈值，-1=不限制"
+    },
+    "--swimlane": {
+      "required": false,
+      "default": "",
+      "desc": "泳道名称，空字符串=主干"
+    },
+    "--dry-run": {
+      "required": false,
+      "desc": "仅打印将要发送的账号信息 + Thrift 请求体，不实际调用"
+    }
+  },
+
+  "body_template": {
+    "poiId": "<int>",
+    "partnerId": "<int>",
+    "customerId": "<int>",
+    "startTime": "<今天+startDays 的毫秒时间戳>",
+    "endTime": "<今天+endDays 的毫秒时间戳>",
+    "noSellRule": "5,6,7",
+    "autoRePurchase": false,
+    "rechargeScheme": 0,
+    "rechargeGoods": [
+      {
+        "goodsId": "<母产品 goodsId>",
+        "goodsName": "<母产品商品名>",
+        "preGoodsId": "",
+        "min": 3,
+        "max": 20,
+        "freeRoomNum": 10,
+        "simpleValue": 10000,
+        "totalValue": 100000
+      }
+    ],
+    "unableDate": [],
+    "saleOnHolidays": 1,
+    "dailySaleThresHold": -1,
+    "user": "<商家账号登录名，由 create-freeRoom.py 自动查询并注入，无需手动传>"
+  }
+}
+

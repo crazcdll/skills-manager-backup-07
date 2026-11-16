@@ -1,0 +1,26 @@
+skill-manifest-version: 1
+skill-id: 7e68731c3e51b2a1df41b74665dd5340818b7e9a92d1979ac2e470314a451e37
+
+files:
+  b6ab9ec4c6847ee8711b160539379d9b86733c6ff4f7ed0f79816349b7fdc837  SKILL.md
+  68cb26accd7a0b82ae138950d7289fcc5d1d8f98ca215457ab7169fee7e9edb4  knowledge/AGENTS.md
+  ac489a9249548e93c87ce2614e4fccbea255031cc973b9cd52311ea2fcae6ee4  knowledge/context/repo-map.md
+  b7b7e42e63465068190a11a380697655fd77c1229cf24e4b047e702a2666effa  knowledge/inbox/README.md
+  c3ce4aeec65da13ce4b0b0d0c32b10c0024fa175576630d19d6d89a589898e75  knowledge/raw/code-snapshots/README.md
+  419c02d4ef500a921bf7953d4f74bc09105b8bc4600d4958629ead2b08775c91  knowledge/raw/code-snapshots/duo-backend-sdk.md
+  504f5d5e5e29b2475001929b1dac234c7ee6cd003d04f0de0ed40db8e1b39544  knowledge/raw/index.md
+  62541b3bc43fe1bd8ec21f3f07dc62563cf33226c116ed6e4a1b0612466e0850  knowledge/wiki/concepts/duo-engine.md
+  033911ba51889430fbfd4adcbe67116da1deba4dd77149afcc54c08870c26e13  knowledge/wiki/concepts/duo-material.md
+  a776976074ec53356b56b257c243288c2213ebeab42482cf827553d8859fe61c  knowledge/wiki/concepts/duo-overview.md
+  f279931bd66102864f8f3da2d64d4262199fb6f8ded824ce6129413976618232  knowledge/wiki/concepts/duo-protocol.md
+  54af9f055b9fa3450f95ca8b06c579f44977cf3b8bfc7d044edaa86e33fd57f0  knowledge/wiki/concepts/groovy-in-duo.md
+  e804372d36fd1c38a8e2fc3b80ce52758a0fb504f2c94cfb61211db6303b2204  knowledge/wiki/context/duo-builder.md
+  c942093ee7d5102f87b5f396d08d2dfc819e6b354d2c42ab215e75bc6c885519  knowledge/wiki/context/duo-core.md
+  785f7a986ca93eda6e0afd7634f907ba8f24357b0e3fd8c0582f8716260f351e  knowledge/wiki/howto/build-and-deploy.md
+  39dd7c77a7ae09848cc5cd0cbb80ddf7436b5d4db6d980f95c64326102964539  knowledge/wiki/howto/development-workflow.md
+  20039d4456500d96005923fa18bdf6193a8d5900d994eebc1393194be91e24a4  knowledge/wiki/howto/groovy-expressions.md
+  ed935c2c7eca64230006a95b6074bac9291ccc2d07bd138f7e543b10e0ba3a6f  knowledge/wiki/howto/material-development.md
+  aada396defeef66acd84ac1d8794120408cf13d23ab7363faf00a3c0a8075aba  knowledge/wiki/howto/protocol-generation.md
+  038d60a2bf5845559df1cd5a280c84755b75863f515b20e484aba1f9d970c2d0  knowledge/wiki/troubleshooting/build-issues.md
+  9958dc623899240e55511ae43b06d0cc64544f0885f9322c772aa2ff202e0e6f  knowledge/wiki/troubleshooting/data-issues.md
+  7d6a75088ff19a51f206f4d16777b1a4dbb2b6b7220f7899802a3b0c2ae11cad  knowledge/wiki/troubleshooting/render-issues.md

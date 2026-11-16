@@ -1,0 +1,16 @@
+skill-manifest-version: 1
+skill-id: 2b7a0d3e37aa6a3f096b41f3531731d846ef3ee8f80372dcab9073dfccb1de14
+
+files:
+  d2956c7b29c087027c182bf72f009798ab26a29e890ad93b24aa19df73b3d27c  SKILL.md
+  6c571db3a2b02e89d94bd10eebe40e5003cccdf155b30e1a38c52b35325cbd46  references/case-study/CS-expression-troubleshoot.md
+  d1aeae126829d92a0749c8f594bd3e9942cb380022ac93b6e529d3cb1509349b  references/case-study/CS-generate-skeleton.md
+  af7cd17dab4501a1303c0b6dcae60e3eab55f87229886a4a1d3dd0a2b8d4554a  references/case-study/CS-modify-best-practice.md
+  dbf0b23c478f2111ad1420355f927387010964048b22c9991bec6f023547dd03  references/duo-terminology.md
+  3182417f20bab08af18331e111615518957ccae0b193b8dc8e3342ecee9e03bd  references/protocol-structure.md
+  7b161eb60d0f7040b3f6908bdfa0ca84b86d0314c68e464efdeba45ec47e56a5  references/rules/common-events.md
+  4274b377e06d3ee9cde1859871d4193c73410c622dfdf677b717bcb38bf56325  references/rules/common-expression.md
+  5c6c47d7eeb811fd2ddf8448903aad3a81ffc6bea989aba4f76d48a288a47960  references/rules/material-query.md
+  4b621916b4c95a30622a6985070344dc178ac6c0cd241626de3f4e149fda6313  references/scenarios/generate-protocol.md
+  ebc062540f64410284087f4a221fb0cc7f87a31bafbd10fb25c4d16ae36834c6  references/scenarios/modify-protocol.md
+  21d3f6f82c18d1889079c5824b41a6712a084143ec37688364ccee85a1e4d41b  references/scenarios/troubleshoot-protocol.md

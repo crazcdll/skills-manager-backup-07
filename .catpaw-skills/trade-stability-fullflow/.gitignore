@@ -1,0 +1,6 @@
+# 本地上报配置（密钥/上报人信息），不入仓库
+scripts/report_config.json
+
+# Python
+__pycache__/
+*.pyc

@@ -1,0 +1,30 @@
+skill-manifest-version: 1
+skill-id: dd28447d9fd19b98950d7f1025f2ad1694c88d540167e2c84bdd42b145b1e297
+
+files:
+  b06a2f17f68e6b3ca7248d742f1afbaa8a6d0fc00b62dd5dcc140d12aadeac07  SKILL.md
+  082787dc2c1c28f539ddfe032861a88dc6fb1dc444a28af0eb660845b1ec07b1  references/component-crash-chart/CHANGELOG.md
+  e6e1a0ef06d29aa637d6708ebe6c13d21f323a6b706b6c1aef88fa51d1d11ad4  references/component-crash-chart/README.md
+  64a95bb595bc6111c05be9b5c116b7f50077a6f3ba51185bb1fb88e42e380e8f  references/component-crash-chart/SKILL.md
+  f22cfcd0234f031e103cafb4c3ec3d5d9ebe0765617f5afb50ca2aa10f5d57f3  references/component-crash-chart/config/mcporter.json
+  22105014fd7a684ad25d95ea3050affc45d58a61e7347e2c2df0cf638bc5d68c  references/component-crash-chart/references/presets.md
+  481052a238372ae1e0d1e5f88ada9b5bc435f88e211ca4bbd1b966895493a500  references/component-crash-chart/scripts/generate_chart.py
+  5f9866dc8648300362bd4fa0bac74b8e58dffccb8c797b1ced6fa8fe360f3629  references/component-crash-chart/scripts/watch.py
+  6f5e4adfdb0b22189294c70e36cac1738f37875c96a5f6fdb54b16babce7c81a  references/crash-alarm-check/CHANGELOG.md
+  272e5227fe01a6de3c985f8bd0e526322b4cb82bfb99920fd28ed84a4ae3565b  references/crash-alarm-check/README.md
+  ee65a03ad59cb22cebee5655cfee17b5627e9e72977ce932983cfb6448fcd0b9  references/crash-alarm-check/SKILL.md
+  1aeb535f6e8055a088fc6adb0468bdd957978aa01825d40635389a5d77a137b8  references/crash-alarm-check/references/example.md
+  a70dca05b39397f7d84ce8c13e2317771ec39366564f3ba23b900bdfcb5a4bf4  references/crash-alarm-check/references/exception-types.md
+  b224bd7976d9c6996b78d1fc1087180639de88813235f201ecff70060f238973  references/crash-wave-analysis/CHANGELOG.md
+  030c7e1a506ae8e410681d2dece9c12de843f2acdad7c135cfa40c113b34a9bc  references/crash-wave-analysis/README.md
+  cfa955198c382c935be93b4fa3434223fab57aec2120150fd9f94350f908c195  references/crash-wave-analysis/SKILL.md
+  8a504aa35bb2fa1553f3d1875efe63426177a1f75461fbd070b843c22cbde4ef  references/dashboard-patrol/SKILL.md
+  efa72535d08e16b6bb0bf43c52f004287bdc20a3dc568cc3637e0eddf506ef16  references/general-metric-analysis/SKILL.md
+  b575599c4a4e74cd4e2e8382be3071d6538c225adbc0cbb0898a3356ce10eb2a  references/owl-web-error-analysis/SKILL.md
+  4828ba01324a27c8a9496048c0b3eb73ae3109cc4c1461399e37371fcd63f49b  references/raptorfe-allquery/SKILL.md
+  caea56cfe9cc8a16a3fbef88b386bcb04169eb0d2acf22b4c4fa600663c0c616  references/raptorfe-dashboard-create/SKILL.md
+  fa335b659fcd14e015bb7ddb27c95b8b1a0a17345e2297340b2469afd7e00734  references/raptorperf-alert-analyzer/SKILL.md
+  3d3a09a07e4cc80b74d130ee928945b1f631bf1cba458bab278ad0899494bf3d  references/rcf-raptor-anylisize/SKILL.md
+  dcb09e177db5d5f71b79ed74b4d8deae7e9dbac52c1b940e8f1da51c1e0ee37e  references/uuid-error-query/CHANGELOG.md
+  a7b8f33d24db4c7f3506fa0904176734d54173e046810f5a542e0ce046c41e8c  references/uuid-error-query/README.md
+  479d1f9f2d4ea4f06fb22b639d3ea6f99ea2244ebb1c6845fd980f76198f56f6  references/uuid-error-query/SKILL.md

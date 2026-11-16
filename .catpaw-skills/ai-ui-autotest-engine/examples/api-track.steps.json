@@ -1,0 +1,51 @@
+{
+  "caseId": "flow-04-api-track",
+  "title": "接口与埋点：提交订单链路（无 UI 步骤，不注入落地步）",
+  "priority": "P1",
+  "executionType": "deterministic",
+  "env": {
+    "scheme": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-orderfill-duo&mrn_component=main&goods_id={goods_id}",
+    "type": "A",
+    "vars": {
+      "goods_id": {"value": "1172344601", "desc": "EC 用例提供的测试商品 ID"}
+    }
+  },
+  "steps": [
+    {
+      "kind": "api",
+      "id": "api-submit-order",
+      "name": "校验提交订单接口",
+      "api": {
+        "method": "POST",
+        "path": "/api/hotel/order/submit",
+        "expectedFields": [
+          {"source": "request", "field": "goodsId", "expected": "{goods_id}"},
+          {"source": "response", "field": "orderId"}
+        ]
+      }
+    },
+    {
+      "kind": "api",
+      "id": "api-order-detail",
+      "name": "校验订单详情接口状态码",
+      "api": {
+        "path": "/api/hotel/order/detail",
+        "expectedFields": [
+          {"source": "response", "field": "orderStatus", "expected": "待使用"}
+        ]
+      }
+    },
+    {
+      "kind": "track",
+      "id": "track-order-submit",
+      "name": "校验提交订单埋点",
+      "track": {
+        "match": "hotel_order_submit",
+        "expectedFields": {
+          "page_type": "填写订单",
+          "button_name": "提交订单"
+        }
+      }
+    }
+  ]
+}

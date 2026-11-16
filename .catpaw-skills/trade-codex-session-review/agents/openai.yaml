@@ -1,0 +1,4 @@
+interface:
+  display_name: "交易 Codex 会话复盘"
+  short_description: "复盘交易项目会话，按时间线整理证据并默认写入学城文档"
+  default_prompt: "使用 $trade-codex-session-review 复盘当前项目的 Codex 会话，并默认增量写入学城归档文档。"

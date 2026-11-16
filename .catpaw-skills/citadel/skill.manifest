@@ -1,0 +1,21 @@
+skill-manifest-version: 1
+skill-id: 51091095fa8389aecb96191cafa00451331bad6c03a333b80f276e3851e1da3c
+
+files:
+  c4953f5d3767d21bca2d60f7300ca680c87e000a757cbfd274324a12688b4826  SKILL.md
+  bd0e65437daf777544cc2a550284c5c99f038b0e30c5caabcae4a7b7abee733d  references/chart-insert.md
+  04fd34bbdf0b96dbd5d34e53a4bed4d694633f983e3ef945a5d312478e9c3f14  references/cli-reference.md
+  73d447d83d62d90de1393c4a7229493cd5362821eae17c0aaf90981b3caf818f  references/discussion-comment.md
+  73696092ace66bd05d994956708b070adfa20b2cbe950f258ad56396c3f65c95  references/doc-create.md
+  e4235faca8df16a4c64e950686ad034fa40a85fb8fe13ba716e74f80d25740a1  references/doc-insert.md
+  6404d78cf6f0883191b72552cc966871de0ac78ed9893977a07b8daea6a5ceae  references/doc-summary.md
+  dac063cf62c96ca718e2cac6bb790d1a41b060174e5d073482373056f0b27a3f  references/doc-update.md
+  cb6fb86a73c2013efffe5f519dabdd53418b026d35eb23de0a48f4d58e697a12  references/doc-versions.md
+  534fc184cd88102b8387aa28b76a85d34dcf5a41f403237ea2133c6234d9d780  references/doc-view.md
+  8cc6b5aab4831cf640caaf04665d2e35ba615594e31252b45ba31308c5fb057e  references/doc-xml-syntax.md
+  02a87b940f8b3e534d1373d79ebde989c7df4b663c2ee2647eef4055da605285  references/generate-drawio.md
+  f2bdd629f4d70ad88c53909f106c85b16eb6e9a69cfdc1aae48051f3c4d18fb6  references/markdown-documents.md
+  aa6a7da56225602641ad4a0651c7126458c5b6586fc58fbcbb22b693594e1b45  references/permission-management.md
+  85502ccba32cbadf0fce114bbddb3379bc6523f4305f44ac30c85c1302baf382  references/search.md
+  16b909a7575245e9e4e738aa5eaf753adfd0ef73ceab3aed9647892ef1dd76ba  references/templates.md
+  61802d6c5b34d4c989bb0ebdd7d37633f996555e661949a783b09e57e2b7bab4  references/user-memory.md

@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.DS_Store
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+Thumbs.db
+desktop.ini
+*.log
+.idea/
+.vscode/
+node_modules/
+preview_output/
+debug_*

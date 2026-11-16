@@ -1,0 +1,7 @@
+skill-manifest-version: 1
+skill-id: 80265f9fee14383e2a6eae29bd25bbaa867315b51a11198e31c038a7c5c85491
+
+files:
+  a9bc99359f20c5aa609f9e582255579a3febb4346e2e69da97ce55b20ff246fc  SKILL.md
+  ab4d32d6004f91c4c6200f9ff452842969c1bdee175efb3fca18da01e8be8375  references/report.md
+  3105db230e3eb5b01621ed42a4847ee8c8ffe42cd527a759858eb9e1e4774559  references/scripts/report.sh

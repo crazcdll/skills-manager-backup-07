@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "abe12ab4-d4f3-49d9-abed-e406d8f50eb7",
+  "path": "ai-cr-forlocal",
+  "path_key": "ai-cr-forlocal",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

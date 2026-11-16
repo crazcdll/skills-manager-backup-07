@@ -1,0 +1,10 @@
+skill-manifest-version: 1
+skill-id: fcad128c118f0e3135e07fb505abf3ec3d5a2094fcabd2a9a6b75133386b525b
+
+files:
+  2dedcde43fca521766549c053f242049a259a611993523f0453efdee8dd4add4  SKILL.md
+  378880812abad6883e088588f244de3d0a7e93e8be8cfcbb1765c045ec55c6ca  scripts/__pycache__/orchestrate.cpython-314.pyc
+  2b569dce88e3cb672569b29fa48b9f01de6df728be0cf625aaa33d07d683da02  scripts/env_setup.py
+  660145f48f848f305d5b0d8243ec9e49be62bbbca36b83fcb23ad257d00ce02a  scripts/orchestrate.py
+  861314dede7efebf076c22101bfe6f6a291d3626c14ef508e79d9e8178be2073  scripts/report_usage.py
+  b89de586a07874cb76780e66ffdbe304be2e9f2e070dd739a0edae5edf00373f  scripts/selfupdate.py

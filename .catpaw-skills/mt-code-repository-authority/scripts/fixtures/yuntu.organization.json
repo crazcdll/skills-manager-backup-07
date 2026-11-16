@@ -1,0 +1,20 @@
+{
+  "misId": "zhangce07",
+  "name": "仓库负责人",
+  "orgName": "前端组",
+  "orgId": 100006,
+  "jobFamily": "研发",
+  "jobFamilyId": 1,
+  "supervisor": "supervisor",
+  "buId": 1,
+  "buName": "业务研发平台",
+  "bgId": 1,
+  "bgName": "核心本地商业",
+  "fullPath": "/示例公司/示例事业群/示例平台/示例部门/示例中心/前端组/",
+  "orgIdPath": "/100001/100002/100003/100004/100005/100006/",
+  "basicDevTpu": false,
+  "sre": false,
+  "adjustedBuName": "业务研发平台",
+  "adjustedBuId": 1,
+  "tpu": false
+}

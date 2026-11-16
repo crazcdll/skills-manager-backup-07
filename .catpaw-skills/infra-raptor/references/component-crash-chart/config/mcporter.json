@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "crash_time_data": {
+      "baseUrl": "http://mcphub-server.sankuai.com/mcphub-api/4ed1bfc777f742"
+    },
+    "crash_detail": {
+      "baseUrl": "http://mcphub-server.sankuai.com/mcphub-api/0fbcecb097ec48"
+    }
+  },
+  "imports": []
+}

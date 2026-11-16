@@ -1,0 +1,9 @@
+.mtskills-source.jsonl
+*.bak
+**/__pycache__/
+*.pyc
+.zip
+skill.sig
+
+/dev_docs/
+/tests/

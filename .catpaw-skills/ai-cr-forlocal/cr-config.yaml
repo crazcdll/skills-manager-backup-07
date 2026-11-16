@@ -1,0 +1,32 @@
+# AI CR 团队配置文件
+# 修改此文件来自定义你的 CR 配置，无需修改 SKILL.md
+
+# 多维表格 ID（登记 CR 记录用，降级路径）
+table_id: "2751197605"
+
+# 学城 CR 结果文档父目录 ID
+citadel_parent_id: "2752508777"
+
+# 按操作者 MIS 路由学城目录（V115：优先级 < qing 接口 < 手动指定）
+# 格式：mis: "学城父目录 ID"
+# 未配置的 MIS 仍使用上方 citadel_parent_id 默认目录
+citadel_parent_by_mis:
+  # mengmuzi: "你的个人目录ID"
+
+# 领域知识库路径（相对于 workspace 根目录）
+domain_knowledge: "references/domain-knowledge.md"
+
+# 操作者 MIS 兜底（优先级：X_AI_USER_MIS 等触发用户环境变量 > git user.email 过黑名单校验 > 此处配置）
+# git 邮箱是 test@/unknown@ 等脏值时会落到这里，建议配置真实团队归属人
+operator_mis: ""
+
+# CR 完成后大象通知的 MIS 列表（逗号分隔，留空则不通知）
+notify_mis: ""
+
+# 复审第二轮·漏报扫描（默认关：43 文件实测仅 1 条疑似，性价比差；需要检出宽度加成时开）
+review_miss_scan: false
+
+# ── 路由阀（route_plan.py 读取）──
+max_subagents: 5        # 路数上限兜底
+small_diff_lines: 300   # < 此值 → lite 档（4-A/4-B 各合一）
+full_diff_lines: 1500   # > 此值 → full 档（全拆）

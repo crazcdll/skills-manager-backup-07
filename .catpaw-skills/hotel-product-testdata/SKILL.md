@@ -1,0 +1,203 @@
+---
+name: hotel-product-testdata
+description: 酒店商品数据构造助手。支持：全日房（普通/免费取消/收费取消/不可取消/附近专享/境外多人多价/境外多人同价）、钟点房（仅境内，可取消/不可取消）、非房（xGoods）、套餐、超团（非通兑/通兑/商促通兑，商促通兑需用户提供商促活动ID+选单ID，不关联门店和产品）、闲置房（仅境内，子产品，依赖境内全日房母产品，HTTP 接口 rechargeV2）、营销报名（生意助手/全域通）、缓存刷新（含近线价门店/商品同步、单门店日历/连住查询）/改价审核、商品上线/下线、房态&库存修改（开房/关房/设置库存余量）、基础实体创建（POI/供应商/房型/合同）及配置（门店私海认领/供应商绑定门店/价格模式切换），以及非房审核、套餐审核、超团审核（非通兑/通兑）、礼包审核。支持四种前置数据场景：①完全没有基础数据（查数据池或全新构造）②已有客户ID和门店ID（绑定门店+查/建合同）③只有客户ID（新建门店+绑定）④只有门店ID（数据池查供应商+绑定）。触发词：创建酒店商品、全日房、钟点房、酒店直调接口、MeGoodsFacade、batchCreateGoods、创建全参数产品、酒店RPC上单、xGoods审核、房转套餐、货盘规则上单、非通兑超团、通兑超团、闲置房上单、闲置房充值、batchRechargeFreeHouse、rechargeV2、生意助手报名、全域通报名、发布上线、恢复上线、batchOnlineSwitch、近线价、近线价缓存、nearline、poiSimplePrice、syncGoodsPriceByGoodsIds、multiPoiSimplePrice、大搜参考价、查询合同、补库存、batchUpdateInventory、库存不足上线失败、境外全日房、多人多价、priceSameTag、priceFactorInfos、claim poi、bind partner poi、在指定客户下构造商品、指定partnerId构造、指定门店构造商品、资质审核通过、audit poi qualification、切换底价、切换卖价、底价模式、卖价模式、switch price mode、工具906、工具928。不要用于：非酒店类商品、直连产品（走 zl-hotel-testdata skill）、境外钟点房（不存在此场景）、境外闲置房（不存在此场景）。
+allowed-tools: [read, exec]
+
+metadata:
+  skillhub.creator: "mengfanchen"
+  skillhub.updater: "zhaoshichuan"
+  skillhub.version: "V36"
+  skillhub.source: "FRIDAY Skillhub"
+  skillhub.skill_id: "17622"
+  skillhub.high_sensitive: "false"
+---
+
+## 行为禁令
+
+> 以下规则约束 Agent 行为，违反任意一条均属执行错误。
+
+**交互方式**
+- ❌ **需要用户决策时，以**纯文字**列出选项等待回复，例如数据池命中后直接在回复中列表展示候选条目并询问"请回复编号或输入「全新构造」"
+- ❌ 用户未指定早餐/取消政策/售价等商品参数时停下来询问（直接使用模板默认值执行）
+- ❌ 用户未说明境内/境外时默认境内
+
+**数据与路径**
+- ❌ 数据池查询后未展示结果就直接继续构造（无论命中与否，必须先展示结果等待用户确认）
+- ❌ 路径A 数据池命中后直接跳 P4（命中只取 partnerId，需新建 POI → 私海认领 → 绑定门店后再进 P2）
+- ❌ 用户已给出 partnerId 或 poiId 时仍走数据池查供应商流程（路径B/C/D 直接使用用户给的 ID）
+- ❌ 路径B/C/D 跳过「绑定门店」直接创建房型（必须先 claim-poi → bind-partner-poi）
+- ❌ 路径B/C/D 不查合同直接用用户口述的 contractNo（先执行 `query-contract-by-partner.py` 确认合同生效）
+- ❌ `query-contract-by-partner.py` 返回无合同时直接报错退出（应执行 `create-contract.py` 新建合同）
+- ❌ 构造境外商品时门店/供应商/房型使用境内数据（境外商品三者必须全部是境外的）
+
+**参数与调用**
+- ❌ 重复执行 `pip install`（已安装必须跳过）
+- ❌ 用后台写日志方式执行创建命令（直接前台运行，脚本内部已处理轮询等待）
+- ❌ 自行编造泳道名（泳道名由用户提供）
+- ❌ 直接读 model.md 组装参数（应优先读对应 schema.json 或执行 `--show-schema`；近线价工具按 W6 和子命令 `--help`）
+- ❌ 境外全日房时仍用境内参数模板（必须包含 `priceSameTag` + `maxAdultAdmissibility` + `priceFactorInfos`）
+- ❌ 境外全日房用户未指定多人多价/同价时不询问（直接默认 `priceSameTag=1` 即多人同价）
+- ❌ 境外全日房用户未指定可入住人数时不询问（直接默认 `maxAdultAdmissibility=2`；用户明确指定了人数则用指定值；该值必须 ≤ 创建房型时使用的 `capacity`）
+
+**IRON LAW**: 严禁跳过 interface/ 层硬编码 Thrift 参数。factory/ 层加载模板 → --set 覆盖 → 约束校验 → 传入 interface/ 层。非房/套餐/超团失败禁止切换到其他链路绕过。
+
+---
+
+## 初始化（每次执行前必做）
+
+**1. 确认 MIS**：MIS_ID 自动从环境变量 `MIS_ID` 或 `git config user.email` 推断，无需手动配置。
+
+在 `hotel_testdata_cli/` 目录下执行以下命令确认（注意：`scripts/config.py` 在该子目录中，不在 SKILL.md 所在目录）：
+```bash
+python3 -c "from scripts.config import MIS_ID; print(MIS_ID)"
+```
+- 若输出为有效工号 → **直接信任，跳过**
+- 若报错或输出为空 → 提示用户执行 `export MIS_ID="你的工号"` 或配置 `git config user.email "工号@meituan.com"` 后重试
+
+- 有 `--mis` 参数的脚本（必须追加 `--mis <工号>`）：`audit/super-deal/audit.py`、`audit/super-deal-unified/audit.py`（超团审核）
+- **无 `--mis` 参数**的脚本（通过环境变量自动读取，无需手动传）：`audit/gift/audit.py`（非房/礼包审核）、`audit/package/audit.py`（套餐审核）、`create-fullday.py`、`create-hourly.py`、`create-poi.py`、`create-partner.py`、`create-room.py`、`query-contract.py`、`create-non-room.py`、`create-package.py`、`create-super-deal.py`、`enroll-marketing.py`
+
+**2. 工作目录**：所有 `python3 factory/...` 命令必须在 `hotel_testdata_cli/` 子目录下执行（即 `factory/`、`scripts/` 所在的根，**不是** SKILL.md 所在的目录）。
+执行任何命令前，先用 `glob_file_search` 找到本 SKILL.md 的绝对路径，取其所在目录作为 `SKILL_DIR`，然后 `cd "$SKILL_DIR/hotel_testdata_cli"` 再执行后续所有命令。例如：
+```bash
+cd <SKILL_DIR>/hotel_testdata_cli && ls factory/  # 应显示 fullday/ hourly/ non-room/ 等子目录
+```
+
+**3. 依赖检查**（已安装跳过）：
+```bash
+python3 -c "from meituan.cli.commands.du_thrift import invoke_thrift; print('OK')" 2>/dev/null \
+  || pip install --upgrade mt-qa-tool -i http://pypi.sankuai.com/simple --trusted-host pypi.sankuai.com
+```
+
+**4. testdata-cli 安装检查**（数据池查询工具，已安装跳过）：
+```bash
+testdata-cli --version 2>/dev/null || npm install -g @cscqa/testdata-cli --registry=http://r.npm.sankuai.com
+```
+
+**4.1 merchant-testdata-cli + tdm-cli 安装检查**（W10 闲置房专用：merchant-testdata-cli 按 partnerId 查询商家账号登录名；tdm-cli 免密登录换 ebbsid，已安装跳过）：
+```bash
+merchant-testdata-cli --version 2>/dev/null || curl -fsSL https://friday.sankuai.com/open/cli/deploy/merchant-testdata-cli/install.sh | bash
+which tdm || echo "⚠️ 缺少 tdm-cli，W10 闲置房充值无法换票"
+```
+> ⚠️ 仅 **W10 闲置房场景**需要，其余商品类型（全日房/钟点房/非房/套餐/超团等）走 DataUnity 工具或标准 Thrift RPC，不依赖这两个 CLI，可在进入 W10 前再按需安装。闲置房充值是 **HTTP 直连 EB 网关 rechargeV2**（2026-09-16 实测修正，非 Thrift），且**商家必须先开通资金池**（否则接口假成功 data=null），详见 `references/workflows/w10-create-freeRoom.md` 前置 B/C。
+
+**5. testdata-tool-box 上报工具依赖**（执行记录上报，已安装跳过）：
+```bash
+testdata-tool-box version 2>/dev/null || curl -fsSL https://friday.sankuai.com/open/cli/deploy/bb8ee879-663d-49e8-bf4e-6521a8bd9af3/install.sh | bash
+```
+- 安装验证：`testdata-tool-box version` 输出版本号即装好；insert/update 命令与字段口径见 `references/report-execution.md`
+
+---
+
+## [GATE]执行记录上报（testdata-tool-box metrics report 接入）
+
+本 Skill 接入 `testdata-tool-box` 的 `metrics report` 能力，每次真实数据构造执行自动上报到平台执行记录表（execution_records）。**纯查询不建记录。**
+
+收到用户请求后，按以下顺序执行：
+
+0. **读取通用规则** → 本 SKILL.md 的行为禁令、初始化、场景路由等
+1. **依赖检查** → 执行上方初始化部分的所有依赖安装步骤（含 testdata-tool-box）
+2. **场景判断** → 检查 query 是否含 `[DEBUG]`/`[调试]`/`--debug`（调试模式跳过全部上报）
+3. **识别业务类型** → 解析用户诉求，确认要构造什么、命中哪个能力域（解析阶段不上报）
+4. **执行上报 insert** → 确认进入构造循环后、**第一个真实写操作前**，执行 `testdata-tool-box metrics report insert` 落一条执行记录并保存返回的 record_id：`--user-mis` 取本轮 MIS（取值链见初始化第 1 步）、`--skill-name hotel-product-testdata`、`--user-query` 用户原始诉求原文、`--ability` 取 `references/capability-map.md`「一、已支持能力清单」域分组标题括号值（`goods`/`marketing`/`inventory`/`infra`，禁止自造域名）、`--channel` 按会话上下文（大象群 `group_assistant` / 个人 `personal` / SDLC `sdlc`）、`--detail` 初始处理流程记录
+5. **业务逻辑** → 读取对应 workflow / schema，执行数据构造（可能多轮交互）
+6. **执行上报 update** → 到达终态后执行 `testdata-tool-box metrics report update` 回填 record_id 的 `--success true|false` + `--duration-seconds` + `--detail`（交付 ID 与回读结论 / 失败原因）——**失败也必须 update `--success false`**（漏报失败 = 坏案例蒸发）
+
+> 上报失败不阻塞主流程（CLI 报错记 WARN 继续）。insert/update 命令、8 个必填字段口径、三条铁规见 `references/report-execution.md`。
+
+---
+
+## 场景路由
+
+两步决策，不反问用户能推断的信息：
+
+1. **确定商品类型**：从用户描述识别目标商品，锁定对应 workflow
+2. **判断 ID 持有情况**：构造商品时，用户未显式给出的前置 ID 一律视为"未提供"，进入 W8 对应路径自动补齐；近线价等已有对象运维操作仅要求对应命令的目标 ID，不因缺少无关的 partnerId/poiId 而创建基础数据。
+
+> 未指定商品参数（早餐/取消政策等）时直接用模板默认值；未说明境内/境外时**默认按境内处理**，无需询问。
+
+| 用户意图 | workflow | 前置 ID |
+|---------|---------|--------|
+| 构造全日房（含取消政策/早餐/附近专享/现付/境外多人多价） | `references/workflows/w1-create-fullday.md` | partnerId + poiId + roomId + contractNo |
+| 构造代理商品（第三方渠道供应商 entityType=1，境内/境外均可，流程同全日房） | `references/workflows/w1-create-fullday.md`；CLI 入口 `hotel-testdata agent-fullday`（自动 entityType=1，--overseas 自动 partnerType=3；单脚本路径则 `create-partner.py --entity-type 1` 后走 W1） | 同全日房 |
+| 构造钟点房 | `references/workflows/w2-create-hourly.md` | partnerId + poiId + roomId + contractNo |
+| 构造非房 xGoods + 审核（只支持境内） | `references/workflows/w3-create-non-room.md` | partnerId + poiId |
+| 构造套餐 + 审核（只支持境内） | `references/workflows/w4-create-package.md` | partnerId + poiId + contractId |
+| 构造房转套餐（货盘规则上单，系统自动生成套餐，无需 contractId） | `references/workflows/w9-create-palletize-package.md` | partnerId + poiId + roomId |
+| 构造超团（非通兑/通兑/商促通兑）+ 审核 | `references/workflows/w5-create-super-deal.md` | 需先按 W1 单独创建专属全日房拿 goodsId；非通兑: partnerId + poiId + goodsId；通兑: partnerId + ≥2 poiId + 对应 goodsIds；商促通兑: partnerId + 商促活动ID + 选单ID（用户提供，不关联门店/产品） |
+| 构造闲置房（仅境内，子产品） | `references/workflows/w10-create-freeRoom.md` | 需先按 W1 单独创建境内全日房母产品拿 goodsId；partnerId + poiId + goodsId（customerId 可选，不传自动换算） |
+| 营销报名 / 报价基础缓存刷新 / 改价审核 / 上线下线 | `references/workflows/w6-marketing-ops.md` | 按操作要求传 goodsId / spuId / productId / poiId 等 |
+| 近线价相关价格预测缓存同步（门店 / 商品维度）及查询（单门店日历 / 连住） | `references/workflows/w6-marketing-ops.md` | sync：poiId；sync-goods：goodsId + 变更日期列表（startDate 形态暂不可用、已禁用，传入即报错）；query：poiId + 入离日期；query-multi：单 poiId + startDay/endDay（非多门店） |
+| 开房 / 关房 / 修改库存余量 | `references/workflows/w7-inventory-ops.md` | partnerId + poiId + roomId |
+| 门店私海认领 / 供应商绑定门店 / 价格模式切换 | `references/workflows/w8-infra-bootstrap.md` | poiId（认领）/ poiId+partnerId（绑定）/ platformContractId（价格模式） |
+| 供应商构造 / 数据池查询（复用已有供应商） | `references/workflows/w8-infra-bootstrap.md` | 供应商构造：poiId（新建供应商时）；数据池查询：无前置 ID（固定参数 `--query-tab 1 --biz-line 20` + 境内外 tag） |
+| 住宿门店资质添加（工具476）、供应商门店资质审核（工具498） | `references/workflows/w8-infra-bootstrap.md` | poiId |
+| 已有商品设置特殊状态（不在线/废除/审核中/审核驳回/B端关房/B端满房，**仅用户明确要求时**） | `references/workflows/w10-goods-state.md` | partnerId + poiId + goodsId |
+
+> 近线价相关命令内置「MOA 换票 → OCTO 测试环境查服务 IP → HTTP 直连」，需官方 SSO Agent 凭据及 MOA 登录态；2026-11-02 当前环境缺凭据，换票链路未跑通，可先用已认证的 `mtdev octo nodes --env test` 查节点再传 `--node-ip`。默认 appkey `com.sankuai.hotelcrs.goodsquery`、HTTP 端口 `8080`；`--swimlane` 严格匹配（找不到即停止，不回退主干），`--dry-run` 无网络调用。`multiPoiSimplePrice` 仅单 POI 连住查询；不带起日商品同步实测 `SUCCESS` 但未观察到更新，带起日形态404，按用户要求暂不可用、已在网络调用前禁用（含 dry-run）。Agent 禁止直接调用绕过、静默删除起日参数降级、或自行开放；待研发确认目标环境上线并完成响应及缓存回读验证后再解除禁用。其他命令不受此禁用影响。缓存口径及实测边界详见 W6，不宣称全部验证通过。
+
+**商品构造前置 ID 缺失时自动进入 W8 补齐**，根据用户实际持有情况走对应路径：
+
+| 用户提供的信息 | 路径 | 境外时额外要求 |
+|-------------|------|-------------|
+| partnerId + poiId 均有 | **路径B** | 两者均须为境外实体 |
+| 仅有 partnerId | **路径D** | 新建门店时加 `--overseas` |
+| 仅有 poiId | **路径C** | 数据池 tag 换为`境外供应商` |
+| 什么都没有 | **路径A** | 全链路加境外参数 |
+
+→ 读 `references/workflows/w8-infra-bootstrap.md` 按对应路径执行。
+
+> 境外全日房参数与境内完全不同（`priceSameTag` + `maxAdultAdmissibility` + `priceFactorInfos`，`priceInfo` 传 null）。详见 `w1-create-fullday.md` 的「境外多人多价」节。
+
+---
+
+## 构造完成后数据维护（主动询问，必做）
+
+全日房（W1）/ 钟点房（W2）/ 超团（W5）数据构造成功后（境内、境外均支持），**必须主动用 AskQuestion 询问用户**："是否将本次构造的数据加入数据维护（Watson）？"
+
+- 用户确认 → 按对应 workflow 的「构造完成后数据维护」节执行命令，**只替换 productId、poiId、misId，operator 为当前操作人（MIS_ID），其他参数严禁修改**（全日房/钟点房 `idType=2` 且含 `extendRule=1`；超团 `idType=1` 且多一个 `maintainType=1`；三类商品 body 均含 `misId`）
+- 用户拒绝 → 跳过维护，正常收尾
+- 商促通兑超团不绑定门店（无 poiId），不触发默认询问；用户主动要求时再向用户确认 poiId
+- 维护命令调用失败 → 不回滚已创建的商品，报 WARN 提示用户人工处理
+- 维护结果（已加入 / 用户拒绝 / 失败原因）写入执行记录 update 的 `--detail`
+
+---
+
+## 失败处理（最多 2 轮重试）
+
+> 近线价 `sync` / `sync-goods` 属于写缓存操作，即使是 GET 也不适用直接重试；超时或失败先检查响应、回读缓存确认，再决定是否重新同步。
+
+1. 解析 `checkerResultItems` / `message` → 补字段重试
+2. 读 `factory/<类型>/schema.json` → 补字段重试
+3. 2 轮仍失败 → 输出探索报告，告知人工介入
+
+---
+
+## 按需加载（L3 references）
+
+| 时机 | 行动 |
+|------|------|
+| 进入任意 workflow 前 | 读对应 workflow 文件（w1～w10） |
+| 参数含义/枚举不确定时 | 执行 `python3 factory/<路径>/xxx.py --show-schema`（近线价工具除外，见下方专用行） |
+| --show-schema 不够时 | 读 `factory/<类型>/schema.json` |
+| 近线价同步/查询参数 | 读 W6 并执行 `python3 factory/ops/nearline-price-cache.py <子命令> --help`（不提供 --show-schema） |
+| 供应商参数枚举 | 读 `factory/infra/create-partner-schema.json` |
+| 共用枚举值 | 读 `references/shared/enums.md` |
+| RPC 字段全量 | 读 `references/goods/model.md` |
+| 库存 countType 问题 | 读 `references/pitfalls/inventory.md` |
+| 境外多人多价（priceSameTag / priceFactorInfos） | 读 `factory/fullday/schema.json` 的 scenario_8/9 节 |
+| 供应商/contractNo/房型命名问题 | 读 `references/pitfalls/infra.md` |
+| Thrift RPC 调用报错 | 读 `references/pitfalls/rpc.md` |
+| 闲置房商家账号查询问题 | 读 `references/workflows/w10-create-freeRoom.md` 的「前置 B」节 |
+
+---
+
+## 上报参数
+
+| 参数 | 值 |
+|------|------|
+| `skill_name` | `hotel-product-testdata` |
+| `ability` | `goods` / `marketing` / `inventory` / `infra`（取 `references/capability-map.md`「一、已支持能力清单」域分组标题括号值，禁止自造域名） |
+| `channel` | 大象群会话（`Daxiang group_`）→ `group_assistant`；个人会话 → `personal`；SDLC 平台自动触发 → `sdlc` |
+
+> `user_mis` / `user_query` / `success` / `detail` / `duration_seconds` 字段语义与 insert/update 命令口径见 `references/report-execution.md`（8 必填字段表 + 三条铁规）。

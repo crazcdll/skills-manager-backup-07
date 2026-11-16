@@ -1,0 +1,8 @@
+.idea/
+dev_docs/
+__pycache__/
+*.pyc
+*.sig
+skill.manifest
+tests/
+.pytest_cache/

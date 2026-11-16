@@ -1,0 +1,65 @@
+{
+  "skill_name": "meigen-designer",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "帮我生成一张赛博朋克风格的城市夜景图片",
+      "expected_output": "V3两脚本流程：generate.py send → 输出 {sessionId, assistantMessageId, status} → poll.py 轮询 → 输出 Text/ImageList 类型 JSON Lines → 返回图片 URL",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "我想要一张水墨风格的山水画",
+      "expected_output": "多轮对话复用 session_id，generate.py send 新消息 → poll.py 轮询返回图片",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "新对话，然后帮我生成一张可爱的柴犬图片",
+      "expected_output": "重置 session_id 后 generate.py 创建新会话，poll.py 轮询返回图片",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "参考这张图，改成赛博朋克风格",
+      "expected_output": "generate.py --image 参数处理：图片放入 content.blocks，send 参数含 [@image:#1] 占位符，poll.py 轮询返回编辑后图片",
+      "files": ["test_image.png"]
+    },
+    {
+      "id": 5,
+      "prompt": "让这张图动起来",
+      "expected_output": "视频同步轮询（--video，超时 10 分钟）：poll.py 检测到首个 Video block status=RUNNING 即输出 `_action=wait_video` JSON Line（含 web 链接 url=https://aidesign.meituan.com/creativeAssistant/<sessionId>、taskId/status），作为视频场景终态信号，执行 report 后退出。宿主 agent 告知用户'视频生成耗时较长，请前往 web 端查看：[链接]'。不再后台轮询、不等待 Video FINISH、不输出 show_video",
+      "files": []
+    },
+    {
+      "id": 6,
+      "prompt": "帮我设计一个 logo，要有科技感",
+      "expected_output": "poll.py 输出 TextQuestion/TextQuestionList 类型的 JSON Line，展示追问选项，用户回复后 generate.py send 继续",
+      "files": []
+    },
+    {
+      "id": 7,
+      "prompt": "帮我搜索一下最新的设计趋势，然后根据趋势生成海报",
+      "expected_output": "poll.py 输出 ArticleList 类型 JSON Line（搜索结果）+ Text 类型（设计师思考）+ ImageList 类型（最终图片）",
+      "files": []
+    },
+    {
+      "id": 8,
+      "prompt": "取消当前任务",
+      "expected_output": "调用 abort 接口，poll.py 收到 ABORTED 终态，输出 message_status ABORTED",
+      "files": []
+    },
+    {
+      "id": 9,
+      "prompt": "帮我生成一张赛博朋克风格的城市夜景图片",
+      "expected_output": "FR-029 token 内部获取：宿主 agent 调用 generate.py/poll.py 时不传 access_token 参数，脚本内部自动 meigen login 获取 token 完成认证。generate.py 调用形如 `generate.py <prompt> --mis-id <misId>`（无 token 位置参数），poll.py 调用形如 `poll.py <sid> <mid> --mis-id <misId>`。token 不流经宿主 agent，避免被转义/脱义损坏。脚本遇 401 内部刷新重试，宿主 agent 无需重新传入 token",
+      "assertions": [
+        "generate.py 命令行不含 access_token 位置参数",
+        "poll.py 命令行不含 access_token 位置参数",
+        "脚本未传 token 时仍能完成 meigen login 认证并调用 V3 接口",
+        "SKILL.md 环境准备无 `TOKEN=$(meigen login)` 步骤，调用示例无 $TOKEN"
+      ],
+      "files": []
+    }
+  ]
+}

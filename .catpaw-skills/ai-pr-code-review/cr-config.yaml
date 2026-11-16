@@ -1,0 +1,13 @@
+# AI CR 配置文件
+# 团队配置（chatGroupId/tableId/citadelParentId）已由接口动态返回，无需在此维护
+# 仅保留全局默认配置，当接口未返回对应字段时 fallback 使用
+
+# ============================================================
+# 全局默认配置（接口字段为空时 fallback）
+# ============================================================
+default:
+  table_id: "2751197605"
+  citadel_parent_id: "2771240961"
+  chat_group_id: ""
+  domain_knowledge: "references/domain-knowledge.md"
+  notify_mis: ""

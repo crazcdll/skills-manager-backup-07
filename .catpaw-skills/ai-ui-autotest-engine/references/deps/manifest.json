@@ -1,0 +1,19 @@
+{
+  "updated_at": "2026-10-28",
+  "python": {
+    "requests": {
+      "import": "requests",
+      "spec": ">=2.28,<3"
+    },
+    "websocket-client": {
+      "import": "websocket",
+      "spec": ">=1.5,<2"
+    }
+  },
+  "resources": {
+    "adb-keyboard-apk": {
+      "path": "references/ADBKeyboard.apk",
+      "size": 17374
+    }
+  }
+}

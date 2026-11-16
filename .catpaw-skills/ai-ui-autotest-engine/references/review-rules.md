@@ -1,0 +1,83 @@
+# AI 审校规则（steps.json 校验通过、steps-generate 之前必做）
+
+**审校顺序**：R-STR → R-ACT → R-AST → R-SEM → R-PAR → R-CFL。P0 不修流程必败，P1 大概率执行异常。
+
+---
+
+## R-STR 结构完整性
+
+- **R-STR-001 [P0] sid 规范**：UI 用 S1/S2，API 用 A1/A2，Track 用 T1/T2，编号连续不重复
+- **R-STR-002 [P0] 必填字段**：
+  - ui → action + desc + step-type + asserts
+  - api → api_assert（含 path + 可选 expected_fields；字段语义/匹配机制见 SKILL.md §三「api_assert 语义规范」）
+  - track → track_assert（含 match + 可选 expected_fields）
+  - step-type=assert → asserts 至少 1 项
+  - kind=visual → expect 非空（多验收点用 targets 拆开）
+  - tap/input-text → action_anchor（tap 的 anchor = 无文案图标所在**行文案**；input-text 的 anchor = 输入框标签或语义描述 —— 引擎在同一视觉行内自行定位输入框）
+  - tap-text/scroll-until/open-url → action_arg
+  - 打开新页面/弹窗/动态区域加载 → page_ready: true
+- **R-STR-003 [P0] kind 互斥**：asserts 的 `kind` 只能是 text / visual；api/track 是步骤类型（配 `api_assert`/`track_assert`），不写进 asserts
+- **R-STR-004 [P1] asserts 取值合法**：`kind` ∈ text / visual；`match` ∈ present / gone（仅 kind=text）
+- **R-STR-005 [P1] asserts 限制**：interaction 步骤最多 1 项轻量文本断言，深层内容拆到独立 assert 步骤
+
+## R-ACT Action 映射
+
+- **R-ACT-001 [P0] action 映射正确**：按 SKILL.md §4 映射表对照；滑动/长按等复杂操作降级 tap + visual 断言
+- **R-ACT-002 [P1] asserts 场景匹配**：打开新页面/弹窗只需 present 文本断言 + page_ready: true；`kind: "visual"` 只用于视图树无法表达的纯视觉判断（布局/动画/样式）
+- **R-ACT-003 [P0] 视觉断言目标完整**：`kind: "visual"` 必须有 expect；有硬性验收点（位数/数值/状态）必须用 targets 逐项列出
+- **R-ACT-004 [P1] 开看关拆分**：弹窗类拆三段，「看」独立为 step-type=assert
+- **R-ACT-005 [P2] wait 条件合理**：页面稳定等待统一用 `page_ready: true`
+- **R-ACT-006 [P0] action_arg 用页面完整节点文案**：`tap-text` / `scroll-until` 优先精确匹配，禁止写复合文案的子串（应写页面节点的完整文案）
+  - 页面文案与 action_arg 存在**唯一子串/重叠关系**时：引擎运行期**唯一子串兜底**直接命中，并记录 `action_hit`（verdict=semantic）→ 该步标记 `needs_review`、evidence 记录 `text_mismatch`，**不额外落 hook**（tap 为单向包含，scroll 为双向重叠）
+  - 页面存在**多种**包含形态时：不兜底，转 `resolve_text_not_found`（tap）/ `SUBSTRING_AMBIGUOUS`（scroll）hook 由 AI 消歧
+  - Flow 原文就是子串时：建议改用完整文案并标 `"inferred": true`
+  - 断言侧同口径：单条 expect 允许子串 / 形态差异（候选唯一时引擎判 `pass/semantic`，同样标记待人工复核）
+  - 文案口径差异只记备注：`log-record --desc "..." --note "..."`（不带判定开关）
+- **R-ACT-007 [P0] 无文案图标用锚点点击**：`tap` + `action_anchor`（图标所在行文案），**禁止用 `tap-text` 借文案表达图标**。引擎取锚点行唯一可点击目标自动点击（标待复核）；多 / 无可点击目标 → handoff（`resolve_tap_anchor_ambiguous` / `resolve_tap_anchor_not_found`）
+- **R-ACT-008 [P0] 组件语义不进引擎**：只有结构/文本可证明的（精确文案 / 唯一子串 / 唯一可点击 / 可见性）才交引擎自动化；同类多图标等语义判定走**视觉通道**（`kind: visual` + 读图）或坐标兜底，禁止为具体组件加方位/序号等特化参数
+
+## R-AST 断言校验
+
+- **R-AST-001 [P0] 断言完整性**：Flow 的全部校验点在 asserts 中都有对应
+- **R-AST-002 [P1] 归类正确**：kind/match 与 Flow 意图一致；interaction 步骤只放轻量标志
+- **R-AST-003 [P1] 置信度处理**：high 直接使用；low/fuzzy 改用 `kind: "visual"`
+- **R-AST-006 [P1] 抽象描述降级**：expect 含「展示/显示/正常/应该」等语义化描述，或无精确匹配可能 → 改用 `kind: "visual"`
+- **R-AST-004 [P2] gone 断言合理**：验证确实应消失的内容，不是正常页面内容
+- **R-AST-005 [P1] 多条断言拆步**：interaction 超过 1 项文本断言 → 拆出独立 assert 步骤
+
+## R-SEM 语义一致性
+
+- **R-SEM-001 [P0] 忠实于 Flow**：action_arg / asserts 必须在 Flow 原文有依据，禁止编造
+- **R-SEM-002 [P0] api_assert 不补前缀**：path 只保留 Flow 原文值，不补 https://
+- **R-SEM-003 [P0] 子场景全覆盖**：Flow 有 N 个场景，steps 就覆盖 N 个
+- **R-SEM-004 [P2] desc 语义化**：建议用「开/看/关」前缀
+- **R-SEM-005 [P1] 模糊推定**：Flow 含 `pending`/`待审校`/`以实际为准` 时推定最合理文案并标 `"inferred": true`，asserts 走 `kind: "visual"`
+
+## R-PAR 参数完整性
+
+- **R-PAR-001 [P0] 运行时参数补填**：tap/input-text 必须配 action_anchor
+- **R-PAR-002 [P0] 占位符完整**：用例原文的 {xxx} 在 steps-input 中全部用到
+- **R-PAR-003 [P1] 日期用 vars.date**：日期统一在 `env.vars` 声明 `{"checkinDate": {"date": 4, "format": "%Y-%m-%d"}}`，由 `flow-init` 按批次日期基线（`AI_UITEST_DATE_BASE`）解析；偏移来自用例「测试数据参考」或 schemes 的 `relative_date`
+- **R-PAR-004 [P0] device 对齐**：把步骤模型声明的 device（type/platform/app）修正为信息收集（`input-next` 循环）的实际结果（env 的收集字段由引擎从 intake 合成，无需手写）
+- **R-PAR-005 [P0] 真实值覆盖**：凭证登录（线上 A）的真实账号密码统一收敛在 `credential`（`{account, password, country_code}`），由平台下发、无需从原文提取；业务参数的真实值优先写进 `env.vars` 的 `value`（或 `ask` 由执行前收集），日期参数用 `date`（见 R-PAR-003）；验证码登录（alpha/泳道 B/C）的测试手机号由引擎按 workspace 确定性自动生成（`credential` 默认不走提问，如需指定号码，用 `input-seed credential={"account":"<号>"}` 覆盖）
+- **R-PAR-006 [P0] 匹配标识必填**：`api_assert.path` 与 `track_assert.match` 为空会被 flow-init 硬拒（空 path 匹配任意请求、空 match 必然匹配不到）
+- **R-PAR-007 [P1] 埋点匹配标识选择**：`track_assert.match` 优先用 `val_bid`（事件 ID，精确且唯一，命中即 PASS）。Flow 只给组件级 cid（如 `c_hotel_xxx`）时，同一 cid 下会同时存在 PV / MV / MC 等多个事件，引擎会转 PENDING 交 AI 用 `assert-fields --picked` 消歧；建议补 `expected_fields` 锁定事件类型（如 `{"nm":"PV"}`）以减少歧义、提升确定性
+
+## R-CFL 冲突检测
+
+- **R-CFL-001 [P0] 首步必须是落地 open-url**：`steps[0]` 的 `action.kind=open-url` 且 `action.text` 与 `env.scheme` 完全一致（漏写由 `flow_json.py` 自动注入；两处 URL 不一致直接报错）。装载层会给首步自动补齐 `role: "landing"` / `page_ready` / 内建视觉断言（`落地页正常打开`）；落地步的视觉断言必须由 AI 读图给出判定（`verify_landing_page` hook，`override-step-result --assert-verdict` 一次写全）；判 fail 时引擎自动记 blocked 并进入报告阶段，不得 `flow-fail`。用例中途不得再次 open-url 同一 scheme（会造成二次跳转、覆盖证据）
+- **R-CFL-002 [P0] tap 不用坐标**：`tap` 必须用 `action_anchor` 锚点文案（无文案图标），`input-text` 必须用 `action_anchor`（输入框标签）；声明步骤禁止写坐标（坐标仅由 hook 兜底回写）
+- **R-CFL-003 [P1] 落地后的首个 UI 断言必须能区分目标页**：落地步只确认「目标页被打开」（内建视觉断言，判据是页面标题 / 核心模块 / 非登录页与非兜底页），不承担业务内容校验；紧随其后的第一个 UI 步骤的断言必须是**该页面特有文案**（页面标题 / 房型名 / 价格区标题等），禁止只用 App 通用文案（如「美团」「首页」）或底部 Tab 文案——否则落地到了同类页面或错误页面时仍会被误判为通过
+
+---
+
+## 审校结果记录
+
+审校完成后输出：
+
+```
+审校结果：
+  P0 通过/未通过 | 修复 N 项
+  P1 通过/未通过 | 修复 N 项
+  结论：可以执行 flow-init / 需修复后重审
+```

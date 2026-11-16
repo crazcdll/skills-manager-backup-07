@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+# ── 发布到美团内网 PyPI（使用 uv）──────────────────────────────────────
+# 步骤：
+#   1. brew install uv               # 安装 uv（只需一次）
+#   2. rm -rf dist/
+#   3. uv build                      # 打包，生成 dist/mt_hotel_testdata_cli-x.x.x.*
+#   4. export UV_PUBLISH_USERNAME=<mis账号>
+#      export UV_PUBLISH_PASSWORD=<token>   # 在 https://dev.sankuai.com/art/manage/PyPI/token-manage 申请
+#   5. uv publish dist/mt_hotel_testdata_cli-*.* --index mt
+#
+# 安装命令（其他同事）：
+#   首次安装：
+#   uv tool install mt-hotel-testdata-cli --index-url http://pypi.sankuai.com/simple/
+#   升级到最新版（已安装过时必须加 --upgrade，否则不会更新）：
+#   uv tool install mt-hotel-testdata-cli --index-url http://pypi.sankuai.com/simple/ --upgrade
+#   或用 pip：
+#   pip3 install mt-hotel-testdata-cli -i https://pypi.sankuai.com/simple/ --upgrade
+
+[[tool.uv.index]]
+name = "mt"
+url = "https://pypi.sankuai.com/simple/"
+publish-url = "https://pypi.sankuai.com"
+

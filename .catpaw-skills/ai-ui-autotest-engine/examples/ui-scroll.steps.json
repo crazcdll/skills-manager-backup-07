@@ -1,0 +1,41 @@
+{
+  "caseId": "flow-03-scroll",
+  "title": "滚动能力：滚动到目标 / 滚动到底部",
+  "priority": "P2",
+  "executionType": "deterministic",
+  "env": {
+    "scheme": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-orderfill-duo&mrn_component=main&goods_id=1172344601&checkinDate={checkinDate}&checkoutDate={checkoutDate}&biz_type=1&room_num=1",
+    "type": "A",
+    "vars": {
+      "checkinDate": {"date": 4, "format": "%Y-%m-%d", "desc": "入住日期（今天 +4 天）"},
+      "checkoutDate": {"date": 5, "format": "%Y-%m-%d", "desc": "离店日期（今天 +5 天）"}
+    }
+  },
+  "steps": [
+    {
+      "kind": "ui",
+      "id": "open-landing",
+      "name": "进入填写订单页",
+      "action": {
+        "kind": "open-url",
+        "text": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-orderfill-duo&mrn_component=main&goods_id=1172344601&checkinDate={checkinDate}&checkoutDate={checkoutDate}&biz_type=1&room_num=1"
+      },
+      "wait": {"type": "page_ready"},
+      "checks": [{"type": "render_ready", "text": "填写订单"}]
+    },
+    {
+      "kind": "ui",
+      "id": "scroll-to-notice",
+      "name": "滚动到预订须知",
+      "action": {"kind": "scroll-until", "text": "预订须知"},
+      "checks": [{"type": "text", "text": "预订须知"}]
+    },
+    {
+      "kind": "ui",
+      "id": "scroll-to-bottom",
+      "name": "滚动到页面底部",
+      "action": {"kind": "scroll-bottom"},
+      "checks": [{"type": "text", "text": "客服"}]
+    }
+  ]
+}

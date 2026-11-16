@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI UI 测试控制台</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div class="app">
+    <header id="app-header"></header>
+    <main>
+      <aside class="rail" id="app-rail"></aside>
+      <section class="stage" id="app-stage"></section>
+      <div class="resizer" id="app-resizer" role="separator" aria-orientation="vertical"
+           aria-label="调整日志面板宽度" tabindex="0" title="拖拽调整日志宽度 · 双击复位"></div>
+      <aside class="logs" id="app-logs">
+        <div class="logs-head">
+          <div class="logs-title"><span class="num" id="m-events">0</span><span class="lab">Events</span></div>
+        </div>
+        <div class="progress" id="progress"></div>
+        <div class="stream" id="stream"></div>
+        <button class="jump" id="jump">↓ 有新事件</button>
+      </aside>
+    </main>
+  </div>
+  <script>window.__CONSOLE_TOKEN__ = "__CONSOLE_TOKEN_VALUE__";</script>
+  <script src="/app.js"></script>
+</body>
+</html>

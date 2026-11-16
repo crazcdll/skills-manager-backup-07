@@ -1,0 +1,14 @@
+skill-manifest-version: 1
+skill-id: 5cf6b955aa3cdb4d9f1f6a46e792d0f73b0c012e77ddcb40e76908259b60e316
+
+files:
+  e6ec57f0a41b68353c3edbe7bc263324a8afdcc3822f96bab8490d8fed386c1e  SKILL.md
+  31c536f5ef56107ea58da8af861caa3a8cc75229a3ab179e99930838f00d9b69  description
+  996e0a331c04b859802d055fbfad5618b286224c6b0f301c9dec2faa36358f41  references/auth.md
+  e4cd8660858e3777891e2e1703f64bf67ae0eac5d715823bd5c3983235e9b31d  references/command-reference.md
+  f9b13e8f77a8c3bb281600012b7e320004364f28515aae1a1c2d3c681c84c9e5  references/commands.md
+  ab9d4456c88d322814cb2a596320a0343c58799655802b4b75d19ba1e5f86e20  references/discovery.md
+  b9e4e8779fd421174d6dbc6ccfe7c96a187ed37e8208d7d0e31c1e744519bb32  references/errors.md
+  01c571f8836a0eb0e7f5238e90f9eba331085a204670d9338b59d9f913a137a1  references/request-flow.md
+  4dac355c6605f7988d7d4e9dc07fd4d1f2497f969bcba4d8687cd8e2915c635d  references/services.md
+  2bf04cf82951bb68d8f9cb58092086f235f3fade7a3a197afffc42c20e5e745d  references/tools-auth-cache.md

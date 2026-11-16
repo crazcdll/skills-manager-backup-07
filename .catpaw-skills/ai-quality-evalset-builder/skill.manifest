@@ -1,0 +1,18 @@
+skill-manifest-version: 1
+skill-id: 1d4145186a3c979be2440f118766162f17f596774b21c6e39a361e006f299569
+
+files:
+  5dac2f757611320a9ad3fd379a31ee31ee22d91c55cf4c0a14fc2210ab984af2  SKILL.md
+  ced0677a2b8ced4c57835513449cc15a01b483b245cdb22b5fdd96c4d54d355f  config/tables.json
+  bae6b776099bf36a01c63a37ee75b111ccee5bbc1eb080bdc018403b32ceeedd  references/coverage-matrix.md
+  f085a6db2d0e6d7742eca7475d1c0a44623bd6519c2d2c5702a59e620b8f916c  references/defect-taxonomy.md
+  7690030034709020e4dbf733c355cd952004f6c96febc3228bb567351595d250  references/ground-truth-schema.md
+  d0b6184df7068c504ea1d9a06797b4b9ce0ea08269a22cf1d693bf0340f3b03a  references/retrospective-algorithm.md
+  1deee79567f88abe01bd2aa31b17c31d857a159e4d3460d2c7b2420e6cc601dc  scripts/__pycache__/build_evalset.cpython-312.pyc
+  f9ccb56ecdb41f5a8e797a6ebae7cfa1b94de6a3c8abbccbb845db5a8ec66c5a  scripts/__pycache__/harvest.cpython-312.pyc
+  8af4068a74468ab3665cdff6d566e75ae01f1e59088b22e69b6a786bcda0b7ec  scripts/__pycache__/parse_cr_doc.cpython-312.pyc
+  e20601506846a339435643f7d52d4e61abb8ad680b477b277d64350939e3f857  scripts/bridge_martian.py
+  d20e6bad7dafba63359fb20cbc11cafb123899134c5ccbff903efe84dfdcbec2  scripts/build_evalset.py
+  64259a8c9897b5f90f0f0b15db09f8c690ae8147dd52af619a304e563b654656  scripts/export_to_git.py
+  730c0c2f70f8f99c3cb4333b564e866620d599dce937fa844fa59550e128af6e  scripts/harvest.py
+  0be17d39f9a433d55fda02310d449d3710d89ac73e6eb9ef14ccb1d616d607c3  scripts/parse_cr_doc.py

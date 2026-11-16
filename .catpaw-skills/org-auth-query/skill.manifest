@@ -1,0 +1,10 @@
+skill-manifest-version: 1
+skill-id: cfe064528077b59edbc6082d08fee4a1e7f54a67dcc9c65497801ccf0bce8b05
+
+files:
+  5a6b29baf7d5e8b174e6930701c5aa8874c704dce6c77a8c6a5991b07f9a1cb4  SKILL.md
+  6ef17312587489493f3b5eff7c77e30df0ace5501b1ffdd99d964a049298cbb1  scripts/__pycache__/get_offline_cookie.cpython-312.pyc
+  307583dc4fa17c180e766d9ceb1102d951332f89dd8b880525fe4cd34b01d580  scripts/__pycache__/org_auth_query.cpython-312.pyc
+  db36059cf5e8ee7c227e32ea025803448b4b8df7a2377bf4bf5462ba8d1d70de  scripts/get_offline_cookie.py
+  8a4028267a9202ff85de454a1cb3f97170c5b887bc234c3b831fac5040e23e76  scripts/get_offline_cookie.sh
+  8425c7507e93091171100475eace3b79d23bf06d1a29f19fb90238124876ff55  scripts/org_auth_query.py

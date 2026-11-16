@@ -1,0 +1,283 @@
+{
+  "_comment": "非房商品（xGoods）参数说明 - MeResourceFacade#submitXgoods（同步 RPC）",
+  "_service": "com.sankuai.hotel.biz.platform",
+  "_interface": "com.meituan.hotel.biz.platform.goods.facade.standard.MeResourceFacade",
+  "_method": "submitXgoods",
+  "_sync": true,
+  "_sync_note": "同步接口，直接返回 xGoodsId，无需等待大象推送",
+
+  "_sell_alone_comment": "非房独立售卖（加购）扩展 —— CRS-60（PR hotel/hotel-biz-platform#3281，分支 feature/XKBNW-2020-95083218/xgoods-sell）。字段归属唯一依据：学城《1.前后端交互接口》contentId=2769956950。sellStatus=0（默认）时与原非房上单逻辑完全一致，不受本扩展影响。",
+  "_sell_alone_fields": {
+    "sellStatus":       "basicInfoModel.sellStatus，Integer，0=非加购(默认)/1=普通加购(独立售卖)",
+    "promotionText":    "basicInfoModel.promotionText，String，sellStatus=1 必填，促销文案",
+    "displayOrder":     "basicInfoModel.displayOrder，Integer，sellStatus=1 必填，展示顺序 1-20",
+    "contractNo":       "basicInfoModel.contractNo，String，sellStatus=1 必填，合同编号（非合同ID，后端经 IScpIdService.getNewContractIdResultFromContractNum 转合同ID）；仅支持合同类型 ∈ {预付合同=2, 团购合同=0}，禁止包销合同(=5)，命中/不在集合内返回 10004（MCC XGOODS_CONTRACT_TYPE_RULE 默认 \"2,0\"）",
+    "stockModel":       "⚠️ 顶层新增模型，与 basicInfoModel/priceModel 同级（不要塞进 basicInfoModel）。stockModel.totalStock，Integer，sellStatus=1 必填，总库存",
+    "marketPrice":      "priceModel.marketPrice，String，单位分，原本可空，sellStatus=1 时必填（本期仅卖价模式）",
+    "salePrice":        "priceModel.salePrice，String，单位分，原本可空，sellStatus=1 时必填（本期仅卖价模式）",
+    "commissionRate":   "priceModel.commissionRate，Integer，sellStatus=1 必填，万分位整数如 1250=12.50%（前端传法，后端÷10000转0.125落通用商品侧 skus[0].skuPrice.commissionRate）；本期后端不校验取值范围，只做格式校验",
+    "maxNumPerOrder":   "ruleModel.useRuleModel.maxNumPerOrder，Integer，sellStatus=1 必填，每单限购份数 1-10"
+  },
+  "_sell_alone_error_codes": {
+    "10004": "参数错误：sellStatus=1 时 8 个扩展字段缺失 / commissionRate 等格式非法 / contractNo 合同类型不在允许集合",
+    "200002000": "提交类型错误：submitType 不在 0/1/2 枚举",
+    "200002007": "无操作权限 / xgoods 不属于当前 vpoi"
+  },
+
+  "cli_params": {
+    "--partner-id": {
+      "required": true,
+      "desc": "供应商ID（partnerId）",
+      "example": "4554162"
+    },
+    "--poi-id": {
+      "required": true,
+      "desc": "门店ID（poiId，单门店）",
+      "example": "1090252288211865"
+    },
+    "--type": {
+      "required": false,
+      "default": "catering",
+      "enum": {
+        "catering": "餐饮（priType=22, secType=158004）",
+        "scenic":   "景点/门票（priType=21, secType=158009）",
+        "tour":     "玩乐/一日游（priType=23, secType=158010）"
+      },
+      "desc": "商品类型模板，决定 priType/secType/bindPoiInfoModel 等字段"
+    },
+    "--product-name": {
+      "required": false,
+      "desc": "商品名称，⚠️ 不能超过 20 字符（接口硬限制，超长自动截断）",
+      "default": "<mis前11位>非房_<时间戳后5位>",
+      "example": "早餐券"
+    },
+    "--swimlane": {
+      "required": false,
+      "default": "",
+      "desc": "泳道名称，空字符串=主干",
+      "example": "feature-xxx"
+    },
+    "--dry-run": {
+      "required": false,
+      "desc": "仅打印参数，不执行 RPC"
+    },
+    "--sell-status": {
+      "required": false,
+      "default": "0",
+      "enum": {
+        "0": "非加购（默认，原非房上单逻辑，不受本扩展影响）",
+        "1": "普通加购（独立售卖），需同时传齐 8 个扩展字段"
+      },
+      "desc": "独立售卖（加购）开关。传 1 时下列扩展字段全部必填：--promotion-text/--display-order/--contract-no/--total-stock/--market-price/--sale-price/--commission-rate/--max-num-per-order"
+    },
+    "--promotion-text": {
+      "required": "sellStatus=1 时必填",
+      "desc": "促销文案（basicInfoModel.promotionText）",
+      "example": "周末特惠立减"
+    },
+    "--display-order": {
+      "required": "sellStatus=1 时必填",
+      "desc": "展示顺序，整数 1-20（basicInfoModel.displayOrder）",
+      "example": "5"
+    },
+    "--contract-no": {
+      "required": "sellStatus=1 时必填",
+      "desc": "合同编号字符串（非合同ID）。仅支持合同类型 ∈ {预付合同=2, 团购合同=0}，禁止包销合同(=5)，否则返回 10004。可用 factory/infra/create-contract.py --contract-type 2 创建后取 contractNo",
+      "example": "HT202606001"
+    },
+    "--total-stock": {
+      "required": "sellStatus=1 时必填",
+      "desc": "总库存（stockModel.totalStock，⚠️ 顶层新模型，非 basicInfoModel 字段）",
+      "example": "100"
+    },
+    "--market-price": {
+      "required": "sellStatus=1 时必填",
+      "desc": "门市价，单位分（priceModel.marketPrice）",
+      "example": "9900"
+    },
+    "--sale-price": {
+      "required": "sellStatus=1 时必填",
+      "desc": "卖价，单位分（priceModel.salePrice）",
+      "example": "8900"
+    },
+    "--commission-rate": {
+      "required": "sellStatus=1 时必填",
+      "desc": "佣金率，万分位整数，如 12.50% 传 1250（priceModel.commissionRate）；本期后端不校验取值范围，只做格式校验",
+      "example": "1250"
+    },
+    "--max-num-per-order": {
+      "required": "sellStatus=1 时必填",
+      "desc": "每单限购份数，整数 1-10（ruleModel.useRuleModel.maxNumPerOrder）",
+      "example": "2"
+    }
+  },
+
+  "templates": {
+    "catering": {
+      "_desc": "餐饮类非房（美食/早餐/下午茶等）",
+      "basicInfoModel": {
+        "priType": 22,
+        "secType": 158004,
+        "crossVpoi": false,
+        "overseaPartner": false,
+        "showToolTip": true,
+        "extAttrs": {},
+        "images": [
+          {
+            "type": 102,
+            "imageModels": [
+              {
+                "statusCode": null,
+                "verifyDesc": null,
+                "subVerifyDesc": null,
+                "hitKey": null,
+                "machineAudit": null,
+                "type": null,
+                "imageId": 1346380699914282,
+                "rank": 1,
+                "url": "http://p0.inf.test.sankuai.com/testhubble/b44e5f8e32047452045e051bfd08553537344.webp",
+                "imageSize": "1200x800",
+                "onlineStatus": null
+              }
+            ]
+          }
+        ]
+      },
+      "bindPoiInfoModel": {},
+      "priceModel": { "priceProofType": 0, "priceProofUrls": [] },
+      "itemInfoModel": { "itemContents": [], "priceProofUrls": [], "extAttrs": {} },
+      "ruleModel": {
+        "showType": 0,
+        "useRuleModel": {
+          "quantityRule": 3,
+          "businessHours": [{ "startTime": "9:00", "endTime": "17:00", "effectWeek": [1,2,3,4,5,6,7] }],
+          "suitableCount": { "countType": 1, "adultMax": 2, "adultMin": 1, "child": 0, "older": 0 },
+          "contactsInfo": { "contactsInfoTypes": [1, 2] },
+          "touristsInfo": { "featureType": 1, "touristsInfoTypes": [] },
+          "ageLimit": { "ageLimitType": 0 },
+          "useWay": 1,
+          "certificate": { "type": 1, "verificationPlace": 1, "certificateDesc": "" },
+          "extAttrs": { "needVerifyIdCard": "0", "ticketInfoList": "", "useWayDesc": "", "useWayEnDesc": "" }
+        },
+        "bookingRuleModel": { "bookingType": 1 }
+      }
+    },
+
+    "scenic": {
+      "_desc": "景点/门票类非房",
+      "basicInfoModel": {
+        "priType": 21,
+        "secType": 158009,
+        "crossVpoi": false,
+        "overseaPartner": false,
+        "showToolTip": true,
+        "extAttrs": {},
+        "images": [
+          {
+            "type": 102,
+            "imageModels": [
+              {
+                "statusCode": null,
+                "verifyDesc": null,
+                "subVerifyDesc": null,
+                "hitKey": null,
+                "machineAudit": null,
+                "type": null,
+                "imageId": 1346380699914282,
+                "rank": 1,
+                "url": "http://p0.inf.test.sankuai.com/testhubble/b44e5f8e32047452045e051bfd08553537344.webp",
+                "imageSize": "1200x800",
+                "onlineStatus": null
+              }
+            ]
+          }
+        ]
+      },
+      "bindPoiInfoModel": {
+        "bindPoiAddress": "望京北路8号",
+        "bindPoiDistance": 13369,
+        "partnerPhoneNumber": "13311233321",
+        "cityId": 110100,
+        "cityName": "北京市",
+        "bindPoiId": "606952000",
+        "bindPoiName": "个身教导"
+      },
+      "priceModel": { "priceProofType": 0, "priceProofUrls": [] },
+      "itemInfoModel": { "itemContents": [], "priceProofUrls": [], "extAttrs": {} },
+      "ruleModel": {
+        "showType": 0,
+        "useRuleModel": {
+          "quantityRule": 3,
+          "businessHours": [{ "startTime": "9:00", "endTime": "17:00", "effectWeek": [1,2,3,4,5,6,7] }],
+          "suitableCount": { "countType": 1, "adultMax": 2, "adultMin": 1, "child": 0, "older": 0 },
+          "contactsInfo": { "contactsInfoTypes": [1, 2] },
+          "touristsInfo": { "featureType": 1, "touristsInfoTypes": [] },
+          "ageLimit": { "ageLimitType": 0 },
+          "useWay": 1,
+          "certificate": { "type": 1, "verificationPlace": 1, "certificateDesc": "" },
+          "extAttrs": { "needVerifyIdCard": "0", "ticketInfoList": "[{\"ticketNum\":1}]", "useWayDesc": "", "useWayEnDesc": "" }
+        },
+        "bookingRuleModel": { "bookingType": 1 }
+      }
+    },
+
+    "tour": {
+      "_desc": "玩乐/一日游类非房",
+      "basicInfoModel": {
+        "priType": 23,
+        "secType": 158010,
+        "crossVpoi": false,
+        "overseaPartner": false,
+        "showToolTip": true,
+        "extAttrs": {},
+        "images": [
+          {
+            "type": 102,
+            "imageModels": [
+              {
+                "statusCode": null,
+                "verifyDesc": null,
+                "subVerifyDesc": null,
+                "hitKey": null,
+                "machineAudit": null,
+                "type": null,
+                "imageId": 1346380699914282,
+                "rank": 1,
+                "url": "http://p0.inf.test.sankuai.com/testhubble/b44e5f8e32047452045e051bfd08553537344.webp",
+                "imageSize": "1200x800",
+                "onlineStatus": null
+              }
+            ]
+          }
+        ]
+      },
+      "bindPoiInfoModel": {
+        "bindPoiAddress": "金盏嘉园",
+        "bindPoiDistance": 17043,
+        "partnerPhoneNumber": "",
+        "cityId": 110100,
+        "cityName": "北京市",
+        "bindPoiId": "607143336",
+        "bindPoiName": "测门店公海2"
+      },
+      "priceModel": { "priceProofType": 0, "priceProofUrls": [] },
+      "itemInfoModel": { "itemContents": [], "priceProofUrls": [], "extAttrs": {} },
+      "ruleModel": {
+        "showType": 0,
+        "useRuleModel": {
+          "quantityRule": 3,
+          "businessHours": [{ "startTime": "9:00", "endTime": "17:00", "effectWeek": [1,2,3,4,5,6,7] }],
+          "suitableCount": { "countType": 1, "adultMax": 2, "adultMin": 1, "child": 0, "older": 0 },
+          "contactsInfo": { "contactsInfoTypes": [1, 2] },
+          "touristsInfo": { "featureType": 1, "touristsInfoTypes": [] },
+          "ageLimit": { "ageLimitType": 0 },
+          "useWay": 1,
+          "certificate": { "type": 1, "verificationPlace": 1, "certificateDesc": "" },
+          "extAttrs": { "needVerifyIdCard": "0", "ticketInfoList": "", "useWayDesc": "", "useWayEnDesc": "" }
+        },
+        "bookingRuleModel": { "bookingType": 1 }
+      }
+    }
+  }
+}
+

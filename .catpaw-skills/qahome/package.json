@@ -1,0 +1,19 @@
+{
+  "name": "@dp/qahome-cli",
+  "version": "1.1.0",
+  "description": "QAHome CLI - 质量保障平台命令行工具",
+  "type": "module",
+  "bin": {
+    "qahome": "./bin/qahome.mjs"
+  },
+  "files": [
+    "bin/"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "registry": "http://r.npm.sankuai.com",
+    "access": "public"
+  }
+}

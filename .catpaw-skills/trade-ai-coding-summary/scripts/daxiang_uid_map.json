@@ -1,0 +1,13 @@
+{
+  "说明": "酒店民宿平台交易方向同学的大象 MIS -> 数字 UID 映射缓存。UID 长期稳定，由 send_notification.py 优先读取，避免大象搜索接口降级时通知发不出。新增或修正成员时直接编辑本文件；mis 与 uid 均以大象网页版单聊 URL（x.sankuai.com/chat/<uid>?type=chat）或 catdesk daxiang search 结果为准。",
+  "updated": "2026-10-15",
+  "members": {
+    "baolilei":     { "name": "鲍立磊", "uid": "3036489476" },
+    "liuxin62":     { "name": "刘欣",   "uid": "1416637348" },
+    "liulichao":    { "name": "刘立超", "uid": "1845925387" },
+    "liyanyan25":   { "name": "李炎炎", "uid": "4159762056" },
+    "wangyu193":    { "name": "王宇",   "uid": "2099700255" },
+    "zhangce07":    { "name": "张策",   "uid": "1905425406" },
+    "zhangyanbing": { "name": "张艳兵", "uid": "1841920210" }
+  }
+}

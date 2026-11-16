@@ -1,0 +1,51 @@
+{
+  "caseId": "flow-02-assert-modes",
+  "title": "断言口径：文案 / 消失 / 渲染就绪 / 视觉",
+  "priority": "P1",
+  "executionType": "deterministic",
+  "env": {
+    "scheme": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-orderfill-duo&mrn_component=main&goods_id=1172344601&checkinDate={checkinDate}&checkoutDate={checkoutDate}&biz_type=1&room_num=1",
+    "type": "A",
+    "vars": {
+      "checkinDate": {"date": 4, "format": "%Y-%m-%d", "desc": "入住日期（今天 +4 天）"},
+      "checkoutDate": {"date": 5, "format": "%Y-%m-%d", "desc": "离店日期（今天 +5 天）"}
+    }
+  },
+  "steps": [
+    {
+      "kind": "ui",
+      "id": "open-landing",
+      "name": "进入填写订单页",
+      "action": {
+        "kind": "open-url",
+        "text": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-orderfill-duo&mrn_component=main&goods_id=1172344601&checkinDate={checkinDate}&checkoutDate={checkoutDate}&biz_type=1&room_num=1"
+      },
+      "wait": {"type": "page_ready"},
+      "checks": [{"type": "render_ready", "text": "填写订单"}]
+    },
+    {
+      "kind": "ui",
+      "id": "verify-price",
+      "name": "核对价格区",
+      "action": {"kind": "none"},
+      "checks": [
+        {"type": "text", "text": "在线付"},
+        {"type": "text_gone", "text": "加载中"},
+        {"type": "text_vision", "text": "价格明细"}
+      ]
+    },
+    {
+      "kind": "ui",
+      "id": "verify-order-summary",
+      "name": "核对订单摘要模块",
+      "action": {"kind": "none"},
+      "checks": [
+        {
+          "type": "vision",
+          "text": "顶部展示房型名称、入离日期与总价，金额与日期排版无错位",
+          "source": "mmcd"
+        }
+      ]
+    }
+  ]
+}

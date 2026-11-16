@@ -1,0 +1,6 @@
+interface:
+  display_name: "Repo Knowledge Builder"
+  short_description: "Build, benchmark, and upgrade repo knowledge bases"
+  default_prompt: "Use $phx-repo-knowledge-builder to initialize, evaluate, benchmark, or deepen a repository knowledge base."
+policy:
+  allow_implicit_invocation: true

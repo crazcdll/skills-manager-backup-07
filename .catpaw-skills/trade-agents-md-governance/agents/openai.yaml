@@ -1,0 +1,4 @@
+interface:
+  display_name: "AGENTS.md 治理"
+  short_description: "创建、审计并瘦身业务仓库中的 AGENTS.md 与 CLAUDE.md 规则"
+  default_prompt: "使用 $trade-agents-md-governance 创建或治理当前业务仓库的 AGENTS.md 层级。"

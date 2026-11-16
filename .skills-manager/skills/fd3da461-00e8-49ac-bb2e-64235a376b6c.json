@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "fd3da461-00e8-49ac-bb2e-64235a376b6c",
+  "path": "ai-quality-cr-agent",
+  "path_key": "ai-quality-cr-agent",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

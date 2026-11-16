@@ -1,0 +1,14 @@
+skill-manifest-version: 1
+skill-id: 018d5d1d5150556f607f23962e0535b41a0f2ec4b2e6165930d2adf20e6b6563
+
+files:
+  939c129d83f1380a91225631f503ca739354d9c7c5907d391d7cb3e69a25aef4  SKILL.md
+  5ffbc7c9a443d7e6f1e91983b31f4a0f372ad413791bd13b9446aaa2b77c5262  scripts/setup-squad.sh
+  69adc12f1ea3209c326caf333f5333e966128c7796cfc96be35268656f97bb27  skills/stage1-env-check/SKILL.md
+  8ba11c747f8943c1a26fb1e3ece1dd7f9c6143d0880c7c992d329a9b54ae1223  skills/stage2-repo-init/SKILL.md
+  eac482ec18011bb6b0cadacc505afe6ae44649d736703cd0ecfaf9ce46c0f22c  skills/stage3-demand-design/SKILL.md
+  afba4fc3ba625dcd48a43c68961b5d7cf3ab439e4858946b8381d1853be946bd  skills/stage4-coding/SKILL.md
+  3378c5ef68dccb89f8885bff3cf3c42a9ad474c41eacdc7832baa85853ed376c  skills/stage5-review/SKILL.md
+  9cbdddb0f1cce267fb0e8cc497e4bf3233d0125eebcd99da0e2ccfa0b434bde7  skills/stage6-launch/SKILL.md
+  3cf89657b9fe62a64095a30f5826c5b7c1cfc7f8a5c983337d72894f1da124ea  skills/stage7-feedback/SKILL.md
+  d4dccd0ca9ea485475c29851c59a0a7984aa030af4afa7fd863cbdf1e8a589a2  squad/orchestrator-instructions.md

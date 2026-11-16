@@ -1,0 +1,47 @@
+{
+  "_comment": "可测性 App 安装包来源配置。统一结构：meituan → platform → form → 配置（form=real 真机/云真机，form=emulator 模拟器）。Android/Harmony 完全独立发布；同一平台的真机与模拟器可能是不同制品/包名（如鸿蒙真机企业包 vs 模拟器正式包）。form 取自 devices/registry.py 的 _DEVICE_TYPE_REGISTRY[form]，业务侧不写 device_type 分支。目标条目按 devices/interfaces/artifact_spec.py::ArtifactSpec 声明的字段填写：testability_apk_url（制品地址）/ version（目标 versionName）/ version_code（可选，目标 versionCode）/ requires_testability_build（true=必须可测性(debug)构建）/ package（仅作交叉展示，实际探测/安装以 AppDescriptor.package_name 为准）/ updated。",
+  "meituan": {
+    "android": {
+      "real": {
+        "testability_apk_url": "https://hyperloop-s3.sankuai.com/hpx-artifacts/5974437-973-1790044848856029/aimeituan-release_12.66.400-584862-aarch64.apk",
+        "version": "12.66.400",
+        "requires_testability_build": false,
+        "package": "com.sankuai.meituan",
+        "updated": "2026-07-01"
+      },
+      "emulator": {
+        "testability_apk_url": "https://hyperloop-s3.sankuai.com/hpx-artifacts/5974437-973-1790044848856029/aimeituan-release_12.66.400-584862-aarch64.apk",
+        "version": "12.66.400",
+        "requires_testability_build": false,
+        "package": "com.sankuai.meituan",
+        "updated": "2026-07-01"
+      }
+    },
+    "harmony": {
+      "real": {
+        "testability_apk_url": "https://hyperloop-s3.sankuai.com/hpx-artifacts/5793626-22501-1787211950740662/harmony-inhouse-meituan-65152.html",
+        "version": "12.64.400",
+        "requires_testability_build": false,
+        "package": "com.sankuai.hmeituan.beta",
+        "updated": "2026-08-20"
+      },
+      "emulator": {
+        "testability_apk_url": "https://hyperloop-s3.sankuai.com/hpx-artifacts/5975897-36285-1790063126850664/meituan-12.66.203-69533-debug-default-signed.hap",
+        "version": "12.66.203",
+        "version_code": 1200660203,
+        "requires_testability_build": true,
+        "package": "com.sankuai.hmeituan",
+        "updated": "2026-09-22",
+        "_note": "必须用 debug 包，勿回退 release：鸿蒙 pillow H5 的非 delay action（如 signin）走 MSI 扩展 API（name=pillowConfig, scope=testability），release 包未提供该能力，登录会静默卡在 Loading（页面无报错，pillow 页显示 signin 转圈）。debug 包实测 signin 返回「登录成功」、control auth status 变 logged_in。version_code / requires_testability_build 供 check_version（→ devices/interfaces/artifact_spec.py::decide_app_action）判定「设备上已装的包是否可直接复用」：versionCode ≥ 目标且确认为可测性(debug)构建 → 直接复用不重装；已装为 release 或构建类型无法确认 → 保守重装。"
+      }
+    }
+  },
+  "adb_keyboard": {
+    "_comment": "ADBKeyboard 输入法 APK（内置），用于支持 adb 中文输入。setup 阶段自动安装并设为默认输入法。",
+    "local_apk": "references/ADBKeyboard.apk",
+    "package": "com.android.adbkeyboard",
+    "ime_id": "com.android.adbkeyboard/.AdbIME",
+    "version": "2.0",
+    "updated": "2026-07-06"
+  }
+}

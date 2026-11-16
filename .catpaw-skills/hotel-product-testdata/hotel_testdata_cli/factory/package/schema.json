@@ -1,0 +1,287 @@
+{
+  "_comment": "套餐（Package/SPU）字段说明 V2 - MeResourceFacade#submitSpu（同步直调 RPC）",
+  "_service": "com.sankuai.hotel.biz.platform",
+  "_interface": "com.meituan.hotel.biz.platform.goods.facade.standard.MeResourceFacade",
+  "_method": "submitSpu",
+  "_sync": true,
+  "_sync_note": "同步接口，直接返回 spuId；创建成功后仍需走审核流程才可上线",
+  "_version": "v2",
+  "_vs_v1": "旧版走 DataUnity 工具10（异步），本版为研发级直调 RPC（同步）",
+
+  "_field_source_analysis": {
+    "_desc": "字段来源分析 - submitSpu 接口入参各字段的数据来源",
+    "spuBaseModel.partnerId":   "来源：供应商ID（由用户传入或 create-partner.py 创建）",
+    "spuBaseModel.poiId":       "来源：门店ID（由用户传入或 create-poi.py 创建）",
+    "spuBaseModel.giftsName":   "来源：用户输入套餐名称（或自动生成）",
+    "spuBaseModel.title":       "来源：自动拼接（格式：<operator>套餐门店_<ts>晚+<giftsName>）",
+    "relateXgoodsInfoModels[].basicInfoModel.partnerId":  "来源：同 spuBaseModel.partnerId",
+    "relateXgoodsInfoModels[].basicInfoModel.poiId":      "来源：同 spuBaseModel.poiId",
+    "relateXgoodsInfoModels[].basicInfoModel.xgoodsId":   "来源：非房创建结果（create-non-room.py 返回的 xGoodsId）",
+    "relateXgoodsInfoModels[].basicInfoModel.name":       "来源：非房名称（create-non-room.py 中的 product_name）",
+    "relatedGoodsList[].goodsId":       "来源：全日房创建结果（create-fullday.py 返回的 goodsId，或用户传入）",
+    "relatedGoodsList[].goodsName":     "来源：全日房产品名称（用户传入或从已有产品查询）",
+    "relatedGoodsList[].realRoomName":  "来源：全日房关联的真实房型名称（用户传入或从已有产品查询）",
+    "spuImageInfoModel":  "来源：固定模板（测试图片，无需动态填充）",
+    "dayTripModel.spuCheckDays": "来源：用户参数（默认 2 晚）"
+  },
+
+  "cli_params": {
+    "--partner-id": {
+      "required": true,
+      "desc": "供应商ID（partnerId）",
+      "example": "4569870"
+    },
+    "--poi-id": {
+      "required": true,
+      "desc": "门店ID（poiId）",
+      "example": "1090269468142396"
+    },
+    "--xgoods-id": {
+      "required": false,
+      "desc": "非房 ID（xGoodsId）。不传时自动新建非房并审核",
+      "example": "2257053632",
+      "_note": "如果传入此参数，需同时传 --xgoods-name"
+    },
+    "--xgoods-name": {
+      "required": false,
+      "desc": "非房名称（仅在 --xgoods-id 指定时使用）",
+      "example": "早餐双人套餐"
+    },
+    "--goods-id": {
+      "required": false,
+      "desc": "全日房/直连产品ID（goodsId）。预付模式由 W1 创建后传入；直连模式传入已有直连产品 goodsId",
+      "example": "600003843247",
+      "_note": "如果传入此参数，需同时传 --goods-name 和 --real-room-name（预付模式）；直连模式 --goods-name 可不传，脚本自动查询"
+    },
+    "--goods-name": {
+      "required": false,
+      "desc": "产品名称。预付模式必填（来自 W1）；直连模式不传时自动查询直连产品获取",
+      "example": "标准大床房-不含早-入住当天18:00前免费取消"
+    },
+    "--real-room-name": {
+      "required": false,
+      "desc": "全日房关联的真实房型名称（仅在 --goods-id 指定时使用）",
+      "example": "标准大床房"
+    },
+    "--room-id": {
+      "required": false,
+      "desc": "房型ID（仅在自动创建全日房时使用，--goods-id 模式下不需要）",
+      "example": "77671480"
+    },
+    "--room-name": {
+      "required": false,
+      "desc": "房型名称（仅在自动创建全日房时使用，--goods-id 模式下不需要）",
+      "example": "标准大床房"
+    },
+    "--contract-id": {
+      "required": false,
+      "desc": "平台合同ID（可选，不传时使用 partner 下第一个有效合同）",
+      "example": "18107422"
+    },
+    "--check-days": {
+      "required": false,
+      "default": 2,
+      "desc": "套餐包含的入住晚数（spuCheckDays）",
+      "example": "2"
+    },
+    "--overseas": {
+      "required": false,
+      "desc": "境外套餐标志（flag，无需赋值）"
+    },
+    "--goods-source": {
+      "required": false,
+      "default": "1",
+      "desc": "商品来源（goodsSource）：1/prepaid=预付自建（默认，走W1全日房），2/direct-land=直连落地（境外=手工直连），3/direct-noland=直连不落地",
+      "example": "direct-land",
+      "_note": "直连模式（2/3）下 --goods-name 可不传，脚本自动查询 queryExistedGoodsInfoForHotelV2 获取"
+    },
+    "--swimlane": {
+      "required": false,
+      "default": "",
+      "desc": "泳道名称（空字符串=主干）"
+    },
+    "--dry-run": {
+      "required": false,
+      "desc": "仅打印参数，不执行 RPC"
+    }
+  },
+
+  "modes": {
+    "mode_a_full_auto": {
+      "_desc": "全自动模式：从零创建（不传 --xgoods-id 和 --goods-id）",
+      "_steps": [
+        "Step 1: create-non-room.py → 自动新建非房 → 获得 xGoodsId",
+        "Step 2: 审核非房（factory/audit/gift/audit.py）",
+        "Step 3: create-fullday.py → 自动新建全日房 → 获得 goodsId",
+        "Step 4: submitSpu（本接口）→ 组合套餐 → 获得 spuId",
+        "Step 5: 审核套餐（factory/audit/package/audit.py）"
+      ],
+      "_required_params": ["--partner-id", "--poi-id"],
+      "_optional_params": ["--room-id", "--room-name", "--contract-id", "--check-days"]
+    },
+    "mode_b_reuse_goods": {
+      "_desc": "复用产品模式：传入现有全日房 ID（不传 --xgoods-id，非房仍自动创建）",
+      "_steps": [
+        "Step 1: create-non-room.py → 自动新建非房 → 获得 xGoodsId",
+        "Step 2: 审核非房（factory/audit/gift/audit.py）",
+        "Step 3: submitSpu（本接口）→ 关联现有产品 → 获得 spuId（goodsSource=1）",
+        "Step 4: 审核套餐（factory/audit/package/audit.py）"
+      ],
+      "_required_params": ["--partner-id", "--poi-id", "--goods-id", "--goods-name", "--real-room-name"],
+      "_optional_params": ["--check-days"]
+    },
+    "mode_c_direct_land": {
+      "_desc": "直连落地模式：传入已有直连产品 goodsId + goodsName（由用户从大象推送消息获取），goodsSource=2",
+      "_steps": [
+        "Step 1: create-non-room.py → 自动新建非房 → 获得 xGoodsId",
+        "Step 2: submitSpu（本接口）→ 关联直连产品 → 获得 spuId（goodsSource=2）",
+        "Step 3: querySpuListPage 轮询验证"
+      ],
+      "_required_params": ["--partner-id", "--poi-id", "--goods-id", "--goods-name", "--real-room-name", "--goods-source 2"],
+      "_optional_params": ["--check-days"],
+      "_note": "直连产品需先通过 zl-hotel-testdata skill 创建；goodsName 与 realRoomName 均由用户从大象推送消息中获取后手动传入"
+    },
+    "mode_d_direct_noland": {
+      "_desc": "直连不落地模式：传入已有直连产品 goodsId + goodsName（由用户从大象推送消息获取），goodsSource=3",
+      "_steps": [
+        "Step 1: create-non-room.py → 自动新建非房 → 获得 xGoodsId",
+        "Step 2: submitSpu（本接口）→ 关联直连产品 → 获得 spuId（goodsSource=3）",
+        "Step 3: querySpuListPage 轮询验证"
+      ],
+      "_required_params": ["--partner-id", "--poi-id", "--goods-id", "--goods-name", "--real-room-name", "--goods-source 3"],
+      "_optional_params": ["--check-days"],
+      "_note": "直连产品需先通过 zl-hotel-testdata skill 创建；goodsName 与 realRoomName 均由用户从大象推送消息中获取后手动传入"
+    }
+  },
+
+    "default_template": {
+    "_desc": "submitSpu 请求体默认模板，套餐名称（giftsName/title）由后端根据门店名和间夜数自动生成",
+    "spuBaseModel": {
+      "autoPublish": true,
+      "giftsName": "",
+      "partnerId": "__PARTNER_ID__",
+      "poiId": "__POI_ID__",
+      "spuSecondType": 0,
+      "status": 0,
+      "title": "",
+      "customerName": "",
+      "serviceTel": "",
+      "nameCustomerType": 0
+    },
+    "spuImageInfoModel": {
+      "spuBannerImages": [
+        {
+          "statusCode": null,
+          "verifyDesc": null,
+          "subVerifyDesc": null,
+          "hitKey": null,
+          "machineAudit": null,
+          "type": null,
+          "imageId": 1359476616925367,
+          "rank": 1,
+          "url": "http://p0.inf.test.sankuai.com/testhubble/16f2742cecedadffa05a62242424ff61547081.jpg",
+          "imageSize": "4500x3000",
+          "onlineStatus": null
+        },
+        {
+          "statusCode": null,
+          "verifyDesc": null,
+          "subVerifyDesc": null,
+          "hitKey": null,
+          "machineAudit": null,
+          "type": null,
+          "imageId": 1359476613161629,
+          "rank": 2,
+          "url": "http://p0.inf.test.sankuai.com/testhubble/92220727a92b3c08502db0d92ce631d23516508.jpg",
+          "imageSize": "4500x3000",
+          "onlineStatus": null
+        },
+        {
+          "statusCode": null,
+          "verifyDesc": null,
+          "subVerifyDesc": null,
+          "hitKey": null,
+          "machineAudit": null,
+          "type": null,
+          "imageId": 1359476610179385,
+          "rank": 3,
+          "url": "http://p0.inf.test.sankuai.com/testhubble/f036040082546b522b60e50516f1dad23284125.jpg",
+          "imageSize": "4500x3000",
+          "onlineStatus": null
+        },
+        {
+          "statusCode": null,
+          "verifyDesc": null,
+          "subVerifyDesc": null,
+          "hitKey": null,
+          "machineAudit": null,
+          "type": null,
+          "imageId": 1359476608103034,
+          "rank": 4,
+          "url": "http://p0.inf.test.sankuai.com/testhubble/34d3522ec127fe4fb9d38651cc037be0108735.jpg",
+          "imageSize": "4500x3000",
+          "onlineStatus": null
+        },
+        {
+          "statusCode": null,
+          "verifyDesc": null,
+          "subVerifyDesc": null,
+          "hitKey": null,
+          "machineAudit": null,
+          "type": null,
+          "imageId": 1359476605497468,
+          "rank": 5,
+          "url": "http://p0.inf.test.sankuai.com/testhubble/0e5bf2c687ba227ffe3711dedb32f6161482592.jpg",
+          "imageSize": "4500x3000",
+          "onlineStatus": null
+        }
+      ],
+      "imageTextModules": [
+        {
+          "type": 0,
+          "imageModels": [
+            {
+              "statusCode": null,
+              "verifyDesc": null,
+              "subVerifyDesc": null,
+              "hitKey": null,
+              "machineAudit": null,
+              "type": null,
+              "imageId": 1359476616925367,
+              "rank": 1,
+              "url": "http://p0.inf.test.sankuai.com/testhubble/16f2742cecedadffa05a62242424ff61547081.jpg",
+              "imageSize": "4500x3000",
+              "onlineStatus": null
+            }
+          ]
+        },
+        {
+          "type": 1,
+          "imageModels": [
+            {
+              "statusCode": null,
+              "verifyDesc": null,
+              "subVerifyDesc": null,
+              "hitKey": null,
+              "machineAudit": null,
+              "type": null,
+              "imageId": 1359477149819019,
+              "rank": 1,
+              "url": "http://p1.meituan.net/hotelbiz/6125bbbb8068e34ca66444ae0a11a329475602.jpg",
+              "imageSize": null,
+              "onlineStatus": null
+            }
+          ]
+        }
+      ],
+      "imageTextType": 2
+    },
+    "dayTripModel": {
+      "spuCheckDays": 2,
+      "whetherToTop": false
+    },
+    "relateXgoodsInfoModels": [],
+    "relatedGoodsList": []
+  }
+}
+

@@ -1,0 +1,494 @@
+{
+  "version": "2.0",
+  "groups": {
+    "java": {
+      "trigger_files": [
+        ".java"
+      ],
+      "trigger_keywords": [],
+      "rules": [
+        "JAVA-01-常量定义规范",
+        "JAVA-02-OOP设计规约",
+        "JAVA-03-集合处理规范",
+        "JAVA-04-并发处理规范",
+        "JAVA-05-异常处理规范",
+        "JAVA-06-日志记录规范",
+        "JAVA-07-单元测试编写规范",
+        "JAVA-08-接口设计规范"
+      ]
+    },
+    "db-dep": {
+      "trigger_files": [
+        ".java",
+        ".xml",
+        ".sql"
+      ],
+      "trigger_keywords": [
+        "SELECT",
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "Mapper",
+        "mapper",
+        "resultMap",
+        "sql"
+      ],
+      "rules": [
+        "DB-01-ORM规范",
+        "DB-02-MySQL-SQL开发规范",
+        "DB-03-MySQL-建表规范",
+        "DB-04-MySQL-索引规范",
+        "DEP-01-依赖规范"
+      ]
+    },
+    "ha": {
+      "trigger_files": [
+        ".java",
+        ".xml",
+        ".yml"
+      ],
+      "trigger_keywords": [
+        "Cache",
+        "cache",
+        "Redis",
+        "redis",
+        "Squirrel",
+        "squirrel",
+        "Mafka",
+        "mafka",
+        "ThreadPool",
+        "ExecutorService",
+        "ThreadPoolExecutor"
+      ],
+      "rules": [
+        "HA-01-失败设计规范",
+        "HA-02-可观测性规范",
+        "HA-03-防御性编程规范",
+        "HA-04-存储高可用规范",
+        "HA-05-缓存高可用规范",
+        "HA-06-消息队列高可用规范",
+        "HA-07-JVM与线程池高可用规范",
+        "HA-09-最终一致性规范",
+        "HA-10-接口兼容性规范",
+        "HA-11-配置安全规范",
+        "HA-12-安全编码规范",
+        "HA-13-搜索引擎高可用规范",
+        "HA-14-HBase高可用规范"
+      ]
+    },
+    "sec": {
+      "trigger_files": [
+        ".java",
+        ".xml"
+      ],
+      "trigger_keywords": [
+        "password",
+        "Password",
+        "token",
+        "Token",
+        "secret",
+        "Secret",
+        "encrypt",
+        "decrypt",
+        "cipher"
+      ],
+      "rules": [
+        "SEC-01-注入安全规范",
+        "SEC-02-数据保护规范",
+        "SEC-03-访问控制与网络安全规范"
+      ]
+    }
+  },
+  "signal_weights": {
+    "_comment": "V92 4-A 路由表：信号权重（风险分档用）。3=高危（命中即至少 standard），2=中危，1=常亮低危",
+    "SIG-DDL": 3,
+    "SIG-SECURITY": 3,
+    "SIG-SQL": 2,
+    "SIG-MQ": 2,
+    "SIG-RPC": 2,
+    "SIG-CACHE": 2,
+    "SIG-CONCURRENCY": 2,
+    "SIG-COMPATIBILITY": 2,
+    "SIG-IDEMPOTENCY": 2
+  },
+  "checklist_routing": {
+    "_comment": "V92 4-A 路由表：checklist section → 信号映射（条目级保留依据）。section 名自动归一化（去 'N. ' 前缀/‘（XX）’后缀）",
+    "p0": {
+      "checklist": "zero-tolerance-checklist.md",
+      "sections": {
+        "代码 BUG 类": [
+          "SIG-NPE",
+          "SIG-EXCEPTION",
+          "SIG-CONCURRENCY"
+        ],
+        "KV 数据超限类": [
+          "SIG-CACHE",
+          "SIG-RESOURCE"
+        ],
+        "SQL 执行失败类": [
+          "SIG-SQL",
+          "SIG-DDL"
+        ],
+        "Spring 异常类": [
+          "SIG-CONFIG",
+          "SIG-EXCEPTION"
+        ],
+        "下线/删除类变更（DEL-01）": [
+          "SIG-INTERFACE"
+        ]
+      }
+    },
+    "p1": {
+      "checklist": "stability-security-checklist.md",
+      "sections": {
+        "异常处理": [
+          "SIG-EXCEPTION"
+        ],
+        "资源管理": [
+          "SIG-RESOURCE"
+        ],
+        "并发安全": [
+          "SIG-CONCURRENCY"
+        ],
+        "容灾降级": [
+          "SIG-RPC",
+          "SIG-MQ",
+          "SIG-CACHE"
+        ],
+        "Null 防御": [
+          "SIG-NPE"
+        ],
+        "安全漏洞": [
+          "SIG-SECURITY"
+        ]
+      }
+    },
+    "p3": {
+      "checklist": "performance-checklist.md",
+      "sections": {
+        "数据库访问": [
+          "SIG-SQL"
+        ],
+        "缓存使用": [
+          "SIG-CACHE"
+        ],
+        "集合与数据结构": [
+          "SIG-NPE"
+        ],
+        "RPC 与 IO": [
+          "SIG-RPC"
+        ],
+        "对象与内存": [
+          "SIG-RESOURCE"
+        ],
+        "JDK 17+ 现代化": []
+      }
+    },
+    "four_b": {
+      "_comment": "V116 4-B 条目级裁剪：规则文件 section 名（### MT:xxx 后的标题文本）→ 信号映射。section 名去除 'MT:xxx ' 前缀后匹配",
+      "files": {
+        "JAVA-01-常量定义规范": {
+          "sections": {
+            "魔法值禁用": ["SIG-CONSTANT"],
+            "long类型赋值规范": ["SIG-CONSTANT"],
+            "枚举类型使用建议": ["SIG-CONSTANT"]
+          }
+        },
+        "JAVA-02-OOP设计规约": {
+          "sections": {
+            "类成员与方法访问控制规范和方法定义": ["SIG-OOP"],
+            "内存泄漏预防": ["SIG-RESOURCE"],
+            "POJO类设计和实现规范": ["SIG-OOP"],
+            "对象拷贝方法选择规范": ["SIG-OOP"],
+            "数值比较规范": ["SIG-EXCEPTION"],
+            "条件判断与代码可读性规范": ["SIG-OOP"],
+            "循环性能优化规范": ["SIG-RESOURCE"],
+            "公开接口参数校验规范": ["SIG-INTERFACE"],
+            "字符串拼接规范": ["SIG-RESOURCE"]
+          }
+        },
+        "JAVA-03-集合处理规范": {
+          "sections": {
+            "equals和hashCode的处理规范": ["SIG-COLLECTION"],
+            "Collections类返回的immutable对象的使用规范": ["SIG-COLLECTION"],
+            "集合转数组的规范": ["SIG-COLLECTION"],
+            "Comparator实现类的规范": ["SIG-COLLECTION"],
+            "集合初始化的规范": ["SIG-COLLECTION"]
+          }
+        },
+        "JAVA-04-并发处理规范": {
+          "sections": {
+            "单例对象线程安全规范": ["SIG-CONCURRENCY"],
+            "线程命名规范": ["SIG-CONCURRENCY"],
+            "锁性能优化规范": ["SIG-CONCURRENCY"],
+            "锁操作规范": ["SIG-CONCURRENCY"],
+            "tryLock使用规范": ["SIG-CONCURRENCY"],
+            "并发更新锁策略规范": ["SIG-CONCURRENCY"],
+            "定时任务线程池规范": ["SIG-CONCURRENCY"],
+            "金融场景锁策略建议": ["SIG-CONCURRENCY"],
+            "CountDownLatch使用规范": ["SIG-CONCURRENCY"],
+            "随机数生成规范": ["SIG-CONCURRENCY"],
+            "延迟初始化规范": ["SIG-CONCURRENCY"],
+            "volatile使用规范": ["SIG-CONCURRENCY"],
+            "并发集合使用规范": ["SIG-CONCURRENCY", "SIG-COLLECTION"],
+            "控制语句并发安全规范": ["SIG-CONCURRENCY"],
+            "装箱拆箱优化规范": ["SIG-CONCURRENCY"],
+            "方法调用优化规范": ["SIG-CONCURRENCY"]
+          }
+        },
+        "JAVA-05-异常处理规范": {
+          "sections": {
+            "异常使用规范": ["SIG-EXCEPTION"],
+            "NPE防御规范": ["SIG-NPE", "SIG-EXCEPTION"],
+            "异常捕获匹配规范": ["SIG-EXCEPTION"],
+            "返回值规范": ["SIG-EXCEPTION", "SIG-NPE"],
+            "异常类型规范": ["SIG-EXCEPTION"],
+            "异常分类处理规范": ["SIG-EXCEPTION"],
+            "可预检查异常规范": ["SIG-EXCEPTION", "SIG-NPE"],
+            "运行时异常说明规范": ["SIG-EXCEPTION"],
+            "异常捕获范围规范": ["SIG-EXCEPTION"],
+            "finally返回规范": ["SIG-EXCEPTION"]
+          }
+        },
+        "JAVA-06-日志记录规范": {
+          "sections": {
+            "日志配置规范": ["SIG-LOG"],
+            "日志级别使用规范": ["SIG-LOG"],
+            "日志格式规范（traceId 与业务标识）": ["SIG-LOG"],
+            "敏感信息脱敏规范": ["SIG-LOG", "SIG-SECURITY"]
+          }
+        },
+        "JAVA-07-单元测试编写规范": {
+          "sections": {
+            "测试方法编写规范": ["SIG-TEST"],
+            "Mock与依赖隔离规范": ["SIG-TEST"]
+          }
+        },
+        "JAVA-08-接口设计规范": {
+          "sections": {
+            "接口命名规范": ["SIG-INTERFACE"],
+            "接口参数设计规范": ["SIG-INTERFACE", "SIG-NPE"],
+            "接口返回值规范": ["SIG-INTERFACE", "SIG-NPE"],
+            "接口幂等性规范": ["SIG-IDEMPOTENCY", "SIG-INTERFACE"],
+            "接口性能与分页规范": ["SIG-INTERFACE"],
+            "接口异常处理规范": ["SIG-INTERFACE", "SIG-EXCEPTION"],
+            "接口兼容性规范": ["SIG-INTERFACE", "SIG-COMPATIBILITY"]
+          }
+        },
+        "DB-01-ORM规范": {
+          "sections": {
+            "建议明确指定查询字段，避免不必要的 SELECT *": ["SIG-SQL"],
+            "SQL参数使用#{}，禁止使用${}防止SQL注入": ["SIG-SQL", "SIG-SECURITY"],
+            "不允许直接使用 HashMap/Hashtable/Map 作为查询结果集输出": ["SIG-SQL", "SIG-COLLECTION"],
+            "DAO/Mapper 层基础代码优先用代码生成工具生成，AI 不应从头手写": ["SIG-SQL"],
+            "按项目框架选择正确的代码生成工具，生成前必须先阅读对应文档": ["SIG-SQL"]
+          }
+        },
+        "DB-02-MySQL-SQL开发规范": {
+          "sections": {
+            "禁止使用存储过程": ["SIG-SQL"],
+            "SQL关键字和字段类型大写": ["SIG-SQL"],
+            "必须有测试覆盖的删除修改操作": ["SIG-SQL", "SIG-TEST"],
+            "禁止使用外键和级联": ["SIG-SQL"],
+            "多表操作必须使用表别名": ["SIG-SQL"],
+            "限制IN操作元素数量": ["SIG-SQL"],
+            "使用标准NULL判断": ["SIG-SQL", "SIG-NPE"],
+            "使用COUNT(*)统计行数": ["SIG-SQL"],
+            "注意COUNT DISTINCT的特殊行为": ["SIG-SQL"],
+            "避免SUM函数的NPE问题": ["SIG-SQL", "SIG-NPE"],
+            "使用utf8mb4字符集": ["SIG-SQL"],
+            "禁止DDL操作": ["SIG-DDL"],
+            "控制批量操作数量": ["SIG-SQL"],
+            "禁止使用通配符查询": ["SIG-SQL"],
+            "动态 SQL 必须安全校验": ["SIG-SQL", "SIG-SECURITY"]
+          }
+        },
+        "DB-03-MySQL-建表规范": {
+          "sections": {
+            "表必须使用InnoDB引擎": ["SIG-DDL"],
+            "表必备字段要求": ["SIG-DDL"],
+            "表名字段名命名规范": ["SIG-DDL"],
+            "禁用MySQL保留字": ["SIG-DDL"],
+            "表名使用单数形式": ["SIG-DDL"],
+            "枚举与布尔字段建模规范": ["SIG-DDL"],
+            "小数类型使用DECIMAL": ["SIG-DDL"],
+            "字符串类型选择": ["SIG-DDL"],
+            "字段注释要求": ["SIG-DDL"],
+            "分库分表建议": ["SIG-DDL"],
+            "逻辑删除建议": ["SIG-DDL"]
+          }
+        },
+        "DB-04-MySQL-索引规范": {
+          "sections": {
+            "避免索引创建误解": ["SIG-SQL"],
+            "SQL性能优化目标": ["SIG-SQL"],
+            "组合索引字段顺序": ["SIG-SQL"],
+            "VARCHAR字段索引长度": ["SIG-SQL"],
+            "JOIN字段索引与复杂度控制": ["SIG-SQL"],
+            "ORDER BY索引优化": ["SIG-SQL"],
+            "覆盖索引使用": ["SIG-SQL"],
+            "大分页优化": ["SIG-SQL"],
+            "防止隐式转换": ["SIG-SQL"],
+            "唯一索引命名规范": ["SIG-SQL"]
+          }
+        },
+        "DEP-01-依赖规范": {
+          "sections": {
+            "GroupId格式定义": ["SIG-DEPENDENCY"],
+            "ArtifactId格式定义": ["SIG-DEPENDENCY"],
+            "Version版本号格式定义": ["SIG-DEPENDENCY"],
+            "线上环境SNAPSHOT禁止规则": ["SIG-DEPENDENCY"],
+            "依赖升级仲裁一致性规则": ["SIG-DEPENDENCY"],
+            "版本冲突禁止规则": ["SIG-DEPENDENCY"],
+            "枚举类型使用规则": ["SIG-DEPENDENCY", "SIG-CONSTANT"],
+            "依赖声明位置规则": ["SIG-DEPENDENCY"],
+            "工具包稳定性规则": ["SIG-DEPENDENCY"],
+            "二方库发布精简可控原则": ["SIG-DEPENDENCY"],
+            "二方库发布稳定可追溯原则": ["SIG-DEPENDENCY"]
+          }
+        },
+        "HA-01-失败设计规范": {
+          "sections": {
+            "超时必须显式设置": ["SIG-RPC"],
+            "重试必须满足前提条件": ["SIG-RPC", "SIG-IDEMPOTENCY"],
+            "熔断必须使用平台能力": ["SIG-RPC"],
+            "降级必须使用独立路径": ["SIG-RPC", "SIG-CONFIG"],
+            "限流必须配置": ["SIG-RPC"],
+            "弱依赖必须隔离和降级": ["SIG-RPC"]
+          }
+        },
+        "HA-02-可观测性规范": {
+          "sections": {
+            "Metrics 必须覆盖四黄金指标": ["SIG-LOG"],
+            "Trace 必须支持全链路追踪": ["SIG-LOG"],
+            "远程日志必须使用 AsyncScribe": ["SIG-LOG"],
+            "生产环境禁止标准输出日志": ["SIG-LOG"],
+            "单条日志必须限制输出长度": ["SIG-LOG"],
+            "异常堆栈必须使用简化格式": ["SIG-LOG", "SIG-EXCEPTION"],
+            "告警必须分级且有降噪策略": ["SIG-LOG"]
+          }
+        },
+        "HA-03-防御性编程规范": {
+          "sections": {
+            "参数必须前置校验": ["SIG-NPE", "SIG-EXCEPTION"],
+            "空指针必须主动防御": ["SIG-NPE"],
+            "异常必须分类处理": ["SIG-EXCEPTION"],
+            "资源必须安全释放": ["SIG-RESOURCE"],
+            "日期格式化必须使用日历年": ["SIG-EXCEPTION"],
+            "LocalDateTime 计算必须使用时间 API": ["SIG-EXCEPTION"],
+            "循环必须有明确边界和有效逻辑": ["SIG-EXCEPTION"],
+            "switch 分支必须显式终止并覆盖默认场景": ["SIG-EXCEPTION"],
+            "禁止使用存在性能或线程安全风险的工具类": ["SIG-CONCURRENCY", "SIG-EXCEPTION"],
+            "equals 调用与重写必须安全": ["SIG-NPE", "SIG-COLLECTION"],
+            "浮点类型必须使用安全方式比较": ["SIG-EXCEPTION"]
+          }
+        },
+        "HA-04-存储高可用规范": {
+          "sections": {
+            "查询必须确保走索引": ["SIG-SQL"],
+            "事务必须最小化且不含外部调用": ["SIG-SQL", "SIG-RPC"],
+            "数据操作必须可追溯和可恢复": ["SIG-SQL"],
+            "连接池必须规范管理": ["SIG-RESOURCE", "SIG-SQL"]
+          }
+        },
+        "HA-05-缓存高可用规范": {
+          "sections": {
+            "缓存一致性必须使用 Cache Aside 模式": ["SIG-CACHE"],
+            "BigKey 和 HotKey 必须治理": ["SIG-CACHE"],
+            "缓存防护三件套": ["SIG-CACHE"],
+            "序列化必须保证兼容性": ["SIG-CACHE", "SIG-COMPATIBILITY"]
+          }
+        },
+        "HA-06-消息队列高可用规范": {
+          "sections": {
+            "生产端必须检查发送结果": ["SIG-MQ"],
+            "消费端必须幂等且全量 catch": ["SIG-MQ", "SIG-IDEMPOTENCY", "SIG-EXCEPTION"],
+            "顺序消息必须正确配置": ["SIG-MQ"],
+            "积压必须有告警和处理策略": ["SIG-MQ", "SIG-LOG"]
+          }
+        },
+        "HA-07-JVM与线程池高可用规范": {
+          "sections": {
+            "线程池必须使用平台能力并合理配置": ["SIG-CONCURRENCY"],
+            "异步操作必须使用自定义线程池": ["SIG-CONCURRENCY"],
+            "ThreadLocal 必须安全使用": ["SIG-CONCURRENCY", "SIG-RESOURCE"],
+            "Future 获取结果必须设置超时": ["SIG-CONCURRENCY", "SIG-RPC"],
+            "并发安全高可用增量": ["SIG-CONCURRENCY"]
+          }
+        },
+        "HA-09-最终一致性规范": {
+          "sections": {
+            "关键操作必须保证幂等": ["SIG-IDEMPOTENCY"],
+            "分布式事务必须选择合适的模式": ["SIG-IDEMPOTENCY", "SIG-RPC"],
+            "分布式锁必须安全使用": ["SIG-CONCURRENCY", "SIG-IDEMPOTENCY"],
+            "缓存与 DB 一致性（精简版，详见 `HA-05`）": ["SIG-CACHE"],
+            "对账补偿必须兜底": ["SIG-IDEMPOTENCY", "SIG-MQ"]
+          }
+        },
+        "HA-10-接口兼容性规范": {
+          "sections": {
+            "字段变更必须向后兼容": ["SIG-COMPATIBILITY", "SIG-INTERFACE"],
+            "序列化必须安全配置": ["SIG-COMPATIBILITY", "SIG-SECURITY"],
+            "接口版本管理必须有序": ["SIG-COMPATIBILITY", "SIG-INTERFACE"],
+            "Thrift IDL 变更必须保持向后兼容": ["SIG-COMPATIBILITY"]
+          }
+        },
+        "HA-11-配置安全规范": {
+          "sections": {
+            "配置读取必须有默认值和校验": ["SIG-CONFIG"],
+            "开关必须标准化管理": ["SIG-CONFIG"],
+            "配置变更必须灰度推送": ["SIG-CONFIG"],
+            "禁止使用指定的 banma_util 配置类": ["SIG-CONFIG"]
+          }
+        },
+        "HA-12-安全编码规范": {
+          "sections": {
+            "接口必须配置认证（P0）": ["SIG-SECURITY"],
+            "必须防止越权访问（P0）": ["SIG-SECURITY"]
+          }
+        },
+        "HA-13-搜索引擎高可用规范": {
+          "sections": {
+            "查询必须安全": ["SIG-ES"],
+            "写入必须安全": ["SIG-ES"],
+            "Mapping 变更必须安全": ["SIG-ES", "SIG-COMPATIBILITY"],
+            "ES 必须有容灾降级": ["SIG-ES", "SIG-RPC"]
+          }
+        },
+        "HA-14-HBase高可用规范": {
+          "sections": {
+            "RowKey 必须散列设计": ["SIG-HBASE"],
+            "Scan 必须指定边界": ["SIG-HBASE"],
+            "写入必须安全": ["SIG-HBASE"],
+            "客户端配置必须优化": ["SIG-HBASE"],
+            "HBase 必须有容灾能力": ["SIG-HBASE"]
+          }
+        },
+        "SEC-01-注入安全规范": {
+          "sections": {
+            "OS 命令注入防护": ["SIG-SECURITY"],
+            "XML XXE 攻击防护": ["SIG-SECURITY"],
+            "SQL 注入防护": ["SIG-SECURITY", "SIG-SQL"],
+            "HTTP 安全头与 Cookie 安全": ["SIG-SECURITY"],
+            "URL 重定向白名单": ["SIG-SECURITY"],
+            "CSRF 防护": ["SIG-SECURITY"]
+          }
+        },
+        "SEC-02-数据保护规范": {
+          "sections": {
+            "XSS 防御与敏感信息脱敏": ["SIG-SECURITY", "SIG-LOG"],
+            "Token 安全传递": ["SIG-SECURITY"],
+            "加解密算法安全": ["SIG-SECURITY"],
+            "反序列化安全": ["SIG-SECURITY", "SIG-COMPATIBILITY"]
+          }
+        },
+        "SEC-03-访问控制与网络安全规范": {
+          "sections": {
+            "文件操作安全": ["SIG-SECURITY", "SIG-RESOURCE"],
+            "网络访问安全与 SSRF 防护": ["SIG-SECURITY"]
+          }
+        }
+      }
+    }
+  }
+}

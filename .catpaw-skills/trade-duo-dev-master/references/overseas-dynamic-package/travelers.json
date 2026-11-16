@@ -1,0 +1,109 @@
+{
+  "productBookRule": {
+    "travelerAttrRule": [
+      {
+        "label": "姓名",
+        "placeholder": "必填，输入证件上的姓名",
+        "key": "name",
+        "type": 1
+      },
+      {
+        "label": "手机号",
+        "placeholder": "必填，输入联系人手机号",
+        "key": "mobile",
+        "type": 1
+      },
+      {
+        "label": "证件号",
+        "placeholder": "必填，输入证件号",
+        "key": "credentials",
+        "type": 1
+      },
+      {
+        "label": "证件类型",
+        "placeholder": "必填，用于入园时验证身份",
+        "key": "credentialsType",
+        "type": 2,
+        "defaultValue": 1001,
+        "dictionary": {
+          "1001": {
+            "name": "身份证",
+            "checkPattern": "/^(^[1-9]\\d{5}(?:\\d{2}(\\d{2})[0-1]\\d[0-3]\\d(\\d{3}[0-9X]|[0-9]{3}))?$|(^[1-9]\\d{5}(?:\\d{2}(\\d{2})[0-1]\\d[0-3]\\d(\\d{3}[0-9X]|[0-9]{3}))?$)$/"
+          },
+          "1002": {
+            "name": "护照",
+            "additionalRequiredFields": [
+              {
+                "label": "证件有效期",
+                "placeholder": "请选择证件有效期",
+                "key": "validity",
+                "type": 2
+              }
+            ]
+          }
+        },
+        "refKey": "credentials"
+      }
+    ],
+    "travelerQuantity": 2
+  },
+  "travelerList": [
+    {
+      "travelerId": 502512563,
+      "travelerAttr": [
+        {
+          "dataStr": "啦啦啦",
+          "key": "name"
+        },
+        {
+          "dataStr": "18829527305",
+          "key": "mobile"
+        },
+        {
+          "dataStrMap": {
+            "1001": "110224195101016213"
+          },
+          "key": "credentials"
+        }
+      ],
+      "canSelect": true
+    },
+    {
+      "travelerId": 512969411,
+      "travelerAttr": [
+        {
+          "dataStr": "李四",
+          "key": "name"
+        },
+        {
+          "dataStr": "18392618656",
+          "key": "mobile"
+        }
+      ],
+      "canSelect": false,
+      "missingDescription": "缺少证件号，请补全"
+    },
+    {
+      "travelerId": 686587416,
+      "travelerAttr": [
+        {
+          "dataStr": "15332243258",
+          "key": "mobile"
+        }
+      ],
+      "canSelect": false,
+      "missingDescription": "缺少姓名、证件号，请补全"
+    },
+    {
+      "travelerId": 686587397,
+      "travelerAttr": [
+        {
+          "dataStr": "15332243258",
+          "key": "mobile"
+        }
+      ],
+      "canSelect": false,
+      "missingDescription": "缺少姓名、证件号，请补全"
+    }
+  ]
+}

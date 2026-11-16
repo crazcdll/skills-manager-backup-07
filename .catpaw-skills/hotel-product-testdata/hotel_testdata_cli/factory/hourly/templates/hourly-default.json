@@ -1,0 +1,144 @@
+{
+  "_name": "钟点房默认模板",
+  "_description": "钟点房（goodsType=2）标准模板：预付、免费取消、4小时住时长、接待时间08:00-22:00、无早餐、11%佣金。",
+  "_goodsType": 2,
+
+  "_HOWTO": [
+    "本文件是完整的 batchCreateGoods 请求参数，poiId/partnerId/roomId/roomName 需在执行时覆盖。",
+    "模板中 __TODAY__ 和 __TWO_YEARS_LATER__ 为占位符，由脚本在运行时替换为真实日期。",
+    "与全日房的关键差异：",
+    "  1. goodsType=2（固定）",
+    "  2. typeLimitValue=可住时长（小时，默认4，范围1~12）",
+    "  3. rpHourlyRoomUseModel=接待时间（默认08:00-22:00）",
+    "  4. rpBreakFastModel=null（钟点房不支持早餐规则）",
+    "  5. rpSerialModel=null（钟点房不支持连住规则）",
+    "  6. 默认取消政策为免费取消（全日房默认不可取消）",
+    "  7. 默认售价为8000分（80元，全日房默认20000分）",
+    "使用 --set 覆盖任意字段，路径为点分 JSON 路径，如：",
+    "  --set goodsDetailList.0.goodsBaseInfo.typeLimitValue=6",
+    "  --set goodsDetailList.0.rpInfo.rpHourlyRoomUseModel.normalRule.receiveTimeStart=00:00",
+    "  --set goodsDetailList.0.priceInfo.unifiedDatePriceInfos.weekPriceInfos.0.priceInfo.salePrice=12000"
+  ],
+
+  "createFlag": true,
+  "partnerId": "__PARTNER_ID__",
+  "poiId": "__POI_ID__",
+  "goodsDetailList": [
+    {
+      "goodsBaseInfo": {
+        "goodsName": "__GOODS_NAME__",
+        "goodsType": 2,
+        "typeLimitValue": 4,
+        "sellChannel": 15,
+        "paymentType": 0,
+        "priceChangeMode": 8,
+        "pricingPower": 0,
+        "priceRecodeWay": 1,
+        "channelNos": {
+          "8": ["001", "002"]
+        },
+        "switchStatus": 0,
+        "expectPriceChangeMode": 8,
+        "poiId": "__POI_ID__",
+        "partnerId": "__PARTNER_ID__",
+        "contractNo": null,
+        "singleChannelReason": "",
+        "deductionAudit": false,
+        "superDealReSale": false,
+        "canAdjustPrice": false
+      },
+      "roomInfo": {
+        "roomId": "__ROOM_ID__",
+        "roomName": "__ROOM_NAME__",
+        "capacity": 0
+      },
+      "rpInfo": {
+        "rpBaseModel": {
+          "isAutoRelay": 0,
+          "autoRelayDays": 30,
+          "rpCustomName": "__RP_CUSTOM_NAME__",
+          "customNameType": 1,
+          "saleStrategyInfo": {
+            "blackWhiteStatus": 0,
+            "saleStrategy": [0, 1]
+          }
+        },
+        "rpCancelModel": {
+          "normalRule": {
+            "cancelItemType": 1,
+            "moveUpCancelDays": 0,
+            "moveUpCancelHour": "23:59:00"
+          },
+          "weekendRule": null,
+          "updateType": 0
+        },
+        "rpBreakFastModel": null,
+        "rpHourlyRoomUseModel": {
+          "normalRule": {
+            "receiveTimeStart": "08:00",
+            "receiveTimeEnd": "22:00"
+          },
+          "updateType": 0
+        },
+        "rpGuaranteeModel": null,
+        "rpEarlyBookingModel": {
+          "normalRule": {
+            "latestBookingDays": -1,
+            "earliestBookingDays": -1,
+            "isDaybreakBooking": 1
+          },
+          "updateType": 0
+        },
+        "rpSerialModel": null,
+        "rpBookingModel": null,
+        "rpDisplayModel": {
+          "normalRule": {
+            "hotelMember": 0,
+            "totalGmv": 0,
+            "city": 0,
+            "stuSpecial": 0,
+            "distanceRange": 0,
+            "riskControl": 0,
+            "flagshipNewUser": 0,
+            "businessTravel": 0,
+            "employeeExclusive": 0
+          },
+          "updateType": 0
+        },
+        "rpTimeLimitSaleModel": null,
+        "rpServiceModel": null
+      },
+      "priceInfo": {
+        "priceRecordWay": 1,
+        "ratioConfig": {
+          "ratioChange": true,
+          "newRatio": "1100",
+          "ratioType": 1
+        },
+        "unifiedDatePriceInfos": {
+          "dates": [
+            {
+              "startDate": "__TODAY__",
+              "endDate": "__TWO_YEARS_LATER__"
+            }
+          ],
+          "weekPriceInfos": [
+            {
+              "inWeek": [1, 2, 3, 4, 5, 6, 7],
+              "priceInfo": {
+                "salePrice": "8000",
+                "basePrice": "",
+                "subPrice": "",
+                "subRatio": "1100"
+              },
+              "priceFactorInfos": null
+            }
+          ]
+        },
+        "priceInfos": null
+      }
+    }
+  ],
+  "priceAuditInfos": null
+}
+

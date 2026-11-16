@@ -1,0 +1,13 @@
+skill-manifest-version: 1
+skill-id: 10b4b0e25a09185be40e024b5f8843a8cba52b329a9a9cb851942f2157c37fc1
+
+files:
+  ef6006df00fdf640ae12f56cf7ae9a0c91ce29b8c7b75e39e4e62883180d985c  README.md
+  57da2c8b383f5553fa71677227f196931da8ad1e1cf61743960347899fa8411e  SKILL.md
+  61269ec4f476e55ef8bafe7f8a73f81e8b82b722315f0a65e602b7b8f7917fd5  assets/flex-design-template.md
+  47dff3e816b2d0664baa4544395058bd250797426c6d954f6b36533df4f66816  references/design-data-analytics.md
+  d4c8af682772d2e4e39d47c75d99c07178628d9feebbac901aa6e944f388a3be  references/flex-design-gen.md
+  cbd15d96eca556285db1b3a99a305756d445e24e5c7acea8886f3e214004a852  references/image-analysis.md
+  2282712b9f1a36e3fdcc8e142ac7131844aadbcd139c17fe821e27851df6ce43  references/imd-design-fetch.md
+  7a1f5b0b86b5604e7a3303659291415223a96f2620166b09a3e5f523309e32e5  references/ingee-design-fetch.md
+  b4295fcd76b14b4372b1ba2cbbaf38fd79956b69263b64556e49e8e171dd1387  references/material-retrieval.md

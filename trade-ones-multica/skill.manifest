@@ -1,0 +1,8 @@
+skill-manifest-version: 1
+skill-id: ea694c72d900a440f3f5514e95ea0477624bd694289218a440bf6379c2f16a53
+
+files:
+  9e5204b7146ea7ad02f073a72eb51d199da09261fa1cdf31aba4ff960ad6e75e  SKILL.md
+  c8bd88e2ae1e03a4f09d71f129d5d414fc10818d0dcf90d9ee3ecea5cc7b96a3  scripts/map_page.py
+  230d371500bd9f77e3b6d9857af5ff0e67713bc41f2de8ec4470a8652895456c  scripts/parse_table.py
+  a0a1fe48e8c90f06ab02c99f5ef05459ac12355efbf0b7f91259a410a2335455  scripts/render_result_table.py

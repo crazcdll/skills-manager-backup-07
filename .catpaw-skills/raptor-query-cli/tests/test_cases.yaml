@@ -1,0 +1,100 @@
+# raptor-query-cli test_cases.yaml
+
+# ===== trigger 正例 =====
+- name: trigger_01
+  type: trigger
+  input: "帮我查一下 Raptor 上 cat 服务的 QPS"
+  expect: "skill 被激活，AI 开始调用 raptor-prod 查询 QPS 指标"
+
+- name: trigger_02
+  type: trigger
+  input: "查下 raptor.mws.sankuai.com 上 cat 服务的报错分析"
+  expect: "skill 被激活，AI 解析 URL 并调用 raptor-prod 查询"
+
+- name: trigger_03
+  type: trigger
+  input: "帮我查 cat 服务的 TP99 和成功率"
+  expect: "skill 被激活，AI 开始查询 Raptor 监控指标"
+
+- name: trigger_04
+  type: trigger
+  input: "帮我在 Raptor 查一下 traceId abc123 的链路"
+  expect: "skill 被激活，AI 调用 raptor-prod trace 命令查询链路"
+
+# ===== trigger 负例 =====
+- name: trigger_neg_01
+  type: trigger
+  input: "帮我看下测试集群某服务的接口延迟情况"
+  expect: "skill 不应被激活，由 raptor-query-test 处理测试环境请求"
+
+- name: trigger_neg_02
+  type: trigger
+  input: "帮我看下海外 Keeta 集群某服务的异常日志"
+  expect: "skill 不应被激活，由 raptor-query-keeta 处理 Keeta 环境请求"
+
+# ===== flow 场景 =====
+- name: flow_01
+  type: flow
+  input: "查下 cat 服务有哪些主机"
+  expect: "AI 调用 raptor-prod hosts 命令，返回 cat 服务的主机列表"
+
+- name: flow_02
+  type: flow
+  input: "查 cat 服务 URL 类型的 QPS 和 TP99"
+  expect: "AI 调用 raptor-prod tx 命令，返回 cat 服务 URL 类型的 QPS、TP99、成功率等指标"
+
+- name: flow_03
+  type: flow
+  input: "cat 服务最近 1 小时有哪些报错"
+  expect: "AI 调用 raptor-prod pb 命令，返回 cat 服务 error 类型的报错统计"
+
+- name: flow_04
+  type: flow
+  input: "帮我查 cat 服务最近的 error logview"
+  expect: "AI 调用 raptor-prod lv 命令，返回 cat 服务的 logview ID 列表"
+
+- name: flow_05
+  type: flow
+  input: "查 cat 服务的上游依赖"
+  expect: "AI 调用 raptor-prod topology 命令，返回 cat 服务的上游拓扑关系"
+
+- name: flow_06
+  type: flow
+  input: "查 cat 服务的 CPU 使用率"
+  expect: "AI 调用 raptor-prod host-metrics 命令，返回 cat 服务的 CPU 时序数据"
+
+- name: flow_07
+  type: flow
+  input: "查 cat 服务接口粒度的下游 RPC 调用情况"
+  expect: "AI 调用 raptor-prod rpc 命令，返回 cat 服务下游 RPC 调用统计，包含 total、avg、fail% 等列"
+
+# ===== edge 边缘场景 =====
+- name: edge_01
+  type: edge
+  input: "查 nonexistent.service.12345 的监控数据"
+  expect: "AI 给出友好提示，说明该 appkey 无数据或不存在，不暴露原始报错堆栈"
+
+- name: edge_02
+  type: edge
+  input: "raptor --help"
+  expect: "AI 输出 raptor-prod 的帮助信息，列出可用子命令"
+
+- name: edge_03
+  type: edge
+  input: "raptor tx --help"
+  expect: "AI 输出 tx 子命令的参数说明，包含 -a/--appkey 等参数"
+
+- name: edge_04
+  type: edge
+  input: "查 cat 服务主机列表，JSON 格式"
+  expect: "AI 调用 raptor-prod 并附加 --json 参数，返回结构化 JSON 数据"
+
+- name: edge_05
+  type: edge
+  input: "raptor trace --help"
+  expect: "AI 输出 trace 子命令的帮助信息，不崩溃"
+
+- name: edge_06
+  type: edge
+  input: "raptor --version"
+  expect: "AI 输出 raptor-prod 的版本号信息"

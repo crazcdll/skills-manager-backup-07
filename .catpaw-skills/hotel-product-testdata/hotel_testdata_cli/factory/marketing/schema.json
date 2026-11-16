@@ -1,0 +1,50 @@
+{
+  "_comment": "生意助手/全域通报名字段说明 - 工具1037（ProductMakeService.createProductAsync）",
+  "_tool": 1037,
+  "_async": true,
+  "_async_note": "工具1037为异步接口，结果由【供应链商品测试数据助手】大象推送",
+  "_modes": {
+    "mode1": "供应商+门店报名（新建Goods报名生意助手）：传 partnerId + poiId",
+    "mode2": "指定产品报名（对已有产品报名）：传 productId"
+  },
+
+  "configKey": {
+    "type": "string",
+    "required": true,
+    "enum": {
+      "notUpscale":                  "生意助手（仅生意助手）",
+      "upscaleFixed":                "全域通一口价",
+      "upscaleDiscount":             "全域通折扣",
+      "upscaleFixedDiscountMixed":   "全域通一口价折扣混合"
+    },
+    "desc": "报名类型（最常用：upscaleFixed=全域通一口价）",
+    "example": "upscaleFixed"
+  },
+  "mis": {
+    "type": "string",
+    "required": true,
+    "desc": "操作人MIS号",
+    "example": "mengfanchen"
+  },
+
+  "mode1_partnerId": {
+    "type": "string",
+    "required_if": "mode=1",
+    "desc": "【方式一】供应商ID",
+    "example": "4549232"
+  },
+  "mode1_poiId": {
+    "type": "string",
+    "required_if": "mode=1",
+    "desc": "【方式一】门店ID",
+    "example": "1085918666100285"
+  },
+
+  "mode2_productId": {
+    "type": "string",
+    "required_if": "mode=2",
+    "desc": "【方式二】产品ID（境内全日房商品ID）",
+    "example": "2205278640"
+  }
+}
+

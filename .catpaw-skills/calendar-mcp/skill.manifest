@@ -1,0 +1,12 @@
+skill-manifest-version: 1
+skill-id: 10717c1c7fd97e61a33216f9188167ac20ba639fb07052305afb98d4a963e7f6
+
+files:
+  19b23b5b9ed319a2cd8a7913143ba687ea72dc60c7bcbc073912a908f08c6462  SKILL.md
+  ec5a48bc53f3238c1f8f6dc350d40955363ed78f3f83c01888f24cdcdd83a4ff  references/cli-cheatsheet.md
+  7589e3eb34353ae251e6f1d54f5f47067ac34ee2e7529eaa266d05f22bddcf6c  references/meeting-rooms.md
+  dcdead571ded697a41e3d323efb82ab4f91d54a2be1ff80182f31e156ccf05ae  references/meeting-time-and-timezone.md
+  850df543a04f6ea3fb38ab5f46e607c8780ccac4aa58a58ed27e81741b5b2381  references/recurrence-pattern.md
+  7a5191f016f83d890dfc37b18b095fd119c255e703f03efd3b7fa7435f30e138  references/runtime-and-safety.md
+  e4ee762f0e861bbe3e02bb023046ab6176b3113156ca5743d1263e963b257571  references/schedule-flow.md
+  d8656b025d8b0fa77830e2ce09627106efd7260d11d92e26e460b07d7d197201  scripts/ensure-oa-skills.cjs

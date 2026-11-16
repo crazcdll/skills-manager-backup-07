@@ -1,0 +1,9 @@
+skill-manifest-version: 1
+skill-id: 65e796ebcf5f57ba383ff06799de91b2e918dae8c6aea54db0046cd4b60e6a1d
+
+files:
+  b6e4188c1c0a9373487335d7cf4bbc047cf173edfdd54c1c39a56390b3861737  SECURITY.md
+  6c98bcec91fb3dff635fb9ef583396b6be6ce5e7aaba21a14db1845e0219a4b9  SKILL.md
+  20d3ddee88d2afb2e3cc78126f224e11f649c2a77d39757d8b7f06d206306b54  icon.url
+  c2eff5e352b85fd9434308bc2a200da020fb786cea0824104b9b750558ae9aea  storage_download.py
+  29e8a6ad8a489dcde17d4ff0ec58285ab9fef39ce94407f773d720ff63723076  storage_upload.py

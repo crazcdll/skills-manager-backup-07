@@ -1,0 +1,10 @@
+skill-manifest-version: 1
+skill-id: 285a2b2dd490240ca78732f5ffe8cecf5b2e6fb561d260e2d9a8dd8e7c349f5f
+
+files:
+  6e40e2db956acab041df42c9c0f0c2bf25b9a2c69c10356ec02377d57c850c80  SKILL.md
+  23cde8a764650566d2895f89bcd2ef78e8c584314eee4fb8469bed5c1be5bf08  references/advanced.md
+  dc044b773882dd3faf1cc551c2fb50aac389f81b61aaa5d33a1baaa0d2ceb2db  references/config.md
+  58e2af5577562d9775ce1b10cdc74f4a2062e010dd5d8ece2cb04f0fda74fd44  references/group-management.md
+  157fa865e69331f4b543858087ca89677d11fdd33856dcd4390af4f351ae5085  references/group-summary.md
+  0342d612fc951a6a16e8b478d4df0fd5c88c7a60b4d9f5736e00ffff71e244d9  references/open-platform.md

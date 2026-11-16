@@ -1,0 +1,8 @@
+{
+  "schema_version": "rule-set-agents-index/v1",
+  "origin": "git",
+  "source_path": "AGENTS.md",
+  "content": "**数据库规范**\r\n\r\n| 名称 | 触发场景 | 路径 |\r\n|---|---|---|\r\n| DB-01 | SQL 查询 | `rules/db.md` |\r\n",
+  "content_hash": "sha256:a3a0d7a3ba116cca49b3c2076d538b616949acd443a81de872ed34390361d717",
+  "warnings": []
+}

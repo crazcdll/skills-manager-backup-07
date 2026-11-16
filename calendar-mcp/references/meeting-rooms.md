@@ -9,7 +9,7 @@
 - `--roomId` 用于预订/占用真实会议室资源；`--location` 只是普通地点展示，不会预订。不能把会议室名称、楼宇或楼层写进 `--location` 模拟占用。
 - 会议室名称、楼宇、楼层、容量和设备条件都不能直接当 `roomId`。只使用推荐或查询结果中确认的真实 `roomId`；`room-booking-helper query` 返回的 `id` 就是后续 `calendar-mcp` 的 `roomId`。
 - `room-booking-helper book` 是重叠写入口，默认禁止使用。仅当用户明确指定该 Skill，或 `calendar-mcp` 无法覆盖且用户确认转交时才考虑。
-- 循环日程不支持会议室、视频会议或会议室合并；不能退化成单次操作。
+- 循环日程不支持会议室、视频会议或会议室合并；不能退化成单次操作。若其他入口已为循环主日程或任一实例、例外实例关联会议室，该循环日程的任何编辑都应停止，包括只改标题或备注；按 [recurrence-pattern.md](recurrence-pattern.md) 的查询与阻断规则处理。
 
 ## 时间限制
 

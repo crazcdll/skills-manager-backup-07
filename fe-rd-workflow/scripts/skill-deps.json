@@ -1,11 +1,4 @@
 [{
-  "name": "memory-skill",
-  "required": true,
-  "min_version": "1.0.0",
-  "purpose": "状态持久化、用户偏好存储、执行进度恢复、中断恢复",
-  "phase": "全流程",
-  "alternatives": []
-}, {
   "name": "fe-rd-workflow",
   "required": true,
   "min_version": "1.0.0",
@@ -19,6 +12,13 @@
   "purpose": "学城文档阅读、创建、查询、管理",
   "phase": "全流程",
   "alternatives": ["km-doc-tools"]
+},  {
+  "name": "arch-design",
+  "required": false,
+  "min_version": "1.0.0",
+  "purpose": "架构设计",
+  "phase": "",
+  "alternatives": []
 }, {
   "name": "design-spec",
   "required": true,
@@ -27,10 +27,10 @@
   "phase": "阶段三",
   "alternatives": []
 }, {
-  "name": "trade-fe-knowledge",
+  "name": "trade-fe-kb",
   "required": true,
   "min_version": "1.0.0",
-  "purpose": "业务知识库",
+  "purpose": "交易前端知识库",
   "phase": "",
   "alternatives": []
 }, {
@@ -54,13 +54,6 @@
   "purpose": "前后端交互协议",
   "phase": "全流程",
   "alternatives": []
-}, {
-  "name": "draw-io-km",
-  "required": true,
-  "min_version": "1.0.0",
-  "purpose": "绘制架构图/流程图",
-  "phase": "技术方案",
-  "alternatives": ["kmdrawio", "drawio-generator"]
 }, {
   "name": "duo-fedo",
   "required": true,
@@ -97,6 +90,13 @@
   "phase": "代码开发（push 后、创建 PR 前）",
   "alternatives": []
 }, {
+  "name": "ai-auto-ui-test",
+  "required": false,
+  "min_version": "5.0.0",
+  "purpose": "内循环 Flow 测试用例生成：产出可执行的验收标准供 Stage 4 做 TDD 驱动编码、Stage 5 做对照自查（不执行自动化测试）",
+  "phase": "Stage 3（Step 3.4 用例生成）",
+  "alternatives": []
+}, {
   "name": "catpaw-daxiang",
   "required": true,
   "min_version": "1.0.0",
@@ -109,20 +109,6 @@
   "min_version": "1.0.0",
   "purpose": "支持局部编辑(改写、纠错、续写等)，插入drawio、mermaid、plantuml图表。",
   "phase": "阶段二",
-  "alternatives": []
-}, {
-  "name": "km-doc-tools",
-  "required": true,
-  "min_version": "1.0.0",
-  "purpose": "学城文档阅读、创建、查询、管理",
-  "phase": "全流程",
-  "alternatives": []
-}, {
-  "name": "mermaid-tools",
-  "required": true,
-  "min_version": "1.0.0",
-  "purpose": "Mermaid 图表绘制工具",
-  "phase": "全流程",
   "alternatives": []
 },{
   "name": "ingee-flex",

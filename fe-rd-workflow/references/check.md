@@ -38,7 +38,10 @@
 | `stage2.1` | 步骤 2.1：创建/切换开发分支 | —                                                                       |
 | `stage2.2` | 步骤 2.2：创建标准目录结构 | `.duo/{demand_description}/docs/` 目录存在 +`workflow-context.json`        |
 | `stage3`   | 阶段三：需求分析与技术设计 | `demand-spec.md` + `tech-design.md` + `dev-tasks.md`（均在 docs/） |
-| `stage4`   | 阶段四：物料组件和协议开发           | —（代码产物，不校验文件）                                               |
+| `stage4`   | 阶段四：物料组件和协议开发           | `runtime.stage4_tasks[]` 存在且每项 `status` 均为 `done`/`skipped`（无 `pending`）；`git diff` 覆盖已声明的 `artifact` 路径 |
+| `stage4.1` | 步骤 4.1：物料组件开发与发布 | `runtime.stage4_tasks[]` 中 `type=material` 的任务全部 `done`/`skipped`                       |
+| `stage4.2` | 步骤 4.2：协议开发         | `runtime.stage4_tasks[]` 中 `type=protocol` 的任务全部 `done`/`skipped`                       |
+| `stage4.3` | 步骤 4.3：业务逻辑实现     | `runtime.stage4_tasks[]` 中 `type=logic` 的任务全部 `done`/`skipped`                          |
 | `stage5`   | 阶段五：验证测试           | `.duo/{demand_description}/docs/03-implementation-checklist.md`         |
 | `stage6`   | 阶段六：CI/CD              | —（部署结果，不校验文件）                                               |
 | `stage7`   | 阶段七：反馈总结           | `.duo/{demand_description}/docs/04-delivery-reports.md`                 |
@@ -56,11 +59,15 @@ Step 2: 检查 current_work_ask 字段
   ├─ 字段不存在，或所有值均为 pending → 视为首次运行，跳过恢复检查，从阶段一开始
   └─ 存在非 pending 值 → 进入 Step 3
 
-Step 3: 产物文件自动校验（在展示给用户之前先自动执行）
-  对所有 status=resolved 的阶段，逐一检查对应产物文件是否存在：
-  ├─ 产物文件存在 → 保持 resolved，加入「已完成」展示列表
-  └─ 产物文件缺失 → 自动降级为 pending，加入「待执行」列表，并记录缺失文件路径
-  （无产物文件的阶段，如 stage1/stage4/stage6，直接保持 resolved）
+Step 3: 产物自动校验（在展示给用户之前先自动执行）
+  对所有 status=resolved 的阶段，逐一检查对应产物是否满足「阶段 key 与阶段名称映射」表中的校验条件：
+  ├─ 校验通过（产物文件存在 / stage4 校验条件满足）→ 保持 resolved，加入「已完成」展示列表
+  └─ 校验不通过（产物缺失 / stage4_tasks 存在 pending 或缺失）→ 自动降级为 pending，加入「待执行」列表，并记录原因
+  （无产物且无可校验条件的阶段，如 stage1/stage6，直接保持 resolved）
+
+  ⚠️ stage4 及其子阶段 stage4.1/4.2/4.3 不再免校验：依据 `runtime.stage4_tasks[]` 判断。
+     - stage4_tasks 缺失或为空 → stage4 及子阶段全部降级 pending（视为编码未落实）
+     - 某子阶段对应 type 的任务仍有 pending → 该子阶段降级 pending，可从子阶段粒度精确续跑
 
 Step 4: 构建三组展示内容
   - ✅ 已完成（resolved，且产物校验通过）：让用户多选确认哪些确实已完成

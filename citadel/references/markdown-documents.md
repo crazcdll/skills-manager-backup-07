@@ -53,6 +53,18 @@ oa-skills citadel searchContent --keyword "关键词" --parent-urls https://km.s
 
 权限报告将 `type=7` 显示为 MD 文档；权限报告和搜索结果中的 MD 链接使用 `/md/`，测试时保留客户端配置的环境与泳道。链接不会自动切换 CLI 环境，测试操作仍须显式传入 `--env test --swimlane <泳道名>`。搜索参数不合法时，在认证和请求前非零退出。
 
+## 提及用户
+
+MD 正文中的 @人 使用 `[@姓名:MIS]` 或 `[@姓名:empId]`，随 Markdown 文件创建或更新：
+
+```markdown
+请 [@张三:zhangsan] 确认。
+负责人：[@李四:123456]
+```
+
+- 优先使用 MIS；纯数字标识按 empId 解析，不能填写大象数字 UID。
+- 姓名和标识均必填，标识不能含空白。MD 不自动补全姓名或 empId，使用已确认的信息。
+
 ## 创建
 
 ```bash

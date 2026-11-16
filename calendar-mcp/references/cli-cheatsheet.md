@@ -72,7 +72,7 @@ oa-skills calendar-mcp updateSchedule --scheduleId "<日程ID>" --clearLocation 
 oa-skills calendar-mcp deleteSchedule --scheduleId "<日程ID>"
 ```
 
-循环创建、查询与取消命令以 [recurrence-pattern.md](recurrence-pattern.md) 为准。
+循环创建、查询、编辑与取消命令以 [recurrence-pattern.md](recurrence-pattern.md) 为准。
 
 ## 冲突、忙闲和时区
 

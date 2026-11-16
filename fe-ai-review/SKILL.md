@@ -5,7 +5,7 @@ description: 通用前端代码审查 skill。依赖 mt-code-standards-setup 同
 metadata:
   skillhub.creator: "lidingcheng"
   skillhub.updater: "lidingcheng"
-  skillhub.version: "V23"
+  skillhub.version: "V25"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "39902"
   skillhub.high_sensitive: "false"
@@ -25,14 +25,14 @@ bash <fe_skill_dir>/scripts/self-update.sh
 
 脚本始终 exit 0，不阻塞后续流程。无论结果如何，只用一行输出说明发生了什么（更新成功、更新失败、跳过原因等）。输出 `开发目录，跳过自动更新` 是正常情况，直接继续。
 
-## AI-Quality-CR-Agent 兼容
+## 上层审查入口委托
 
-受 `ai-quality-cr-agent` 委托时：
+受 `ai-quality-cr-agent`、`ai-cr-forlocal` 等上层入口委托时：
 
-- **审查流程**仍按本 Skill 执行，包括平台规则同步。
-- **交付结果**按上层交接约定提供发现项、待确认问题、审查范围、覆盖边界及 `rule_bundle` / `rule_sources`；除非明确要求，不额外按 `tpl-report.md` 渲染完整前端报告。
-- **最终报告、上层上报和 PR 评论**由 `ai-quality-cr-agent` 统一处理，前端不重复发布或评论。
-- **独立运行**时按 Step 8 上报 CR 看板；受上层委托时跳过本 Skill 的上报，由 `ai-quality-cr-agent` 统一发布。
+- **审查流程**先读取所选模式的完整流程，按其完成仓库准备与规则加载；上游摘要不替代模式步骤。开始代码审查前完成 [CR 前规则检查](references/rules-loading.md#cr-前规则检查)。
+- **交付结果**按上层交接约定提供发现项、待确认问题、审查范围、技术栈集合及对应模块证据、未识别部分、覆盖边界及 `rule_bundle` / `rule_sources`；除非明确要求，不额外按 `tpl-report.md` 渲染完整前端报告。
+- **最终报告、上层上报和 PR 评论**由上层入口统一处理，前端不重复发布或评论。
+- **独立运行**时按 Step 8 上报 CR 看板；受上层委托时跳过本 Skill 的上报，由上层入口统一发布。
 
 否则沿用本 skill 的默认输出、评论和上报策略。
 
@@ -134,7 +134,7 @@ CR 过程中收集的信息可自动提取为 MCM 变更同步模板的参考内
 当报告需要评论到对应 PR 时使用此能力，仅在仓库一致性校验通过后启用。
 
 - 触发条件：用户给出 PR 链接，或明确要求「评论到 PR / 发到 PR」
-- 策略：P0 / P1 逐条行内评论；重要且值得人工核实的待确认项额外最多 3 条行内评论，不占用缺陷评论名额。其余待确认项、已评论项索引、P2/P3 和整体结论并入全局摘要，详见评论指引。
+- 策略：P0 / P1 逐条行内评论；全量审查仅允许风险最高的 1 条待确认行内评论，增量审查不发送待确认行内评论，不占用缺陷评论名额。行内标题使用“🔎 待人工确认”。其余待确认项、已评论项索引、P2/P3 和整体结论并入全局摘要，详见评论指引。
 - 失败降级：按评论指引处理鉴权失败、重试和结果核验，不阻塞报告产出
 - 工具脚本（随 skill 自带，无需额外安装）：
   - [`scripts/pr-comment/cr-comment.sh`](scripts/pr-comment/cr-comment.sh)：行内 / 全局 / 验证 / 删除

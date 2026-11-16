@@ -5,7 +5,7 @@ description: "学城多维表格操作工具。支持:文档/表格创建与管�
 metadata:
   skillhub.creator: "zhangshufei02"
   skillhub.updater: "zhangshufei02"
-  skillhub.version: "V27"
+  skillhub.version: "V28"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "3859"
   skillhub.high_sensitive: "true"
@@ -193,7 +193,7 @@ node -e "const cp=require('child_process'); const probe=process.platform==='win3
 ## CLI 速查
 
 **命令格式**：`oa-skills citadel-database <command> [options]`  
-**通用选项**：`--mis <mis>` | `--raw` | `--clear-cache` | `--force-ciba`（仅在认证异常时兜底使用，正常不需要添加）
+**通用选项**：`--mis <mis>` | `--raw` | `--clear-cache`
 
 📖 执行具体命令前，加载 `{baseDir}/references/cli-reference.md` 获取完整参数、示例和工作流
 

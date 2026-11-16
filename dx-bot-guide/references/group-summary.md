@@ -29,6 +29,7 @@
 ### Step 1：确认参数
 
 向用户确认：
+
 - 群 ID（如果用户给了群名但没给 ID，先用 `group search --name <群名>` 找到 gid）
 - 时间范围（默认建议 24 小时）
 
@@ -47,26 +48,41 @@ dx-bot-cli --json msg history-group --gid <GID> --start 24h --page-size 100
 从返回 JSON 的 `data.msgs` 提取每条消息关键信息：
 
 | 字段 | 说明 |
-|------|------|
-| `msgId` | 消息 ID |
-| `fromUid` / `fromPubId` | 发送者：人发的 `fromPubId=0`，机器人发的 `fromUid=0` |
-| `cts` | 消息时间（毫秒时间戳） |
-| `msgType` | 消息类型（1=文本, 4=图片, 6=图文, 7=多图文, 8=文件, 13=模板, 17=通用/富文本 等） |
+| ------ | ------ |
+| `msg_id` | 消息 ID |
+| `from_uid` / `from_pub_id` | 发送者：人发的 `from_pub_id=0`，机器人发的 `from_uid=0` |
+| `cts` | 消息时间（Unix 毫秒时间戳） |
+| `msg_type` | 消息类型（1=文本, 4=图片, 6=图文, 7=多图文, 8=文件, 13=模板, 17=通用/富文本 等） |
 | `message` | 消息体 JSON，文本取 `message.text` |
-| `isCancel` | 是否已撤回（true 则跳过） |
+| `is_cancel` | 是否已撤回（true 则跳过） |
+
+> **时间格式化时区陷阱**：`jq` 的 `strftime` 默认按 UTC 处理（会少 8 小时），`strflocaltime` 又依赖机器本地时区；生成时间线时统一手动加 `+28800` 秒，**限死东八区**：
+>
+> ```bash
+> # ❌ 少 8 小时
+> jq -r '.data.msgs[] | "\(.cts/1000|strftime("%m-%d %H:%M"))"'
+>
+> # ❌ 不推荐：依赖机器时区
+> jq -r '.data.msgs[] | "\(.cts/1000|strflocaltime("%m-%d %H:%M"))"'
+>
+> # ✅ 限死东八区（+8h = +28800s）
+> jq -r '.data.msgs[] | "\((.cts/1000+28800)|strftime("%m-%d %H:%M"))"'
+> ```
 
 类型处理规则：
-- `msgType=1` → 文本，提取 `message.text`
-- `msgType=4` → 标记为 [图片]
-- `msgType=6` → 提取 link 的 `title` / `link`
-- `msgType=8` → 标记为 [文件]，提取 `name`
-- `msgType=13` → 模板消息，提取 `contentTitle` / `content`
-- `msgType=17` → 富文本，尝试提取文本内容
-- `isCancel=true` → 跳过已撤回消息
+
+- `msg_type=1` → 文本，提取 `message.text`
+- `msg_type=4` → 标记为 [图片]
+- `msg_type=6` → 提取 link 的 `title` / `link`
+- `msg_type=8` → 标记为 [文件]，提取 `name`
+- `msg_type=13` → 模板消息，提取 `contentTitle` / `content`
+- `msg_type=17` → 富文本，尝试提取文本内容
+- `is_cancel=true` → 跳过已撤回消息
 
 发送者识别：
-- `fromPubId != 0` → `[机器人]`
-- `fromUid` 已知 uid→姓名映射时用真实姓名，未知显示 `用户{uid}`（可先用 `user lookup --uid <uid>` 批量查姓名）
+
+- `from_pub_id != 0` → `[机器人]`
+- `from_uid` 已知 uid→姓名映射时用真实姓名，未知显示 `用户{uid}`（可先用 `user lookup --uid <uid>` 批量查姓名）
 
 ### Step 4：AI 总结
 
@@ -78,6 +94,8 @@ dx-bot-cli --json msg history-group --gid <GID> --start 24h --page-size 100
 4. 如果有 @人、决策、待办事项，单独高亮。
 
 总结原则：
+
+- 时间线中的时间统一按东八区展示；用 `jq` 格式化 `cts` 时固定 `(.cts/1000+28800)|strftime(...)`，不要用默认按 UTC 的 `strftime`，也不要用依赖机器时区的 `strflocaltime`。
 - 保留关键事实和决策，过滤水聊和表情。
 - 人名用真实姓名（从 uid 映射）。
 - 消息量大（>100 条）时按主要话题归类。
@@ -96,7 +114,7 @@ dx-bot-cli --force msg send-chat --to <请求者mis> --text "<总结内容>"
 ## 错误处理
 
 | 错误 | 处理 |
-|------|------|
+| ------ | ------ |
 | 机器人不在该群（code=70003） | 提示用户先把机器人加入群 |
 | 无权限（code=70005） | 提示权限不足，可能需要群主配置 |
 | 消息为空 | 提示该时间段内无消息 |

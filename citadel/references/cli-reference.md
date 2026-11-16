@@ -11,7 +11,6 @@
 | `--mis <mis>` | string | 从配置文件读取 | 用户 MIS 号，用于认证 |
 | `--raw` | flag | false | 输出原始 JSON 到 stdout（默认输出人类可读格式到 stderr） |
 | `--clear-cache` | flag | — | 清除认证缓存后退出，不需要指定命令 |
-| `--force-ciba` | flag | false | 强制走 CIBA 认证（仅在认证异常时兜底使用，正常不需要添加） |
 
 ## getSimpleMarkdown
 

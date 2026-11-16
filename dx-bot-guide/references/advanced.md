@@ -64,6 +64,36 @@ dx-bot-cli card update-group \
 
 > 新式排他卡片更新（`--request-id`）的内联 `--text` / `--markdown` / `--abstract` 同样自动还原 `\n` / `\t` / `\\` 转义；需要字面量反斜杠时加 `--no-unescape`，或改用 `--text-file` / `--markdown-file` / `--stdin-*`（不做转义处理）。
 
+## 卡片内容查询（card query，Direct / Proxy）
+
+以机器人身份查询用户实际看到的最新卡片内容（`POST /card/user/queryByBot`）。只读操作，无需 `--force`。Direct 模式按 `--to` 查询指定用户；Proxy 经后端 `/xm/msg/card/query` 转发，`--to` 被忽略，群聊查询要求你在该群内。官方文档：https://km.sankuai.com/collabpage/2751950222
+
+```bash
+# 单聊卡片
+dx-bot-cli --mode direct card query --to rancheng02 \
+  --msg-id <msgId> \
+  --biz-id <bizId> --task-id <taskId> --dynamic-type <dynamicType>
+
+# 群聊卡片（--to 传任意非机器人群成员 MIS/empId）
+dx-bot-cli --mode direct card query --chat-type GROUP_CHAT --gid <群ID> \
+  --to rancheng02 --msg-id <msgId> \
+  --biz-id <bizId> --task-id <taskId> --dynamic-type <dynamicType>
+
+# Proxy 模式（无 bot 凭证时；--to 会被忽略）
+dx-bot-cli --mode proxy card query \
+  --msg-id <msgId> \
+  --biz-id <bizId> --task-id <taskId> --dynamic-type <dynamicType>
+```
+
+- `--to`：仅 Direct 模式使用（MIS 或 empId）
+
+- `--biz-id` / `--task-id` / `--dynamic-type` 取自消息体 `extension.businessInfo`
+- `--msg-id` 支持逗号分隔批量查询；批量时共用上述三个业务字段
+- `--chat-type` 默认 `PUB_CHAT`，兼容 `pub` / `chat` / `group` 简写；群聊必须带 `--gid`（Proxy 模式还要求你在群内）
+- 默认按 msgId 逐条格式化输出；`--json` 输出完整 `{code, message, data.contentMap}`
+
+> 限制：流式卡片建议发送完成至少 1 分钟后查询，转发卡片至少 3 秒；最大支持 3 年内发送的卡片；不支持 PULL 卡片和 `body.type=11`；每个机器人 5 QPS。
+
 ## 操作日志
 
 所有写操作自动落盘到 `~/.local/share/dx-bot-cli/logs/`。

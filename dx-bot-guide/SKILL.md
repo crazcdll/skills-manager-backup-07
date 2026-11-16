@@ -1,11 +1,11 @@
 ---
 name: dx-bot-guide
-description: "大象机器人 CLI 工具（dx-bot-cli）。用于通过命令行发送大象消息（单聊/群聊/Markdown/@人/@all/@机器人/图片/文件/图文/卡片等多类型消息，支持动态消息与自定义 extension）、管理群组、查询用户身份、查看历史消息、撤回消息、总结群聊消息。当用户需要操作大象机器人时使用。"
+description: "大象机器人 CLI 工具（dx-bot-cli）。用于通过命令行发送大象消息（单聊/群聊/Markdown/@人/@all/@机器人/图片/文件/图文/卡片等多类型消息，支持动态消息与自定义 extension）、管理群组、查询用户身份、查看历史消息、查询卡片最新内容、撤回消息、总结群聊消息。当用户需要操作大象机器人时使用。"
 
 metadata:
   skillhub.creator: "rancheng02"
   skillhub.updater: "rancheng02"
-  skillhub.version: "V7"
+  skillhub.version: "V8"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "75893"
   skillhub.high_sensitive: "false"
@@ -39,12 +39,18 @@ dx-bot-cli config show
 | `auto`（默认） | 有凭证走 direct，否则 proxy | —                         |
 
 > 消息能力：全部消息类型（text/Markdown/@人/@all、图片、文件、图文等所有 `--type`）两种模式均支持，proxy 经后端转发；图片支持 URL 或本地文件（自动上传）。
+>
+> 卡片内容查询（`card query`，查用户实际看到的最新卡片内容）同样两种模式均支持，用法见 [references/advanced.md](references/advanced.md)。proxy 模式下 `--to` 被忽略，群聊查询要求你在该群内。
 
 ## 核心原则
 
 1. **风险操作自动 dry-run**：不加 `--force` 时仅打印参数预览不落地，加 `--force` 才真正执行
 2. **参数不确定时**：先跑 `dx-bot-cli <cmd> --help` 确认
 3. **出错时加 -v 调试**：`-v` info / `-vv` debug / `-vvv` trace（含完整 HTTP）
+
+## 开放平台扩展（18 项）
+
+合并消息、多语言、表态与配置、群空间及用户身份消息/群操作，见 [references/open-platform.md](references/open-platform.md)。新增写命令默认 dry-run，确认后用 `--force` 执行；显式 `--dry-run` 优先。新增 `msg as-user …` / `group as-user …` 支持 token-only Direct：入口 mode override（`--mode` / `DX_BOT_MODE`，Clap 使前者优先）→ 无入口 override 时 local-only 优先于配置 mode → `config.mode` fallback；`DX_BOT_MODE=proxy` 与 `--mode proxy` 均可主动覆盖 local-only，只有配置 mode 的 proxy 会被 local-only 抑制。完整规则见参考，旧命令规则不变。Proxy 应用态用共享服务 bot 而非 profile bot，须通过业务授权；仅机器人 `msg merge get` 在 Proxy 固定 403，需用 Direct。多语言 text 上限 6000 **UTF-8 字节**，不是字符；输出接受 `number|string`，不要强制改写 ID 类型。
 
 ---
 
@@ -98,7 +104,7 @@ dx-bot-cli msg send-group --gid <群ID> --markdown "紧急 @all" --force
 | 两种均可     | `@all` 或 `@所有人`                | @全员                      |
 | `--markdown` | `[@显示名:<uid>]` / `[@所有人:-1]` | 原生短语法，已查 UID 时可用 |
 
-> `@mis` 后需跟空格或标点才能识别（如 `请 @zhangsan 处理` ✓，`请@zhangsan处理` ✗）
+> `@mis` 后需跟空格或标点才能识别（如 `请 @zhangsan 处理` ✓，`请@zhangsan处理` ✗）；`@` 前面不能紧跟字母/数字，邮箱（如 `zhangsan@example.com`、`x@all.com`）不会被识别为 mention。MIS 支持字母、数字、下划线和英文点（`@li_si01`、`@zhang.san` 均可）。
 
 ### 多行内容与转义
 
@@ -197,7 +203,7 @@ dx-bot-cli msg recall-group --gid <群ID> --msg-id <msgId>
 
 ```bash
 # 1. 查最近消息，找到目标 msgId
-dx-bot-cli --json msg history-group --gid <群ID> --start 24h | jq '.data.msgs[] | {msgId, cts, message}'
+dx-bot-cli --json msg history-group --gid <群ID> --start 24h | jq '.data.msgs[] | {msg_id, cts, message}'
 
 # 2. 按查到的 msgId 撤回
 dx-bot-cli msg recall-group --gid <群ID> --msg-id <msgId>
@@ -287,6 +293,21 @@ dx-bot-cli msg history-chat --uid <mis> --start 24h
 
 `--start` 支持：相对时间（`1h`/`24h`/`7d`）或毫秒时间戳。`--end` 默认 `now`。
 
+> **用 jq 处理 `cts` 的时区陷阱**：`cts` 是 Unix 毫秒时间戳。`jq` 的 `strftime` 默认按 **UTC** 格式化（会少 8 小时），`strflocaltime` 又依赖机器本地时区；为保证输出**始终限死东八区**，统一手动加 `+28800` 秒。CLI 非 `--json` 输出已按东八区格式化，可直接使用。
+>
+> ```bash
+> # ❌ 错误：默认 UTC，显示 10-29 09:12（实际东八区 17:12）
+> jq -r '.data.msgs[] | "\(.cts/1000|strftime("%m-%d %H:%M"))"'
+>
+> # ❌ 不推荐：strflocaltime 依赖机器时区，换台机器可能就不是东八区
+> jq -r '.data.msgs[] | "\(.cts/1000|strflocaltime("%m-%d %H:%M"))"'
+>
+> # ✅ 统一限死东八区（+8h = +28800s）
+> jq -r '.data.msgs[] | "\((.cts/1000+28800)|strftime("%m-%d %H:%M"))"'
+> ```
+>
+> 另外 JSON 输出字段是 snake_case（`msg_id` / `msg_type` / `from_uid` / `from_pub_id` / `is_cancel`），不是 `msgId` / `msgType`。
+
 ---
 
 ## 全局参数
@@ -307,10 +328,10 @@ dx-bot-cli msg history-chat --uid <mis> --start 24h
 不加 `--force` 时仅打印参数预览，不真正执行：
 
 - 所有消息发送：`msg send-chat` / `send-group`（不论人数、是否 @all）
-- 卡片发送与更新：`card send-*` / `card update-*`
+- 卡片发送与更新：`card send-*` / `card update-*`（`card query` 为只读查询，不在此列）
 - 群管理：`group create` / `dismiss` / `transfer` / `add-members` / `remove-members` / `add-bot` / `remove-bot`
 
-> `set-notice` / `update` / `set-config` / `set-admin`、消息撤回及各类查询非风险操作，无需 `--force`。
+> 上述既有 `set-notice` / `update` / `set-config` / `set-admin`、消息撤回及各类查询（含 `card query`）非风险操作，无需 `--force`；新增开放平台写操作的规则见 [references/open-platform.md](references/open-platform.md)。
 
 ---
 

@@ -52,7 +52,7 @@ fi
 ## 认证与身份
 
 - 认证由 CLI 根据运行环境自动选择，优先 SSO 无感登录并缓存 Token。认证失败或过期时可执行 `oa-skills calendar-mcp --clear-cache` 后重试认证；不能借此重放结果未知的业务写操作。
-- 参与人相关参数支持 MIS 或纯数字 `empId`：`createSchedule --attendees`、`searchSchedule --attendees`、`listBusyPeriod --users`、`analyzeParticipantBusyPeriod --users`、`queryParticipantTimeZone --users`、`updateSchedule --addAttendees/--removeAttendees`、`transferMeetingRoom --receiver`。
+- 参与人相关参数支持 MIS 或纯数字 `empId`：`createSchedule --attendees`、`searchSchedule --attendees`、`listBusyPeriod --users`、`analyzeParticipantBusyPeriod --users`、`queryParticipantTimeZone --users`、`updateSchedule/updateRecurrenceSchedule --addAttendees/--removeAttendees`、`transferMeetingRoom --receiver`。
 - MIS 由 CLI 转换为底层需要的 `empId`。纯数字输入会同时校验 `empId` 与数字 MIS 命名空间；两者命中不同用户时停止，并按错误提示使用 `empId:<数字>` 或 `mis:<数字>` 明确类型。
 - 当前不支持“姓名 -> MIS”。只有姓名且上下文不能唯一确认 MIS 时，要求用户补充；不要使用文档示例值、姓名或 `SSO_USER_ID` 猜测。
 - `--attendees`、`--addAttendees`、`--removeAttendees`、`--users`、`--receiver` 只能来自用户明确输入或当前对话唯一确认的信息。只有创建日程未提供参与人时，才允许省略 `--attendees` 并使用当前认证用户。
@@ -60,8 +60,8 @@ fi
 ## 时间解释
 
 - 面向 Agent 使用 `--startTime/--endTime/--minTime/--maxTime` 和日期时间字符串，例如 `2026-04-07 10:00`。CLI 严格校验日期，不会把 `2026-02-30` 滚到下个月。
-- 无偏移时间默认按 `Asia/Shanghai` 解释。用户明确指定时区或跨时区基准唯一确定时，`createSchedule`、`querySchedule`、`updateSchedule`、`searchSchedule`、`listBusyPeriod`、`recommendMeetingRooms`、`getScheduleDetailConflicts` 和 `analyzeParticipantBusyPeriod` 可传 `--timeZone <IANA时区>`；也可直接使用带 `Z` / `±HH:mm` 的时间。
-- DST 中不存在或有歧义的墙上时间会失败，要求用户补充 UTC 偏移，不要猜测。单独 `YYYY-MM-DD` 表示所选时区当天零点，不是全天日程；当前 CLI 没有全天标志。
+- 无偏移时间默认按 `Asia/Shanghai` 解释。用户明确指定时区或跨时区基准唯一确定时，`createSchedule`、`querySchedule`、`updateSchedule`、`updateRecurrenceSchedule`、`searchSchedule`、`listBusyPeriod`、`recommendMeetingRooms`、`getScheduleDetailConflicts` 和 `analyzeParticipantBusyPeriod` 可传 `--timeZone <IANA时区>`；也可直接使用带 `Z` / `±HH:mm` 的时间。
+- DST 中不存在或有歧义的墙上时间会失败，要求用户补充 UTC 偏移，不要猜测。单独 `YYYY-MM-DD` 表示所选时区当天零点，不是全天日程；循环编辑可显式传 `--isAllDay true|false`，普通创建/编辑没有该参数。
 - 创建日程、推荐会议室、预订会议室或查询精确空闲时段时，只有开始时间而没有结束时间/时长，默认 60 分钟。用户只给“明早/上午/下午”等不精确范围时，创建或精确查询必须补问具体开始时间；若只是定位已有日程，可搜索对应自然日并按真实候选时间筛选。
 - 相对日期涉及会议室查询或预订时，先执行 `date "+今天是 %Y年%m月%d日，星期%u，当前时间 %H:%M"`，再推算“明天/这周六/下周五”，并校验日期与星期一致。
 - 内部仍兼容旧时间戳和旧参数名，但面向大模型不要生成 `--startMs/--endMs/--minMs/--maxMs`。

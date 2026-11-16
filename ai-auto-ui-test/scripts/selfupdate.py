@@ -15,6 +15,8 @@
     的父目录，使 `<cwd>/.claude/skills` 命中本容器（mtskills 扫描顺序中它先于 `~/.claude/skills`），
     否则会退化成更新全局安装。
   · 无来源记录（非 mtskills 安装）→ 不拉取，直接给出手动命令。
+  · 本地版本不可读（SKILL.md 缺 skillhub.version / 被写坏）→ 无法比较版本，但仍按来源记录
+    `mtskills pull` 强制修复（否则元数据一旦坏掉就永远自愈不了，见 _force_pull）。
 
 不做本地改动检测：本地未提交的改动由开发者自行管理（与"重新安装"语义一致）。
 """
@@ -164,16 +166,19 @@ def sync_self(skill_dir, skill_name, runner=None, log=None):
         log:        可选日志回调 str→None
 
     Returns:
-        dict: action ∈ {up-to-date, updated, unknown-remote, unknown-local, update-failed}
+        dict: action ∈ {up-to-date, updated, unknown-remote, update-failed}
+              （本地版本不可读时走 _force_pull 强制修复，成功后同样返回 updated）
     """
     runner = runner or _default_runner
     log = log or (lambda _m: None)
 
     local_ver = read_skill_version(skill_dir)
-    remote_ver = remote_version(read_skill_id(skill_dir), runner)
-
     if not local_ver:
-        return {"action": "unknown-local", "detail": "无法读取本地版本（SKILL.md 缺 skillhub.version）"}
+        # 本地版本元数据不可读（SKILL.md 缺 skillhub.version / 被写坏）：无法做版本比较，
+        # 但来源记录还在 → 直接强制 pull 修复，避免"元数据坏一次就永远更新不了"。
+        return _force_pull(skill_dir, skill_name, runner, log)
+
+    remote_ver = remote_version(read_skill_id(skill_dir), runner)
     if not remote_ver:
         return {"action": "unknown-remote", "detail": "无法查询远端版本（mtskills fetchdata 失败）"}
     if compare_versions(local_ver, remote_ver) >= 0:
@@ -190,3 +195,25 @@ def sync_self(skill_dir, skill_name, runner=None, log=None):
         return {"action": "updated", "detail": f"已更新 {local_ver} → {remote_ver}"}
     return {"action": "update-failed", "detail": "自动更新失败",
             "hint": f"请手动执行: mtskills pull {skill_name}"}
+
+
+def _force_pull(skill_dir, skill_name, runner, log):
+    """本地版本元数据不可读时的修复路径：按来源记录强制 pull，并用回读的版本号验收。"""
+    root = mtskills_root(skill_dir)
+    if not root or not can_pull(skill_dir, skill_name):
+        return {"action": "update-failed",
+                "detail": "无法读取本地版本（SKILL.md 缺 skillhub.version），且缺 mtskills 来源记录，无法自愈",
+                "hint": f"请手动执行: mtskills pull {skill_name}"}
+
+    log(f"本地版本元数据不可读（SKILL.md 缺 skillhub.version），按来源记录强制更新 {skill_name} ...")
+    ok, _out = _call(runner, f"cd {root} && mtskills pull {skill_name} 2>/dev/null", 120)
+    if not ok:
+        return {"action": "update-failed", "detail": "本地版本不可读，强制更新失败",
+                "hint": f"请手动执行: mtskills pull {skill_name}"}
+
+    fixed_ver = read_skill_version(skill_dir)
+    if not fixed_ver:
+        return {"action": "update-failed",
+                "detail": "已按来源记录强制更新，但 SKILL.md 仍缺 skillhub.version",
+                "hint": f"请手动执行: mtskills pull {skill_name}"}
+    return {"action": "updated", "detail": f"已修复本地版本元数据 → v{fixed_ver}"}

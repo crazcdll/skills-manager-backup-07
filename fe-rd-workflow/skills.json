@@ -4,35 +4,9 @@
     "version": "1.0.0",
     "description": "fe-rd-workflow 总线 Skill 的依赖注册与系统要求",
     "created_at": "2026-04-28",
-    "last_updated": "2026-06-08"
+    "last_updated": "2026-11-02"
   },
   "required_skills": [
-    {
-      "name": "memory-skill",
-      "type": "skill",
-      "runtime": "mtskills",
-      "purpose": "状态持久化、用户偏好存储、执行进度恢复、中断恢复",
-      "phase": "全流程",
-      "used_by": [
-        "fe-rd-workflow"
-      ],
-      "alternatives": [],
-      "min_version": "1.0.0",
-      "search_paths": [
-        "{workspace_root}/{name}/SKILL.md",
-        "{work_root}/.catpaw/skills/{name}/SKILL.md",
-        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
-        "{work_root}/.claude/skills/{name}/SKILL.md",
-        "~/.claude/skills/{name}/SKILL.md",
-        "~/.claude/skills-market/{name}/SKILL.md",
-        "~/.catpaw/skills/{name}/SKILL.md",
-        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
-        "~/.openclaw/skills/{name}/SKILL.md"
-      ],
-      "install_cmd": "mtskills i memory-skill",
-      "check_cmd": "find skill file by search_paths",
-      "update_cmd": "mtskills pull memory-skill"
-    },
     {
       "name": "fe-rd-workflow",
       "type": "skill",
@@ -106,10 +80,10 @@
       "update_cmd": "mtskills pull design-spec"
     },
     {
-      "name": "trade-fe-knowledge",
+      "name": "trade-fe-kb",
       "type": "skill",
       "runtime": "mtskills",
-      "purpose": "业务知识库",
+      "purpose": "交易前端知识库",
       "phase": "",
       "used_by": [
         "fe-rd-workflow"
@@ -127,9 +101,9 @@
         "~/.catpaw/skills/skills-market/{name}/SKILL.md",
         "~/.openclaw/skills/{name}/SKILL.md"
       ],
-      "install_cmd": "mtskills i trade-fe-knowledge",
+      "install_cmd": "mtskills i trade-fe-kb",
       "check_cmd": "find skill file by search_paths",
-      "update_cmd": "mtskills pull trade-fe-knowledge"
+      "update_cmd": "mtskills pull trade-fe-kb"
     },
     {
       "name": "mt-graphify-lite",
@@ -208,35 +182,6 @@
       "install_cmd": "mtskills i duo-protocol",
       "check_cmd": "find skill file by search_paths",
       "update_cmd": "mtskills pull duo-protocol"
-    },
-    {
-      "name": "draw-io-km",
-      "type": "skill",
-      "runtime": "mtskills",
-      "purpose": "绘制架构图/流程图",
-      "phase": "技术方案",
-      "used_by": [
-        "fe-rd-workflow"
-      ],
-      "alternatives": [
-        "kmdrawio",
-        "drawio-generator"
-      ],
-      "min_version": "1.0.0",
-      "search_paths": [
-        "{workspace_root}/{name}/SKILL.md",
-        "{work_root}/.catpaw/skills/{name}/SKILL.md",
-        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
-        "{work_root}/.claude/skills/{name}/SKILL.md",
-        "~/.claude/skills/{name}/SKILL.md",
-        "~/.claude/skills-market/{name}/SKILL.md",
-        "~/.catpaw/skills/{name}/SKILL.md",
-        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
-        "~/.openclaw/skills/{name}/SKILL.md"
-      ],
-      "install_cmd": "mtskills i draw-io-km",
-      "check_cmd": "find skill file by search_paths",
-      "update_cmd": "mtskills pull draw-io-km"
     },
     {
       "name": "duo-fedo",
@@ -423,58 +368,6 @@
       "update_cmd": "mtskills pull kmedit"
     },
     {
-      "name": "km-doc-tools",
-      "type": "skill",
-      "runtime": "mtskills",
-      "purpose": "学城文档阅读、创建、查询、管理",
-      "phase": "全流程",
-      "used_by": [
-        "fe-rd-workflow"
-      ],
-      "alternatives": [],
-      "min_version": "1.0.0",
-      "search_paths": [
-        "{workspace_root}/{name}/SKILL.md",
-        "{work_root}/.catpaw/skills/{name}/SKILL.md",
-        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
-        "{work_root}/.claude/skills/{name}/SKILL.md",
-        "~/.claude/skills/{name}/SKILL.md",
-        "~/.claude/skills-market/{name}/SKILL.md",
-        "~/.catpaw/skills/{name}/SKILL.md",
-        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
-        "~/.openclaw/skills/{name}/SKILL.md"
-      ],
-      "install_cmd": "mtskills i km-doc-tools",
-      "check_cmd": "find skill file by search_paths",
-      "update_cmd": "mtskills pull km-doc-tools"
-    },
-    {
-      "name": "mermaid-tools",
-      "type": "skill",
-      "runtime": "mtskills",
-      "purpose": "Mermaid 图表绘制工具",
-      "phase": "全流程",
-      "used_by": [
-        "fe-rd-workflow"
-      ],
-      "alternatives": [],
-      "min_version": "1.0.0",
-      "search_paths": [
-        "{workspace_root}/{name}/SKILL.md",
-        "{work_root}/.catpaw/skills/{name}/SKILL.md",
-        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
-        "{work_root}/.claude/skills/{name}/SKILL.md",
-        "~/.claude/skills/{name}/SKILL.md",
-        "~/.claude/skills-market/{name}/SKILL.md",
-        "~/.catpaw/skills/{name}/SKILL.md",
-        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
-        "~/.openclaw/skills/{name}/SKILL.md"
-      ],
-      "install_cmd": "mtskills i mermaid-tools",
-      "check_cmd": "find skill file by search_paths",
-      "update_cmd": "mtskills pull mermaid-tools"
-    },
-    {
       "name": "ingee-flex",
       "type": "skill",
       "runtime": "mtskills",
@@ -579,7 +472,60 @@
       "update_cmd": "mtskills pull ee-conan"
     }
   ],
-  "optional_skills": [],
+  "optional_skills": [
+    {
+      "name": "arch-design",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "架构设计",
+      "phase": "",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [],
+      "min_version": "1.0.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i arch-design",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull arch-design"
+    },
+    {
+      "name": "ai-auto-ui-test",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "内循环 Flow 测试用例生成：产出可执行的验收标准供 Stage 4 做 TDD 驱动编码、Stage 5 做对照自查（不执行自动化测试）",
+      "phase": "Stage 3（Step 3.4 用例生成）",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [],
+      "min_version": "5.0.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i ai-auto-ui-test",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull ai-auto-ui-test"
+    }
+  ],
   "system_requirements": [
     {
       "name": "Node.js",

@@ -99,7 +99,6 @@
 | `--mis <mis>` | string | 从 `~/.config/clawdgw.json` 读取 | 用户 MIS 号，用于认证 |
 | `--raw` | flag | false | 输出原始 JSON 响应 |
 | `--clear-cache` | flag | — | 清除认证缓存后退出，不需要指定命令 |
-| `--force-ciba` | flag | false | 强制走 CIBA 认证（仅在认证异常时兜底使用，正常不需要添加） |
 | `--kmGray <value>` | string | — | 为 `km.sankuai.com` 请求添加 `Cookie: kmGray=<value>`（可选） |
 
 ## createDatabase

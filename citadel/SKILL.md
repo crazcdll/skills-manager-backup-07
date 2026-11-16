@@ -4,8 +4,8 @@ description: "学城 km/wiki/km.sankuai.com 文档官方工具，凡涉及学城
 
 metadata:
   skillhub.creator: "rui.zou"
-  skillhub.updater: "panxiayun"
-  skillhub.version: "V50"
+  skillhub.updater: "rui.zou"
+  skillhub.version: "V51"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "3367"
   skillhub.high_sensitive: "true"
@@ -19,6 +19,7 @@ metadata:
 
 - `/md/<id>`、`/md/<id>.md` 是原生 MD 文档；执行编辑等需要区分类型的操作时，若只有 ID 或链接类型不明，先用 `getDocumentMetaInfo --contentId <id> --raw` 查看 `type`，`7` 表示 MD。阅读和总结统一使用 `getSimpleMarkdown`，由命令自动识别类型。
 - MD 的读、建、改、删及历史读取、还原按 [references/markdown-documents.md](references/markdown-documents.md) 执行。Agent 直接读写 Markdown，不转 XML；MD 不支持模板。
+- MD 正文需要 @人 时，按 [提及用户](references/markdown-documents.md#提及用户) 的自定义语法编写。
 - 2.0 文档正文编辑使用 XML；下文的模板和组件编辑流程用于 2.0 文档，不能自动套到 MD 文档。现有 1.0 文档仅支持正文读取，本 skill 不支持创建或编辑 1.0 文档。历史还原按支持的文档类型选择读取命令，再复用对应类型的全文覆盖命令。
 - MD 划词评论先用 `getDocumentJson --raw` 获取同一次读取的 nodeId 和 stepVersion，完整步骤见 [MD 评论](references/markdown-documents.md#评论)。附件、Drawio、音视频、WPS 和数据图表不属于当前 MD Schema，对应组件写命令会在创建资源前拒绝 MD。
 
@@ -481,7 +482,6 @@ oa-skills citadel uploadDrawioToDocument --contentId <文档ID> --file /tmp/diag
 根据运行环境选择合适的策略，优先 SSO 无感登录。Token 自动缓存。
 
 认证失败 → `oa-skills citadel --clear-cache` 后重试
-- 如需强制走 CIBA 认证，可额外添加 `--force-ciba`（仅在认证异常时兜底使用，正常不需要添加）
 
 ## 验证
 

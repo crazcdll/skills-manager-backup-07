@@ -27,7 +27,7 @@ const REQUIRED_FEATURES = [
   "meetingRoom.recommend",
   "meetingRoom.merge",
   "schedule.recurrence",
-  "schedule.recurrence.editBlocked",
+  "schedule.recurrence.updateScopes",
   "schedule.groupchatAssociation",
 ];
 

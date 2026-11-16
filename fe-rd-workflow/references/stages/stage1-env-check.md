@@ -44,12 +44,12 @@ Step 4: 全部 PASS 后才可进入后续阶段
 
 ### Step 1.1：模型要求
 
-| 能力要求           | 说明                                              |
-| ------------------ | ------------------------------------------------- |
+| 能力要求　　　　　 | 说明　　　　　　　　　　　　　　　　　　　　　　　|
+| --------------------| ---------------------------------------------------|
 | 强大的文本处理能力 | 能够准确理解和生成 Groovy DSL 语法、JSON 配置文件 |
-| 优秀的编码能力     | 能够编写规范的代码，避免语法错误和类型错误        |
-| 严谨的逻辑思维     | 能够正确处理变量作用域、数据类型、表达式计算等    |
-| 良好的上下文理解   | 能够理解多个协议文件之间的关联关系                |
+| 优秀的编码能力　　 | 能够编写规范的代码，避免语法错误和类型错误　　　　|
+| 严谨的逻辑思维　　 | 能够正确处理变量作用域、数据类型、表达式计算等　　|
+| 良好的上下文理解　 | 能够理解多个协议文件之间的关联关系　　　　　　　　|
 
 **推荐模型**：Claude 3.5 Sonnet、Claude 3 Opus、GPT-4o 等高级模型,如果没有选择当前模型
 
@@ -85,12 +85,12 @@ duo -h
 
 缺失时自动安装：
 
-| 工具           | 用途                        | 安装命令                                                                  |
-| -------------- | --------------------------- | ------------------------------------------------------------------------- |
-| @it/oa-skills  | 学城文档 CRUD               | `npm install -g @it/oa-skills@latest --registry=http://r.npm.sankuai.com` |
-| @ee/fedo-cli   | FEDO 平台 CLI               | `npm install -g @ee/fedo-cli --registry=http://r.npm.sankuai.com`         |
-| @mtfe/mtskills | Skill 管理工具              | `npm install -g @mtfe/mtskills --registry=http://r.npm.sankuai.com`       |
-| @meishi/duo-cli | duo CLI            | `npm install -g @meishi/duo-cli@latest --registry=http://r.npm.sankuai.com`       |
+| 工具　　　　　　| 用途　　　　　 | 安装命令　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　　|
+| -----------------| ----------------| ------------------------------------------------|
+| @it/oa-skills　 | 学城文档 CRUD　| `npm install -g @it/oa-skills@latest --registry=http://r.npm.sankuai.com`　 |
+| @ee/fedo-cli　　| FEDO 平台 CLI　| `npm install -g @ee/fedo-cli --registry=http://r.npm.sankuai.com`　　　　　 |
+| @mtfe/mtskills　| Skill 管理工具 | `npm install -g @mtfe/mtskills --registry=http://r.npm.sankuai.com`　　　　 |
+| @meishi/duo-cli | duo CLI　　　　| `npm install -g @meishi/duo-cli@latest --registry=http://r.npm.sankuai.com` |
 
 > 所有 CLI 环境依赖均为必选，缺任何一个都阻断流程。
 > @meishi/duo-cli 版本要求 >= 0.4.62，进行检查确认，不符合要求进行升级到最新。
@@ -186,6 +186,8 @@ node {fe-rd-workflow}/scripts/check-deps.js --self-update
 | ------------- | ------------------------------------- |
 | `ux_link`     | 印迹视觉稿链接                       |
 | `fedo_info`   | Fedo 任务信息（ones_link / iteration_name / task_name 等） |
+
+> ⚠️ **ones_link 补充要求（SDLC 指标上报依赖）**：`fedo_info.ones_link`（ONES 需求链接）虽在可选组内，但它是 SDLC 指标平台 mapping 上报（`scripts/report-sdlc-mapping.js`，`sdlcSourceType=FE_RD_WORKFLOW`）的**必填字段**（onesUrl），缺失时该上报会被跳过并输出告警。Stage 1 MUST 主动向用户索要 ONES 需求链接并写入 `workflow-context.json`；确无 ONES 需求（纯本地任务）时允许为空，但需告知用户该任务不会计入 SDLC 覆盖率统计。
 
 #### 提取流程
 

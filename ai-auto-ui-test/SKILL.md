@@ -1,12 +1,12 @@
 ---
 name: ai-auto-ui-test
 version: 6.0.0
-description: 自动化 UI 测试编排入口。单份用例委托下游 Skill 执行；多份用例按分片派发 N 个子 Agent 并行执行并汇总。触发词：UI 自动化测试、端到端测试、回归测试、测试用例生成、Flow 用例、测试报告、批量测试、多 Agent、并行测试、ai-app-flow、ai-ui-autotest-engine。场景：需要生成测试用例时委托 ai-app-flow，需要执行测试时委托 ai-ui-autotest-engine（单份直接执行 / 多份走多 Agent 编排）。
+description: 自动化 UI 测试编排入口。单份用例委托下游 Skill 执行；多份用例按分片派发 N 个子 Agent 并行执行并汇总。触发词：UI 自动化测试、端到端测试、回归测试、测试用例生成、steps.json 用例、Flow 用例（历史叫法）、测试报告、批量测试、多 Agent、并行测试、ai-app-flow、ai-ui-autotest-engine。场景：需要生成测试用例时委托 ai-app-flow，需要执行测试时委托 ai-ui-autotest-engine（单份直接执行 / 多份走多 Agent 编排）。
 
 metadata:
   skillhub.creator: "huangshuiqing"
   skillhub.updater: "wangshicheng05"
-  skillhub.version: "V30"
+  skillhub.version: "V35"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "112900"
   skillhub.high_sensitive: "false"
@@ -28,12 +28,13 @@ python3 scripts/report_usage.py --stage start --mis "<mis_id>" --input "<输入�
 
 | 类别 | 规范位置 |
 |------|---------|
-| **用例资产**（源，Flow `.md`） | `<ai-app-flow>/.docs/{需求名}/flows/*.md` |
+| **用例资产**（`steps.json`） | `<ai-app-flow>/.docs/{需求名}/flows/*/steps.json` |
 | **编排产物**（`manifest.json` / `cases/` 快照 / `shards/`） | `<本 Skill>/.orchestration/<task_id>/` |
-| **执行运行态**（报告 / 截图） | `<ai-ui-autotest-engine>/{output,.run,.device-pool,.credentials}/` |
+| **执行运行态**（报告 / 截图 / 控制台） | `$STATE` = `~/.local/share/ai-ui-autotest-engine/{run,reports,console,device-pool,credentials}/`（机器级，跨安装 / 跨项目唯一；**Skill 目录内不产生运行态**） |
 
 - `<某 Skill>` = 该 Skill 的安装目录；`{需求名}` 按 `ai-app-flow` 规则提取。
-- **`--cases` 指向 `{需求名}/flows/`，不可指 `.docs/{需求名}/` 整包**（否则 `ec-cases/`、`review-report.md` 会被误扫成用例）。
+- **`--cases` 指向 `{需求名}/flows/`，不可指 `.docs/{需求名}/` 整包**（`ec-cases/` 等其他目录不该混进用例根）。
+- 扫的是 **`steps.json`**（一用例一目录）。
 - `plan` 把用例**快照**到 `<task_id>/cases/`，分片只引用快照 → 同一 task 各分片读同一份内容，源目录运行期被改不影响本任务。
 - **滚动保留（keep-latest-N）**：`.orchestration/` 的一级 task 目录与 `<ai-app-flow>/.docs/` 的一级需求目录**各只保留最近 10 份**（按最近修改时间倒序）；`plan` 成功后自动清理超出记录，`--keep N` 可调、`--no-prune` 可关。本次任务的产物目录与 `--cases` 所在的需求目录**恒被保护**，永不清理；也可单独执行 `prune` 手动滚动清理（支持 `--dry-run` 预览）。
 
@@ -43,7 +44,7 @@ python3 scripts/report_usage.py --stage start --mis "<mis_id>" --input "<输入�
 
 | 场景 | 委托 Skill | 说明 |
 |------|-----------|------|
-| 生成 Flow 用例 | `ai-app-flow` | 生成可执行的 Flow 测试文件 |
+| 生成用例资产 | `ai-app-flow` | 产出 `steps.json`（唯一真源）+ 渲染 `flow.md`（只读视图） |
 | 执行测试（单份） | `ai-ui-autotest-engine` | 端到端执行一份输入，产出报告 |
 | 执行测试（多份） | `ai-ui-autotest-engine` × N | **本 Skill 拆分 + 派发 N 个子 Agent 并行**（需**用例 ≥ 3 且环境支持子 Agent**，否则退化为单份），见「多 Agent 编排」 |
 
@@ -51,7 +52,7 @@ python3 scripts/report_usage.py --stage start --mis "<mis_id>" --input "<输入�
 
 1. **全局依赖就绪**：进入执行前先运行 `python3 scripts/env_setup.py`，自动完成自身更新、依赖 Skill（`ai-app-flow`、`ai-ui-autotest-engine`）安装、运行时环境配置。
 2. 委托前先读取并严格遵循下游 Skill 的 SKILL.md。
-3. Flow 文件已存在时不得重新生成，除非用户明确要求更新。
+3. 用例资产已存在（`steps.json`）时不得重新生成，除非用户明确要求更新。
 4. 不重写下游 Skill 的流程，下游 Skill 的输出即最终结果。
 5. **执行方式分流**：
    - **前置**：需当前运行环境支持派发子 Agent（Task / subagent）。**不支持时一律走「单份执行」**（详见「多 Agent 编排 › 前置能力与不适用情形」）。
@@ -59,13 +60,14 @@ python3 scripts/report_usage.py --stage start --mis "<mis_id>" --input "<输入�
    - **用例数 ≥ 3 且环境支持子 Agent**：**按分片创建子 Agent 并行执行**，见「多 Agent 编排」。禁止把用例串行堆在一个 Agent 里跑。
 6. **目录按「目录约定（硬约定）」落位**，不得在项目根自建用例 / 产物目录（`plan` 对约定外目录告警）。
 7. **会话隔离（硬原则）**：每轮执行只使用本轮 `ws-init` 新分配的 workspace；**禁止复用、读取、续跑、改动历史会话**的 workspace / 产物 / 输入（含 `intake`、设备、虚拟 mis）。历史产物仅供人工参考，不得作为本轮的输入来源或判定依据。
+8. **运行类型透传**：输入中出现 `runType=regression`（或 `【运行类型】...回归`）时，**执行前必须** `export AI_UITEST_RUN_TYPE=regression`；多份编排时把同一值通过 `orchestrate.py plan --run-type regression` 写进分片，子 Agent 再导出给引擎。引擎据此把报告行的 `run_type` 写成 `regression`。输入未声明时按 `adhoc` 处理，不要猜测。
 
 ---
 
 # 多 Agent 编排
 
 > **定位**：编排层只负责「拆分 / 派发 / 汇总」；**执行一份入力是下游 Skill 的事**（`ai-ui-autotest-engine`）。
-> **不变量**：一子 Agent 一 workspace 一设备一虚拟 mis；**不预置报告行、不聚合**（阶段 5 落地前，各子 Agent 报告各自独立）。
+> **不变量**：一子 Agent 一 workspace 一设备一虚拟 mis；**报告粒度 = 一个分片一行**（分片内多 Case 用 `flow-add-case` 合并到同一 run/行，Open→Append→Close 全由引擎完成）；跨分片暂不共享报告行（共享需编排层统一 Open/Close，见 O4）。
 > **汇报链路**：子 Agent 结果**随 Task 直接返回编排层**，不落中间状态文件（本版为 Task 同步并行模型）。
 
 ### 前置能力与不适用情形
@@ -86,7 +88,7 @@ python3 scripts/report_usage.py --stage start --mis "<mis_id>" --input "<输入�
 
 | 项 | 说明 |
 |---|---|
-| **原始用例（单一标准）** | **一个「用例目录」**（递归），目录下每个 `.md` = 一个用例，`case_id` = 文件名去扩展名（**≥ 3 个才进编排**）。规范位置见「目录约定（硬约定）」 |
+| **原始用例（单一标准）** | **一个「用例目录」**（递归），目录下每个 `steps.json` = 一个用例，`case_id` = 所在目录名（**≥ 3 个才进编排**）。规范位置见「目录约定（硬约定）」 |
 | **每 Agent 用例上限** | 默认 **2**（`--max-cases`）—— 每个子 Agent 最多处理 2 个用例 → 分片 = 按 2 连续切块 |
 | **并发上限** | 默认 **4**（`--concurrency`）—— **同时在跑的子 Agent 上限**（滑动窗口）：谁先跑完谁补下一个；实际并行度 ≤ `min(设备池, 虚拟 mis 池)`，超限由下游 fail-fast |
 | **环境信息** | 设备组合 / 环境 / 泳道 / URL 映射 / ptest / 锁包 等，**所有子 Agent 共享**；经 `--env '<json>'` / `--env-file <path>` 传入（不传则子 Agent 自行收集） |
@@ -94,7 +96,7 @@ python3 scripts/report_usage.py --stage start --mis "<mis_id>" --input "<输入�
 ## 阶段 O2 · 拆分 + 编排待跑队列
 
 ```bash
-# 用例目录下每个 .md = 一个用例（默认 --keep 10：plan 成功后自动滚动保留）
+# 用例目录下每个 steps.json = 一个用例（默认 --keep 10：plan 成功后自动滚动保留）
 python3 scripts/orchestrate.py plan --cases <用例目录> --max-cases 2 --concurrency 4 --env '<环境信息JSON>'
 ```
 
@@ -113,20 +115,27 @@ python3 scripts/orchestrate.py plan --cases <用例目录> --max-cases 2 --concu
 ```text
 输入（编排层只给「原始内容 + 环境」，不做任何处理）：
   · shard 文件      .orchestration/<task>/shards/shard-NN.json（含 env + cases）
-  · 用例快照        每个 case 的 flow_path（指向 <task>/cases/ 快照，子 Agent 自己读内容）
+  · 用例快照        每个 case 的 steps_path（指向 <task>/cases/ 快照，子 Agent 自己读内容）
   · 环境信息        shard.env（子 Agent 用 input-seed 预置已知值）
+  · 分片名          shard.report_name（作为 flow-init --flow-name，行标题稳定可读）
+  · 运行类型        shard.run_type（regression / feature / adhoc）
 
 明确不在输入契约内：
   · 信息收集    子 Agent 自己走 input-next 循环（编排层不提供、不继承）
   · workspace   子 Agent 自己 ws-init 分配（编排层不注入身份）
-  · 报告 id      本轮各自独立（阶段 5 后再改为注入统一 id）
+  · 报告 id      每分片一行（分片内多 Case 合并到这一行）
 
 子 Agent 动作：
+  0. `export AI_UITEST_RUN_TYPE=<shard.run_type>`（adhoc 可省略）→ 跑完后报告行按该类型入库
   1. ws-init → check-deps
   2. input-schema → input-seed（用 shard.env 预置已知值）→ input-next 循环补齐剩余
-  3. 逐个 case：flow-create → 写入 Flow 内容 → cases-create → steps-generate → 审校
-  4. flow-init → 按 flow-next 驱动执行 → flow-finalize → post-clean
-  5. 收口：以**一行结构化 JSON 摘要**结束，结果随 Task 返回编排层
+  3. 全部 case 先 `steps-generate --steps <case.steps_path> --tag <case_id>`
+     （steps.json → CASES 的映射已收进这条命令内部，不存在「手写 CASES / 另跑 flow_json」的环节）
+  4. 合并成一个 run：`flow-init --dir <run> --input 'steps-input-<首case>.json' --flow-name '<shard.report_name>' --run-type '<shard.run_type>'`
+     → 其余 case 逐条 `flow-add-case --input 'steps-input-<case>.json'` → 再重跑一次同一条 `flow-init`
+     （引擎沿用同一批次/报告行；`--flow-name` 必传，否则行标题退化为首个 steps.json 的 title）
+  5. 按 flow-next 驱动执行；**每个 case 收尾必须 `gen-report` 一次**（少一个即 `incomplete`）→ flow-finalize → post-clean
+  6. 收口：以**一行结构化 JSON 摘要**结束，结果随 Task 返回编排层
 ```
 
 **收口契约**（一行 JSON，随 Task 返回）：
@@ -136,10 +145,11 @@ python3 scripts/orchestrate.py plan --cases <用例目录> --max-cases 2 --concu
 ```
 
 - `status=clarification_needed`：环境信息缺失（shard.env 与 input-next 均未补齐）时**立即返回**，不在子 Agent 内等待或重试；`missing_env` 列出缺失字段，由编排层聚合后一次性上抛/询问，**不阻塞其他分片**；
+- `report_id` = 该分片那一行（分片内多 Case 合并不产生多行）；核对口径：行内 `cases` 数 == `cases_total`；
 - **交互受限环境**（托管 Agent / 无人工会话，如 multica）：子 Agent 内**禁止 AskQuestion / @mention 人工**，一切缺失信息只能以 `clarification_needed` 收口；编排层已通过 `--env` 尽量预置已知值来避免走到这一步。
 
 > 子 Agent 的**所有执行细节（信息收集 / 环境供给 / 设备领取 / 步骤走查 / 上报）以 `ai-ui-autotest-engine/SKILL.md` 为准**，本 Skill 不重复其流程。
-> **无需回写状态文件**：子 Agent 非游离后台进程，执行结果随 Task 直接返回；报告已由引擎各自入库。
+> **无需回写状态文件**：子 Agent 非游离后台进程，执行结果随 Task 直接返回；报告由引擎按「一分片一行」入库。
 
 ## 阶段 O4 · 汇总与汇报
 
@@ -147,7 +157,8 @@ python3 scripts/orchestrate.py plan --cases <用例目录> --max-cases 2 --concu
 - 失败分片单列（**不影响其他分片**）；向用户汇报各分片报告入口；
 - 存在 `clarification_needed` 分片：等在跑分片全部结束后，聚合所有 `missing_env` **一次性**上抛/询问；人工补齐后，把补齐值并入 `--env` 重跑 `plan`，**只补跑未完成分片**（已完成分片不重跑）；
 - 中断恢复：任务中断后重新进入时，读 `manifest.json` 待跑队列 + 已返回的分片收口结果，只补跑未完成分片；
-- 报告本期**各自独立入库**（不预置、不聚合）；阶段 5 的「原子追加 / 汇总成一份」落地后再切换（编排层预置空行 → 子 Agent 追加）。
+- 报告粒度 = **一分片一行**：子 Agent 内 `flow-init` 开行、每 Case `gen-report` 追加、`flow-finalize` 收尾；分片内多 Case 合并同行为默认做法；
+- 跨分片合并为一行（`AI_UITEST_REPORT_ID` / `AI_UITEST_BATCH_ID` 注入）待编排层补上「统一 Open + 全部跑完统一 Close」后再启用，当前不注入。
 - **产物保留**：编排产物与用例资产由 `plan` 自动 keep-latest-N 滚动保留（默认 10 份）；如需立即回收执行 `python3 scripts/orchestrate.py prune [--keep N] [--dry-run]`。
 
 ---

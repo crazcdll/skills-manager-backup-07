@@ -1,11 +1,11 @@
 ---
 name: calendar-mcp
-description: 美团日历（日程管理）工具集。当用户要安排会议、新建/查询/搜索/改期/取消普通日程，创建、识别或按当前实例/整个系列取消重复/周期日程，关联群聊，查看今天安排、冲突、忙闲或参与人时区，推荐会议时间，设置提醒、忙闲状态、接受/暂定/拒绝邀请，或查询/找/订/钉/换/释放/转让/合并会议室时使用。统一通过 oa-skills calendar-mcp CLI 执行；calendar-mcp 是日程和会议室写操作主入口，room-booking-helper 仅辅助精确查询、找具体会议室、候补监测和校验 roomId。循环日程暂不支持编辑、会议室或按次数终止，会议室不支持跨天或历史时间预订。
+description: 美团日历（日程管理）工具集。当用户要安排会议、新建/查询/搜索/改期/取消普通日程，创建、识别、按当前实例/整个系列/当前及以后编辑循环日程，或按当前实例/整个系列取消循环日程，关联群聊，查看今天安排、冲突、忙闲或参与人时区，推荐会议时间，设置提醒、忙闲状态、接受/暂定/拒绝邀请，或查询/找/订/钉/换/释放/转让/合并会议室时使用。统一通过 oa-skills calendar-mcp CLI 执行；calendar-mcp 是日程和会议室写操作主入口，room-booking-helper 仅辅助精确查询、找具体会议室、候补监测和校验 roomId。循环日程不支持会议室；若已有关联会议室，也不支持编辑。循环日程不支持按次数终止，会议室不支持跨天或历史时间预订。
 
 metadata:
   skillhub.creator: "pangjingwei02"
-  skillhub.updater: "wanhu02"
-  skillhub.version: "V8"
+  skillhub.updater: "liweijie06"
+  skillhub.version: "V9"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "11092"
   skillhub.high_sensitive: "false"
@@ -69,7 +69,7 @@ oa-skills calendar-mcp querySchedule --scheduleId "<日程ID>"
 | --- | --- |
 | CLI 缺失、未知命令/参数、版本或能力不兼容、认证异常、写结果未知 | [runtime-and-safety.md](references/runtime-and-safety.md) |
 | 编辑、取消、关联群聊、个人提醒、忙闲状态、接受/暂定/拒绝 | [schedule-flow.md](references/schedule-flow.md) |
-| 循环日程创建、识别或按当前实例/整个系列取消 | [recurrence-pattern.md](references/recurrence-pattern.md) |
+| 循环日程创建、识别、编辑或按当前实例/整个系列取消 | [recurrence-pattern.md](references/recurrence-pattern.md) |
 | 冲突判断、多人忙闲、参与人时区、候选会议时间 | [meeting-time-and-timezone.md](references/meeting-time-and-timezone.md) |
 | 查询、推荐、预订、添加、换房、改占用时间、移除、释放、转让或合并会议室 | [meeting-rooms.md](references/meeting-rooms.md) |
 | 复杂命令需要更多参数示例 | [cli-cheatsheet.md](references/cli-cheatsheet.md)；参数事实以当前 CLI 实现和 `oa-skills calendar-mcp --help` 为准 |
@@ -101,6 +101,7 @@ oa-skills calendar-mcp querySchedule --scheduleId "<日程ID>"
 | 用户意图 | 首选命令 |
 | --- | --- |
 | 编辑普通日程 | `updateSchedule` |
+| 编辑循环日程 | `updateRecurrenceSchedule`，必须显式指定 `CURRENT`、`SERIES` 或 `FOLLOWING` |
 | 取消组织者创建的日程 | `deleteSchedule` |
 | 查看已有日程冲突参与人 | `getScheduleDetailConflicts` |
 | 分析多人忙闲或推荐时间 | `analyzeParticipantBusyPeriod` |
@@ -118,7 +119,7 @@ oa-skills calendar-mcp querySchedule --scheduleId "<日程ID>"
 
 - CLI 能力探测升级一次后仍不兼容，或目标环境返回未知字段、未知方法、契约未部署错误。
 - 人员、日程、取消范围、会议室或写操作目标无法唯一确定。
-- 循环日程编辑、循环会议室、循环视频会议、`FOLLOWING`、按次数终止或其他当前未支持能力；不能静默退化成单次普通日程。
+- 循环日程已关联会议室时的任何编辑（包括只改标题或备注）、循环日程会议室修改、循环视频会议、循环日程按次数终止、循环日程 `FOLLOWING` 取消或其他当前未支持能力；不能静默退化成单次普通日程。
 - 会议室名称/条件无法解析为真实可用 `roomId`，或无法确认新增会议室占用区间空闲。
 - 忙闲/时区批量响应缺行、重复、身份未知或结构异常。缺失证据是“无法确认”，不是空闲。
 - 写操作结果未知且尚未通过查询完成状态核对。

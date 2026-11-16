@@ -5,8 +5,8 @@ description: AICoding 智能研发全流程，串联 7 大阶段，完成全流�
 
 metadata:
   skillhub.creator: "baolilei"
-  skillhub.updater: "wangshicheng05"
-  skillhub.version: "V15"
+  skillhub.updater: "baolilei"
+  skillhub.version: "V17"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "67759"
   skillhub.high_sensitive: "false"
@@ -68,7 +68,7 @@ metadata:
 
 无论上下文摘要描述的状态如何，每次新对话开始时 MUST 执行：
 
-1. 输出当前所在 Stage（从 workflow-context.json 读取，禁止从摘要推断）
+1. 输出当前所在 Stage：MUST 执行 `bash {skill_root}/scripts/stage-flow.sh show` 获取（脚本直接读 workflow-context.json 并校验门禁，禁止从摘要推断、禁止手改状态字段）
 2. 读取对应 Stage 的 stageX-xxx.md，输出"注意到的内容"
 3. 若当前 Stage 依赖子 Skill，需要重新 read 该 Skill 文件，输出"Skill 声明"
 4. 以上三步未完成 → 任何代码输出均无效
@@ -86,8 +86,14 @@ metadata:
 2. 执行要求
 
 - **顺序推进**: 严格按 Stage 1 → Stage 7 顺序执行，禁止跳步（除非显式跳过），违反则整个流程立即停止，必须人工介入。
-- **状态持久化**: 每个阶段完成后 MUST 立即更新 `workflow-context.json`，**禁止**仅在内存中维护状态而不同步写入文件，违反则该阶段视为未完成。schema 遵循 [workflow-context-schema.md](references/workflow-context-schema.md)。
+- **状态流转脚本化（强制）**: 阶段状态的进入（start）、完成（complete）、跳过（skip）、失败（fail）、推进（next）与查看（show/gate）MUST 且只能通过 `bash {skill_root}/scripts/stage-flow.sh` 完成，**禁止 Agent 直接手改** `runtime.stages.*` 的 `status/started_at/completed_at` 与 `runtime.current_stage`，手改视为该阶段未完成。脚本内置精确校验：禁止跳步、主阶段子阶段未了结不可 complete、前一阶段 completed 但 reported_at 为空时阻断推进（上报门禁），每次流转后打印阶段流转链路与门禁告警。常用命令：
+  - `bash {skill_root}/scripts/stage-flow.sh next`：推进到下一阶段
+  - `bash {skill_root}/scripts/stage-flow.sh complete stage3.1`：完成指定阶段
+  - `bash {skill_root}/scripts/stage-flow.sh skip stage4.2 --reason "原因"`：跳过
+  - `bash {skill_root}/scripts/stage-flow.sh show` / `gate`：查看进度 / 门禁自检
+  流转记录自动追加到 `.duo/{demand_description}/stage-flow.log`。schema 遵循 [workflow-context-schema.md](references/workflow-context-schema.md)。
 - **执行日志上报（强制 gate）**: 每个阶段标记 completed 后，MUST 读取 `workflow-context.json` 中的 `runtime.post_stage_hooks` 字段并按其中 actions 逐一执行；`reported_at` 只能由脚本自动回写，**MUST_NOT 由 Agent 手填或编造**。该 hooks 机制确保即使上下文被压缩，Agent 每次读写 context 文件时仍可看到上报指令。
+- **SDLC 指标 mapping 上报（强制 gate）**: 同样在 `post_stage_hooks` 中，`report_sdlc_mapping` action（scripts/report-sdlc-mapping.js）按「非 Multica 的 SDLC 系统」方式（km 2777569481）向 AI-SDLC 指标平台上报 Task ↔ Session 映射：`sdlcSourceType=FE_RD_WORKFLOW`，onesUrl 取自 `input.fedo_info.ones_link`（**Stage 1 必须向用户收集，缺失时提示**），session 取 `runtime.session_links` 的 conversation_id，**agentType 非固定值、按会话来源推导**（`session_links[].source`：catpaw_ide→catpaw、catpaw_desk→catdesk、codex→codex，服务端以 (agentType, sessionId) 元组唯一标识 session），阶段切分以 `stageSplit` 时间段上报（stage3.1→requirement、stage3.2/3.3→design、stage4.x→code、stage5→test）。依赖 `sdlc-task-mapping-ingest` skill（run.sh，方式一首选），未安装或 CLI 失败时自动降级为方式二接口直报（ingest-get-token 换 token → sdlc-task-mapping-ingest Bearer 上报，无需任何依赖），也可 `--mode direct` 显式指定。上报失败不阻断阶段推进。
 
 - **暂停确认**: 每个阶段完成后 MUST 主动告知用户提供操作选项（继续/重试）
 - **失败降级**: 单阶段失败主动告知用户，并提供操作选项（重试/跳过）

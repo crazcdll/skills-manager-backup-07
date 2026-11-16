@@ -22,7 +22,7 @@
 
 ## 编辑普通日程
 
-所有编辑先定位唯一日程并调用 `querySchedule --raw`。若详情表明是循环日程，立即按循环编辑禁止规则停止；若编辑涉及会议室资源，读取 [meeting-rooms.md](meeting-rooms.md)。
+所有编辑先定位唯一日程并调用 `querySchedule --raw`。若详情表明是循环日程，改读 [recurrence-pattern.md](recurrence-pattern.md)；确认不触发会议室阻断规则后才使用 `updateRecurrenceSchedule`。`updateSchedule` 仅用于普通日程。若编辑涉及会议室资源，读取 [meeting-rooms.md](meeting-rooms.md)。
 
 时间更新必须构造完整的新范围：
 

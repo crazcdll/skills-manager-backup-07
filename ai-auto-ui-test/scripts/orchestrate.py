@@ -9,8 +9,8 @@
     **随 Task 直接返回编排层** —— 无需回写状态文件（Task 同步并行模型，子 Agent 非游离进程）；
   · 报告 **各自独立**（阶段 5「原子追加 / 汇总成一份」未落地前，不做预置与聚合）。
 
-输入（单一标准）：**用例目录** —— 目录下每个 `*.md` = 一个用例（递归）；`case_id` = 文件名去扩展名。
-规范位置 `<ai-app-flow>/.docs/{需求名}/flows/`；约定外目录告警。
+输入（单一标准）：**用例目录** —— 目录下每个 `steps.json` = 一个用例（递归）；
+`case_id` = 该 `steps.json` 所在目录名。规范位置 `<ai-app-flow>/.docs/{需求名}/flows/`；约定外目录告警。
 共享环境信息经 `--env` / `--env-file` 传入。
 
 调度模型（滚动补位 / 滑动窗口）：
@@ -23,7 +23,8 @@
 编排产物目录：<SKILL_DIR>/.orchestration/<task_id>/
   manifest.json          任务级索引：task 元信息 + 共享环境 + 分片列表（= 待跑队列）
   cases/                 原始用例快照（plan 时从 --cases 拷贝，本任务只读副本）
-  shards/shard-NN.json   分片输入：env + cases（flow_path 指向 cases/ 快照，子 Agent 只读）
+  shards/shard-NN.json   分片输入：env + cases（steps_path 指向 cases/ 快照，子 Agent 直接喂给
+                       `steps-generate --steps <steps_path>`，中间无手写 CASES 环节）
 
 滚动保留（keep-latest-N）—— 默认各保留「最近 10 份」，按最近修改时间倒序：
   · `.orchestration/` 的一级 task 目录；
@@ -200,46 +201,51 @@ def _convention_warning(cases_dir):
 # ─── 输入解析（单一标准：用例目录）────────────────────────────────────────
 
 def _scan_cases(cases_dir):
-    """扫描用例目录：每个 *.md = 一个用例；返回 (目录绝对路径, cases)。"""
+    """扫描用例目录：每个 `steps.json` = 一个用例；返回 (目录绝对路径, cases)。
+
+    `steps.json` 是唯一真源（ai-app-flow 一用例一目录），flow md 只是渲染产物，
+    不参与编排：多扫一份只会让同一用例被两边各跑一次。
+    """
     d = os.path.abspath(cases_dir)
     if not os.path.isdir(d):
         raise SystemExit(f"❌ --cases 必须是「用例目录」: {d} 不是目录")
-    paths = sorted(glob.glob(os.path.join(d, "**", "*.md"), recursive=True))
+    paths = sorted(glob.glob(os.path.join(d, "**", "steps.json"), recursive=True))
     if not paths:
-        raise SystemExit(f"❌ 用例目录下没有 .md 文件: {d}")
+        raise SystemExit(f"❌ 用例目录下没有 steps.json: {d}")
 
     cases = []
     seen = {}
     for p in paths:
-        name = os.path.splitext(os.path.basename(p))[0]
+        name = os.path.basename(os.path.dirname(p))
         seen.setdefault(name, []).append(p)
 
     dupes = {n: ps for n, ps in seen.items() if len(ps) > 1}
     if dupes:
         detail = "\n".join(f"  - {n}: {', '.join(ps)}" for n, ps in dupes.items())
         raise SystemExit(
-            f"❌ 用例目录存在重名文件（case_id 会冲突）：\n{detail}\n"
-            f"   请确保每个用例的 .md 文件名唯一（子目录亦据此判定）。"
+            f"❌ 用例目录存在重名用例（case_id = 目录名，会冲突）：\n{detail}\n"
+            f"   请确保每个 steps.json 所在目录名唯一（子目录亦据此判定）。"
         )
 
     for p in paths:
-        name = os.path.splitext(os.path.basename(p))[0]
-        cases.append({"case_id": name, "case_name": name, "flow_path": p})
+        name = os.path.basename(os.path.dirname(p))
+        cases.append({"case_id": name, "case_name": name, "steps_path": p})
     return d, cases
 
 
 def _snapshot_cases(cases, dest_dir, source_root):
-    """把原始用例拷入本任务目录（运行快照），返回 flow_path 指向副本的 cases。
+    """把原始用例拷入本任务目录（运行快照），返回 steps_path 指向副本的 cases。
 
     快照的意义：同一 task 的各分片读到同一份内容，运行期源目录被改动不影响本任务。
-    保留源目录的相对结构（如 `cases/提单页/flow-01-x.md`）；原路径留在 `source_path` 便于追溯。
+    保留源目录的相对结构（如 `cases/提单页/flow-01-x/steps.json`）；原路径留在
+    `source_path` 便于追溯。
     """
     snapshot = []
     for c in cases:
-        dst = os.path.join(dest_dir, os.path.relpath(c["flow_path"], source_root))
+        dst = os.path.join(dest_dir, os.path.relpath(c["steps_path"], source_root))
         os.makedirs(os.path.dirname(dst), exist_ok=True)
-        shutil.copy2(c["flow_path"], dst)
-        snapshot.append({**c, "flow_path": dst, "source_path": c["flow_path"]})
+        shutil.copy2(c["steps_path"], dst)
+        snapshot.append({**c, "steps_path": dst, "source_path": c["steps_path"]})
     return snapshot
 
 
@@ -294,17 +300,27 @@ def cmd_plan(args):
     os.makedirs(os.path.join(tdir, "shards"), exist_ok=True)
 
     manifest_shards = []
+    req_name = os.path.basename(os.path.normpath(cases_dir)) or task_id
+    # 运行类型：显式参数 > 环境变量 > adhoc；写入每个分片，子 Agent 据此导出给引擎
+    run_type = (getattr(args, "run_type", "") or os.environ.get("AI_UITEST_RUN_TYPE", "") or "adhoc").strip().lower()
+    if run_type not in ("regression", "feature", "adhoc"):
+        run_type = "adhoc"
     for idx, group in enumerate(groups, 1):
         sid = f"shard-{idx:02d}"
         shard = {
             "task_id": task_id,
             "shard_id": sid,
+            # 报告行标题：子 Agent 原样传给 `flow-init --flow-name`，
+            # 避免行标题退化为分片内第一个 steps.json 的 title
+            "report_name": f"{req_name} · {sid}",
+            "run_type": run_type,
             "env": env,
             "cases": group,
         }
         _write_json(os.path.join(tdir, "shards", f"{sid}.json"), shard)
         manifest_shards.append({
             "shard_id": sid,
+            "report_name": shard["report_name"],
             "case_count": len(group),
             "case_ids": [c["case_id"] for c in group],
         })
@@ -317,6 +333,7 @@ def cmd_plan(args):
         "cases_dir": os.path.join(tdir, "cases"),
         "case_count": len(cases),
         "shard_count": len(manifest_shards),
+        "run_type": run_type,
         "max_cases_per_agent": max_cases,
         "concurrency": concurrency,
         "env": env,
@@ -362,6 +379,12 @@ def _print_plan(manifest, tdir):
         path = os.path.join(tdir, "shards", f"{s['shard_id']}.json")
         print(f"    {i}. {s['shard_id']}  cases={s['case_count']}  → {path}")
         print(f"         {', '.join(s['case_ids'])}")
+        print(f"         报告行: {s.get('report_name', s['shard_id'])}")
+        try:
+            for c in _read_json(path).get("cases", []):
+                print(f"         · {c['case_id']}: <入口> steps-generate --steps {c['steps_path']} --tag {c['case_id']}")
+        except (OSError, ValueError):
+            pass
     print()
     print("  [下一步 · AI]")
     print(f"    滚动补位派发（滑动窗口 = {manifest['concurrency']}）——")
@@ -369,7 +392,7 @@ def _print_plan(manifest, tdir):
     print("      · 之后谁先跑完，就立刻从队首取下一个分片补上，保持同时在跑 ≤ 上限；")
     print("      · 子 Agent 读自己的 shards/<shard>.json（env + cases），")
     print("        按 SKILL.md「子 Agent 派发契约」执行 ai-ui-autotest-engine 单份路径；")
-    print("      · 直到队列跑空且全部结束；结果随 Task 直接返回，无需回写（报告各自独立入库）。")
+    print("      · 直到队列跑空且全部结束；结果随 Task 直接返回，无需回写（每分片一条报告行，分片内多 Case 合并）。")
     print()
 
 
@@ -403,13 +426,16 @@ def build_parser():
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     p = sub.add_parser("plan", help="扫描用例目录 → 拆分为待跑队列（滚动补位派发）")
-    p.add_argument("--cases", required=True, help="用例目录（递归；每个 *.md = 一个用例）")
+    p.add_argument("--cases", required=True, help="用例目录（递归；每个 steps.json = 一个用例）")
     p.add_argument("--max-cases", type=int, default=DEFAULT_MAX_CASES,
                    help=f"每个子 Agent 的用例上限（默认 {DEFAULT_MAX_CASES}）")
     p.add_argument("--concurrency", type=int, default=DEFAULT_CONCURRENCY,
                    help=f"同时在跑的子 Agent 上限（默认 {DEFAULT_CONCURRENCY}）")
     p.add_argument("--env", default="", help="共享环境信息 JSON（所有子 Agent 共享）")
     p.add_argument("--env-file", default="", help="共享环境信息 JSON 文件")
+    p.add_argument("--run-type", default="",
+                   choices=("regression", "feature", "adhoc"),
+                   help="运行类型（缺省读 AI_UITEST_RUN_TYPE，再缺省 adhoc）")
     p.add_argument("--task", default="", help="任务 id（默认自动生成）")
     p.add_argument("--keep", type=int, default=DEFAULT_KEEP,
                    help=f"滚动保留份数（默认 {DEFAULT_KEEP}）")

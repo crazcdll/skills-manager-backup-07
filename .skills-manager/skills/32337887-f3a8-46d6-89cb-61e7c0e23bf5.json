@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "skill_id": "32337887-f3a8-46d6-89cb-61e7c0e23bf5",
+  "path": "mt-code-standards-source-helper",
+  "path_key": "mt-code-standards-source-helper",
+  "enabled": true,
+  "tags": [],
+  "source": {
+    "type": "local",
+    "ref": null,
+    "subpath": null,
+    "branch": null
+  }
+}

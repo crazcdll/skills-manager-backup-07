@@ -1,0 +1,4 @@
+interface:
+  display_name: "编码规范原材料整理助手"
+  short_description: "整理 Git 或学城规范原材料，生成规则集索引与本地预览，确认后导出标准包"
+  default_prompt: "使用 $mt-code-standards-source-helper 整理我提供的规范原材料，先生成预览供我确认。"

@@ -1,0 +1,30 @@
+skill-manifest-version: 1
+skill-id: 859ca88b8bc7c150826e5cb791d968b3b2eb1900ac7cf9980d8120716be290d4
+
+files:
+  ccc204e6c5061bb23a297e135cfc35072ad969fad63600fd257126a18a444d0c  SKILL.md
+  04f7a19e35a4e0a329feece901a6364e5e1e2e06c25333b02b6e55bde2faf907  agents/openai.yaml
+  91bd6618e886e86188841296dd2123f2ece7c4bcfed8c2d0d980e85f9da0aeae  references/local-workflow.md
+  5ece0ad78a16aa327a41b4cbe58a6e45d781d6284f3cf6585e17c13b43bf013d  references/package.schema.json
+  101c25bf710da404358d81b3cfe92b93e2074f7fe6954f0765b2100b0fcd0500  scripts/canonical-content.mjs
+  3f4939cb33d318c730b6bdc5f0c9ee492113510c579b5d1e678a973fb43b4023  scripts/check-vectors.mjs
+  d62cb9eb9b2b88339cd13f6a0ca70546312a503c37716a875237b09c226bff8e  scripts/code-source.mjs
+  44e2b52b8b6f205ba0841c7567991c5eeb0fcf418f703db8ea6941b3595b3a71  scripts/draft-workflow.mjs
+  50c51b3687c9c4e072cc55eff2d70cfacb28c57f08d1bf047dfa603efa94cff3  scripts/fixtures/canonical-vectors.json
+  b89f14d342236681c983ed45f2bbf8918c99e8c2c6c73d1f5f488409aa9c1eba  scripts/fixtures/invalid-cases.json
+  5d40a7e7f6657b394f65f8e5b93c9149013f70cad7f3d8679ba91d2db83c5e7a  scripts/fixtures/markdown-heading-cases.json
+  77645c36b8abf3a2ff4281ff260c2ab6662b554437b3d2641e06750331a97c64  scripts/fixtures/minimal-package.mjs
+  f23688d38b57f90c3bde7ffb516824641c0c2930e679c9e3a1223654058c2f56  scripts/fixtures/minimal-package/AGENTS.md
+  bdd7b371b54034a0fd4ef79bdf52448764a5d548e4be43aecbdec59a5f86aebd  scripts/fixtures/minimal-package/confirmation.json
+  936a83c464255b0e4724ea8a8e7c3b388d983f5fab0942d1b403efef03c437ee  scripts/fixtures/minimal-package/content.json
+  2e2004a0e06dda0708394c6a9ab69bcaa1d259b1d2e10fa795495d493be42b30  scripts/fixtures/minimal-package/manifest.json
+  b6829e5fbd05238c7aa352ef81c305e760e45b7cffa07b3b6c23041cee1eddfa  scripts/fixtures/minimal-package/sources/source_one.md
+  48b0afc18a653a8022bd5a42bc85d218a63140f806c8f06f41e9d6b29ee2ff77  scripts/local-workflow.test.mjs
+  a7cc39ecbf3e83f1199d77d94f2c3d1ce353181354a8d9848f77aeeb64115cbd  scripts/package-contract.mjs
+  d0caa2a8bd7bfa16d52b93248ac9bb55f8c0a93a9d06d53851d6008d90f045d9  scripts/package-contract.test.mjs
+  73360bbd145233924693c4b56ab8651fa6efbdbf72cc5dfd7c1ff4fabda2f219  scripts/preview.mjs
+  c2f5b89cde9f80596904bf475bc82a9fbe8bfaa91de5c412bb8f76489f07e485  scripts/source-helper.mjs
+  73fb89cef578a11a09874b6a619fdc549821d5f9657916280bc60d6efdaf1724  scripts/source-reader.mjs
+  daae08ecaa22faaa04f5d4c96fa002bc5d8e396973fa4667d86e5b2b96b66736  scripts/source-units.mjs
+  f3c5b40ce0463fde816f84009a274ad499f53266cad363b98ae24df99200ddeb  scripts/store-zip.mjs
+  041ba23444b8c08a4fd0eef963b0d9901296c7a92353c4b0002c4e9683e99b7c  scripts/upstream-error-message.mjs

@@ -1,0 +1,48 @@
+[
+  {
+    "name": "sorted-fields",
+    "input": {
+      "z": 1,
+      "a": {
+        "b": true,
+        "a": null
+      }
+    },
+    "canonical": "{\"a\":{\"a\":null,\"b\":true},\"z\":1}",
+    "sha256": "sha256:9dbf005eff4a4789efcda81218ae921d000b80bfe9db8f4cf219363847e2c56c"
+  },
+  {
+    "name": "unicode-and-line-endings",
+    "input": {
+      "中文": "保留\r\n换行",
+      "emoji": "🧪",
+      "decomposed": "é"
+    },
+    "canonical": "{\"decomposed\":\"é\",\"emoji\":\"🧪\",\"中文\":\"保留\\r\\n换行\"}",
+    "sha256": "sha256:96910b63ac5f07c651ed1e361a31b82e9e162c41b1f84cef3287169034c720f6"
+  },
+  {
+    "name": "utf16-key-order",
+    "input": {
+      "": "bmp",
+      "😀": "surrogate-pair",
+      "a": [
+        3,
+        2,
+        1
+      ]
+    },
+    "canonical": "{\"a\":[3,2,1],\"😀\":\"surrogate-pair\",\"\":\"bmp\"}",
+    "sha256": "sha256:dc596e0f56a60ebf5f41c8a65ae7ec65dda57a97f6f0b674a8f6fa8be7067d73"
+  },
+  {
+    "name": "integer-and-escapes",
+    "input": {
+      "number": 9007199254740991,
+      "negative": -19,
+      "quote": "\"\\\t\n"
+    },
+    "canonical": "{\"negative\":-19,\"number\":9007199254740991,\"quote\":\"\\\"\\\\\\t\\n\"}",
+    "sha256": "sha256:b2508620ac87602204d238861ee9c1c23f0f0a2cac0b9b26ed58f7e3c51f6fab"
+  }
+]

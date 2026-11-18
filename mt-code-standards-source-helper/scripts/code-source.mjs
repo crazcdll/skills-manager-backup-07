@@ -34,7 +34,7 @@ async function boundedBody(response, maxBytes, path) {
   const result=new Uint8Array(total);let at=0;for(const part of parts){result.set(part,at);at+=part.length;}return result;
 }
 export async function readGitRawSource(plan, request, { fetchImpl = fetch, tokenProvider = loadOfficialCodeSession } = {}) {
-  if (!/^[a-z][a-z0-9._-]{0,63}$/u.test(request.actor_mis || '')) fail('SOURCE_ACTOR_REQUIRED','/actor_mis','Git 读取前请提供当前本人登录用户的 MIS，不能以规则 Owner 代替。');
+  if (request.actor_mis && !/^[a-z][a-z0-9._-]{0,63}$/u.test(request.actor_mis)) fail('SOURCE_ACTOR_INVALID','/actor_mis','当前登录身份标识格式无效。');
   const token = await tokenProvider(); const deadline=Date.now()+180000;
   const get=async(url,headers,maxBytes,path)=>{
     const remaining=deadline-Date.now();if(remaining<=0)fail('SOURCE_TIMEOUT',path,'本次来源读取超时，请重新尝试。');
@@ -52,7 +52,8 @@ export async function readGitRawSource(plan, request, { fetchImpl = fetch, token
     return boundedBody(response,maxBytes,path);
   };
   let identity;try{identity=JSON.parse(decodeUtf8(await get(`https://ssosv.sankuai.com/websso/whoami?client_id=${AUDIENCE}`,{Authorization:`Bearer ${token}`,'x-ai-official-origin':'code-cli'},8192,'/source/identity')));}catch(error){if(error instanceof PackageContractError)throw error;fail('SOURCE_IDENTITY_INVALID','/source/identity','官方身份响应无法识别。');}
-  if(String(identity?.code)!=='200'||identity?.data?.subject!==request.actor_mis)fail('SOURCE_IDENTITY_MISMATCH','/source/identity','本人 Code 会话已失效或身份不匹配，请重新登录；不会使用其他来源凭据。');
+  const actorMis = typeof identity?.data?.subject === 'string' ? identity.data.subject : null;
+  if (String(identity?.code) !== '200' || !actorMis || (request.actor_mis && actorMis !== request.actor_mis)) fail('SOURCE_IDENTITY_MISMATCH','/source/identity','本人 Code 会话已失效或身份不匹配，请重新登录；不会使用其他来源凭据。');
   const prefix=`https://dev.sankuai.com/rest/api/2.0/projects/${encodeURIComponent(plan.project)}/repos/${encodeURIComponent(plan.repository)}`;
   const api=async(path,query,max=256*1024)=>{const url=new URL(`${prefix}/${path}`);for(const[k,v]of Object.entries(query))url.searchParams.set(k,String(v));return get(url.toString(),{Cookie:`${AUDIENCE}_ssoid=${token}`},max,'/source');};
   const json=async(path,query)=>{try{return JSON.parse(decodeUtf8(await api(path,query)));}catch(error){if(error instanceof PackageContractError)throw error;fail('SOURCE_RESPONSE_INVALID','/source','代码平台返回了无法识别的数据。');}};
@@ -82,5 +83,5 @@ export async function readGitRawSource(plan, request, { fetchImpl = fetch, token
     source.files.push({source_ref:ref,source_path:relative,package_path:packagePath,representation:'git-raw-utf8',sha256:await sha256(bytes),byte_size:bytes.length});files.set(packagePath,bytes);
   }
   if(!source.files.length)fail('SOURCE_EMPTY','/source','索引不作为规范正文，指定范围没有规则材料。');
-  return{source,files,originalIndex,warnings,receipt:{transport:'official-code-raw',requested_ref:plan.requested_ref,commit,actor_mis:request.actor_mis,identity_verified:true,raw_snapshot_verified:true}};
+  return{source,files,originalIndex,warnings,receipt:{transport:'official-code-raw',requested_ref:plan.requested_ref,commit,actor_mis:actorMis,identity_verified:true,raw_snapshot_verified:true}};
 }

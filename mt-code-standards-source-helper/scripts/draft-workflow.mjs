@@ -1,4 +1,5 @@
-import { PACKAGE_SCHEMA, CONTENT_SCHEMA, CONTENT_CONTRACT, RENDER_CONTRACT, canonical, manifestDigest, PackageContractError, utf8, decodeUtf8, sha256, validatePackage } from './package-contract.mjs';
+import { CONTENT_SCHEMA, CONTENT_CONTRACT, RENDER_CONTRACT, canonical, manifestDigest, PackageContractError, utf8, decodeUtf8, sha256 } from './package-contract.mjs';
+import { CONVERSION_SCHEMA, validateConversion } from './conversion-contract.mjs';
 import { buildSourceUnits, parseHistoryTree, renderHistoryNode, verifyReaderEvidence } from './source-units.mjs';
 import { generateAgentsIndex } from './preview.mjs';
 import { validateCanonicalDraftContent } from './canonical-content.mjs';
@@ -70,11 +71,11 @@ export async function materializeDraft({ request, source, files, draft }) {
   }
   content.agents_index = { schema_version: 'rule-set-agents-index/v1', path: 'AGENTS.md', bindings: generated.bindings };
   const payload = new Map(files); payload.set('content.json', utf8(canonical(content))); payload.set('AGENTS.md', utf8(generated.markdown));
-  const manifest = { schema_version: PACKAGE_SCHEMA, operation: 'create_l2', standard_domain: request.standard_domain, scope_level: 'L2', rule_set: request.rule_set, source, render_contract: RENDER_CONTRACT, converter: { name: 'mt-code-standards-source-helper', version: '0.1.0' }, counts: { sources: source.files.length, documents: content.documents.length, rules: content.rules.length, excluded_units: content.coverage.filter((unit) => unit.disposition === 'excluded').length }, files: [], content_digest: '' };
+  const manifest = { schema_version: CONVERSION_SCHEMA, operation: 'normalize_source', source, render_contract: RENDER_CONTRACT, converter: { name: 'mt-code-standards-source-helper', version: '0.2.0' }, counts: { sources: source.files.length, documents: content.documents.length, rules: content.rules.length, excluded_units: content.coverage.filter((unit) => unit.disposition === 'excluded').length }, files: [], content_digest: '' };
   for (const path of [...payload.keys()].sort()) manifest.files.push({ path, byte_size: payload.get(path).length, sha256: await sha256(payload.get(path)) });
   manifest.content_digest = await manifestDigest(manifest); payload.set('manifest.json', utf8(canonical(manifest)));
   let validation = null;
-  try { validateCanonicalDraftContent(content); await verifyReaderEvidence(await validatePackage(payload, { requireConfirmation: false }), payload); } catch (error) { if (!(error instanceof PackageContractError)) throw error; validation = { code: error.code, path: error.path, message: error.message }; }
+  try { validateCanonicalDraftContent(content); await verifyReaderEvidence(await validateConversion(payload, { requireConfirmation: false }), payload); } catch (error) { if (!(error instanceof PackageContractError)) throw error; validation = { code: error.code, path: error.path, message: error.message }; }
   let requestedRef = null;
   if (source.type === 'git') {
     requestedRef = request.branch || null;

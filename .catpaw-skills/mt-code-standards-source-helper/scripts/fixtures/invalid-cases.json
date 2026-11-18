@@ -1,0 +1,7 @@
+[
+  {"name":"unsupported operation","file":"manifest.json","path":["operation"],"value":"replace","code":"PACKAGE_SCHEMA_INVALID"},
+  {"name":"unsupported scope","file":"manifest.json","path":["scope_level"],"value":"L3","code":"PACKAGE_SCHEMA_INVALID"},
+  {"name":"invented rule identity","file":"content.json","path":["rules",0,"rule_uid"],"value":"team:JAVA-001","code":"PACKAGE_SCHEMA_INVALID"},
+  {"name":"no execution level downgrade","file":"content.json","path":["rules",0,"execution_level"],"value":"high","code":"PACKAGE_SCHEMA_INVALID"},
+  {"name":"confirmation required","file":"confirmation.json","path":["confirmed_scope","content"],"value":false,"code":"PACKAGE_SCHEMA_INVALID"}
+]

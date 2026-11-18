@@ -3,13 +3,14 @@ import { readFile, writeFile, mkdir, lstat, realpath, rename, rm } from 'node:fs
 import { resolve, dirname, join, relative, isAbsolute } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
-import { CONFIRMATION_SCHEMA, LIMITS, PackageContractError, canonical, canonicalHash, utf8, sha256, parseStrictJson, safeRelativePath, validateRuleSetIntent, validatePackage } from './package-contract.mjs';
+import { CONFIRMATION_SCHEMA, LIMITS, PackageContractError, canonical, canonicalHash, utf8, sha256, parseStrictJson, safeRelativePath, validateRuleSetIntent } from './package-contract.mjs';
 import { parseSourceUrl, readSource } from './source-reader.mjs';
 import { emptyDraft, materializeDraft } from './draft-workflow.mjs';
 import { renderPreview, displayText } from './preview.mjs';
 import { verifyReaderEvidence } from './source-units.mjs';
 import { encodeStoreZip, decodeStoreZip } from './store-zip.mjs';
 import { validateCanonicalDraftContent } from './canonical-content.mjs';
+import { validateConversion } from './conversion-contract.mjs';
 const fail = (code, path, message) => { throw new PackageContractError(code, path, message); };
 async function readBounded(path, max) {
   const stat = await lstat(path);
@@ -35,9 +36,14 @@ async function locked(root, task) {
 }
 const output = (value) => process.stdout.write(JSON.stringify(value) + '\n');
 function requestShape(request) {
-  const fields = ['schema_version', 'source_url', 'selection_type', 'path', 'branch', 'step_version', 'actor_mis', 'standard_domain', 'rule_set'];
-  if (!request || request.schema_version !== 'source-helper-request/v1' || Object.keys(request).some((field) => !fields.includes(field)) || !['frontend', 'backend'].includes(request.standard_domain)) fail('REQUEST_INVALID', '/request', '请求格式、治理域或字段不受支持。');
-  validateRuleSetIntent(request.rule_set); parseSourceUrl(request.source_url, request);
+  const legacy = request?.schema_version === 'source-helper-request/v1';
+  const fields = ['schema_version', 'source_url', 'selection_type', 'path', 'branch', 'step_version', 'actor_mis', ...(legacy ? ['standard_domain', 'rule_set'] : [])];
+  if (!request || !['source-helper-request/v1', 'source-helper-request/v2'].includes(request.schema_version) || Object.keys(request).some((field) => !fields.includes(field))) fail('REQUEST_INVALID', '/request', '请求只需要来源地址及来源读取范围；规则集名称、展示名称、Owner、治理域和适用范围由平台填写。');
+  if (legacy && (request.standard_domain !== undefined || request.rule_set !== undefined)) {
+    if (!['frontend', 'backend'].includes(request.standard_domain)) fail('REQUEST_INVALID', '/standard_domain', '旧版请求的治理域无效；新请求不需要填写治理域。');
+    validateRuleSetIntent(request.rule_set);
+  }
+  parseSourceUrl(request.source_url, request);
   return request;
 }
 const requestScope = (request) => Object.fromEntries(['source_url', 'selection_type', 'path', 'branch', 'step_version', 'actor_mis'].map((key) => [key, request[key] ?? null]));
@@ -72,9 +78,9 @@ export async function main(argv = process.argv.slice(2), { readSourceImpl = read
   if (command === 'help') return output({ commands: ['plan --source <URL> [--selection-type file|directory] [--branch <branch>]', 'prepare --request <request.json> --workspace <new-directory> [--resume]', 'preview --workspace <directory> [--draft <draft.json>]', 'confirm --workspace <directory> --preview-digest <sha256> --user-confirmed', 'package --workspace <directory> --output <new.zip>', 'validate --package <zip>', 'status --workspace <directory>'], note: '确认参数只能在用户明确确认当前预览后使用。工具不会调用模型、上传或发布。' });
   if (command === 'plan') return output({ status: 'scope_ready', plan: parseSourceUrl(requireOption('--source'), { selection_type: options['--selection-type'] || 'file', path: options['--path'] || null, branch: options['--branch'] || null }), next: '向用户说明并确认读取范围，再 prepare。' });
   if (command === 'validate') {
-    const files = decodeStoreZip(await readBounded(resolve(requireOption('--package')), LIMITS.zipBytes)); const result = await verifyReaderEvidence(await validatePackage(files), files);
+    const files = decodeStoreZip(await readBounded(resolve(requireOption('--package')), LIMITS.zipBytes)); const result = await verifyReaderEvidence(await validateConversion(files), files);
     validateCanonicalDraftContent(result.content);
-    return output({ status: 'package_valid', content_digest: result.manifest.content_digest, counts: result.counts, source_verified: false, reader_coverage_verified: true, publishable: false, note: '尚需平台本人来源核验、正式编号和 Owner 审核。' });
+    return output({ status: 'conversion_valid', content_digest: result.manifest.content_digest, counts: result.manifest.counts, source_verified: false, reader_coverage_verified: true, publishable: false, note: '转换包尚需平台填写规则集元信息、核验来源、分配正式编号并进入 Owner 审核。' });
   }
   let root = resolve(requireOption('--workspace'));
   if (command === 'prepare') {
@@ -121,18 +127,18 @@ export async function main(argv = process.argv.slice(2), { readSourceImpl = read
       if (!options['--user-confirmed'] || requireOption('--preview-digest') !== preview.preview_digest) fail('CONFIRMATION_REQUIRED', '/confirmation', '需要用户明确确认当前预览及其版本，不能沿用其他预览确认。');
       const confirmation = { schema_version: CONFIRMATION_SCHEMA, content_digest: material.manifest.content_digest, decision: 'confirmed', confirmed_at: new Date().toISOString(), confirmed_scope: { content: true, agents_index: true, exclusions: true, generated_changes: true } };
       material.payload.set('confirmation.json', utf8(canonical(confirmation)));
-      await verifyReaderEvidence(await validatePackage(material.payload), material.payload);
+      await verifyReaderEvidence(await validateConversion(material.payload), material.payload);
       await atomic(root, 'confirmation.json', utf8(canonical(confirmation))); await atomic(root, 'state.json', utf8(canonical({ ...material.state, status: 'confirmed' })));
-      return output({ status: 'confirmed', content_digest: material.manifest.content_digest, next: '可以生成标准包；这不等于平台审核或发布。' });
+      return output({ status: 'confirmed', content_digest: material.manifest.content_digest, next: '可以生成原材料转换包；这不等于平台审核或发布。' });
     }
     if (command === 'package') {
       let confirmation; try { confirmation = await readJson(root, 'confirmation.json', LIMITS.confirmationBytes); } catch (error) { if (error.code === 'ENOENT') fail('CONFIRMATION_REQUIRED', '/confirmation', '尚未确认当前预览，不能生成最终包。'); throw error; }
       material.payload.set('confirmation.json', utf8(canonical(confirmation)));
-      await verifyReaderEvidence(await validatePackage(material.payload), material.payload);
-      const zipped = encodeStoreZip(material.payload); const decoded = decodeStoreZip(zipped); await verifyReaderEvidence(await validatePackage(decoded), decoded);
+      await verifyReaderEvidence(await validateConversion(material.payload), material.payload);
+      const zipped = encodeStoreZip(material.payload); const decoded = decodeStoreZip(zipped); await verifyReaderEvidence(await validateConversion(decoded), decoded);
       const target = resolve(requireOption('--output')); await writeFile(target, zipped, { flag: 'wx', mode: 0o600 });
       await atomic(root, 'state.json', utf8(canonical({ ...material.state, status: 'packaged' })));
-      return output({ status: 'packaged', output: target, package_sha256: await sha256(zipped), content_digest: material.manifest.content_digest, source_verified: false, publishable: false, next: '在支持此合同的平台上传；工具未上传、审核或发布。' });
+      return output({ status: 'packaged', output: target, package_sha256: await sha256(zipped), content_digest: material.manifest.content_digest, source_verified: false, publishable: false, next: '这是原材料转换包；请在平台填写规则集元信息后导入，工具未上传、审核或发布。' });
     }
   });
 }

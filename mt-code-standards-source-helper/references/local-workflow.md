@@ -27,24 +27,17 @@ node <skill>/scripts/source-helper.mjs validate --package <包路径.zip>
 
 ```json
 {
-  "schema_version": "source-helper-request/v1",
+  "schema_version": "source-helper-request/v2",
   "source_url": "https://dev.sankuai.com/code/repo-detail/team/repository/file/detail?path=rules.md&branch=refs%2Fheads%2Frules",
-  "selection_type": "file",
-  "actor_mis": "your.mis",
-  "standard_domain": "frontend",
-  "rule_set": {
-    "name": "team-rules",
-    "display_name": "团队规范",
-    "description": "本次规范覆盖的问题域",
-    "owner_mis": "当前确认的维护人MIS",
-    "applicability_scope": "明确适用的团队和业务范围"
-  }
+  "selection_type": "file"
 }
 ```
 
-示例值需替换为用户已提供的信息。source_url 支持 dev.sankuai.com 文件/目录地址，以及带 path/branch 的 git/code.sankuai.com 仓库地址。SSH clone URL 和无查询参数的仓库地址也可输入，但必须另填 path 和 branch；显式值不能与链接中的值冲突。branch 可显式单独传入 request，但不能与用户意图冲突；缺少分支会报错，工具不猜默认分支。目录选择使用 selection_type=directory，仅该目录内文件；AGENTS.md/agents.md 在所选根目录作为索引分离。
+本请求只描述来源读取范围。source_url 支持 dev.sankuai.com 文件/目录地址，以及带 path/branch 的 git/code.sankuai.com 仓库地址。SSH clone URL 和无查询参数的仓库地址也可输入，但必须另填 path 和 branch；显式值不能与链接中的值冲突。branch 可显式单独传入 request，但不能与用户意图冲突；缺少分支会报错，工具不猜默认分支。目录选择使用 selection_type=directory，仅该目录内文件；AGENTS.md/agents.md 在所选根目录作为索引分离。
 
-Git 和学城均需填写 actor_mis（当前本人登录用户），不能直接使用 Owner 冒充。学城 source_url 使用真实文档地址，可选 step_version。未指定时工具从官方历史列表选择最高有效 stepVersion 并在来源回执中展示；类型 1 不支持，不降级当前正文。类型 3/7 原件均用历史 data.body 原始字符串；类型 7 尚需真实样本验收，不声称已线上可用。
+规则集 name、展示名称、描述、Owner、治理域和适用范围不属于本地转换输入。预览和转换包不会生成这些平台字段，平台导入时由用户填写。
+
+Git 和学城优先使用当前官方登录会话；旧版本仍可在本地 request 中显式填写 actor_mis 以绑定会话，但它不是平台 Owner，也不会写入规则集元信息。学城 source_url 使用真实文档地址，可选 step_version。未指定时工具从官方历史列表选择最高有效 stepVersion 并在来源回执中展示；类型 1 不支持，不降级当前正文。类型 3/7 原件均用历史 data.body 原始字符串；类型 7 尚需真实样本验收，不声称已线上可用。
 
 ## 固定单元与草稿
 
@@ -83,9 +76,9 @@ Git 可从单个或连续单元唯一匹配精确摘录；工具计算原始字�
 
 preview 输出正文卡片、示例语言与高亮、来源标识、索引、排除决定和待确认项。超过十条规则按页展示，确认针对完整内容。HTML 不加载外部资源，用户提供内容经转义；Markdown 为本地受限展示，不是新事实来源。
 
-待确认规则可以暂留 execution_level 为空或暂缺省略原因，preview 会显示校验问题；最终 confirm 必须通过全部校验，不能将暂缺值带入标准包。请求元信息也进入 content_digest，改名称、Owner 或适用范围需重新预览确认。
+待确认规则可以暂留 execution_level 为空或暂缺省略原因，preview 会显示校验问题；最终 confirm 必须通过全部校验，不能将暂缺值带入转换包。平台元信息不进入本地 content_digest；平台填写规则集名称、Owner 或适用范围后，按平台流程进行再次校验。
 
-confirm 验证当前内容与已显示 preview_digest 相符，未回复或旧版本确认不能使用。确认记录仅证明本地流程绑定，不是身份签名。package 会重新生成并验证载荷、检查确认 Hash、写 STORE ZIP，再解包回读检查；不触发任何平台请求。
+confirm 验证当前内容与已显示 preview_digest 相符，未回复或旧版本确认不能使用。确认记录仅证明本地流程绑定，不是身份签名。package 会重新生成并验证转换载荷、检查确认 Hash、写 STORE ZIP，再解包回读检查；不触发任何平台请求。转换包需在平台填写规则集元信息后才能形成平台标准包。
 
 ## 正式 Markdown 的支持边界
 

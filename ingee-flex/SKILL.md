@@ -5,7 +5,7 @@ description: 执行视觉与图片分析、视觉稿数据获取与组件检索�
 metadata:
   skillhub.creator: "wb_wangjing63"
   skillhub.updater: "hejun10"
-  skillhub.version: "V28"
+  skillhub.version: "V29"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "28269"
   skillhub.high_sensitive: "false"

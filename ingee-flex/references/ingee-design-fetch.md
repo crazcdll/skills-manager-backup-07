@@ -17,7 +17,7 @@ duo ingee-fetch -b <artboard_id> -n <node_id>
 
 ## 参数提取规则与前置校验（MUST，先于 CLI 调用执行）
 
-链接示例：`https://ingee.meituan.com/#/artboard/1315894/pos_n?action=developer&layerId=2%3A071775&domId=773`
+链接示例：`https://ingee.meituan.com/#/artboard/1315894/pos_n?action=developer&layerId=2%3A071775&domId=773`、`https://ingee.meituan.com/#/artboard/1315894/rev_t?action=developer&layerId=2%3A071775&domId=773`
 
 - `artboard_id`（传给 `-b`）：`#/artboard/` 后到下一个 `/` 之间的数字 → `1315894`
 - `node_id`（传给 `-n`）：`layerId` 参数 URL 解码后的值 → `2:071775`
@@ -26,13 +26,13 @@ duo ingee-fetch -b <artboard_id> -n <node_id>
 
 在执行 `duo ingee-fetch` 之前，必须先完成以下链接格式校验：
 
-1. 链接必须匹配格式 `https://ingee.meituan.com/#/artboard/<artboard_id>/pos_n`（`pos_n` 后可附带其他 query 参数，不影响校验），即：
+1. 链接必须匹配格式 `https://ingee.meituan.com/#/artboard/<artboard_id>/<pos_n/rev_t>`（`pos_n`或`rev_t` 后可附带其他 query 参数，不影响校验），即：
    - 域名必须为 `ingee.meituan.com`
-   - 路径中必须包含 `#/artboard/<artboard_id>/pos_n` 结构
+   - 路径中必须包含 `#/artboard/<artboard_id>/<pos_n/rev_t>` 结构
 2. `artboard_id` 必须存在，即 `#/artboard/` 与下一个 `/` 之间必须能解析出非空的数字/字符串
 3. 只要链接格式不匹配上述结构，或 `artboard_id` 缺失/解析失败，**立即停止执行**，不得调用 `duo ingee-fetch`，也不得凭空猜测 `artboard_id`
 4. 停止后向用户汇报链接错误，需明确指出问题，例如：
-   > ⚠️ Ingee 视觉稿链接格式不正确：未能解析出 `artboard_id`。请提供格式为 `https://ingee.meituan.com/#/artboard/<artboard_id>/pos_n` 的完整 Ingee 视觉稿链接后重试。
+   > ⚠️ Ingee 视觉稿链接格式不正确：未能解析出 `artboard_id`。请提供格式为 `https://ingee.meituan.com/#/artboard/<artboard_id>/<pos_n/rev_t>` 的完整 Ingee 视觉稿链接后重试。
 5. 校验通过后才可继续提取 `node_id` 并进入 CLI 调用
 
 **特殊情况**：
@@ -46,7 +46,7 @@ duo ingee-fetch -b <artboard_id> -n <node_id>
 https://ingee.meituan.com/#/detail/258568/default
 ```
 
-- 该类链接路径结构为 `#/detail/<project_id>/default`（或类似 `/detail/` 开头的项目级路径），**不是** `#/artboard/<artboard_id>/pos_n` 单张视觉稿结构
+- 该类链接路径结构为 `#/detail/<project_id>/default`（或类似 `/detail/` 开头的项目级路径），**不是** `#/artboard/<artboard_id>/<pos_n/rev_t>` 单张视觉稿结构
 - 项目详情页链接指向的是**包含多张视觉稿的项目集合**，无法从中确定唯一需要分析的一张或多张视觉稿
 - 识别到此类链接（路径含 `#/detail/` 而非 `#/artboard/`）时，**视为校验不通过**，与「参数提取规则与前置校验」章节的判定结论一致：**立即停止执行**，不得调用 `duo ingee-fetch`，也不得尝试遍历/猜测项目下的某张视觉稿
 - 停止后必须向用户提问澄清，明确说明链接类型问题，例如：
@@ -76,7 +76,7 @@ https://ingee.meituan.com/#/detail/258568/default
 
 ### 强制执行
 
-- **必须先完成链接前置校验**（域名为 `ingee.meituan.com`、路径含 `#/artboard/<artboard_id>/pos_n`、`artboard_id` 非空），校验通过后才可执行 `duo ingee-fetch`
+- **必须先完成链接前置校验**（域名为 `ingee.meituan.com`、路径含 `#/artboard/<artboard_id>/<pos_n/rev_t>`、`artboard_id` 非空），校验通过后才可执行 `duo ingee-fetch`
 - 必须通过 `duo ingee-fetch` 获取数据，不得仅凭链接主观猜测结构
 - `-n` 的值必须对 URL 中的 `layerId` 进行 URL 解码后使用，且只能来自链接本身的 `layerId`
 - 链接中无 `layerId` 时，不传 `-n`，获取整个画板数据

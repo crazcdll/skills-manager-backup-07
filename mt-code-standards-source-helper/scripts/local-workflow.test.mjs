@@ -12,6 +12,7 @@ import { parseSourceUrl, readKmSource } from './source-reader.mjs';
 import { readGitRawSource } from './code-source.mjs';
 import { materializeDraft } from './draft-workflow.mjs';
 import { renderPreview, displayText } from './preview.mjs';
+import { validateConversion } from './conversion-contract.mjs';
 const fixtureUrl = 'https://dev.sankuai.com/code/repo-detail/~fixture/rules/file/detail?path=docs%2Frules.md&branch=refs%2Fheads%2Ffeature-rules';
 const commit = 'a'.repeat(40);
 async function readyDraft(source, files) {
@@ -68,7 +69,11 @@ test('materialized draft has one canonical body, generated evidence and topic in
   const draft=await readyDraft(source,files);const material=await materializeDraft({request:{standard_domain:'backend',rule_set:manifest.rule_set},source,files,draft});
   assert.equal(material.validation,null);assert.ok(material.agentsIndex.includes('## 异常处理'));assert.equal(material.content.rules[0].body[0].provenance.origin,'source_extract');
   const preview=await renderPreview(material);assert.ok(preview.html.includes('待编号 01'));assert.ok(preview.html.includes("connect-src 'none'"));
-  await verifyReaderEvidence(await validatePackage(material.payload,{requireConfirmation:false}),material.payload);
+  await verifyReaderEvidence(await validateConversion(material.payload,{requireConfirmation:false}),material.payload);
+  const manifestWithPlatformFields = JSON.parse(new TextDecoder().decode(material.payload.get('manifest.json')));
+  manifestWithPlatformFields.rule_set = { name: 'should-not-be-here' };
+  const forgedConversion = new Map(material.payload); forgedConversion.set('manifest.json', utf8(canonical(manifestWithPlatformFields)));
+  await assert.rejects(validateConversion(forgedConversion, { requireConfirmation: false }), (error) => error.code === 'CONVERSION_PLATFORM_FIELD');
   material.content.coverage[0].unit_ref='forged_unit';
   await assert.rejects(verifyReaderEvidence({manifest,content:material.content},material.payload),/单元/);
 });
@@ -95,8 +100,7 @@ test('platform naming limits reject unsupported intent without renaming', async 
 test('CLI synthetic full flow cannot package before explicit current preview confirmation', async () => {
   const root=await mkdtemp(join(tmpdir(),'source-helper-cli-test-'));
   await writeFile(join(root,'source.md'),'# 异常处理\n捕获异常时保留原始异常链。\n');
-  const inputManifest=JSON.parse(new TextDecoder().decode((await minimalPackage()).get('manifest.json')));
-  const request={schema_version:'source-helper-request/v1',source_url:fixtureUrl,selection_type:'file',actor_mis:'fixture.user',standard_domain:'backend',rule_set:inputManifest.rule_set};await writeFile(join(root,'request.json'),canonical(request));
+  const request={schema_version:'source-helper-request/v2',source_url:fixtureUrl,selection_type:'file',actor_mis:'fixture.user'};await writeFile(join(root,'request.json'),canonical(request));
   const cli=join(root,'synthetic-driver.mjs'),work=join(root,'work');
   const helperUrl=new URL('./source-helper.mjs',import.meta.url).href,readerUrl=new URL('./source-reader.mjs',import.meta.url).href;
   const driver="import{main}from "+JSON.stringify(helperUrl)+";import{readSource}from "+JSON.stringify(readerUrl)+";import{readFile}from'node:fs/promises';const fetchImpl=async(url)=>{if(String(url).includes('/whoami?'))return new Response(JSON.stringify({code:200,data:{subject:'fixture.user'}}));if(String(url).includes('/commits?'))return new Response(JSON.stringify({values:[{id:"+JSON.stringify(commit)+"}]}));if(String(url).includes('/raw/'))return new Response(await readFile("+JSON.stringify(join(root,'source.md'))+"));throw Error('unexpected');};main(process.argv.slice(2),{readSourceImpl:(request)=>readSource(request,{fetchImpl,tokenProvider:()=> 'synthetic-ticket'})}).catch(e=>{console.log(JSON.stringify({code:e.code,message:e.message}));process.exitCode=1});";

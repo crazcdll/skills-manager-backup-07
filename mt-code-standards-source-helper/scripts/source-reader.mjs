@@ -62,8 +62,8 @@ function run(command, args, { binary = false, timeout = 180000, maxBuffer = 2 * 
   return result.stdout;
 }
 export async function readKmSource(plan, request, { runCommand = run } = {}) {
-  if (!MIS.test(request.actor_mis || '')) fail('SOURCE_ACTOR_REQUIRED', '/actor_mis', '读取学城前请提供当前登录用户的 MIS，不能借用规则 Owner 身份。');
-  const common = ['--contentId', plan.content_id, '--mis', request.actor_mis, '--env', 'product', '--no-version-check', '--raw'];
+  if (request.actor_mis && !MIS.test(request.actor_mis)) fail('SOURCE_ACTOR_INVALID', '/actor_mis', '当前登录身份标识格式无效。');
+  const common = ['--contentId', plan.content_id, ...(request.actor_mis ? ['--mis', request.actor_mis] : []), '--env', 'product', '--no-version-check', '--raw'];
   const deadline = Date.now() + 180000;
   const invoke = (method, extra = []) => {
     const remaining = deadline - Date.now();

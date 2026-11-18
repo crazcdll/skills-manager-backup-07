@@ -1,19 +1,19 @@
 skill-manifest-version: 1
-skill-id: 52fe4f675c327a242f71f9f0c9de995b83e23f54e892cce6b7d64e6c3b29529b
+skill-id: df55f3e5705ea6f0b40df8b35fde46c5c3edb20c03c0dbb6fba670b76768be70
 
 files:
   bd71c8694aa7b1459d913c0569d80f3cd927272697283e6e3cd1cddad91c0561  AGENTS.md
   95ab7fb47d5e98f86bd657686053d148349c149cbaef64f2abee5b878c8a550b  README.md
-  f204bb6c96d2af8a58faeffd77db51c23bd1aca1c6b9e88559da7eeea0b896d9  SKILL.md
+  2550f792a16c403caeca19e5c4d5ffe1b39c65575d2533c03c8bdc50e3203316  SKILL.md
   54e338e3bf7c01faac79914d95a1a98f9e516bb6912d4d40eea6f74aaf1db394  agents/openai.yaml
   218dcffc419a8e843ed8e2f0f7c401f8925fde748fa06158ec2a82f9c85efc7f  assets/mtcli-service.json
   1ba70dbaa7b7f4616819fd9bbad34c5026a1756da5d3773fe03a674e94292ad1  bin/mt-code-standards.mjs
   5f2e23873c3cd51bcae22a5a4a773f8455b8484080ca6505a0b8439a7a7173fe  bin/mt-code-standards.test.mjs
-  96dd1e7c03594c4be0b3e77619c83033582fa5b9507a110d6e8ddb6dc976dfcc  package.json
+  8a8a6a0c5aa7600ee2430f3ae9cab852282e1cf12bfacd5071413af9c1eba284  package.json
   8397c80e0636045f04cf91002499b86a91d4e790e6c8831809d97901bc7b2103  references/mtcli-integration.md
   a7d5289c1b3603ea457c5b585b632d58fcea1dee8cca286b8e26640215a6caf1  references/sso-platforms.md
-  083840ef5f3ca35b00063e4a37572716bb0d60d9a4c0fc843c5111b38b9a9b91  scripts/agents-index.mjs
-  06229dcbb7372da272c73869a6299de18b77ba4a4744f11d8535e97aeb8c4a0a  scripts/agents-index.test.mjs
+  e874c2b58817c2211a0d03061786680b2100f4022f3fe44193010f118d58a1b5  scripts/agents-index.mjs
+  29fba5d9c3f87a1317e6f653846d8c46f617e099453b7fcc65050650be3da8db  scripts/agents-index.test.mjs
   78fe33cf5a745de15d72e8d94c3af59b7dee234111de0dc35a91f34cb887186a  scripts/download-observation.mjs
   6997919cae9de832f1fc20600cdcf78690dd7691bfdebac60668c5f33fc15efd  scripts/fixtures/agents-index-runner.json
   5913f607eb4c60d62204b0bd91142e5e5d971ef031dd9d3e8538aaff45387b08  scripts/mtcli-transport.mjs

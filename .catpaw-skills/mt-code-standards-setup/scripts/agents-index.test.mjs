@@ -14,8 +14,17 @@ const entry = (content = table('rules/db.md'), bindings = [{ reference: 'rules/d
 const refs = [{ rule_set_id: 'frontend-l1', release_id: 'release-1', scope_level: 'L1' }];
 const local = [{ source_relative_path: 'l1/rules/db.md', local_relative_path: 'company/db--actual.md' }];
 
+const fourColumnTable = (reference) => `**数据库**\r\n\r\n| 分类 | 规则文件 | Rule UID 范围 | 触发场景 |\r\n|---|---|---|---|\r\n| DB | \`${reference}\` | java-l1-compact:DB-04.N004~N010 | SQL、建表、索引 |\r\n`;
+
 test('rewrites only table path cells using actual flattened names and preserves CRLF and prose', () => {
   const raw = 'rules/db.md 原文\r\n' + table('rules/db.md') + '\r\n```markdown\r\n' + table('rules/db.md') + '```\r\n';
+  const rendered = renderAgentsIndexes([entry(raw)], local, refs);
+  assert.equal(rendered.files[0].content, raw.replace('`rules/db.md`', '`.mdp/rules/company/db--actual.md`'));
+  assert.equal(rendered.warnings.length, 0);
+});
+
+test('rewrites rule-file cells in the four-column categorized index format', () => {
+  const raw = fourColumnTable('rules/db.md');
   const rendered = renderAgentsIndexes([entry(raw)], local, refs);
   assert.equal(rendered.files[0].content, raw.replace('`rules/db.md`', '`.mdp/rules/company/db--actual.md`'));
   assert.equal(rendered.warnings.length, 0);

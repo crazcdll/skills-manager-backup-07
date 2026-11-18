@@ -142,7 +142,7 @@ export function renderAgentsIndexes(entries, localFiles, releaseRefs, { indexPla
     if (index.content === null) { warn('agents_index_unreadable', 'AGENTS.md 无法读取'); continue; }
     if (!index.content.trim()) warn('agents_index_empty', 'AGENTS.md 内容为空');
     const lines = index.content.split(/(?<=\n)/);
-    let table = false;
+    let table = null;
     let recognized = false;
     let fence = '';
     const output = lines.map((raw, position) => {
@@ -150,21 +150,25 @@ export function renderAgentsIndexes(entries, localFiles, releaseRefs, { indexPla
       const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/);
       if (fenceMatch) {
         if (!fence) fence = fenceMatch[1][0]; else if (fenceMatch[1][0] === fence) fence = '';
-        table = false;
+        table = null;
         return raw;
       }
       if (fence) return raw;
       const columns = cells(line);
-      if (columns.length === 3 && columns.map((column) => column.value).join('|') === '名称|触发场景|路径') {
+      const header = columns.map((column) => column.value).join('|');
+      if (header === '名称|触发场景|路径' || header === '分类|规则文件|Rule UID 范围|触发场景') {
         const separator = cells((lines[position + 1] || '').replace(/[\r\n]+$/, ''));
-        table = separator.length === 3 && separator.every((column) => /^:?-{3,}:?$/.test(column.value));
-        recognized ||= table;
+        const columnsCount = header === '名称|触发场景|路径' ? 3 : 4;
+        table = separator.length === columnsCount && separator.every((column) => /^:?-{3,}:?$/.test(column.value))
+          ? { columns: columnsCount, referenceIndex: header === '名称|触发场景|路径' ? 2 : 1 }
+          : null;
+        recognized ||= Boolean(table);
         return raw;
       }
       if (!table) return raw;
-      if (columns.length !== 3) { table = false; return raw; }
+      if (columns.length !== table.columns) { table = null; return raw; }
       if (columns.every((column) => /^:?-{3,}:?$/.test(column.value))) return raw;
-      const column = columns[2];
+      const column = columns[table.referenceIndex];
       const reference = unquote(column.value);
       const candidates = entry.bindings.filter((binding) => binding.reference === reference);
       const targets = new Set(candidates.map((binding) => localBySource.get(binding.bundle_relative_path)).filter(Boolean));
@@ -178,7 +182,7 @@ export function renderAgentsIndexes(entries, localFiles, releaseRefs, { indexPla
       const cell = raw.slice(column.start, column.end);
       return raw.slice(0, column.start) + cell.replace(column.value, () => replacement) + raw.slice(column.end);
     }).join('');
-    if (!recognized) warn('agents_index_table_missing', '未识别到「名称 / 触发场景 / 路径」表格');
+    if (!recognized) warn('agents_index_table_missing', '未识别到四列表格（兼容旧三列表格）');
     files.push({ local_relative_path: destinations.get(entry.rule_set_id), content: output,
       sha256: hash(output), byte_size: Buffer.byteLength(output, 'utf8') });
   }

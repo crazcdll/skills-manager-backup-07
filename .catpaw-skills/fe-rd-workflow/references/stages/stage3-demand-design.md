@@ -78,7 +78,57 @@ AskQuestion({
 - Step 3.2.1：读取 `design-spec/SKILL.md`
 - Step 3.2.2：读取`.duo/{demand_description}/docs/demand-spec.md`
 - Step 3.2.3：使用 `design-spec skill` 生成 `.duo/{demand_description}/docs/tech-design.md`
-- Step 3.2.4：完成技术方案后，**必须使用 `AskQuestion` 工具暂停并等待用户确认**：
+
+#### Step 3.2.4：技术方案评审（`ai-tr`，可选）
+
+> **依赖 Skill（可选）**：`ai-tr`（技术方案三维评审：文码一致性 / 完备性 / 架构合理性；有学城链接时支持问题划线评论回落到方案原文）。
+> **定位**：在技术方案产出后、任务拆解前做一次证据驱动的方案评审，把 P0-P2 问题在进入编码前消化掉。
+> **缺失或跳过不阻断流程**，但 MUST 在 Step 3.5 确认单中记录「未评审 + 原因」。
+
+**跳过条件**（满足任一即跳过，需记录原因）：
+
+- `ai-tr` skill 不可用
+- `docs/tech-design.md` 不存在或内容为空
+- 用户明确表示本次不需要方案评审
+
+> **无学城文档不构成跳过条件**：没有学城链接时降级为「本地文件模式」——评审照常执行，只是不产出划线评论。
+
+**步骤 1：判定评审模式**（按顺序取第一个可用项）
+
+| 模式 | 触发条件 | 能力 |
+|------|----------|------|
+| **学城模式（全量）** | 用户提供技术方案学城链接；或方案已同步学城（`km_only` / `dual_write` 下已上传）；或按 `km_only` / `dual_write` 策略用 `oa-skills citadel createMarkdownDocument` 把 `docs/tech-design.md` 上传到 `input.km_parent_id` 后拿到链接 | 评审报告上传学城 + 问题划线评论回落方案原文 |
+| **本地模式（降级）** | 无学城链接（`local_only` 或用户不愿上传） | 直接以 `docs/tech-design.md` 为评审输入；**不做划线评论** |
+
+> 本地模式下禁止为「凑划线」而擅自上传学城；仅在用户明确同意时才升为学城模式。
+
+**步骤 2：委托 `ai-tr` 执行评审**，以自然语言传达：
+
+- **评审输入**：技术方案学城链接（学城模式）或 `docs/tech-design.md` 本地路径（本地模式）
+- **评审维度**：默认三维全跑
+- **报告位置**：学城模式 → 报告 parentId `input.km_parent_id`；本地模式 → `docs/tech-design-review.md`
+- **评论范围**：学城模式默认 D/C/R 的 P0-P2；本地模式明确告知「**不做划线评论**」，问题定位到「章节标题/表格 + 行号」写入报告
+- **关联材料**：`docs/demand-spec.md`（PRD 需求点母表）、`input.prd_link`、`input.api_link`、涉及仓库与分支（`outputs.branch.feature`，未建分支时以 master 为基线）
+- **明确告知**：当前处于研发流程 Stage 3.2，只需评审报告（+ 学城模式下划线评论），**不改代码**
+
+**步骤 3：结果处理**（依据 `ai-tr` 报告的综合评级）
+
+| 综合评级 | 后续行为 |
+|----------|----------|
+| 🟢 绿 | 记录报告位置，进入 Step 3.2.5 |
+| 🟡 黄 | 列出待确认项 `AskQuestion`；把 P0/P1 结论回写 `tech-design.md`（有实质修改时可重评一次），进入 Step 3.2.5 |
+| 🔴 红 | 返回 Step 3.2.3 修订技术方案后重评一次；仍为红 → `AskQuestion` 由用户决定「带风险继续 / 终止流程」 |
+
+**产物**：
+
+- 本地模式（任何情况都必须有）：`.duo/{demand_description}/docs/tech-design-review.md`（综合评级、P0-P2 问题清单及「章节/行号」定位、未评审项及原因）
+- 学城模式（额外）：学城评审报告链接 + 划线评论条数
+
+> 评审信息只落在 `tech-design-review.md` 与 Step 3.5 确认单中，**不新增 `workflow-context.json` 字段**。
+
+#### Step 3.2.5：用户确认
+
+完成技术方案后，**必须使用 `AskQuestion` 工具暂停并等待用户确认**：
 ```
 AskQuestion({
   title: "技术方案确认",
@@ -105,7 +155,6 @@ AskQuestion({
 | `no`（修改后重新生成） | 根据用户反馈修改文档，重新生成后再次确认 |
 | `supplement`（补充更多需求） | 收集补充内容，更新文档后再次确认 |
 | `skip`（跳过此阶段） | 写入 `workflow-context.stage3.2.status = skipped`，直接进入 Stage 3.3 |
-
 
 ### Step 3.3：任务拆解
 
@@ -158,6 +207,7 @@ AskQuestion({
 ═══════════════════════════════════════════════════════════
 - 需求规格说明：.duo/{demand_description}/docs/demand-spec.md
 - 技术方案设计：.duo/{demand_description}/docs/tech-design.md
+- 技术方案评审：{综合评级 + 报告位置（学城链接 / 本地 tech-design-review.md，标注是否含划线评论） | 未评审：{原因}}
 - 任务清单详情：.duo/{demand_description}/docs/dev-tasks.md
 - Flow 测试用例：.duo/{demand_description}/ui-test/flows/（共 {N} 个场景；跳过时写“未生成：{原因}”）
 
@@ -207,6 +257,9 @@ AskQuestion({
 | 现有代码不熟悉 | 通过 codebase_search 了解现有实现 |
 | 技术选型有争议 | 向用户呈现选项对比，由用户决定 |
 | `ai-auto-ui-test` 未安装 | 跳过 Step 3.4，在确认单中记录；Stage 4/5 不依赖 Flow 用例也可正常执行 |
+| `ai-tr` 未安装 | 跳过 Step 3.2.4，在确认单中记录；后续阶段不依赖方案评审结果 |
+| 技术方案无学城链接 | 降级为本地文件模式：以 `docs/tech-design.md` 为评审输入，报告落本地，**不做划线评论**、不上传学城；仅用户明确同意时才上传 |
+| `ai-tr` 评审判定为红且重评仍为红 | 不擅自进入 Stage 4，`AskQuestion` 由用户决定「带风险继续 / 终止流程」 |
 | 验收标准过于笼统、无法写用例 | 返回 Step 3.1 补充验收标准，而不是凭空编造用例 |
 
 ---

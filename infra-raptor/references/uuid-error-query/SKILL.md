@@ -7,7 +7,7 @@ description: >
   触发词：uuid查异常、uuid查崩溃、查这个用户的异常、查这个设备的崩溃、deviceId查异常、设备异常排查、用户异常排查、这个uuid发生过什么问题、查一下这个uuid。
   注意：不涉及 uuid/userid/dpid/unionid 等 ID 互转（万能钥匙能力），如用户要的是 ID 转换，直接拒绝。
 tags: 终端基础技术,Raptor,大前端,Crash,异常排查,uuid,deviceId
-version: 0.3.0
+version: 0.3.1
 created: 2026-06-08
 metadata:
   skillhub:
@@ -31,9 +31,11 @@ metadata:
 
 ## 🔧 前置依赖
 
+> **🌏 环境适配（境内 / 境外）**：下文默认使用 `raptorfe`（境内）。若用户提到「海外 / 境外 / overseas」或给出 `raptor.mws.keetapp.com` 链接，**本文所有 `raptorfe` 命令一律改用 `raptorfeov`**（模块、子命令、参数、时间格式完全一致），页面链接同步换成 keetapp 域名。判定规则与完整约束见父技能 `SKILL.md` 的「环境识别：境内 / 境外」章节；一次判定后全程不混用。
+>
 > **前置预检（每次激活时执行，一行兜底，避免首次执行报 command not found）：**
 > ```bash
-> command -v raptorfe >/dev/null 2>&1 || npm install -g @mtfe/raptorfe-cli@beta @dp/sso-auth-cli@latest --registry http://r.npm.sankuai.com
+> command -v raptorfe >/dev/null 2>&1 || npm install -g @mtfe/raptorfe-cli @dp/sso-auth-cli@latest --registry http://r.npm.sankuai.com
 > ```
 
 ---

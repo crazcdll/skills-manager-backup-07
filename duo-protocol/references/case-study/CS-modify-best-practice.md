@@ -31,12 +31,12 @@ node('BottomBar', '798') {          // nodeName + 物料ID（资产平台注册�
 |------|------|---------|
 | `CONST` | 页面初始化常量/跳链参数 | `CONST.goodsID`、`CONST.baseInfo.checkin` |
 | `DATA_SOURCE` | 数据源返回 | `DATA_SOURCE?.data?.priceVO?.totalPayAmount` |
-| `NODE` | 某个节点 | `NODE.BookTime?.props?.checkInPeriod` |
+| `NODE` | 某节点属性（**仅入参场景**） | `NODE.GuestCard?.props?.email` |
 | `PAYLOAD` | update/submit 入参 | `PAYLOAD?.roomNum?.value` |
 | `PREV_DATA` | 上一轮数据 | `PREV_DATA.isManagedTargetRoomUpgrade` |
 | `COMMON_PARAMS` | 公共参数（location/city/systemInfo） | `COMMON_PARAMS.systemInfo.isMRN` |
 | `PAGE_QUERY` | 页面 query 参数 | `PAGE_QUERY.goods_id` |
-| `PROPS` | 父级传入的 props | `PROPS.isChecked` |
+| `PROPS` | **自身节点**属性（配合 `propConfig` 双向绑定） | `PROPS.isChecked` |
 
 ### 错误标记
 

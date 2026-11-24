@@ -110,18 +110,23 @@ ai-ui-autotest-engine/
 
 **Skill 目录内不产生任何运行态**——运行态与产物全部在机器级目录（见下）。
 
-**机器级目录（不在 Skill 内）**：`$STATE` = `~/.local/share/ai-ui-autotest-engine/`
+**机器顶层目录（不在 Skill 内）**：根 = `$AI_UITEST_HOME`（缺省 `~/.local/share/ai-ui-autotest/`），
+其中引擎运行态 `$STATE` = `$AI_UITEST_HOME/engine/`（`AI_UITEST_STATE_HOME` 可直接改写）。
+同根下并列的 `cases/`（用例资产，编排层所有）与 `orchestration/`（编排产物，编排层所有）引擎不读也不写。
 
 ```
-~/.local/share/ai-ui-autotest-engine/
-├── run/                       # ★运行态：tasks/<ws>/（工作区）+ ws/<ws>/cli（入口）
-├── reports/                   # ★报告归档：<batch>/<run>/（meta.json / report.json / case_NN / run）
-├── device-pool/               # ★预热台账等本机辅助文件（设备租约在服务端，不落本地）
-├── console/                   # ★统一控制台服务状态（全机唯一、常驻）
-├── credentials/               # ★AppMock SSO 凭据（同一用户同一张票）
-├── toolchain/                 # ★adb/hdc 路径缓存（机器级事实）
-├── cache/artifacts/           # ★L1 制品缓存（安装包；引擎永不自动清理）
-└── npm/                       # 受管的 imeituan CLI 安装位置
+$AI_UITEST_HOME/
+├── cases/                     # 用例资产：local/（人工维护）+ platform/（平台审核通过用例镜像）
+├── orchestration/             # 编排产物：<task_id>/{manifest.json,cases/,shards/}
+└── engine/                    # ★$STATE：运行态根
+    ├── run/                   # ★运行态：tasks/<ws>/（工作区）+ ws/<ws>/cli（入口）
+    ├── reports/               # ★报告归档：<batch>/<run>/（meta.json / report.json / case_NN / run）
+    ├── device-pool/           # ★预热台账等本机辅助文件（设备租约在服务端，不落本地）
+    ├── console/               # ★统一控制台服务状态（全机唯一、常驻）
+    ├── credentials/           # ★AppMock SSO 凭据（同一用户同一张票）
+    ├── toolchain/             # ★adb/hdc 路径缓存（机器级事实）
+    ├── cache/artifacts/       # ★L1 制品缓存（安装包；引擎永不自动清理）
+    └── npm/                   # 受管的 imeituan CLI 安装位置
 ```
 
 > 上述目录**必须**放在 Skill 之外：Skill 会被多份安装/镜像（`~/.catpaw/skills`、
@@ -216,11 +221,11 @@ ai-ui-autotest-engine/
 
 `login_strategy.py` 根据环境类型选择登录策略这一职责已重构为**数据 + 分层**（`provisioning/setup/login/`）：`plan.py`（L1 登录意图；含 auth_method 与环境类型）→ `registry.py::ENV_STEPS`（L2 环境前置步骤序列）→ `actions/`（L3 认证动作构造，`create_auth_action(plan.auth_method)`）→ `probes/`（L4 登录态判定，按 platform 注册）。
 
-`env_validator.py` 在 flow-init 时校验环境配置的完整性（认证维度：环境类型 A-D、账号密码、MIS、ptest 开关）；问题的声明与收集见 `provisioning/questions/`。
+`env_validator.py` 在 flow-init 时校验环境配置的完整性（认证维度：环境类型 A/P/B/C/D/E、账号密码、MIS；ptest 为 `type=P` 的派生事实）；问题的声明与收集见 `provisioning/questions/`。
 
 `env_validator.py` 另维护**环境能力矩阵** `ENV_CAPABILITIES`（env_type → 该环境支持的可选能力，唯一事实来源）：采集层据此派生 `depends_on`（问不问）、校验层据此做组合校验（能不能生效），两层共用一张表，避免口径漂移。
 
-`mock/ptest_mock.py` 管理 ptest partMock 生命周期：ptest 不是环境类型，而是**线上环境(A)专属**的开关 `env.ptest`（partMock 注入 isPtest 等参数），由 `env-prepare` 在登录前独立开启，与登录方式解耦，但**适用环境受限**——仅线上(A)可选（`env_validator.ENV_CAPABILITIES` 为唯一事实来源，采集/校验/执行三层据此统一门控）。生命周期**启用/停用对称**：`enable_ptest_mock` 建规则 + 开 + push `htptest=1`，`disable_ptest_mock` 关规则 + 清 mockId + push `htptest=0`（`reset-env`/收尾统一走后者单一入口）。为避免 AppMock「命中即短路」导致 ptest 的全量 partMock 规则遮蔽场景响应型 Mock，ptest 规则按**场景 Mock 的 URI 规则**生成负向前瞻排除（`build_ptest_rule`），并在 `mock effective` 中给出「生效集 + 是否仍被遮蔽」的视图（`mock list` 只列自有规则，看不到跨分组的场景 Mock）。
+`mock/ptest_mock.py` 管理 ptest partMock 生命周期：ptest 不是独立开关，而是**环境类型 P（线上泳道）**的固有行为——`type=P` 即 `env.ptest=true`（partMock 注入 isPtest 等参数），由 `env-prepare` 在登录前开启，与登录方式解耦。**适用环境由类型决定**（`ENV_TYPE_AXES` / `ENV_CAPABILITIES` 为唯一事实来源，采集/校验/执行三层据此统一门控）；旧写法（A + ptest=true）不再接受。生命周期**启用/停用对称**：`enable_ptest_mock` 建规则 + 开 + push `htptest=1`，`disable_ptest_mock` 关规则 + 清 mockId + push `htptest=0`（`reset-env`/收尾统一走后者单一入口）。为避免 AppMock「命中即短路」导致 ptest 的全量 partMock 规则遮蔽场景响应型 Mock，ptest 规则按**场景 Mock 的 URI 规则**生成负向前瞻排除（`build_ptest_rule`），并在 `mock effective` 中给出「生效集 + 是否仍被遮蔽」的视图（`mock list` 只列自有规则，看不到跨分组的场景 Mock）。为避免 AppMock「命中即短路」导致 ptest 的全量 partMock 规则遮蔽场景响应型 Mock，ptest 规则按**场景 Mock 的 URI 规则**生成负向前瞻排除（`build_ptest_rule`），并在 `mock effective` 中给出「生效集 + 是否仍被遮蔽」的视图（`mock list` 只列自有规则，看不到跨分组的场景 Mock）。
 
 `device_validator.py` 与 `env_validator.py` 职责对称且正交，校验设备维度（device_type × platform × app 组合是否已经过业务验证允许选择）。`SUPPORTED_DEVICE_COMBINATIONS` 与 `device_platform/registry.py` 三张底层注册表是“业务白名单”与“能力声明”的关系（非同一份数据的重复拷贝），两者都在 flow-init 阶段完成硬校验，报错时机提前到设备创建之前，避免非法组合跑到 device create 才失败、浪费设备资源。
 
@@ -275,7 +280,7 @@ AppMock 是美团客户端测试的核心基础设施，本 Skill 对其进行�
 
 而 **`run_index` 是列表页读模型**：把列表渲染所需的全部标量（步骤 `pass/warn/fail/pending`、`api`/`track` 维度、`run_status`、`env_name`/`ptest`/锁包数、步骤级 `needs_review`）汇总成一个小对象。列表页以 PostgREST 的 jsonb 路径投影 `cases->0->run_index` 单字段读取，**不再整包拉取 `cases`**（详情数据单行可达数十 KB → 列表传输量由 ~40KB/行降到 <1KB/行，且免去本地 `JSON.parse` + 重算）。详情页仍按需读取完整 `cases`；历史行无 `run_index` 时列表退化为 DB 标量列 + `cases->0->{run_status,env_config}` 投影。
 
-`env_config` 走 `SAFE_ENV_KEYS` 脱敏白名单：`type`/`env_name`/`auth_method`/`ptest`/`bundle_lock`/**`swimline`**。`swimline` 是 B 泳道环境排查刚需且非敏感，平台详情页有对应渲染分支。
+`env_config` 走 `SAFE_ENV_KEYS` 脱敏白名单（唯一事实来源：`shared/env_view.py`，报告与 Console 发现层共用）：`type`/`env_name`/`auth_method`/`ptest`/`bundle_lock`/**`swimline`**/**`url_mappings`**。`swimline`（B 测试泳道）与 `url_mappings`（E 测试域名映射）都是环境排查刚需且非敏感，平台详情页各有对应渲染分支；`ptest` 是 `type=P` 的派生值，只读展示。
 
 ### 4.8 基础设施 — `infra/`
 
@@ -303,7 +308,7 @@ AppMock 域模型：`steps.json` 的 `env.mock_ids` 指向**规则库**里的场
 
 `B1_device` 是设备获取，执行 device create（异步创建云模拟器） + device setup（注册 session、安装可测性 APK、收敛首启弹窗链（隐私协议/通知/定位）、配置 ADB Keyboard）。
 
-`B2_login` 是环境登录，执行 env-prepare 一键完成 set-mis → reset-env（**不再 blanket stop-all**；场景 Mock 交由 Case 级生命周期）→ ptest mock（可选）→ **可测性配置整表下发** → 登录 → 泳道/域名映射切换 → MRN 锁包。`env.testability` 含 `signin` 时，登录态由场景配置保证，本地登录编排短路。凭证登录需 AI 读截图确认结果。
+`B2_login` 是环境登录，执行 env-prepare 一键完成 set-mis → reset-env（**不再 blanket stop-all**；场景 Mock 交由 Case 级生命周期）→ ptest mock（仅 `type=P`）→ **可测性配置整表下发** → 登录 → 泳道/域名映射切换 → MRN 锁包。`env.testability` 含 `signin` 时，登录态由场景配置保证，本地登录编排短路。凭证登录需 AI 读截图确认结果。
 
 #### 可测性配置前置校验
 
@@ -317,7 +322,7 @@ AppMock 域模型：`steps.json` 的 `env.mock_ids` 指向**规则库**里的场
 | 类别 | 代表 action | 关键规则 |
 |---|---|---|
 | 登录 | `signin` / `signout` / `kdbsignin` / `klsignin` | `signin` 必填 `account`，非 SSO（`loginType!=1`）必填 `password`；`countryCode` 必须是数字串 |
-| 网络 | `env` / `host` / `mock` / `htptest` | `host` 必须与 `env` 同时出现；`mock` 地址必须是 `http(s)://` 或 Lyrebird 模板；`htptest=1` 仅线上（A） |
+| 网络 | `env` / `host` / `mock` / `htptest` | `host` 必须与 `env` 同时出现；`mock` 地址必须是 `http(s)://` 或 Lyrebird 模板；`htptest=1` 仅线上（A 基准 / P 线上泳道） |
 | 跳转 | `scheme` | 禁止出现在 `env.testability`（落地由 `steps[0] open-url` 负责，避免二次跳转） |
 | 锁包 | `mrnbundle` / `machbundle` / `reccebundle` / `picassobundle` / `lockmsc` / `mmp_package` | 包名+版本必填（recce 允许空版本表示最新）；`lockmsc.version` 与 `appId+buildId` 互斥 |
 | 灰度 / 开关 | `horn` / `hornreset` / `abtest` / `language` / `mrnenv` / `setPikeEnv` / `immessage` / `delay` | `horn.valueActualType` 只能是 int/boolean/string/array/json；`abtest.strategy` 为 a-z 或 s_a-s_z；整数取值按 action 区间校验 |
@@ -382,8 +387,8 @@ PlatformOps（怎么操作设备）、DeviceLifecycle（怎么获取/安装设�
 | Android 本地真机 | 通过 ADB 连接，`LocalDeviceLifecycle` 自动探测并校验唯一在线设备 |
 | HarmonyOS 本地真机 | 通过 HDC 连接，同一套 `LocalDeviceLifecycle` 按 platform 分发探测，接入方式与 Android 对齐 |
 | Native/MRN/H5 页面测试 | 基于 Native 视图树（Android View / HarmonyOS ArkUI）的精确元素定位 |
-| 四种环境类型 | 线上(A)、泳道(B)、alpha(C)、免登录(D)；ptest 为线上专属开关（`env.ptest`，仅 A 可选） |
-| 凭证登录 + 验证码登录 + 免登录 | A 凭证，B/C QAHome 验证码，D 免登录 |
+| 六种环境类型 | 线上基准(A)、线上泳道(P)、测试泳道(B)、测试基准(C)、测试域名映射(E)、免登录(D)；ptest 归属于 `type=P`（`env.ptest` 为派生值） |
+| 凭证登录 + 验证码登录 + 免登录 | A/P 凭证，B/C/E QAHome 验证码，D 免登录 |
 | AppMock 全功能 | 规则 CRUD、录制、泳道、域名映射、MRN 锁包 |
 | DUO 协议 Mock | nodeDataMap 组件级字段精准修改 |
 | 埋点验证 | lx0 录制数据解析 + 事件匹配 + 字段提取（extracted_fields），AI 分析判定 |
@@ -408,7 +413,7 @@ PlatformOps（怎么操作设备）、DeviceLifecycle（怎么获取/安装设�
 
 ### 一次测试执行的最小路径
 
-> 作用域分层：全部状态在**机器级** `$STATE` = `~/.local/share/ai-ui-autotest-engine/`（跨安装 / 跨项目唯一）：`run/tasks/<ws>/{config,inputs,tmp,runs/<run>}/`（workspace / run 级）、入口脚本 `run/ws/<ws>/cli`、报告归档 `reports/<batch>/<run>/`；以及 `device-pool/`（设备池）、`console/`（控制台服务）、`credentials/`（凭据）、`toolchain/`（adb/hdc 缓存）、`cache/artifacts/`（L1 制品缓存）。Flow 文件、CASES、steps-input 均落在当前 workspace 下。
+> 作用域分层：全部状态在**机器级** `$STATE` = `$AI_UITEST_HOME/engine/`（跨安装 / 跨项目唯一）：`run/tasks/<ws>/{config,inputs,tmp,runs/<run>}/`（workspace / run 级）、入口脚本 `run/ws/<ws>/cli`、报告归档 `reports/<batch>/<run>/`；以及 `device-pool/`（设备池）、`console/`（控制台服务）、`credentials/`（凭据）、`toolchain/`（adb/hdc 缓存）、`cache/artifacts/`（L1 制品缓存）。Flow 文件、CASES、steps-input 均落在当前 workspace 下。
 
 ```
 # 0. 分配 workspace + 生成入口（整轮测试只执行一次）

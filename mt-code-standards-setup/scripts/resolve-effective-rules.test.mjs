@@ -1829,7 +1829,7 @@ test("formal and bootstrap named L1 layouts migrate even for the same snapshot, 
     await assert.rejects(access(path.join(root, ".mdp/rules", oldFile)), { code: "ENOENT" });
     assert.equal(await readFile(userFile, "utf8"), "user content");
     const current = JSON.parse(await readFile(path.join(root, ".mdp/rules", bootstrap ? ".mt-l1-bootstrap.json" : ".mt-effective-rule-bundle.json"), "utf8"));
-    assert.equal(current.local_l1_layout, "domain-flat/v1");
+    assert.equal(current.local_l1_layout, "domain-flat/v2");
     assert.equal(current.snapshot_id, old.snapshot_id);
     assert.ok(current.managed_files.filter(file => file.startsWith("company/")).every(file => file.split("/").length === 3));
     if (!bootstrap) assert.equal(await readFile(path.join(root, ".mdp/rules/team/fe/team-fe-l2/team-fe-l2.md"), "utf8"), "# L2\n");
@@ -2104,7 +2104,8 @@ const withAgents = (body, entries = [agentsEntry(body)]) => {
   return body;
 };
 const indexManifest = (root, bootstrap = false) => readFile(path.join(root, '.mdp/rules', bootstrap ? '.mt-l1-bootstrap.json' : '.mt-effective-rule-bundle.json'), 'utf8').then(JSON.parse);
-const indexPath = (root, id = 'frontend-l1') => path.join(root, '.mdp/rules/agents-index', id, 'AGENTS.md');
+const legacyIndexPath = (root) => path.join(root, '.mdp/rules/agents-index/frontend-l1/AGENTS.md');
+const indexPath = (root) => path.join(root, '.mdp/rules/company/fe/AGENTS.md');
 
 test('installs index beside rules with independent manifest and caches verified not_modified snapshots', async () => {
   const root = await createRepository();
@@ -2117,7 +2118,7 @@ test('installs index beside rules with independent manifest and caches verified 
   } });
   assert.equal(await readFile(indexPath(root), 'utf8'), indexTable('.mdp/rules/company/fe/async.md'));
   assert.equal(await readFile(path.join(root, 'AGENTS.md'), 'utf8'), '# User instructions\n');
-  assert.deepEqual(receipt.managed_agents_indexes, ['agents-index/frontend-l1/AGENTS.md']);
+  assert.deepEqual(receipt.managed_agents_indexes, ['company/fe/AGENTS.md']);
   const manifest = await indexManifest(root);
   assert.equal(manifest.schema_version, 'mt-effective-rule-bundle-manifest/v7');
   assert.equal(manifest.total_bytes, base.snapshot.total_bytes);
@@ -2361,8 +2362,8 @@ const seedFlatIndexManifest = async (root, { bootstrap = false, stage } = {}) =>
     await fs.promises.rm(path.join(root, '.mdp/rules/.mt-effective-rule-bundle.json'));
   }
   const file = path.join(root, '.mdp/rules', bootstrap ? '.mt-l1-bootstrap.json' : '.mt-effective-rule-bundle.json');
-  await mkdir(path.dirname(indexPath(root)), { recursive: true });
-  await writeFile(indexPath(root), rendered);
+  await mkdir(path.dirname(legacyIndexPath(root)), { recursive: true });
+  await writeFile(legacyIndexPath(root), rendered);
   await writeFile(file, JSON.stringify(manifest));
   return { file, manifest, rendered };
 };
@@ -2424,14 +2425,14 @@ test('historical indexed manifests protect edited AGENTS and reject swapped layo
   for (const bootstrap of [false, true]) for (const mode of ['edited', 'layout-swapped']) {
     const root = await createRepository();
     const old = await seedFlatIndexManifest(root, { bootstrap });
-    if (mode === 'edited') await writeFile(indexPath(root), '# user edit\n');
+    if (mode === 'edited') await writeFile(legacyIndexPath(root), '# user edit\n');
     else { old.manifest.local_layout = 'scope-domain-ruleset/v1'; await writeFile(old.file, JSON.stringify(old.manifest)); }
     let called = false;
     await assert.rejects(syncEffectiveRuleBundle({ ...layoutOptions(root, bootstrap ? { bootstrap: true, domain: 'frontend' } : {}),
       fetchImpl: async () => { called = true; return response(bundleBody()); },
     }), { code: mode === 'edited' ? 'RULE_BUNDLE_LOCAL_MANAGED_FILE_CHANGED' : bootstrap ? 'RULE_BUNDLE_BOOTSTRAP_MANIFEST_INVALID' : 'RULE_BUNDLE_LOCAL_MANIFEST_INVALID' });
     assert.equal(called, false);
-    assert.equal(await readFile(indexPath(root), 'utf8'), mode === 'edited' ? '# user edit\n' : old.rendered);
+    assert.equal(await readFile(legacyIndexPath(root), 'utf8'), mode === 'edited' ? '# user edit\n' : old.rendered);
   }
 });
 
@@ -2749,7 +2750,7 @@ test('historical v6 indexes retain local edits and reject unknown named-root tar
   }
 });
 
-test('named L2 indexes use per-release domains and names while L1 remains separate', async () => {
+test('L1 and L2 indexes use their own rule directories', async () => {
   const refs = [
     { ...releaseRefs[0], standard_domain: 'frontend', local_rule_set_name: '公司规则' },
     { rule_set_id: 'fe-team', release_id: 'fe-team@1', scope_level: 'L2', standard_domain: 'frontend', local_rule_set_name: '同名团队' },
@@ -2759,11 +2760,133 @@ test('named L2 indexes use per-release domains and names while L1 remains separa
   withAgents(body, refs.map(ref => agentsEntry(body, { ruleSetId: ref.rule_set_id, content: '# Index', bindings: [] })));
   const root = await createRepository();
   const receipt = await installBody(root, body);
-  assert.deepEqual([...receipt.managed_agents_indexes].sort(), ['agents-index/frontend-l1/AGENTS.md', 'team/fe/同名团队/AGENTS.md', 'team/java/同名团队/AGENTS.md']);
+  assert.deepEqual([...receipt.managed_agents_indexes].sort(), ['company/fe/AGENTS.md', 'team/fe/同名团队/AGENTS.md', 'team/java/同名团队/AGENTS.md']);
   const next = bundleBody({ refs: refs.map(ref => ref.rule_set_id === 'fe-team' ? { ...ref, local_rule_set_name: '改名团队' } : ref), files: body.files });
   withAgents(next, body.agents_indexes);
   await installBody(root, next);
   await assert.rejects(access(path.join(root, '.mdp/rules/team/fe/同名团队/AGENTS.md')), { code: 'ENOENT' });
   assert.equal(await readFile(path.join(root, '.mdp/rules/team/fe/改名团队/AGENTS.md'), 'utf8'), '# Index');
   assert.equal(await readFile(path.join(root, '.mdp/rules/team/java/同名团队/AGENTS.md'), 'utf8'), '# Index');
+});
+
+test('moves a verified domain-flat/v1 index on the next ready response, protecting both locations', async () => {
+  for (const bootstrap of [false, true]) for (const mode of ['upgrade', 'edited-old', 'occupied-new']) {
+    const root = await createRepository();
+    const rules = path.join(root, '.mdp/rules');
+    const file = path.join(rules, bootstrap ? '.mt-l1-bootstrap.json' : '.mt-effective-rule-bundle.json');
+    const previousPath = 'agents-index/frontend-l1/AGENTS.md';
+    const expectedPath = 'company/fe/AGENTS.md';
+    const body = withAgents(bootstrap ? bootstrapBody() : bundleBody());
+    const options = layoutOptions(root, bootstrap ? { bootstrap: true, domain: 'frontend' } : {});
+    let replay = false, requests = 0;
+    const pull = () => syncEffectiveRuleBundle({ ...options, fetchImpl: async (url, init) => {
+      if (bootstrap && url.endsWith('/v1/effective-rule-bundles/resolve')) return response({ error: { code: 'repository_not_registered' } }, 404);
+      requests++;
+      assert.equal(JSON.parse(init.body).known_snapshot_id, replay ? body.snapshot.snapshot_id : undefined);
+      return response(replay ? { ...body, status: 'not_modified', files: [] } : body);
+    } });
+    await pull();
+    const old = await indexManifest(root, bootstrap);
+    old.local_l1_layout = 'domain-flat/v1';
+    old.managed_agents_indexes = [previousPath];
+    for (const field of ['managed_agents_index_hashes', 'managed_agents_index_sizes']) {
+      old[field] = { [previousPath]: old[field][expectedPath] };
+    }
+    await mkdir(path.dirname(legacyIndexPath(root)), { recursive: true });
+    await rename(indexPath(root), legacyIndexPath(root));
+    await writeFile(file, JSON.stringify(old));
+    if (mode !== 'upgrade') {
+      const keep = mode === 'edited-old' ? legacyIndexPath(root) : indexPath(root);
+      await writeFile(keep, '# user-owned edit');
+      await assert.rejects(pull(), { code: mode === 'edited-old' ? 'RULE_BUNDLE_LOCAL_MANAGED_FILE_CHANGED' : 'RULE_BUNDLE_LOCAL_COLLISION' });
+      if (mode === 'edited-old') assert.equal(requests, 1, 'edited index is rejected before another network read');
+      assert.equal(await readFile(keep, 'utf8'), '# user-owned edit');
+      assert.deepEqual(await indexManifest(root, bootstrap), old);
+      continue;
+    }
+    const receipt = await pull();
+    assert.deepEqual(receipt.managed_agents_indexes, [expectedPath]);
+    assert.equal(receipt.snapshot_id, old.snapshot_id);
+    await assert.rejects(access(path.join(rules, 'agents-index')), { code: 'ENOENT' });
+    replay = true;
+    assert.equal((await pull()).status, 'not_modified');
+  }
+});
+
+test('a colliding L1 rule filename is reserved for the index on both installation paths', async () => {
+  for (const bootstrap of [false, true]) {
+    const root = await createRepository();
+    const files = [{ relative_path: 'l1/frontend-l1/AGENTS.md', content: 'ordinary document' }];
+    const body = withAgents(bootstrap ? bootstrapBody({ files }) : bundleBody({ refs: [releaseRefs[0]], files }));
+    const pull = replay => syncEffectiveRuleBundle({ ...layoutOptions(root, bootstrap ? { bootstrap: true, domain: 'frontend' } : {}),
+      fetchImpl: async (url, init) => {
+        if (bootstrap && url.endsWith('/v1/effective-rule-bundles/resolve')) return response({ error: { code: 'repository_not_registered' } }, 404);
+        assert.equal(JSON.parse(init.body).known_snapshot_id, replay ? body.snapshot.snapshot_id : undefined);
+        return response(replay ? { ...body, status: 'not_modified', files: [] } : body);
+      },
+    });
+    const receipt = await pull(false);
+    assert.deepEqual(receipt.managed_agents_indexes, ['company/fe/AGENTS.md']);
+    assert.match(receipt.managed_files[0], /^company\/fe\/AGENTS--[0-9a-f]{16}\.md$/u);
+    assert.equal(await readFile(path.join(root, '.mdp/rules', receipt.managed_files[0]), 'utf8'), 'ordinary document');
+    assert.equal((await pull(true)).status, 'not_modified');
+  }
+});
+
+test('two indexed L1 sets in the same domain each keep their own rules and AGENTS.md together', async () => {
+  const root = await createRepository();
+  const refs = ['java-l1', 'java-l1-compact'].map(id => ({ rule_set_id: id, release_id: id + '@1', scope_level: 'L1',
+    standard_domain: 'backend', local_rule_set_name: id === 'java-l1' ? 'Java全量' : 'Java精简' }));
+  const body = bundleBody({ domain: 'backend', refs, files: refs.map(r => ({ relative_path: `l1/${r.rule_set_id}/ORM.md`, content: r.rule_set_id })) });
+  withAgents(body, refs.map(r => agentsEntry(body, { ruleSetId:r.rule_set_id, sourcePath: `l1/${r.rule_set_id}/ORM.md` })));
+  const receipt = await installBody(root, body);
+  for (const r of refs) {
+    const dir = 'company/java/' + r.local_rule_set_name;
+    assert.ok(receipt.managed_agents_indexes.includes(dir + '/AGENTS.md'));
+    assert.equal(await readFile(path.join(root, '.mdp/rules',dir,'AGENTS.md'),'utf8'), indexTable('.mdp/rules/' + dir + '/ORM.md'));
+    assert.equal(await readFile(path.join(root, '.mdp/rules',dir,'ORM.md'),'utf8'), r.rule_set_id);
+  }
+});
+
+test('Java L1 keeps the native relative index and verifies legacy receipts before upgrading them', async () => {
+  const filename = 'DB-01-ORM规范.md';
+  const content = '| 规则文件 | 触发条件 |\r\n| --- | --- |\r\n| DB-01-ORM规范.md | 修改 ORM |';
+  for (const bootstrap of [false, true]) {
+    const root = await createRepository();
+    const id = bootstrap ? 'java-l1-compact' : 'java-l1';
+    const relativePath = `l1/${id}/rules/${filename}`;
+    const rule = '# ORM\r\n上游没有末尾换行';
+    const options = { domain: 'backend', refs: [{ rule_set_id: id, release_id: id + '@1', scope_level: 'L1' }],
+      files: [{ relative_path: relativePath, content: rule }] };
+    const body = bootstrap ? bootstrapBody(options) : bundleBody(options);
+    withAgents(body, [agentsEntry(body, { content, bindings: [
+      { reference: filename, document_id: id + ':db', source_path: 'rules/' + filename, bundle_relative_path: relativePath },
+    ] })]);
+    const pull = (cached = false) => syncEffectiveRuleBundle({ ...layoutOptions(root, { bootstrap, domain: 'backend' }),
+      fetchImpl: async (url, init) => {
+        if (bootstrap && url.endsWith('/v1/effective-rule-bundles/resolve')) return response({ error: { code: 'repository_not_registered' } }, 404);
+        assert.equal(JSON.parse(init.body).known_snapshot_id, cached ? body.snapshot.snapshot_id : undefined);
+        return response(cached ? { ...body, status: 'not_modified', files: [] } : body);
+      },
+    });
+    const receipt = await pull();
+    const rulesRoot = path.join(root, '.mdp/rules');
+    const index = path.join(rulesRoot, 'company/java/AGENTS.md');
+    assert.deepEqual(receipt.agents_index_warnings, []);
+    assert.equal(await readFile(index, 'utf8'), content);
+    assert.equal(await readFile(path.join(path.dirname(index), filename), 'utf8'), rule);
+    assert.equal((await pull(true)).status, 'not_modified');
+
+    const previous = await indexManifest(root, bootstrap);
+    delete previous.agents_index_renderer;
+    previous.agents_index_warnings = [{ code: 'agents_index_table_missing',
+      message: '未识别到四列表格（兼容旧三列表格）', rule_set_id: id }];
+    await writeFile(path.join(rulesRoot, bootstrap ? '.mt-l1-bootstrap.json' : '.mt-effective-rule-bundle.json'), JSON.stringify(previous));
+    await writeFile(index, '人工修改');
+    await assert.rejects(pull(), { code: 'RULE_BUNDLE_LOCAL_MANAGED_FILE_CHANGED' });
+    assert.equal(await readFile(index, 'utf8'), '人工修改');
+    await writeFile(index, content);
+    assert.deepEqual((await pull()).agents_index_warnings, []);
+    assert.equal((await pull(true)).status, 'not_modified');
+  }
 });

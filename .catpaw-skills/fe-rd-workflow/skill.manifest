@@ -1,14 +1,14 @@
 skill-manifest-version: 1
-skill-id: 7d38dbfae54aef83daee13f01f404d11087789be23441f896f357121736ab1bc
+skill-id: 748f2cdc9138a1d4baa8a79b32f00b18797cfc5c1c8aa17c3f9c6014b0b77029
 
 files:
-  e1336adc8e7f954f88638c1c22f213196cb4f00630622bf8a589206cd59dfc6b  SKILL.md
+  277b7cb85408363db87c91242a29e3e87682da37b8f4217c74c0a309bb7e5424  SKILL.md
   5449c50b1a1cb08718b5da522f15303350c7f6fb57dc656e1453665a0aacefd1  references/check.md
-  d2e0cb6f5bfc8170ee064d88b2ab31dd06bb677e1e675539de4fd6c5140b84f2  references/prepare-skill-deps.md
+  58a5c649042e5ccab3fbabe61cb7ffd21270f4298d437cec9eab39be3760d409  references/prepare-skill-deps.md
   42f666ca15a666eee6c7d6ac40018d7ee13801b1727fb836677f85cb71ea90f6  references/stages/stage1-env-check.md
   6e5a6e0bcf9b20aabf7f28fd618ac9f662a8902eddc94d4a7a4ffb7eaa2cb53c  references/stages/stage2-repo-init.md
-  d5c7ff72b2b87ff1daa6c2ffdd130dc7e0bc2a105023f3452a3ca68471984c57  references/stages/stage3-demand-design.md
-  ff9bf0ff83317cb7a0ef9be7ba78cacc95b28ecaec28b55af5a22aa466902b6c  references/stages/stage4-encoding.md
+  cbed702b887b8422b826c4802036fcb76acc249a4a3993e418ab5d8df64db0fb  references/stages/stage3-demand-design.md
+  d2b0020fd100492a1a8377a01d278fd9f1719aef9a33835db0ab98df54ce86a2  references/stages/stage4-encoding.md
   6f90b0f437694530c470393375acdb05faf018c7b3e436f1098e4b6c7802bfa0  references/stages/stage5-verify-test.md
   1b1a192dac71bfa82d70595fa3c95d1179151d4d059d9504e6236d28224ce3cf  references/stages/stage6-cicd.md
   f7464c293d830054b0bcf23fc77ef57b80ae726fe2d2f6158949c8f256e52542  references/stages/stage7-feedback.md
@@ -16,8 +16,8 @@ files:
   f4002a9fa179fa802bfc19a63105d58532743e359d19628aac52c6711f514e70  scripts/check-deps.js
   11f9b7cfea89054f212a1ebeba588cfd1ed6b3275e6866d6af04040a10b245d8  scripts/generate-session-link.js
   0ca94317a2712486e3f10677856fc573d525f34325640e0741aa2e2de30d642a  scripts/init-fe-rd-workflow-skill.sh
-  f4f141c62357eb9d343769fc6562fabe7e1098caec1e98d039f5c448d849be98  scripts/report-sdlc-mapping.js
+  890025fcdefe8acb4ef5d9eb16c3deeffe53cf2d6eb0b9dcd5e1ddc5b456ff88  scripts/report-sdlc-mapping.js
   f31802336adf5afbfcb97232e3afadf1c3c7cb0a3bd4fe54a73fbacebb61adba  scripts/report-stage.js
-  e6568b1e6e838e8f2018cf77fefa19ead55e3aa766c46a2bddbda26cead2355c  scripts/skill-deps.json
+  105fd23f5c5f0c9d278b84d64d84157986edceed77814a2a30f9997cb6a9b5c8  scripts/skill-deps.json
   e252194b735584948d098eb70addf144dff915d2eeda18f09ca7f1100f00a7ed  scripts/stage-flow.sh
-  8d84497792463fd0bd7c1c7c68dffc820d6c7c76c0708dfa3a8c7b819cb8d19f  skills.json
+  59dbbc101915a1917286107a1024c9a46e36a097d68e0d890bf32ab89cc00aaf  skills.json

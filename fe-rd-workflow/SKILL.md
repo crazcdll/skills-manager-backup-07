@@ -6,7 +6,7 @@ description: AICoding 智能研发全流程，串联 7 大阶段，完成全流�
 metadata:
   skillhub.creator: "baolilei"
   skillhub.updater: "baolilei"
-  skillhub.version: "V17"
+  skillhub.version: "V19"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "67759"
   skillhub.high_sensitive: "false"
@@ -93,7 +93,7 @@ metadata:
   - `bash {skill_root}/scripts/stage-flow.sh show` / `gate`：查看进度 / 门禁自检
   流转记录自动追加到 `.duo/{demand_description}/stage-flow.log`。schema 遵循 [workflow-context-schema.md](references/workflow-context-schema.md)。
 - **执行日志上报（强制 gate）**: 每个阶段标记 completed 后，MUST 读取 `workflow-context.json` 中的 `runtime.post_stage_hooks` 字段并按其中 actions 逐一执行；`reported_at` 只能由脚本自动回写，**MUST_NOT 由 Agent 手填或编造**。该 hooks 机制确保即使上下文被压缩，Agent 每次读写 context 文件时仍可看到上报指令。
-- **SDLC 指标 mapping 上报（强制 gate）**: 同样在 `post_stage_hooks` 中，`report_sdlc_mapping` action（scripts/report-sdlc-mapping.js）按「非 Multica 的 SDLC 系统」方式（km 2777569481）向 AI-SDLC 指标平台上报 Task ↔ Session 映射：`sdlcSourceType=FE_RD_WORKFLOW`，onesUrl 取自 `input.fedo_info.ones_link`（**Stage 1 必须向用户收集，缺失时提示**），session 取 `runtime.session_links` 的 conversation_id，**agentType 非固定值、按会话来源推导**（`session_links[].source`：catpaw_ide→catpaw、catpaw_desk→catdesk、codex→codex，服务端以 (agentType, sessionId) 元组唯一标识 session），阶段切分以 `stageSplit` 时间段上报（stage3.1→requirement、stage3.2/3.3→design、stage4.x→code、stage5→test）。依赖 `sdlc-task-mapping-ingest` skill（run.sh，方式一首选），未安装或 CLI 失败时自动降级为方式二接口直报（ingest-get-token 换 token → sdlc-task-mapping-ingest Bearer 上报，无需任何依赖），也可 `--mode direct` 显式指定。上报失败不阻断阶段推进。
+- **SDLC 指标 mapping 上报（强制 gate）**: 同样在 `post_stage_hooks` 中，`report_sdlc_mapping` action（scripts/report-sdlc-mapping.js）按「非 Multica 的 SDLC 系统」方式（km 2777569481）向 AI-SDLC 指标平台上报 Task ↔ Session 映射：`sdlcSourceType=FE_RD_WORKFLOW`，onesUrl 取自 `input.fedo_info.ones_link`（**Stage 1 必须向用户收集，缺失时提示**），session 取 `runtime.session_links` 的 conversation_id，**agentType 非固定值、按会话来源推导**（`session_links[].source`：catpaw_ide→catpaw、catpaw_desk→catdesk、codex→codex，服务端以 (agentType, sessionId) 元组唯一标识 session），阶段切分以 `stageSplit` 时间段上报（stage3.1→requirement、stage3.2/3.3→design、stage4.x→code、stage5→test）。依赖 `sdlc-task-mapping-ingest` skill（run.sh，方式一首选），未安装或 CLI 失败时自动降级为方式二接口直报（ingest-get-token 换 token → sdlc-task-mapping-ingest Bearer 上报，无需任何依赖），也可 `--mode direct` 显式指定。**无 workflow-context.json 时**（独立补报/非 workflow 项目）走 CLI 直报模式：`--ones-url <ONES链接> [--mis <mis>] [--session-id <会话ID>] [--stage-split design=<start>~<end>] [--dry-run]`，会话 ID 未传时自动从 `~/.catpaw/projects/ide-{path_hash}/` 取最近会话、agentType 按运行环境探测，阶段时间支持 ISO/时间戳、转换为毫秒左闭右开区间；先用 `--dry-run` 校验 payload 再真实上报。上报失败不阻断阶段推进。
 
 - **暂停确认**: 每个阶段完成后 MUST 主动告知用户提供操作选项（继续/重试）
 - **失败降级**: 单阶段失败主动告知用户，并提供操作选项（重试/跳过）
@@ -135,6 +135,7 @@ metadata:
 
 > 需求分析与方案设计具体方案见[stage3-demand-design.md](references/stages/stage3-demand-design.md)
 > **约束**：需求规格（demand-spec）、技术方案（tech-design）、任务拆解（dev-tasks）均依赖 skill `design-spec`，禁止自行完成。
+> **可选评审**：技术方案产出后（Step 3.2.4）可选执行 `ai-tr` 三维评审（文码一致性/完备性/架构合理性）：有学城链接时「学城模式」——报告上传 + 问题划线评论回落原文；无学城链接时降级「本地文件模式」——以 `docs/tech-design.md` 为输入、报告落本地、**不做划线评论**；评审判红时先修订方案。`ai-tr` 缺失或用户不需要时跳过，不阻断流程（需在确认单记录原因）。
 
 **强制**在将 stage3 标记为 completed 之前，MUST 逐一确认：
 
@@ -155,6 +156,7 @@ metadata:
 > 物料组件和协议开发流程详情见[stage4-encoding.md](references/stages/stage4-encoding.md)
 
 > **约束**：物料组件开发使用 `max-material-dev`、页面协议开发使用`duo-protocol` skill完成，未读取对应 Skill 前，任何代码输出均无效
+> **编码规范**：Step 4.0 必须先调 `mt-code-standards-setup` 同步当前仓库生效规范到 `<repo_root>/.mdp/rules/` 并逐层读取（L3 项目 > L2 团队 > L1 公司），编码以其为准；同步失败或 skill 缺失时回退 `fe-ai-review` 内置规范，不阻断编码（需在出场门禁记录规范来源）。
 
 #### Stage 5：验证测试
 
@@ -178,6 +180,14 @@ metadata:
 
 - 若该 skill **存在且可用** → 调用其完成对应工作
 - 若该 skill **不存在或不可用** → **暂停当前阶段**，提示用户安装对应 skill 后再继续
+
+**可选依赖**（缺失时不暂停，跳过对应步骤并在阶段产物中记录原因）：
+
+| Skill       | 使用步骤             | 缺失时行为                                  |
+| ----------- | -------------------- | ------------------------------------------- |
+| `ai-tr`     | Stage 3 Step 3.2.4   | 跳过技术方案评审，直接进入 Step 3.2.5 用户确认 |
+| `ai-auto-ui-test` | Stage 3 Step 3.4 | 跳过 Flow 用例生成，Stage 4/5 按常规方式执行 |
+| `mt-code-standards-setup` | Stage 4 Step 4.0 | 跳过平台规范同步，回退 `fe-ai-review` 内置规范编码（出场门禁记录原因） |
 
 ---
 

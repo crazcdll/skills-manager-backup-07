@@ -73,25 +73,39 @@ function cells(line) {
 }
 const unquote = (value) => value.replace(/^`([^`]+)`$/, '$1').replace(/^\[[^\]]*\]\(([^)]+)\)$/, '$1');
 
-// Placement is explicit: legacy separate indexes, legacy flat team roots,
-// or the current scope/domain/name team roots. The wire resolver version alone
-// cannot distinguish historical manifests that share a schema number.
+export const RULESET_INDEX_PLACEMENT = 'ruleset-root';
+const JAVA_INDEX_RENDERER = 'java-l1-relative/v1';
+
+function isJavaGitIndex(entry, releaseRefs) {
+  return entry.index.origin === 'git' && releaseRefs.some(ref => ref.rule_set_id === entry.rule_set_id
+    && ref.release_id === entry.release_id && ref.scope_level === 'L1' && ref.standard_domain === 'backend');
+}
+
+export function isCurrentAgentsIndexRenderer(manifest) {
+  return manifest.agents_index_renderer === JAVA_INDEX_RENDERER
+    || !manifest.agents_indexes?.some(entry => isJavaGitIndex(entry, manifest.release_refs));
+}
+
+function namedDomainDirectory(ref) {
+  const name = ref.local_rule_set_name;
+  if (!['frontend', 'backend'].includes(ref.standard_domain) || typeof name !== 'string'
+    || !name || name !== name.trim() || name !== name.normalize('NFC') || name.startsWith('.')
+    || /[\\/<>:"|?*\p{Cc}\p{Cf}\uD800-\uDFFF]/u.test(name) || /[. ]$/u.test(name)
+    || /^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:[.]|$)/iu.test(name)
+    || Buffer.byteLength(name, 'utf8') > 200) invalid('AGENTS.md 索引所属规则集名称或领域非法');
+  return `${ref.standard_domain === 'frontend' ? 'fe' : 'java'}/${name}`;
+}
+
 export function agentsIndexDestinations(entries, releaseRefs, { indexPlacement = 'flat-team' } = {}) {
-  if (!['separate', 'flat-team', 'named-team'].includes(indexPlacement)) invalid('AGENTS.md 索引安装布局非法');
+  if (!['separate', 'flat-team', 'named-team', RULESET_INDEX_PLACEMENT].includes(indexPlacement)) invalid('AGENTS.md 索引安装布局非法');
   if (!entries?.length) return new Map();
   const refs = Array.isArray(releaseRefs) ? releaseRefs : [];
   const directories = new Map();
   const byIdentity = new Map();
   for (const ref of refs.filter(item => indexPlacement !== 'separate' && item.scope_level === 'L2')) {
     let directory;
-    if (indexPlacement === 'named-team') {
-      const name = ref.local_rule_set_name;
-      if (!['frontend', 'backend'].includes(ref.standard_domain) || typeof name !== 'string'
-        || !name || name !== name.trim() || name !== name.normalize('NFC') || name.startsWith('.')
-        || /[\\/<>:"|?*\p{Cc}\p{Cf}\uD800-\uDFFF]/u.test(name) || /[. ]$/u.test(name)
-        || /^(?:con|prn|aux|nul|com[1-9¹²³]|lpt[1-9¹²³])(?:[.]|$)/iu.test(name)
-        || Buffer.byteLength(name, 'utf8') > 200) invalid('AGENTS.md 索引所属规则集名称或领域非法');
-      directory = `${ref.standard_domain === 'frontend' ? 'fe' : 'java'}/${name}`;
+    if (indexPlacement === 'named-team' || indexPlacement === RULESET_INDEX_PLACEMENT) {
+      directory = namedDomainDirectory(ref);
     } else {
       directory = ref.rule_set_name || ref.rule_set_id;
       if (!safeId(directory) || (ref.rule_set_name && (directory.length > 80 || !/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(directory)))) {
@@ -109,13 +123,20 @@ export function agentsIndexDestinations(entries, releaseRefs, { indexPlacement =
       invalid('AGENTS.md 索引没有唯一已发布规则集归属');
     }
     const ref = matches[0];
+    if (ref.scope_level === 'L1' && indexPlacement === RULESET_INDEX_PLACEMENT) {
+      const directory = namedDomainDirectory(ref);
+      // A shared domain may contain more than one company rule set. Give each
+      // indexed set its own directory in that case so their instructions never mix.
+      const sharedDomain = refs.some(other => other !== ref && other.scope_level === 'L1' && other.standard_domain === ref.standard_domain);
+      return [entry.rule_set_id, `company/${sharedDomain ? directory : directory.split('/')[0]}/AGENTS.md`];
+    }
     return [entry.rule_set_id, indexPlacement !== 'separate' && ref.scope_level === 'L2'
       ? `team/${byIdentity.get(`${ref.rule_set_id}\0${ref.release_id}`)}/AGENTS.md`
       : `agents-index/${entry.rule_set_id}/AGENTS.md`];
   }));
 }
 
-export function renderAgentsIndexes(entries, localFiles, releaseRefs, { indexPlacement = 'flat-team' } = {}) {
+export function renderAgentsIndexes(entries, localFiles, releaseRefs, { indexPlacement = 'flat-team', nativeJavaTables = true } = {}) {
   const destinations = agentsIndexDestinations(entries, releaseRefs, { indexPlacement });
   const files = [];
   const warnings = [];
@@ -141,6 +162,8 @@ export function renderAgentsIndexes(entries, localFiles, releaseRefs, { indexPla
     const warn = (code, message, extra) => addWarning({ ...warning(code, message, extra), rule_set_id: entry.rule_set_id });
     if (index.content === null) { warn('agents_index_unreadable', 'AGENTS.md 无法读取'); continue; }
     if (!index.content.trim()) warn('agents_index_empty', 'AGENTS.md 内容为空');
+    const nativeJava = nativeJavaTables && indexPlacement === RULESET_INDEX_PLACEMENT && isJavaGitIndex(entry, releaseRefs);
+    const indexDirectory = destinations.get(entry.rule_set_id).slice(0, -'AGENTS.md'.length);
     const lines = index.content.split(/(?<=\n)/);
     let table = null;
     let recognized = false;
@@ -156,11 +179,12 @@ export function renderAgentsIndexes(entries, localFiles, releaseRefs, { indexPla
       if (fence) return raw;
       const columns = cells(line);
       const header = columns.map((column) => column.value).join('|');
-      if (header === '名称|触发场景|路径' || header === '分类|规则文件|Rule UID 范围|触发场景') {
+      const relativeReferences = nativeJava && header === '规则文件|触发条件';
+      if (relativeReferences || header === '名称|触发场景|路径' || header === '分类|规则文件|Rule UID 范围|触发场景') {
         const separator = cells((lines[position + 1] || '').replace(/[\r\n]+$/, ''));
-        const columnsCount = header === '名称|触发场景|路径' ? 3 : 4;
+        const columnsCount = columns.length;
         table = separator.length === columnsCount && separator.every((column) => /^:?-{3,}:?$/.test(column.value))
-          ? { columns: columnsCount, referenceIndex: header === '名称|触发场景|路径' ? 2 : 1 }
+          ? { columns: columnsCount, referenceIndex: relativeReferences ? 0 : columnsCount === 3 ? 2 : 1, relativeReferences }
           : null;
         recognized ||= Boolean(table);
         return raw;
@@ -176,13 +200,22 @@ export function renderAgentsIndexes(entries, localFiles, releaseRefs, { indexPla
         warn('agents_index_unmatched_reference', `引用无法唯一匹配本次下载文件：${reference}`, { path: reference, line: position + 1 });
         return raw;
       }
-      const target = `.mdp/rules/${[...targets][0]}`;
+      const [localPath] = targets;
+      if (table.relativeReferences) {
+        if (localPath !== indexDirectory + reference) {
+          warn('agents_index_unmatched_reference', `引用未指向索引同目录的已安装文件：${reference}`, { path: reference, line: position + 1 });
+        }
+        return raw;
+      }
+      const target = `.mdp/rules/${localPath}`;
       const replacement = column.value.startsWith('`') ? `\`${target}\``
         : /^\[[^\]]*\]\([^)]+\)$/.test(column.value) ? column.value.replace(/\([^)]+\)$/, `(${target})`) : target;
       const cell = raw.slice(column.start, column.end);
       return raw.slice(0, column.start) + cell.replace(column.value, () => replacement) + raw.slice(column.end);
     }).join('');
-    if (!recognized) warn('agents_index_table_missing', '未识别到四列表格（兼容旧三列表格）');
+    if (!recognized) warn('agents_index_table_missing', nativeJava
+      ? '未识别到规则索引表格，Java 原生索引应包含“规则文件”和“触发条件”两列'
+      : '未识别到四列表格（兼容旧三列表格）');
     files.push({ local_relative_path: destinations.get(entry.rule_set_id), content: output,
       sha256: hash(output), byte_size: Buffer.byteLength(output, 'utf8') });
   }
@@ -191,10 +224,13 @@ export function renderAgentsIndexes(entries, localFiles, releaseRefs, { indexPla
   return { files, warnings };
 }
 
-export function agentsManifestFields(bundle, localFiles, { indexPlacement = 'flat-team' } = {}) {
+export function agentsManifestFields(bundle, localFiles, { indexPlacement = 'flat-team', nativeJavaTables = true } = {}) {
   if (!bundle.snapshot.agents_indexes_hash) return {};
-  const rendered = renderAgentsIndexes(bundle.agents_indexes, localFiles, bundle.snapshot.release_refs, { indexPlacement });
+  const rendered = renderAgentsIndexes(bundle.agents_indexes, localFiles, bundle.snapshot.release_refs, { indexPlacement, nativeJavaTables });
+  const usesJavaRenderer = nativeJavaTables && indexPlacement === RULESET_INDEX_PLACEMENT
+    && bundle.agents_indexes.some(entry => isJavaGitIndex(entry, bundle.snapshot.release_refs));
   return {
+    ...(usesJavaRenderer ? { agents_index_renderer: JAVA_INDEX_RENDERER } : {}),
     agents_index_contract: AGENTS_INDEX_CONTRACT,
     agents_indexes_hash: bundle.snapshot.agents_indexes_hash,
     agents_indexes: bundle.agents_indexes,
@@ -213,7 +249,10 @@ export function validateAgentsManifest(manifest, { indexPlacement = 'separate' }
   const localFiles = manifest.managed_files.map((name) => ({
     local_relative_path: name, source_relative_path: manifest.managed_file_sources[name],
   }));
-  const expected = agentsManifestFields({ snapshot: manifest, agents_indexes: manifest.agents_indexes }, localFiles, { indexPlacement });
+  // Earlier clients preserved the source bytes but recorded different table diagnostics.
+  const nativeJavaTables = Object.hasOwn(manifest, 'agents_index_renderer');
+  const expected = agentsManifestFields({ snapshot: manifest, agents_indexes: manifest.agents_indexes }, localFiles, { indexPlacement, nativeJavaTables });
+  if (manifest.agents_index_renderer !== expected.agents_index_renderer) return false;
   return ['managed_agents_indexes', 'managed_agents_index_hashes', 'managed_agents_index_sizes', 'agents_index_warnings']
     .every((key) => canonical(expected[key]) === canonical(manifest[key]));
 }

@@ -15,6 +15,8 @@ import {
 
 export const V3_TASK_SCHEMA = "repository-authority-task/v3";
 export const V3_SKILL_CONTRACT = "mt-code-repository-authority/v4";
+export const V4_TASK_SCHEMA = "repository-authority-task/v4";
+export const V4_SKILL_CONTRACT = "mt-code-repository-authority/v5";
 export const V3_LEGACY_TASK_SCHEMA = "repository-authority-task/v2";
 export const V3_LEGACY_SKILL_CONTRACT = "mt-code-repository-authority/v3";
 export const V3_MODE_AUTHORITY = "authority_shard";
@@ -24,6 +26,8 @@ export const V3_SOURCE_RESULT_SCHEMA = "repository-authority-source-scan-result/
 export const V3_SOURCE_RESULT_SCHEMA_V2 = "repository-association-source-scan-result/v2";
 export const V3_MAX_ITEMS = 10;
 export const V3_WORKERS = 2;
+export const CITADEL_SOURCE_USER_SSO_SCHEMA = "catx-source-user-sso/v1";
+export const CITADEL_AUDIENCE = "com.sankuai.it.ead.citadel";
 
 const CONTROL = /[\u0000-\u001f\u007f-\u009f]/u;
 const requiredText = (value, label, maxLength, pattern) => {
@@ -89,8 +93,9 @@ export const validateV3TaskArtifact = ({ taskBytes, expectedTaskArtifactHash, no
     "task",
   );
   const currentContract = task.schema_version === V3_TASK_SCHEMA && task.skill_contract_version === V3_SKILL_CONTRACT;
+  const sourceUserSsoContract = task.schema_version === V4_TASK_SCHEMA && task.skill_contract_version === V4_SKILL_CONTRACT;
   const legacyContract = task.schema_version === V3_LEGACY_TASK_SCHEMA && task.skill_contract_version === V3_LEGACY_SKILL_CONTRACT;
-  if ((!currentContract && !legacyContract) || !UUID.test(String(task.shard_id ?? "")) || !Number.isSafeInteger(task.generation) || task.generation < 1) {
+  if ((!currentContract && !sourceUserSsoContract && !legacyContract) || !UUID.test(String(task.shard_id ?? "")) || !Number.isSafeInteger(task.generation) || task.generation < 1) {
     throw new AuthorityContractError("task identity is invalid");
   }
   const actor = exactObject(task.actor, new Set(["mis", "source", "execution_mis"]), "actor");
@@ -113,13 +118,21 @@ export const validateV3TaskArtifact = ({ taskBytes, expectedTaskArtifactHash, no
     return { task, mode: task.mode, shardId: task.shard_id, generation: task.generation, actorMis, deadline, items };
   }
   if (task.mode === V3_MODE_SOURCE_SCAN) {
-    if (!currentContract || actor.execution_mis !== actorMis) throw new AuthorityContractError("source scan task actor is invalid");
-    const payload = exactObject(task.payload, new Set(["run_id", "scan_revision", "citadel_url", "callback"]), "source scan payload");
+    if ((!currentContract && !sourceUserSsoContract) || actor.execution_mis !== actorMis) throw new AuthorityContractError("source scan task actor is invalid");
+    const payload = exactObject(task.payload, new Set(["run_id", "scan_revision", "citadel_url", "callback", ...(sourceUserSsoContract ? ["source_access"] : [])]), "source scan payload");
     if (
       !UUID.test(String(payload.run_id ?? "")) || payload.scan_revision !== task.generation
       || execution.expected_result_schema !== V3_SOURCE_RESULT_SCHEMA_V2
     ) {
       throw new AuthorityContractError("source scan identity is invalid");
+    }
+    let sourceAccess = null;
+    if (sourceUserSsoContract) {
+      sourceAccess = exactObject(payload.source_access, new Set(["auth"]), "source access");
+      const auth = exactObject(sourceAccess.auth, new Set(["schema_version", "audiences"]), "source access auth");
+      if (auth.schema_version !== CITADEL_SOURCE_USER_SSO_SCHEMA || JSON.stringify(auth.audiences) !== JSON.stringify([CITADEL_AUDIENCE])) {
+        throw new AuthorityContractError("source access auth contract is invalid");
+      }
     }
     const url = new URL(requiredText(payload.citadel_url, "citadel_url", 1000));
     if (url.protocol !== "https:" || url.hostname !== "km.sankuai.com" || url.port || url.username || url.password || url.search || url.hash || !/^\/(?:page|collabpage)\/\d+\/?$/u.test(url.pathname)) {
@@ -147,6 +160,8 @@ export const validateV3TaskArtifact = ({ taskBytes, expectedTaskArtifactHash, no
         scanRevision: payload.scan_revision,
         citadelUrl: url.toString(),
         resultSchema: execution.expected_result_schema,
+        sourceUserSso: Boolean(sourceUserSsoContract),
+        sourceAccess,
         callback: { url: callbackUrl.toString(), token: sourceCallback.token },
       },
     };

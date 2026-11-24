@@ -34,11 +34,14 @@ import {
   V3_WORKERS,
   validateV3TaskArtifact,
 } from "./repository-authority-v3-contract.mjs";
+import { CITADEL_AUDIENCE } from "./repository-authority-v3-contract.mjs";
+import { authenticateSourceUser, sourceUserSsoFailure } from "./source-auth/source-user-sso.mjs";
 
 const REPOSITORY_URL = /(?:https:\/\/(?:dev|git)[.]sankuai[.]com|ssh:\/\/git@git[.]sankuai[.]com)[^\s<>"'\[\]()|，。；]+/giu;
 const REPOSITORY_ADDRESS = /(?:ssh:\/\/git@\[[0-9a-f:.]+\]|https?:\/\/|ssh:\/\/|git@)[^\s<>"'\[\]()|，。；]+/giu;
 const elapsed = (start, now) => Math.max(0, Math.round(now() - start));
 const TABLE_PAGE_READER = fileURLToPath(new URL("./read-citadel-table-page.mjs", import.meta.url));
+const CITADEL_COMMAND_READER = fileURLToPath(new URL("./read-citadel-command.mjs", import.meta.url));
 const ACTOR_MIS = /^[a-z][a-z0-9._-]{0,63}$/u;
 const errorShape = (error) => ({ phase: String(error?.phase || "runner"), error_code: String(error?.errorCode || "runner_failed"), retriable: error?.retriable === true });
 
@@ -197,7 +200,7 @@ export const extractRepositoryCandidatesV2 = (value, location) => {
   return { candidates, invalidItems };
 };
 
-export const scanCitadelSource = async ({ source, actorMis, authEnvironment, resultSchema = V3_SOURCE_RESULT_SCHEMA, deadline = Date.now() + 14 * 60 * 1000, processRunner = runProcess, now = Date.now, waitBetweenReads = wait }) => {
+export const scanCitadelSource = async ({ source, actorMis, authEnvironment, resultSchema = V3_SOURCE_RESULT_SCHEMA, deadline = Date.now() + 14 * 60 * 1000, processRunner = runProcess, now = Date.now, waitBetweenReads = wait, authenticate = authenticateSourceUser }) => {
   if (
     !ACTOR_MIS.test(String(actorMis ?? "")) ||
     typeof authEnvironment?.AUTH_CACHE_FILE !== "string" ||
@@ -223,14 +226,32 @@ export const scanCitadelSource = async ({ source, actorMis, authEnvironment, res
       found.push(...extractRepositoryCandidates(value, location, issues));
     }
   };
-  const read = async (args, maxBuffer, command = "oa-skills") => {
+  let sourceToken = null;
+  if (source.sourceUserSso) {
+    try {
+      sourceToken = await authenticate({ actorMis, audience: CITADEL_AUDIENCE, deadline, env: authEnvironment });
+    } catch (error) {
+      const failure = sourceUserSsoFailure(error, "citadel");
+      return { scan_status: "failed", candidates: [], invalid_items: [], read_errors: [{ source: "authentication", error_code: failure.failure?.code || "citadel_auth_failed", retriable: false }] };
+    }
+  }
+  const read = async (args, maxBuffer, command = sourceToken ? process.execPath : "oa-skills") => {
     const remaining = deadline - now() - 60_000;
     if (remaining <= 1000) return { exitCode: 1, timedOut: true, stdout: Buffer.alloc(0) };
     await waitBetweenReads(300 + Math.floor(Math.random() * 200));
-    try { return await processRunner(command, args, { env: { ...authEnvironment, NO_CHECK_VERSION: "true" }, maxBuffer, timeout: Math.min(remaining, 150_000) }); }
+    try {
+      const env = { ...authEnvironment, NO_CHECK_VERSION: "true" };
+      if (sourceToken) env.CITADEL_SOURCE_TOKEN = sourceToken;
+      const commandArgs = sourceToken && command === process.execPath && args[0] !== TABLE_PAGE_READER
+        ? [CITADEL_COMMAND_READER, ...args]
+        : args;
+      return await processRunner(command, commandArgs, { env, maxBuffer, timeout: Math.min(remaining, 150_000) });
+    }
     catch { return { exitCode: 1, stdout: Buffer.alloc(0), stderr: Buffer.alloc(0) }; }
   };
-  const authArgs = ["--mis", actorMis, "--sso-strategy", "sso-ciba", "--raw", "--no-version-check"];
+  const authArgs = sourceToken
+    ? ["--raw", "--no-version-check"]
+    : ["--mis", actorMis, "--sso-strategy", "sso-ciba", "--raw", "--no-version-check"];
   const hasExplicitError = (result) => {
     const payload = jsonFrom(result?.stdout);
     return Boolean(payload && typeof payload === "object" && (payload.error || payload.success === false || payload.ok === false ||

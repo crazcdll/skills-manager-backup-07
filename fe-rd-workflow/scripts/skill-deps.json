@@ -97,6 +97,20 @@
   "phase": "Stage 3（Step 3.4 用例生成）",
   "alternatives": []
 }, {
+  "name": "ai-tr",
+  "required": false,
+  "min_version": "1.0.0",
+  "purpose": "技术方案三维评审（文码一致性/完备性/架构合理性）：产出评级报告 + 方案原文划线评论，供 Stage 3 Step 3.2.4 在编码前消化 P0-P2 问题",
+  "phase": "Stage 3（Step 3.2.4 技术方案评审）",
+  "alternatives": []
+}, {
+  "name": "mt-code-standards-setup",
+  "required": false,
+  "min_version": "1.2.0",
+  "purpose": "业务研发平台统一编码规范接入：按仓库同步生效 L1/L2 规范到 .mdp/rules/，供 Stage 4 编码前读取并遵循",
+  "phase": "Stage 4（Step 4.0 编码规范同步）",
+  "alternatives": []
+}, {
   "name": "catpaw-daxiang",
   "required": true,
   "min_version": "1.0.0",

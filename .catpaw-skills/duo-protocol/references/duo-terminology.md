@@ -18,7 +18,7 @@
 | **PageProtocol** | 页面搭建协议，描述页面搭建配置信息 |
 | **RenderRequest / RenderResponseData** | 端到端协议，运行时前后端通信的统一入参出参格式 |
 | **MaterialConfig** | 物料协议，描述物料可配置的属性、事件、插槽等 |
-| **DataExpression** | 数据表达式，支持 String / Number / Boolean / List / Object |
+| **DataExpression** | 数据表达式，支持 String / Number / Boolean / List / Object，并可带 data、constant、sub、item 字段 |
 | **struct** | 视图树，页面的树形结构 |
 | **logics** | 逻辑列表，页面的交互逻辑 |
 | **dataSourceMap** | 数据源定义，后端业务数据源如何绑定 |

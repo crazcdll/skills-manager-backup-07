@@ -6,7 +6,7 @@ description: 移动端 UI 自动化测试。以 steps.json（业务用例）输�
 metadata:
   skillhub.creator: "wangshicheng05"
   skillhub.updater: "wangshicheng05"
-  skillhub.version: "V204"
+  skillhub.version: "V209"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "93069"
   skillhub.high_sensitive: "false"
@@ -14,7 +14,7 @@ metadata:
 
 # AI UI Autotest Engine
 
-> **目录（作用域分层）**：所有状态都在**机器级目录** `$STATE` = `~/.local/share/ai-ui-autotest-engine/`（跨安装 / 跨项目唯一，可用 `AI_UITEST_STATE_HOME` 覆盖）：`run/`（运行态：`tasks/<ws>/{config,inputs,tmp,runs/<run>}/` + 入口 `ws/<ws>/cli`）、`reports/`（历史报告 `<batch>/<run>/`）、`console/`（统一控制台服务，全机唯一、常驻）、`credentials/`（AppMock SSO 凭据）、`toolchain/`（adb/hdc 路径缓存）、`cache/artifacts/<platform>/<form>/<pkg>/`（制品缓存，引擎永不自动清理）、`device-pool/`（预热台账等本机辅助文件；设备租约在服务端，不落本地）。**Skill 目录内不产生任何运行态**（多副本 / 自动更新都不会丢进度、缓存、登录与报告）。
+> **目录（作用域分层）**：所有状态都在**机器顶层根下的 `$STATE`** = `$AI_UITEST_HOME/engine/`（缺省 `~/.local/share/ai-ui-autotest/engine/`，跨安装 / 跨项目唯一；`AI_UITEST_HOME` 改顶层根、`AI_UITEST_STATE_HOME` 直接改 `$STATE`）：`run/`（运行态：`tasks/<ws>/{config,inputs,tmp,runs/<run>}/` + 入口 `ws/<ws>/cli`）、`reports/`（历史报告 `<batch>/<run>/`，执行前按 keep-latest-N 清理，默认留 5 个批次）、`console/`（统一控制台服务，全机唯一、常驻）、`credentials/`（AppMock SSO 凭据）、`toolchain/`（adb/hdc 路径缓存）、`cache/artifacts/<platform>/<form>/<pkg>/`（制品缓存，引擎永不自动清理）、`device-pool/`（预热台账等本机辅助文件；设备租约在服务端，不落本地）。同一顶层根下并列的 `cases/`（用例资产）与 `orchestration/`（编排产物）**归编排层所有，引擎不读也不写**。**Skill 目录内不产生任何运行态**（多副本 / 自动更新都不会丢进度、缓存、登录与报告）。
 > **随包分发的依赖清单**：`references/toolchain/manifest.json`（adb 离线包：按平台声明包名、大小与解压白名单）与 `references/deps/manifest.json`（Python 包版本区间 + 静态资源大小/更新时间）。两者都由 `check-deps` 统一安装/校验。依赖清单带 `updated_at`：安装成功后写进机器级 `$STATE/deps/state.json`，下次比对不一致（依赖集合被 Skill 升级改过）才重装 Python 包并复核资源大小；一致则只做 import/大小复核 —— 不算 sha256、也不比较文件 mtime。adb 离线包按「版本目录 + 大小」判定是否可用，解压出的 adb 需能执行 `adb version` 才算成功。
 > **workspace 入口（每轮测试第一步）**：`python3 -B scripts/cli.py ws-init` 分配 workspace 并生成入口 `$STATE/run/ws/<ws>/cli`（**绝对路径**）；**之后所有命令都必须通过该入口执行**（写作 `<入口> <命令>`），入口把 `AI_UITEST_TASK=<ws>` 注入进程以定位工作区。未经入口执行 → 直接报错，**无默认兜底**（避免静默落到共享目录）。入口与 `cli.py` 均已带 `python3 -B` + `PYTHONDONTWRITEBYTECODE=1`（源树零字节码，不做 pyc 缓存）；手工执行其它 python 入口（如 `scripts/aitest/dev/*.py`）同样加 `-B`。
 > `--input` 支持**裸文件名**（按本 workspace 的 `$STATE/run/tasks/<ws>/tmp/` 解析）
@@ -67,7 +67,7 @@ python3 -B scripts/cli.py ws-init
 ```
 
 > **workspace 入口是硬门禁**：`ws-init` 是阶段 0 第一步，它输出的 `<入口>` 是整轮测试唯一的命令入口；漏用入口会被引擎直接拒绝（报“未指定 workspace”）。
-> **预置优先（避免重复提问）**：先 `input-schema` 看字段与选项，把用户请求里**已明确给出**的值（设备组合 / 环境 / MIS / 凭证（`credential`）/ ptest / 锁包等）用 `input-seed` 一次性入库；`input-seed` 返回 `remaining`（仍需问的题）与 `rejected`（非法 / 不适用的值），随后只需对 `remaining` 跑逐题循环。已给过的值绝不再问。`resource_mis` 能由当前身份（`HOTEL_UI_MIS` / 缓存 SSO 身份 / `git config user.email`）自动派生，此时会以 `source=derived` 出现、**不会下发提问**；只有当这些来源都拿不到时才是必答题，需指定其他 MIS 时仍可用 `input-seed` 覆盖。**场景 AppMock 不入采集**：它是 case 级配置（steps.json `env.mock_ids`），`steps-generate` 直接透传到该 case 的 `mock_ids`，无需作答。
+> **预置优先（避免重复提问）**：先 `input-schema` 看字段与选项，把用户请求里**已明确给出**的值（设备组合 / 环境类型（A/P/B/C/D/E）/ MIS / 凭证（`credential`）/ 锁包等）用 `input-seed` 一次性入库；`input-seed` 返回 `remaining`（仍需问的题）与 `rejected`（非法 / 不适用的值），随后只需对 `remaining` 跑逐题循环。已给过的值绝不再问。`resource_mis` 能由当前身份（`HOTEL_UI_MIS` / 缓存 SSO 身份 / `git config user.email`）自动派生，此时会以 `source=derived` 出现、**不会下发提问**；只有当这些来源都拿不到时才是必答题，需指定其他 MIS 时仍可用 `input-seed` 覆盖。**场景 AppMock 不入采集**：它是 case 级配置（steps.json `env.mock_ids`），`steps-generate` 直接透传到该 case 的 `mock_ids`，无需作答。
 > **强指针**：`input-next` 输出 `progress` + `next` 指针（`ask` 带可直接执行的 `cmd`），逐条照抄直到 `done`；结果落 workspace 级 `intake.json`。**`flow-init` 是阶段 0/1 分界线**：它只做协议载入与 run 目录创建；其后的 B0（`mis acquire`）、B1（`device create/setup`）、B2（`env-prepare` 登录）均由 `flow-next`/`flow-advance` 逐条驱动，AI 按返回值执行，**不会在 flow-init 内自动执行**。
 
 ### 阶段 1：引擎驱动
@@ -96,7 +96,7 @@ AI 不再手动决定下一步，按 `flow-next` 返回的命令执行，确认�
 #    模板：ai-app-flow/references/templates/steps-json-template.json
 
 # ② 自检：结构校验 + 文本级 lint + 渲染只读视图（md 不参与执行）
-python3 <ai-app-flow>/scripts/steps_cli.py check --in steps.json --no-upload
+python3 <ai-app-flow>/scripts/steps_cli.py check --in steps.json
 
 # ③ 生成引擎步骤：业务模型 → CASES 映射 + sid 编号 + blur 注入 + intake 合成 device/env + 两级校验
 #    （同时把业务真源 steps.json 与刚生成的 steps-input 冻结进 workspace `inputs/<tag>/`，
@@ -107,7 +107,7 @@ python3 <ai-app-flow>/scripts/steps_cli.py check --in steps.json --no-upload
 <入口> flow-init --dir <run-name> --input 'steps-input-{tag}.json' --flow-name <Flow名> [--run-type regression]
 ```
 
-> **一个 run 可承载多个 Case（=一条报告行）**：`flow-init`（首个）→ `flow-add-case --input 'steps-input-<tag>.json'`（其余，可带 `--case-index`）→ 重跑 `flow-init` 重建上下文（**沿用同一批次/报告行**，不会另起空行）→ 每 Case 一次 `gen-report` Append → `flow-finalize` Close。`--flow-name` 优先级最高，多 Case 批次必须显式传，否则行标题退化为首个 `steps.json` 的 title。
+> **一个 run 可承载多个 Case（=一条报告行）**：`flow-init`（首个）→ `flow-add-case --dir <run> --input 'steps-input-<tag>.json'`（其余，可带 `--case-index`；`--dir` 可省略，缺省沿用当前活跃 run）→ 重跑 `flow-init` 重建上下文（**沿用同一批次/报告行**，不会另起空行）→ 每 Case 一次 `gen-report` Append → `flow-finalize` Close。`--flow-name` 优先级最高，多 Case 批次必须显式传，否则行标题退化为首个 `steps.json` 的 title。
 > **运行类型**：输入声明 `runType=regression`（或 `【运行类型】...回归`）时，`flow-init` 必须追加 `--run-type regression`（或先 `export AI_UITEST_RUN_TYPE=regression`）；报告行 `run_type` 据此入库，工作台可按类型筛选。未声明时不传，默认 `adhoc`。
 > `steps-input-<tag>.json` 是**生成产物**：只读，不回写、不手改。要改用例就改 `steps.json` 再跑 ③。
 > 编排层的用例快照（`shard.cases[].steps_path`）直接用绝对路径传给 ③，无需先拷进 workspace。
@@ -152,8 +152,7 @@ python3 <ai-app-flow>/scripts/steps_cli.py check --in steps.json --no-upload
       "action": {"kind": "none"},
       "checks": [
         {"type": "text", "text": "优惠明细"},
-        {"type": "vision", "text": "底部弹层展示优惠条目与合计金额，页面出现半透明遮罩",
-         "source": "mmcd"}
+        {"type": "vision", "text": "底部弹层展示优惠条目与合计金额，背景出现半透明遮罩"}
       ]
     },
     {
@@ -190,7 +189,7 @@ python3 <ai-app-flow>/scripts/steps_cli.py check --in steps.json --no-upload
 | `steps[].id` / `name` | ✅ | `id` 是稳定 slug（平台引用用）；执行序由引擎按数组下发，与 id 无关 |
 | `steps[].action` | ui ✅ | `{kind, text?, value?}`：`open-url`/`tap-text`/`input-text`/`scroll-until` 必须给 `text`，`scroll-bottom`/`back`/`none` 不接受；`value` 仅 `input-text` 必填（要输入的文本，`text` 是锚点） |
 | `steps[].wait` | — | `page_ready` / `text`（配 `text`）/ 省略 |
-| `steps[].checks` | ui ✅ | ≥1 条：`render_ready`·`text`·`text_gone`·`text_vision`·`vision`（视觉断言读本次运行截图） |
+| `steps[].checks` | ui ✅ | ≥1 条：`render_ready`·`text`·`text_gone`·`vision`（`vision` 截图后由 AI 读本次运行截图判定） |
 | `steps[].api` | api ✅ | `path`（必填，**后缀段匹配**）、`method`（缺省 GET）、`expectedFields[]`（`source`=request/response，`field` 可写语义名，`expected` 可选） |
 | `steps[].track` | track ✅ | `match`（必填，空匹配会轮询到超时）、`expectedFields`（`{字段: 期望值}`） |
 
@@ -200,15 +199,15 @@ python3 <ai-app-flow>/scripts/steps_cli.py check --in steps.json --no-upload
 |---|---|
 | `action.kind` | 同名 action；`none` → `assert-text`（纯断言、无副作用）；`scroll-bottom` → `scroll-edge` |
 | `wait.type=page_ready` 或任一 `checks[].type=render_ready` | 步骤 `page_ready`（截图前等页面稳定） |
-| `checks[].type=text` / `text_gone` | 文本断言 present / gone |
-| `checks[].type=render_ready` / `text_vision` | 文本断言 present（`text_vision` 额外触发视觉复核） |
-| `checks[].type=vision` | 视觉断言；AI 读**本次运行截图**判定 |
+| `checks[].type=text` / `render_ready` | 文本断言 present（附带元素目录 vs 渲染一致性复核） |
+| `checks[].type=text_gone` | 文本断言 gone |
+| `checks[].type=vision` | 视觉断言：本步截图后生成 `verify_visual_assertion` hook，AI 读**本次运行截图**判定 |
 | `env.vars` | case `vars`（占位符替换 + 执行前提问） |
 | `env.type` / `swimline` / `url_mappings` / `bundle_lock` / `testability` | case `env`（同名字段直接带入；与 intake 合成时场景声明优先） |
 | `env.mock_ids` | case `mock_ids`（case 级，`B0_mock_preflight` 做同 case 冲突检测） |
 
 生成期由引擎补齐、AI **不要写**的东西：
-`steps[0]` 缺失时按 `env.scheme` 注入落地步骤；首步在装载层补 `role=landing` + `page_ready` + 一条内建视觉断言（运行期截图自证）；sid 编号 S/A/T；`input-text` 后自动补 `blur-input`（锚点同名）；`device` 缺省由 intake 合成。
+- `steps[0]` 缺失时按 `env.scheme` 注入落地步骤；首步在装载层补 `role=landing` + `page_ready` + 一条内建落地校验（运行期截图自证）；sid 编号 S/A/T；`input-text` 后自动补 `blur-input`（锚点同名）；`device` 缺省由 intake 合成。
 
 ### 写步骤的口径
 
@@ -221,7 +220,7 @@ python3 <ai-app-flow>/scripts/steps_cli.py check --in steps.json --no-upload
 
 ### 模糊推定
 
-Flow 含 `pending`/`待审校`/`以实际为准` 时：操作推定最合理文案（上下文优先→美团常识回退），标注 `"inferred": true`，`checks` 全走 `{"type": "vision"}`。推定不违反 R-SEM-001。
+Flow 含 `pending`/`待审校`/`以实际为准` 时：操作推定最合理文案（上下文优先→美团常识回退），标注 `"inferred": true`，能用文案描述的写 `{"type": "text"}`，只剩形态/排版无法用单一文案表达的写 `{"type": "vision"}`。推定不违反 R-SEM-001。
 
 ## 四、命令一览
 
@@ -230,9 +229,9 @@ Flow 含 `pending`/`待审校`/`以实际为准` 时：操作推定最合理文�
 - **用例输入与审校**：`steps-generate`（`steps.json` → `steps-input.json`：业务模型→CASES 映射、sid 编号、blur 注入、intake 合成 device/env、占位符登记、两级校验）`validate`（dry-run 校验已生成的 steps-input）
 - **交互与断言**：`screenshot`（`--out` 为纯文件名时归档到当前 Case 的 `frames/`；为路径时按原路径） `open-url` `tap-text` `tap` `scroll-until` `scroll-edge` `input-text` `blur-input` `assert-multi` `swipe` `dismiss-recce`（`assert-text` 合并至 `step assert-text`）
 - **元素定位**：`find-text --text <文案>` `find-icon --anchor <邻近文案>` `find-input --anchor <邻近文案>` `probe-status` `inspect-tree`
-- **Flow 引擎驱动**：`step` `log-record` `override-step-result` `assert-fields`（API/Track 字段判定；埋点多候选用 `--picked <序号>` 消歧） `response-search`（API 响应按需视图：`--skeleton` 结构总览 / `--query` 关键字定位 / `--path` 精确取值） `flow-init` `flow-add-case`（把另一个 case 追加进同一 run：`--input` 可直接传 `steps-input-<tag>.json`，取 `cases[--case-index]`；追加后重跑 `flow-init` 会沿用同一批次与报告行）`flow-status`（`--sid <SID>` 查单步精简详情）`flow-case-status` `flow-next` `flow-advance` `hook-info`（`--hook-id <ID> [--sid <SID>]` 按需查询单个 hook 的完整操作指引）`ack` `skip-case` `case-post-scan`（Case 收尾补扫：无失败/待判定项自动跳过、零设备成本；有则**先快速回顶**（纯手势不截图，`--no-reset-top` 可关闭）、再自上而下补看 ≤5 屏截图并列出待复核项，帧序即页面顺序，AI 一次性读图后改判）`flow-fail` `flow-finalize` `gen-report`（生成当前 Case 报告并**立即追加**到平台报告；每 Case 一次）
+- **Flow 引擎驱动**：`step` `log-record` `override-step-result` `assert-fields`（API/Track 字段判定；埋点多候选用 `--picked <序号>` 消歧） `response-search`（API 响应按需视图：`--skeleton` 结构总览 / `--query` 关键字定位 / `--path` 精确取值） `flow-init` `flow-add-case`（把另一个 case 追加进同一 run：`--dir <run>`（**可省略**，缺省沿用当前活跃 run）+ `--input`，可直接传 `steps-input-<tag>.json`，取 `cases[--case-index]`；追加后重跑 `flow-init` 会沿用同一批次与报告行）`flow-status`（`--sid <SID>` 查单步精简详情）`flow-case-status` `flow-next` `flow-advance` `hook-info`（`--hook-id <ID> [--sid <SID>]` 按需查询单个 hook 的完整操作指引）`ack` `skip-case` `case-post-scan`（Case 收尾补扫：无失败/待判定项自动跳过、零设备成本；有则**先快速回顶**（纯手势不截图，`--no-reset-top` 可关闭）、再自上而下补看 ≤5 屏截图并列出待复核项，帧序即页面顺序，AI 一次性读图后改判）`flow-fail` `flow-finalize` `gen-report`（生成当前 Case 报告并**立即追加**到平台报告；每 Case 一次）
 - **异常终止**：`report-error`（异常终止收尾前调用，上报 AI 分析结论和解决方案）
-- **workspace / 环境与设备**：`ws-init`（分配 workspace + 生成入口） `check-deps`（缺什么装什么） `toolchain`（adb/hdc 来源与内置离线包体检，只读） `preflight-clean` `post-clean` `device disconnect`（收尾回收本 run 会话，legacy 自动隔离到 `sessions/.stale/`） `install-app` `force-stop` `launch` `set-location` `mock`（含 `mock effective`：聚合 ptest + 场景 Mock 的生效集并判定是否仍被 ptest 全量规则遮蔽） `mock-preflight`（场景 Mock 预检：快照 union + 冲突检测 + 清场） `mock-apply --case-index <i>`（把场景 Mock 收敛到指定 case） `mock-restore`（恢复 union 到执行前状态） `mis`（虚拟 mis 池：`mis acquire` 领虚拟 mis / `mis status` 查看 / `mis release` 释放 / `mis release-stale --hours N`） `input-schema` `input-seed` `input-next` `input-answer` `input-status` `env-prepare` `validate` `case-init`
+- **workspace / 环境与设备**：`ws-init`（分配 workspace + 生成入口） `check-deps`（缺什么装什么） `toolchain`（adb/hdc 来源与内置离线包体检，只读） `prune`（清理旧报告归档，keep-latest-N） `preflight-clean` `post-clean` `device disconnect`（收尾回收本 run 会话，legacy 自动隔离到 `sessions/.stale/`） `install-app` `force-stop` `launch` `set-location` `mock`（含 `mock effective`：聚合 ptest + 场景 Mock 的生效集并判定是否仍被 ptest 全量规则遮蔽） `mock-preflight`（场景 Mock 预检：快照 union + 冲突检测 + 清场） `mock-apply --case-index <i>`（把场景 Mock 收敛到指定 case） `mock-restore`（恢复 union 到执行前状态） `mis`（虚拟 mis 池：`mis acquire` 领虚拟 mis / `mis status` 查看 / `mis release` 释放 / `mis release-stale --hours N`） `input-schema` `input-seed` `input-next` `input-answer` `input-status` `env-prepare` `validate` `case-init`
 
 以下是 `--help` 之外仍需要说明的行为语义（不属于参数，`--help` 不会体现）：
 - `back` 是 Flow action，单独执行用 `step back`。
@@ -271,7 +270,9 @@ Flow 含 `pending`/`待审校`/`以实际为准` 时：操作推定最合理文�
 
 ## 六、产物
 
-报告按 **Open → Append → Close** 增量写入同一行：Open（编排层预置；独立运行由 `flow-init` 预置）只写行级元信息与空 `cases`，**托管运行时引擎不得重复 Open**；每个 Case 的 `C5_report`（`gen-report`）只追加**这一个** Case（平台按 `case_id` 幂等合并并重算汇总）；`flow-finalize` 只做 Close（补传失败 Case + 回写 `cases[0].run_status` 与行级 `duration`）。单次请求体积恒等于一个 Case，与批次大小无关，**禁止改回一次性全量上传**（多 Case 必 413）。`flow-finalize` 将本 workspace 归档到 `$STATE/reports/<batch>/<run>/run/`，随后 `post-clean` **删除本 workspace 与其入口**。同一编排的多个分片默认各自独立（各自 `<batch>`/`<run>`/报告行）；仅当编排层显式注入 `AI_UITEST_BATCH_ID`（共享批次目录）与 `AI_UITEST_REPORT_ID`（共享报告行，引擎据此跳过 Open）时，各分片才 Append 到同一行——此时 Open 与最终 Close（行级 `run_status` / `duration`）必须归编排层统一执行，分片只 Append。`<run>` 重试落 `-r2/-r3`，不覆盖上一轮。目录内保留 `meta.json`（批次/run/状态的稳定索引）、`report.json`（批次报告）、`report-upload.json`（增量上报台账）、`case_NN/report.json` + `frames/`（Case 报告与截图 S3 URL）、`case_NN/inputs/`（**输入原文**：业务真源 `steps.json` + 执行输入 `steps-input.json`，与 `frames/` 同级，报告包自包含）和 `run/`（全部原始执行产物，含 inspect_tree / dumps 等过程信息）供数据分析。归档与报告统一脱敏，运行态原值不外泄。批量报告必须包含全部声明的 Case，缺失则 `run_status: incomplete`。
+报告按 **Open → Append → Close** 增量写入同一行：Open（编排层预置；独立运行由 `flow-init` 预置）只写行级元信息与空 `cases`，**托管运行时引擎不得重复 Open**；每个 Case 的 `C5_report`（`gen-report`）只追加**这一个** Case（平台按 `case_id` 幂等合并并重算汇总）；`flow-finalize` 只做 Close（补传失败 Case + 回写 `cases[0].run_status` 与行级 `duration`）。单次请求体积恒等于一个 Case，与批次大小无关，**禁止改回一次性全量上传**（多 Case 必 413）。`flow-finalize` 将本 workspace 归档到 `$STATE/reports/<batch>/<run>/run/`，随后 `post-clean` **删除本 workspace 与其入口**。同一编排的多个分片默认各自独立（各自 `<batch>`/`<run>`/报告行）；仅当编排层显式注入 `AI_UITEST_BATCH_ID`（共享批次目录）与 `AI_UITEST_REPORT_ID`（共享报告行，引擎据此跳过 Open）时，各分片才 Append 到同一行——此时 Open 与最终 Close（行级 `run_status` / `duration`）必须归编排层统一执行，分片只 Append。`<run>` 重试落 `-r2/-r3`，不覆盖上一轮。目录内保留 `meta.json`（批次/run/状态的稳定索引）、`report.json`（批次报告）、`report-upload.json`（增量上报台账）、`case_NN/report.json` + `frames/`（Case 报告与截图 S3 URL）、`case_NN/inputs/`（**输入原文**：业务真源 `steps.json` + 执行输入 `steps-input.json`，与 `frames/` 同级，报告包自包含）和 `run/`（全部原始执行产物，含 inspect_tree / dumps 等过程信息）供数据分析。归档与报告统一脱敏，运行态原值不外泄。批量报告必须包含全部声明的 Case，缺失则 `run_status: incomplete`。报告归档在**执行前**（`flow-init`）自动滚动清理：保留最近 `AI_UITEST_KEEP_REPORTS` 个批次（缺省 5，0=关闭），60 分钟内写入的批次受保护不删；也可 `python3 scripts/cli.py prune [--keep N] [--dry-run]` 手动预览/清理。
+
+**补测 / 重测（只重跑报告内部分 Case）**：注入 `AI_UITEST_REPORT_ID` + `AI_UITEST_BATCH_ID`（复用原报告行，引擎跳过 Open、按 `case_id` 覆盖目标 Case，行级汇总由平台重算），并额外 `export AI_UITEST_PARTIAL_RERUN=1` —— 此时 `flow-finalize` **不回写报告级 `duration`**（保留首轮全量口径），也不会把未重跑的 Case 置为缺失。注意报告行 `run_status` 的语义是「本轮声明的 Case 是否全部产出报告」，不是通过率（全部 Case blocked 也可能是 `complete`），补测失败与否以 Case 状态和调用方 verdict 为准。
 
 Case 报告的 `steps` 是已声明步骤结论，`findings` 是独立判定，`notes` 是无判定备注。任何 fail 都会使 Case 状态为 failed，不存在"有失败但显示全绿"的情况。
 

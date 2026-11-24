@@ -7,13 +7,8 @@ from aitest.reporting.case_report import resolve_case_status
 from aitest.reporting.data_collector import _load_check_deps, skill_version
 from aitest.reporting.schema import aggregate_assertion_summaries
 from aitest.reporting.timeline import _build_timeline_events
-
-
-# 环境配置脱敏白名单——只保留非敏感字段
-# swimline（泳道名 + url_pattern）是 B 环境排查刚需，且非敏感：平台详情页有渲染分支，
-# 不进白名单会导致「B 泳道环境详情页泳道行恒为空」。
-SAFE_ENV_KEYS = {"type", "env_name", "auth_method", "ptest", "bundle_lock",
-                 "swimline"}
+# 环境展示白名单（与 Console 发现层共用同一口径：含 B 的 swimline / E 的 url_mappings）
+from aitest.shared.env_view import SAFE_ENV_KEYS
 _PLATFORM_LABELS = {"android": "Android", "harmony": "HarmonyOS"}
 
 # Case 终态：只有这些状态才算「本 Case 已走完」（决定 timeline 是否已收口）

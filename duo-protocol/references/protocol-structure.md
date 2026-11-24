@@ -43,18 +43,110 @@ DUO 页面协议（Page Protocol）整体描述页面的搭建配置：
 node('BottomBar', '798') {
   label '酒店提单-底部提单栏'      // 中文描述
   xIf {{ COMMON_PARAMS.systemInfo.isMRN }}   // 条件渲染
-  props {                        // 类型化字段声明
+  props {                        // ① 类型化字段声明（props 内只能放字段声明）
     bool('isOversea') {{ CONST.baseInfo?.isOversea }}
     number('totalPayAmount') {{ DATA_SOURCE?.data?.priceVO?.totalPayAmount }}
     string('currencySymbol') {{ '¥' }}
     object('commonParams') {{ [ fingerprint: COMMON_PARAMS.fingerprint.fingerprint ] }}
     array('priceItemList') {{ DATA_SOURCE?.data?.priceVO?.priceItemList }}
+  }                              // ← props 必须在这里闭合
+  propConfig('totalPayAmount') {  // ② 字段配置：与 props 同级，禁止写进 props
+    updateBy 'onChangePrice'
+    isRequestArg true
+    lock false
   }
-  on('onKeyBoardShow') {          // 事件
+  on('onKeyBoardShow') {          // ③ 事件
     callMethod('GuestCard', 'onKeyBoardShow')
   }
 }
 ```
+
+### 节点级声明（🔴 块层级铁律）
+
+`node` 内所有声明**平级、互不嵌套**，共 13 种：
+
+| 声明 | 写法 | 落 JSON | 说明 |
+|------|------|---------|------|
+| `label` | `label '底部提单栏'` | `resource.label` | 中文描述 |
+| `nodeId` | `nodeId 'existing-id'` | `nodeId` | 可选的后端存储标识，沿用现有协议格式 |
+| `nodeType` | `nodeType 'NORMAL_MODULE'` | `nodeType` | 仅 3 个值，见 §四 |
+| `materialType` | `materialType 'proCode'` | `materialType` | `proCode` / `lowCode` |
+| `key` | `key {{ item.orderId }}` | `advanced.iterateKey` | LIST_CONTAINER 子项唯一 key |
+| `xIf` | `xIf {{ !CONST.isError }}` | `advanced.displayRule` | 条件渲染 |
+| `xFor` | `xFor {{ DATA_SOURCE?.data?.list }}` | `advanced.items` | 列表数据源 |
+| `props` | `props { ... }` | `resource.props` | 类型化字段声明 |
+| `propConfig` | `propConfig('field') { ... }` | `resource.propConfig` | 字段级配置 |
+| `style` | `style('containerStyle') { ... }` | `resource.styles[name]` | 具名样式 |
+| `on` | `on('event') { ... }` | `resource.events.emit[event][]` | 事件 |
+| `buildConfig` | `buildConfig { lazyLoad true }` | `resource.buildConfig` | 惰加载 / 预请求 / 拆包 |
+| `slot` | `slot('renderContent') { node(...) { } }` | `slots[slotName][]` | 插槽子节点 |
+
+1. `propConfig` 必须与 `props` **同级**。写进 `props { }` 里会被当成一个「名为 propConfig 的字段」，**协议解析失败**（预览报错 / 白屏），`updateBy` / `isRequestArg` / `lock` 全部失效。
+2. `updateBy` 只能写在 `propConfig { }` 内，不能裸写在 `node` 或 `props { }` 里。
+3. 字段声明（`bool/number/string/object/array/objectWithSub`）只能写在 `props { }` 内；`transparentArg` 属于事件作用域，不在 `props` 里。
+
+> ⚠️ 这类错误 **Groovy 语法是合法的**（括号配平、缩进正常），语法校验 / ESLint 一律抓不到，只能靠块层级核对。
+
+真实线上案例（`nibfe/hotel-inb-orderfill` 的 `HotelInbOrderfillGuestInfo`）：
+
+```groovy
+// ❌ 错误：propConfig 被嵌进 props
+props {
+  string('email') {{ ... }}
+  propConfig('email') { updateBy 'onChangeEmail' }
+}
+
+// ✅ 正确：props 先闭合，propConfig 与 props 同级
+props {
+  string('email') {{ ... }}
+}
+propConfig('email') { updateBy 'onChangeEmail' }
+```
+
+### 插槽与惰加载（真实写法）
+
+```groovy
+node('LayoutTopBottom', '7') {
+  label '页面布局（上中下）'
+  slot('renderTop') {                       // 插槽：子节点只能写在 slot 里，不能直接写在 node 下
+    node('NavBar', '1523') { label '导航' }
+  }
+  slot('renderContent') {
+    node('OrderList', '2xxx') {
+      label '订单列表'
+      nodeType 'LIST_CONTAINER'
+      xFor {{ DATA_SOURCE?.data?.orderList }}   // 列表数据源
+      key {{ item.orderId }}                     // 子项唯一 key，列表必填
+      props {
+        string('title') {{ item.title }}
+      }
+    }
+  }
+  slot('renderBottom') {
+    node('BottomBar', '798') { label '底部提单栏' }
+  }
+  buildConfig {                             // 按需配置；不写时通常省略该字段
+    lazyLoad true
+  }
+}
+```
+
+> - 对声明了插槽的容器物料（如 `LayoutTopBottom`），子节点应按物料 schema 放入对应 `slot('插槽名')`，常见插槽名：`renderTop` / `renderContent` / `renderBottom`；是否允许其他挂载方式由物料协议决定。
+> - 大页面拆分：`include('nodes/XxxNode.groovy')` 与 `node(...)` **平级**（顶层 struct 或 slot 内），对应 `buildConfig { splitFile true }`。
+> - `buildConfig` 的可选值：`lazyLoad`（惰加载）/ `prefetch`（按数据源 ID 配置 JS/PN 预请求）/ `splitFile`（拆文件）。不配置时通常不输出 `buildConfig`，不要强制补 `null`。
+>
+> `prefetch` 不是布尔值，而是按数据源 ID 配置：
+> ```groovy
+> buildConfig {
+>   prefetch {
+>     submitData {
+>       jsEnabled true
+>       pnEnabled true
+>     }
+>   }
+> }
+> ```
+
 
 ### 字段声明类型
 
@@ -63,9 +155,24 @@ node('BottomBar', '798') {
 | `bool('xx')` | 布尔 |
 | `number('xx')` | 数字 |
 | `string('xx')` | 字符串 |
-| `object('xx')` | 对象 |
+| `object('xx')` | 对象（整体返回一个 Map） |
 | `array('xx')` | 数组 |
-| `transparentArg('xx','xx')` | 透传参数 |
+| `objectWithSub('xx') { }` | 带具名子字段的对象（子字段可被单独引用） |
+
+`object` vs `objectWithSub`：
+
+```groovy
+props {
+  object('params') {{ [ orderId: DATA_SOURCE?.data?.orderId ] }}   // 只整体使用
+  objectWithSub('lx') {                                            // 子字段需单独引用（如 CONST.lx.cid）
+    string('cid') {{ 'c_0evvuz5' }}
+    object('valLab') {{ [ deal_id: PAGE_QUERY.dealid ?: '-999' ] }}
+  }
+}
+```
+
+> - `objectWithSub` 是 **props 内的声明符**（与 `string/number` 同级），最终生成 `Object` 类型的 `sub` 层级；具体访问前缀以所在上下文为准。
+> - 协议转 Groovy 时，空 `sub` 可能被格式化为 `object`；Groovy 转协议时空的 `objectWithSub` 仍会保留为 Object + 空 `sub`，因此不要依赖空块表达特殊语义。
 
 ### 全局变量体系（核心）
 
@@ -73,12 +180,18 @@ node('BottomBar', '798') {
 |------|------|
 | `CONST` | 页面初始化常量/跳链参数（CONST.goodsID、CONST.baseInfo.checkin） |
 | `DATA_SOURCE` | 数据源返回（DATA_SOURCE.data.priceVO.totalPayAmount） |
-| `NODE` | 某个节点（NODE.BookTime?.props?.checkInPeriod） |
+| `NODE` | 某节点属性（**仅入参场景**，如 `NODE.GuestCard?.props?.email`） |
 | `PAYLOAD` | update/submit 入参（PAYLOAD?.roomNum?.value） |
 | `PREV_DATA` | 上一轮数据 |
 | `COMMON_PARAMS` | 公共参数（location/city/systemInfo/fingerprint） |
 | `PAGE_QUERY` | 页面 query |
-| `PROPS` | 父级传入 props |
+| `PROPS` | **自身节点**属性（配合 `propConfig` 双向绑定使用） |
+
+> ⚠️ **使用限制**（放错位置语法不报错，运行时才炸）：
+> - `PREV_DATA`、`PAYLOAD`、`NODE.xxx.props` **只能用于 dataSourceMap 的入参**（`requestProps`），不能出现在 struct 的 `props` 表达式里
+> - `DATA_SOURCE` 反过来：**不能用于数据源入参**，入参要用 `PREV_DATA`
+> - `CONST` 之间不能互相引用；`PAYLOAD` 只在当次 update 生效、不可复用
+> - `SYSTEM_INFO`（后端侧）：`realRemoteIp` / `user-agent` / utm 等，只在后端可用
 
 ## 四、节点类型
 
@@ -87,7 +200,8 @@ node('BottomBar', '798') {
 | `NORMAL_MODULE` | 普通渲染模块 |
 | `HANDLER_MODULE` | 只执行逻辑、不渲染 UI |
 | `LIST_CONTAINER` | 列表容器 |
-| `STATIC` | 编译时静态处理（`MaterialConfig.buildIn='static'`），只放逻辑不渲染 |
+
+> `nodeType` 只有上面 3 个值。`STATIC`/`static` **不是 nodeType**，而是物料属性 `MaterialConfig.buildIn='static'`（编译时静态处理、不进渲染树）；DSL 里用 `nodeType '...'` 声明 nodeType，两者不要混。
 
 ### static/逻辑节点区分
 
@@ -117,7 +231,7 @@ node('MeishiCommonDuoLifecycle1', '13') {
 |------|------|
 | `preview.onResponse` / `preview.onSuccess` / `preview.onEngineFail` | preview 各阶段 |
 | `submit.onFail` / `submit.onSuccess` | submit 结果 |
-| `updateBy` | 双向绑定（如 `updateBy 'onChangeHourPeriod'`） |
+| `updateBy` | ⚠️ 不是 lifecycle 事件，只能写在 `propConfig('field') { }` 块内（见 §三） |
 | `on('onKeyBoardShow')` 等 | 交互事件 |
 
 ## 六、json 类文件修改指南

@@ -15,7 +15,7 @@
 ```
 Step 1: AI 准备数据 → 写入临时文件
 Step 2: createAndInsertChart（创建骨架 → 上传数据 → 查询 schema → 保存发布）
-Step 3: getDocumentXml → 插入 chartXml 节点 → updateDocumentByXml
+Step 3: getDocumentXml → 原样插入返回的完整 chartXml → updateDocumentByXml
 ```
 
 #### 详细命令
@@ -33,12 +33,12 @@ Step 3: getDocumentXml → 插入 chartXml 节点 → updateDocumentByXml
 #   ["3月", 120, 28]
 # ]
 
-# Step 2：创建图表（基础用法）
+# Step 2：以下两种创建方式选一种。用 --raw 获取包含完整 chartXml 的 JSON。
 oa-skills citadel createAndInsertChart \
   --contentId <文档ID> \
   --title "月度销售趋势" \
   --type line \
-  --data-file /tmp/chart-data.json
+  --data-file /tmp/chart-data.json --raw
 
 # Step 2（进阶）：同时指定可视化配置
 oa-skills citadel createAndInsertChart \
@@ -51,22 +51,21 @@ oa-skills citadel createAndInsertChart \
   --x-axis-name "月份" \
   --y-axis-name "销量（件）" \
   --data-zoom true \
-  --toolbox true
+  --toolbox true --raw
 
-# 命令返回值包含：
-# - chartId：图表 ID（20位 hex 字符串）
-# - chartXml：<km-data2chart chartId="<chartId>" />
-# - title：图表标题
-
-# Step 3：将 chartXml 插入文档合适位置
+# Step 3：读取同一文档，记录返回的 stepVersion
 oa-skills citadel getDocumentXml --contentId <文档ID> --output /tmp/doc.xml
-# AI 编辑 /tmp/doc.xml，在合适位置插入：
-# <km-data2chart chartId="<chartId>" />
+# 解析步骤 2 返回的 JSON，将 chartXml 字符串原样插入 /tmp/doc.xml 的目标段落
 oa-skills citadel updateDocumentByXml \
   --contentId <文档ID> \
   --file /tmp/doc.xml \
-  --step-version <stepVersion>
+  --step-version <stepVersion> --raw
+# 返回 {"success":true} 后，向用户确认图表已插入
 ```
+
+创建结果的 `chartId` 是图表服务分配的 20 位图表 ID，对应 XML 节点 `<km-data2chart>` 的 `id` 属性。命令参数 `--chartId` 也取这个值。节点上的 `chartId` 属性用于外部数据源，通常为空。`nodeId` 是编辑器的节点标识，编辑时保留原值。
+
+直接复用返回的 `chartXml` 可保留 `pageId`、尺寸、`<km-config>` 和 `<km-data>`。已有图表报 `attrs.id` 错误时，保留原节点，按报错位置核对原始 XML 或已确认归属该文档的图表。无法确认图表 ID 时停止写入，勿用 UUID、`chartId` 或 `nodeId` 补填。
 
 #### 参数说明
 
@@ -125,8 +124,7 @@ oa-skills citadel updateDocumentByXml \
 适用场景：修改图表的表格数据，可同时修改标题或图表类型。
 
 ```bash
-# Step 1：获取 chartId（从文档 Markdown 占位行）
-# 占位行格式：📈 **数据图表**（id: <chartId>）
+# Step 1：从 getSimpleMarkdown 输出中读取图表旁标为 chartId 的值，或从文档 XML 读取图表节点的 id
 # 无需再手动获取 source_id，命令内部自动获取
 
 # Step 2：准备新数据
@@ -158,7 +156,7 @@ oa-skills citadel updateChartData \
 | 参数 | 必填 | 说明 |
 |------|------|------|
 | `--contentId` | ✅ | 文档 ID |
-| `--chartId` | ✅ | 图表 ID（来自文档 Markdown 占位行） |
+| `--chartId` | ✅ | 图表 ID，取文档 XML 的图表节点 `id` 或简化 Markdown 展示的图表 ID |
 | `--source-id` | 可选 | 数据源 ID（通常无需手动传入，命令内部自动获取）|
 | `--data` / `--data-file` | ✅ 二选一 | 新数据集 |
 | `--title` | 可选 | 同时更新图表标题 |
@@ -290,7 +288,7 @@ oa-skills citadel updateChartConfig \
 
 ```bash
 # 从 getSimpleMarkdown 的输出找到占位行：
-# > 📈 **数据图表**（id: <chartId>）
+# > 📈 **数据图表**（chartId: <chartId>）
 
 oa-skills citadel getChartData --contentId <文档ID> --chartId <chartId>
 ```
@@ -323,10 +321,9 @@ oa-skills citadel getChartData --contentId <文档ID> --chartId <chartId>
 
 **Q：createAndInsertChart 命令返回了 chartXml，图表为什么没出现在文档里？**
 
-A：`createAndInsertChart` 只是创建并发布图表对象，**不会自动插入文档**。必须额外执行三步：
-1. `getDocumentXml --output /tmp/doc.xml`
-2. 在 XML 合适位置插入 `<km-data2chart chartId="<chartId>" />`
-3. `updateDocumentByXml --file /tmp/doc.xml`
+创建图表后还需要保存文档。按本页 1.1 节，把返回的完整 `chartXml` 插入目标段落并提交。
+
+若提交后服务端报错或保存结果不明，先用 `getDocumentXml` 回读，按图表 `id` 和本次正文改动核对结果。若正文已保存，向用户说明正文已更新、图表关联待核实。核实前停止重复插入或重试保存。
 
 ---
 

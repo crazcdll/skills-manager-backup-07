@@ -48,6 +48,16 @@ python3 "$SKILL_DIR/scripts/external_analyzer_loader.py" build-manifest \
 
 **manifest 字段（完整定义）**：`{queryId, repo, prId, targetCommit, title, changedFiles}`；`queryId` = 传 `--org` 时 `{org}/{repo}#{prId}@{targetCommit前8位}`，未传时 `{repo}#{prId}@{targetCommit前8位}`；`changedFiles` 从 2F 冻结清单取
 
+#### targetCommit 契约分类（过渡期机制）
+
+SOP 契约要求 `targetCommit` 为 **40 位完整 sha**。上游传参不合规时（分支名/短 hash），loader `run` 阶段做**分类打标，不拦截**（分析照常执行，不断流）：
+
+- 分类结果：`valid` / `short-hash`（7~39 位 hex）/ `branch-like`（分支名等 ref 形态）
+- 打标链路：违规时 manifest 注入 `contractNote:{commitClass,raw}` → 随 `_manifest` 透传 → `collect` 后 `checks[].commitClass` + `dropReasons` 追加 `degraded-analysis:{commitClass}` → envelope 顶层 `contractViolations[]`
+- 事实日志：`run` 阶段即写入 `EXTAN_CONTRACT_LOG`（默认 `/tmp/contract-violations.log`），含 repo/prId/queryId/commitClass/raw，作为上游修复验证的事实源；不计入 analyzer 三振熔断（违规归因上游）
+- 门禁影响：无（纯信息标记，不改变门禁判定，结论效力由 Step 7 综合评估）。但**降级轮次的零发现不可作为「未发现架构漂移」的确定性依据**，学城文档结论中必须携带降级标记措辞，禁止写确定性「未发现」表述
+- 上游修复后（合同日志连续 7 天无新增）二期收紧为 fail fast，届时本节移除
+
 **子 Agent task 必含四项（原文，逐字写入 task，不得改写）**：
 
 1. analyzer skill 路径（注册表中的安装路径）

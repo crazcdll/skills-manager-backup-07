@@ -154,14 +154,9 @@ def _to_bool01(value):
 
 
 def _env_code(value) -> str:
-    """环境类型归一：A/B/C/D 原样，online/swimline/alpha/noop 反查为字母。"""
-    code = str(value or "").strip().upper()
-    return {
-        "ONLINE": "A",
-        "SWIMLINE": "B",
-        "ALPHA": "C",
-        "NOOP": "D",
-    }.get(code, code)
+    """环境类型归一（唯一事实来源：`env_validator.normalize_env_type`）。"""
+    from aitest.provisioning.validators.env_validator import normalize_env_type
+    return normalize_env_type(value)
 
 
 def _require(info: dict, key: str, where: str, errors: list) -> None:
@@ -412,13 +407,13 @@ def _check_fields(action_type: str, info: dict, where: str, errors: list) -> Non
 
 
 def _check_env_capability(action_type: str, info: dict, env_type: str, where: str, errors: list) -> None:
-    """与环境能力矩阵联动：ptest 类能力只在线上环境（A）可生效。"""
+    """与环境能力矩阵联动：ptest 类能力只在线上环境（A 基准 / P 泳道）可生效。"""
     if action_type != "htptest" or _to_bool01(info.get("value")) != 1:
         return
     env_code = _env_code(env_type)
-    if env_code and env_code != "A":
+    if env_code and env_code not in ("A", "P"):
         errors.append(
-            f"{where}: htptest（住宿 ptest）仅线上环境（A）可用，当前环境 {env_code}；"
+            f"{where}: htptest（住宿 ptest）仅线上环境（A 基准 / P 线上泳道）可用，当前环境 {env_code}；"
             "请改用场景 Mock 或切换到线上环境"
         )
 
@@ -482,8 +477,8 @@ def validate_testability(configs, env_type=None) -> list:
 
     Args:
         configs: `env.testability` 原始列表（steps.json / CASES case env）。
-        env_type: 场景环境类型（A/B/C/D 或 online/swimline/alpha/noop），用于
-            能力适用性判断（如 htptest 仅 A）。缺省时跳过该类校验。
+        env_type: 场景环境类型（A/P/B/C/E/D 或 online/online_ptest/swimline/alpha/urlmapping/noop），用于
+            能力适用性判断（如 htptest 仅 A/P）。缺省时跳过该类校验。
 
     Raises:
         TestabilityValidationError: 存在任一 error；message 汇总前 20 条，

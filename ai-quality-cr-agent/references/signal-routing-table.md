@@ -119,4 +119,4 @@ subagent-sec: (skipped - no SIG-SECURITY hit)
 
 **播报**：`✅ Step 3E:检测到 {n} 个活跃信号 → subagent-java({x}文件), subagent-db-dep({x}文件), subagent-ha({x}文件), subagent-sec({skipped/x}文件)`
 
-> 🚨 **Step 3E 完成后立即并行启动 Step 4-A、Step 4-B 和 Step 4-C，不得停顿。ACTIVE_SIGNALS 透传给 Step 4-B 使用；`/tmp/cr_custom_rules_{prId}.md` 透传给 Step 4-C 使用。**
+> 🚨 **Step 3E 完成后立即并行启动适用的 Step 4-A、Step 4-B 和 Step 4-C。ACTIVE_SIGNALS 透传给 Step 4-B；本轮仓库规则回执和其中的有效缓存路径透传给 Step 4-C。**

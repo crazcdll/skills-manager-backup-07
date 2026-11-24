@@ -52,7 +52,7 @@ oa-skills citadel updateDocumentByXml --contentId <id> --file doc.xml --step-ver
 6. **新增表格时第一行必须是表头行**：优先使用 `<th>`，不要首行全部写成 `<td>`
 7. **新增表格默认使用自适应宽度**：新建表格必须使用 `responsive="true"`（自适应宽度），不要使用 `responsive="false"`（固定宽度）；新建表格的单元格不要指定 `colwidth` 属性，学城会根据内容自动分配列宽；只有在编辑已有固定宽度表格时才保留原有 `colwidth` 值
 8. **注释节点保留 ID**：`<km-footnote-item>` 的正文可改，但 `footnoteNodeId` / `nodeId` 必须原样保留
-9. **块级图表配置按子标签保留**：`<km-data2chart>` 内部配置可按原文保留，不要擅自重写结构
+9. **保留图表完整节点**。编辑正文时保留原图表的属性、配置和数据子标签。新增图表时原样插入命令返回的 `chartXml`。[图表插入说明](chart-insert.md)
 10. **空行分隔块**：不同的块元素之间的 XML 格式保持一致，列表项之间不额外加空行
 11. **行内节点不跨块**：所有行内节点（`<a>`、`<km-mention>` 等）必须在同一段落内，不能跨块
 12. **不要扩大修改范围**：如果用户只要求替换一句话、一个标题、某个表格单元格，就不要把整段甚至整篇重新生成
@@ -117,7 +117,7 @@ oa-skills citadel updateDocumentByXml --contentId <id> --file doc.xml --step-ver
 | `<km-open-link>` | `href`（非空字符串） | 链接卡片 URL 不能为空；**属性名必须是 `href`，禁止写成 `url`**（学城服务端 schema 只认 `href`，误写 `url` 会导致节点被静默丢弃）；`href` 为空的旧节点转换时会被自动丢弃，AI 编辑时不得新增或保留 `href` 为空的节点。**`type` 属性禁止 AI 凭空创建或猜测**——`type` 由学城前端根据 `href` 域名识别生成，不是可枚举值；编辑已有 `<km-open-link>` 节点时必须原样保留其 `type`，不得清空或修改；**新建**指向三方系统的链接时如不确定 `type`，改用上表 `<a>` 标签（普通链接/`autoUpdate="true"` 学城链接），不要新建 `<km-open-link>`（详见 [doc-xml-syntax.md](doc-xml-syntax.md) 中「开放链接卡片」「链接」两小节） |
 | `<km-open-card>` | `url`（非空字符串） | 卡片嵌入链接不能为空；**禁止 AI 凭空新建**：`type` 是编辑器配置的应用类型，`refId` 通常由引用注册接口生成，不能从 URL 猜测。编辑已有节点时必须完整保留 `url`、`width`、`height`、`type`、`align`、`refId`、`nodeId`，除非用户明确要求修改链接地址；学城文档链接应改用 `<a autoUpdate="true">`（详见 [doc-xml-syntax.md](doc-xml-syntax.md)） |
 | `<km-open-iframe>` | `src`、`nodeId`、`attachmentId` **三者不能同时为空** | 可以只有 `nodeId`+`attachmentId`（如 WPS Excel 等内嵌文档），但不能三个都空；WPS Excel 的 `attachmentId` 必须通过专用接口创建（见下方"创建 WPS Excel 嵌入节点"章节），不能复用图片/附件/视频/音频的 ID |
-| `<km-data2chart>` | `id`（非空字符串） | 图表唯一标识不能为空；**禁止**修改 `id` |
+| `<km-data2chart>` | `id`（20 位、不含空白的字符串） | 图表服务分配的 ID。保留原值，报错时按节点路径核对原图表。 |
 
 #### 容器节点结构约束
 

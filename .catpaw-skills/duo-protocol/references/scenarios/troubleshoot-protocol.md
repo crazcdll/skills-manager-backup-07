@@ -20,7 +20,8 @@ update 异常  → 检查 update 接口入参、updateBy 是否配置、数据�
 | 页面白屏 | preview 异常 / 协议结构错 / 物料加载失败 | 抓 preview + Raptor JSError |
 | 物料不渲染 | 物料未引用 componentsMap/dependencies / 节点类型 | 查引用 + 描述文件 |
 | 表达式不生效 | 语法错 / 变量编造 / 类型不匹配 / 放错节点 | 配置平台校验 + duo-debug-panel |
-| update 无变化 | updateBy 缺失 / 事件名不匹配 / 数据未传 | 查 updateBy + on 事件 |
+| update 无变化 | **propConfig 被嵌进 props** / updateBy 缺失 / 事件名不匹配 / 数据未传 | 先查 propConfig 块层级，再查 updateBy + on 事件 |
+| 预览报错但语法正常 | propConfig 等块级 API 层级错误（写进了 props） | 查 node 内子块是否互不嵌套 |
 | 提交无响应 | submit 回调未配 / 事件未触发 | 查 logics/submit.* |
 | 小程序端异常 | 安全基线 header / mrnChannel / 生命周期差异 | 区分端排查 |
 | 鸿蒙端异常 | 鸿蒙依赖漂移 / oh-package | 查 ohDependencies |
@@ -38,6 +39,29 @@ update 异常  → 检查 update 接口入参、updateBy 是否配置、数据�
 6. 用 duo-debug-panel 看求值结果
 
 ### 3.2 update 无变化
+
+**第 0 步（最容易漏，优先查）：块层级对不对？**
+
+- `propConfig('field') { }` 是否被写进了 `props { }` 里面？
+- `updateBy 'xxx'` 是否裸写在 `node` / `props { }` 里，而没被 `propConfig` 包裹？
+
+这两类错误 **Groovy 语法完全合法、缩进看起来也正常**，但 DSL 解析时 `propConfig` 被降级成普通字段，`updateBy` / `isRequestArg` / `lock` 全部失效 —— 表现为"改了值不联动、update 请求里没有这个字段"。
+
+正确结构速记：
+
+```groovy
+node('XxxNode', '物料ID') {
+  props {                       // 只放字段声明
+    string('email') {{ ... }}
+  }                             // ← 必须在这里闭合
+  propConfig('email') {         // 与 props 同级
+    updateBy 'onChangeEmail'
+    isRequestArg true
+  }
+}
+```
+
+**第 1~5 步（块层级没问题后再看）：**
 
 1. 该字段/节点配了 `updateBy` 吗？
 2. `updateBy 'xxx'` 与触发的 `on('xxx')` 事件名一致吗？

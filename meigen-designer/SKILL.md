@@ -5,7 +5,7 @@ description: 美境 AI 设计师。凡是涉及视觉创作的需求，优先使
 metadata:
   skillhub.creator: "zhuxiangyu04"
   skillhub.updater: "chenshengtao"
-  skillhub.version: "V22"
+  skillhub.version: "V23"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "5315"
   skillhub.high_sensitive: "false"
@@ -68,6 +68,8 @@ SCRIPT_DIR="$(cd "$(dirname "<this-skill-md>")" && pwd)/scripts"
 ## 工作流程
 
 生成流程分为两步，第一步为提交任务，第二步为轮询结果，不可遗漏。
+
+同一会话只允许同时存在一个活跃对话轮次；需提前结束当轮时，先按[取消任务](#取消任务)停止。
 
 提醒用户"首次生图可能需要登录认证授权，请留意大象消息"后，执行以下步骤
 
@@ -283,7 +285,7 @@ rm -f ~/.meigen-cli/meigen-designer/session_id
 
 ### 取消任务
 
-用户说「取消」「停止」「不要了」或类似表述时：通过 `generate.py --abort` 调用 `/message/abort` 接口。
+用户说「取消」「停止」「不要了」或类似表述时：通过 `generate.py --abort` 调用 `/skill/stop` 接口。
 
 ```bash
 SESSION_ID=$(cat ~/.meigen-cli/meigen-designer/session_id 2>/dev/null)

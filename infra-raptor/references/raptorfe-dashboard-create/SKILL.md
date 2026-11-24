@@ -3,7 +3,7 @@ name: raptorfe-dashboard-create
 display_name: Raptor 自定义大盘创建
 description: 快速创建 Raptor 自定义监控大盘。支持两种方式：①自然语言描述要监控的指标（如"配置美团iOS WaimaiAddress组件的crash率"），②直接粘贴 Raptor 页面链接（自动解析指标和筛选条件）。自动完成指标查找→大盘创建→Tab创建→图表配置全流程。触发词：创建大盘、新建大盘、创建raptor大盘、创建大前端大盘、创建监控大盘、帮我建个大盘、配置大盘、新建监控看板。
 tags: 终端基础技术,Raptor,大前端,大盘,监控
-version: 0.2.0
+version: 0.2.1
 created: 2026-04-23
 ---
 
@@ -17,10 +17,18 @@ created: 2026-04-23
 
 ## 🔧 前置依赖
 
+> **🌏 环境适配（境内 / 境外）**：下文默认使用 `raptorfe`（境内）。若用户提到「海外 / 境外 / overseas」或给出 `raptor.mws.keetapp.com` 链接，**本文所有 `raptorfe` 命令一律改用 `raptorfeov`**（模块、子命令、参数、时间格式完全一致），页面链接同步换成 keetapp 域名。判定规则与完整约束见父技能 `SKILL.md` 的「环境识别：境内 / 境外」章节；一次判定后全程不混用。
+>
 > **前置预检（每次激活时执行，一行兜底，避免首次执行报 command not found）：**
 > ```bash
-> command -v raptorfe >/dev/null 2>&1 || npm install -g @mtfe/raptorfe-cli@beta @dp/sso-auth-cli@latest --registry http://r.npm.sankuai.com
+> command -v raptorfe >/dev/null 2>&1 || npm install -g @mtfe/raptorfe-cli @dp/sso-auth-cli@latest --registry http://r.npm.sankuai.com
 > ```
+>
+> **版本门禁（三期能力）**：图表类型 0-7、参考线/环比/维度对比、灰度配置、Tab 级筛选器、跨 Tab 复制、老大盘导入要求 `raptorfe --version ≥ 2.0.3`（semver 比较）。低于该版本时执行：
+> ```bash
+> npm install -g @mtfe/raptorfe-cli --registry=http://r.npm.sankuai.com
+> ```
+> 旧版本调用新命令会报 `unknown command` / `unknown option`，先升级再重试，不要改用浏览器接口绕过。
 
 ---
 
@@ -287,8 +295,10 @@ raptorfe dashboard chart add \
   --dashboard-id <dashboardId> \
   --tab-id <tabId> \
   --name "<图表名称>" \
+  --type <0-7，默认 0 折线图，见「图表类型」表> \
   --metrics '<JSON数组>' \
-  --unit '<单位JSON（可选）>'
+  --unit '<单位JSON（可选）>' \
+  [--reference-lines/--last-periods/--chart-config/--group-by-tags/--default-filters 三期参数，见第四步]
 
 # Step 4b：批量添加多个图表（推荐，图表数 >= 2 时使用）
 # 先将图表配置写入临时 JSON 文件，再批量添加
@@ -297,13 +307,11 @@ raptorfe dashboard chart add-batch \
   --tab-id <tabId> \
   --file /tmp/charts_<dashboardId>.json
 
-# Step 5：尝试删除系统默认的空白 Tab 页
-# ⚠️ 当前后端对 tab remove 返回 HTTP 405，CLI 无法删除，执行后若报错请跳过
-# 最终在输出结果中提示用户手动到大盘页面删除"第一个Tab页"
+# Step 5：删除系统默认的空白 Tab 页
+# 2.0.3-beta.0 已修复为真实 DELETE（旧版误用 POST 导致 405）
 raptorfe dashboard tab remove \
   --dashboard-id <dashboardId> \
-  --tab-id <默认TabId> \
-  || true  # 405 报错时忽略，继续后续步骤
+  --tab-id <默认TabId>
 
 # Step 6：验证结果
 raptorfe dashboard get --id <dashboardId>
@@ -365,6 +373,30 @@ raptorfe dashboard get --id <dashboardId>
 ]
 ```
 
+### 修改已有图表（chart update，部分更新）
+
+`chart update` 为读-改-写语义：**不传的字段沿用原值，`--metrics` 可选**；适合改名/改参考线/改环比而不重写全部指标。
+
+```bash
+# 只改名，不传 --metrics → 指标配置全部沿用
+raptorfe dashboard chart update \
+  --dashboard-id <dashboardId> --tab-id <tabId> --chart-id <chartId> \
+  --name "<新图表名称>"
+
+# 改参考线/环比（整体替换，传了才生效）
+raptorfe dashboard chart update \
+  --dashboard-id <dashboardId> --tab-id <tabId> --chart-id <chartId> \
+  --reference-lines '[{"name":"新目标","value":2500}]' \
+  --last-periods '[1,7]'
+
+# 改指标（传了 --metrics 则整体替换指标列表，需带上完整配置）
+raptorfe dashboard chart update \
+  --dashboard-id <dashboardId> --tab-id <tabId> --chart-id <chartId> \
+  --metrics '<完整 metrics JSON 数组>'
+```
+
+> ⚠️ `--from-zero`（Y 轴从零开始）只能在 add 时设置，update 无法取消，需取消时删除图表重建。
+
 ### 多 Tab 大盘
 
 如果用户需要多个 Tab（如 Android/iOS 分开），对每个 Tab 重复 Step 3 + Step 4，最后统一执行 Step 5 删除默认 Tab：
@@ -378,8 +410,8 @@ raptorfe dashboard chart add-batch --dashboard-id <id> --tab-id <tabId1> --file 
 raptorfe dashboard tab create --dashboard-id <id> --name "iOS"
 raptorfe dashboard chart add-batch --dashboard-id <id> --tab-id <tabId2> --file /tmp/charts_ios.json
 
-# 最后尝试删除默认 Tab（后端当前返回 405，失败则跳过，提示用户手动删）
-raptorfe dashboard tab remove --dashboard-id <id> --tab-id <默认TabId> || true
+# 最后删除默认 Tab
+raptorfe dashboard tab remove --dashboard-id <id> --tab-id <默认TabId>
 ```
 
 ---
@@ -400,11 +432,94 @@ Tab 页：
     - <图表1名称>：<指标描述>
     - <图表2名称>：<指标描述>
     ...
-
-⚠️ 还有一步需要手动操作：大盘默认会带一个空白的「第一个Tab页」，CLI 暂时无法自动删除（后端返回 405）。请打开大盘链接，在 Tab 栏找到「第一个Tab页」，手动将其删除。
 ```
 
 > ⚠️ 访问链接格式固定为 `https://raptor.mws.sankuai.com/lowcode/custom/dashboard/detail?dashboardId=<id>`，不要使用旧格式 `/dashboard/<id>`。
+
+---
+
+## 第七步：大盘级三期编排（可选增强）
+
+以下四组能力按需使用，全部要求 `raptorfe ≥ 2.0.3`。所有示例命令均已在生产环境真跑验证（2026-11-20，raptorfe 2.0.3-beta.0）。
+
+### 灰度大盘配置（gray-config）
+
+灰度观测配置走 `dashboard gray-config` 三命令组（独立接口，不走 fillSettings FILTER/PRO 通道）：
+
+```bash
+# 读取某 Tab 的灰度配置（返回配置数组）
+raptorfe dashboard gray-config get --dashboard-id <dashboardId> --tab-id <tabId>
+
+# 保存（按 Tab 整体覆盖写）：configs 为完整配置数组
+raptorfe dashboard gray-config save --dashboard-id <dashboardId> --tab-id <tabId> \
+  --configs '[{"monitorType":"CLIENT","versionKey":"appVersion","appName":"meituan-harmony","clientMonitorType":"FULL","versionScope":"{\"latest\":true,\"second\":true,\"customList\":[]}","versionCompare":true}]'
+
+# 查询版本位次（最新全量/次新全量版本号）
+raptorfe dashboard gray-config versions --dashboard-id <dashboardId> --tab-id <tabId>
+```
+
+**实证语义（2026-11-20 真跑）**：
+
+- **同 Tab 同 monitorType 唯一**：服务端有 `uk_tab_type`（tab_id + monitor_type）唯一约束，configs 数组中同一 monitorType 只能有一条，否则报 `Duplicate entry`。
+- **修改已有配置必须带原 id**：不带 id 的新条目会与现存配置撞唯一键；带上原 id 才是更新语义。**但保存后服务端会重分配 id**（实测 id 66 → 177 → 178，覆盖式 delete+insert 实现），不要依赖 id 稳定性，每次改配置前先 `get` 取最新 id。
+- **`versionScope` 是 JSON 字符串**（内层双引号需转义）：`"{\"latest\":true,\"second\":true,\"customList\":[]}"`。
+- **清空保护**：`--configs '[]'` 会清空目标 Tab 全部灰度配置，必须显式传 `--allow-clear`，否则 exit 2 拒绝。
+- **保存结果必须回读校验**：服务端业务错误（如唯一键冲突）透传在 `data.data.error` 中，而 CLI 顶层 `success:true`、退出码 0（实测 Duplicate entry 案例）——**勿仅依赖退出码判断成败，save 后一律 `get` 回读确认**。
+- **versions 当前仅 CLIENT 位次有数据**：DYNAMIC 位次待服务端样本确认（CLI 帮助文本已知限制口径），编排时不假设其返回值。
+
+### Tab 级筛选器（filter）
+
+```bash
+# 读取 Tab 筛选器（filters / defaultFilters / groupByTags）
+raptorfe dashboard filter get --dashboard-id <dashboardId> --tab-id <tabId>
+
+# 保存（合并式）：只改传了的字段，未传字段保留当前值
+raptorfe dashboard filter save --dashboard-id <dashboardId> --tab-id <tabId> \
+  --filters '{"appVersion":[],"arch_type":[]}' \
+  --default-filters '{"app":["com.sankuai.meituan"]}' \
+  --group-by-tags '["appVersion"]'
+```
+
+**实证语义（2026-11-20 真跑）**：save 为合并式——未传的字段保留原值（实测只传 defaultFilters/groupByTags 时 filters 原样保留）；传 `'{}'` 可清空 `--default-filters`，传 `'[]'` 可清空 `--group-by-tags`。`filters` 的 key 集合由页面决定，编排时先 `get` 读出现有 key 再改值，不要凭空新增 key。
+
+### 跨 Tab 复制（tab copy-config）
+
+```bash
+# 把源 Tab 的图表/筛选器配置复制到目标 Tab
+raptorfe dashboard tab copy-config --dashboard-id <dashboardId> \
+  --from-tab <源tabId> --to-tab <目标tabId> [--include-gray] [--overwrite]
+```
+
+**实证语义（2026-11-20 真跑）**：
+
+- **`--overwrite` 保护不可省略**：目标 Tab 已有任何筛选器配置时，不带 `--overwrite` 会 exit 2（INVALID_PARAM）拒绝并提示目标现有配置；确认覆盖后显式加上。
+- **一次性复制**：复制完成后源/目标独立编辑互不影响。
+- **`--include-gray`**：连同灰度配置一起复制（实测灰度配置同步到达目标 Tab）。
+
+### 老 Raptor 大盘导入（方式三）
+
+> ✅ **验收状态**：导入链路 2026-11-20 真跑验收通过（dry-run + 真实导入 + 清理）。
+> **已知缺陷（CLI 侧，已登记修复）**：`--dry-run` 预览链路偶发 socket hang up（约 6.5s 断开，NETWORK_ERROR）。2026-11-20 本地验收可复现：同一分钟内直连 client（exportOldDashboard→importOldDashboard）成功（0.3s/0.1s）、CLI 真实导入成功，仅 CLI `--dry-run` 失败——嫌疑为 `withoutDryRun` 包装路径绕过 dry-run 拦截时丢失代理/重试配置，已升级为 CLI 缺陷修复项（进 2.0.3.x 或 2.0.4，带故障注入验收）。**真实导入链路已实证可靠，不受此缺陷影响**。
+
+流程固定三步：**dry-run 预览 → 用户确认 → 真实导入**。
+
+```bash
+# Step 1：dry-run 预览转换计划（不落库；注意 --dry-run 是全局参数，必须放在子命令前）
+raptorfe --dry-run dashboard import --old-id <老大盘ID> --name "<新大盘名称>" --scope PERF
+
+# Step 2：向用户展示转换计划（转换了哪些图表、哪些被跳过及原因），等用户确认
+
+# Step 3：确认后真实导入（去掉 --dry-run）
+raptorfe dashboard import --old-id <老大盘ID> --name "<新大盘名称>" --scope PERF
+# 返回新大盘 dashboardId，输出新大盘链接
+```
+
+**必须向用户传达的语义**：
+
+- **dry-run 失败容错（短期兜底，CLI 修复后可下线）**：Step 1 预览失败且错误为 NETWORK_ERROR / socket hang up 时，向用户说明「预览暂不可用（已知网络问题，CLI 缺陷修复中）」，**经用户确认后可直接跳过预览走真实导入**（真实导入已实证可靠）；不要改参数、不要连续快速重试。跳过预览时，导入后必须回读核对（见下条「指标静默映射边界」），并把无法预先核对转换计划的情况告知用户。
+- **notIdempotent**：导入命令不幂等，重复执行会**重复创建新大盘**。执行前确认从未导入过该老 ID，或先让用户清理上次产物。
+- **非折线图过渡转换**：timeTable/funnel/multiRing 等类型当前会被跳过并显式警告（CLI 帮助文本标注的客户端过渡逻辑，服务端未来适配后此逻辑可能下线）；其余非折线老图表降级为折线图。dry-run 输出中逐项核对跳过清单，如实告知用户丢失的类型。
+- **指标静默映射边界（2026-11-17 探测结论）**：服务端对无法映射指标的图表存在静默丢弃、指标静默失败（`metricsName: null`）行为，导入后必须 `dashboard get` 回读并逐 Tab 核对图表数与指标完整性，把差异清单告知用户。
 
 ---
 
@@ -515,7 +630,7 @@ charts.json 示例：
 
 **管理员**：`dashboard create` 时必须通过 `--admins` 传入当前用户 MIS 账号，否则大盘创建后无法编辑。MIS 账号获取优先级：先执行 `echo $ME2B_MOA_MIS_ID` 获取环境变量，若为空则执行 `whoami`，两者都为空时才询问用户。
 
-**默认 Tab 清理**：大盘创建后系统自动生成一个"第一个Tab页"的空白 Tab。当前后端对 `tab remove` 接口返回 HTTP 405，CLI 无法自动删除，执行报错时直接跳过。需在最终输出中提示用户打开大盘页面手动删除"第一个Tab页"。
+**默认 Tab 清理**：大盘创建后系统自动生成一个"第一个Tab页"的空白 Tab，在业务 Tab 创建完成后用 `tab remove` 删除（2.0.3-beta.0 已修复为真实 DELETE，此前版本误用 POST 导致 405 报错）。
 
 **访问链接**：新 Raptor 大盘链接格式为 `https://raptor.mws.sankuai.com/lowcode/custom/dashboard/detail?dashboardId=<id>`，不要使用旧格式 `/dashboard/<id>`。
 

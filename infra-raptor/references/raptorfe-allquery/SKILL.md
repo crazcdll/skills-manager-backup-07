@@ -3,7 +3,7 @@ name: infra-raptorfe-allquery
 display_name: Raptor大前端全量指标查询
 description: 通过自然语言描述查询 Raptor 大前端相关的各类指标数据，支持 Crash（崩溃率/ANR/Foom/watchdog/捕获异常）、Raptor大前端指标（RCF/R分数/C分数/F分数/MSC容器/Metrics/babel自定义/大前端自定义）、老Raptor指标（移动端端到端/移动端自定义/web端/小程序端）三大分类。自动识别指标类型，选择对应CLI命令查询，支持按时间、版本、组件、项目等多维度筛选。触发词：查Crash率、查ANR、查RCF指标、查R分数、查C分数、查F分数、查秒开率、查端到端耗时、查自定义指标、查大前端指标、查Raptor指标、查小程序指标、查web端指标、mobile.outlink、bizpay、指标查询、Raptor数据
 tags: 终端基础技术,Raptor,大前端,Crash,性能指标
-version: 0.6.7
+version: 0.6.9
 created: 2026-03-23
 
 metadata:
@@ -50,20 +50,25 @@ metadata:
 
 ## 安装 CLI
 
+> **🌏 环境适配（境内 / 境外）**：下文默认使用 `raptorfe`（境内）。若用户提到「海外 / 境外 / overseas」或给出 `raptor.mws.keetapp.com` 链接，**本文所有 `raptorfe` 命令一律改用 `raptorfeov`**（模块、子命令、参数、时间格式完全一致），页面链接同步换成 keetapp 域名。判定规则与完整约束见父技能 `SKILL.md` 的「环境识别：境内 / 境外」章节；一次判定后全程不混用。境外补充三点（详见父技能规则 8 / 10 / 11）：
+> 1. 查询超时或 4xx/5xx 失败时，如实说明失败原因与已知限制，不改写查询参数、不编造数据、不机械套用 `--timeout` 重试；
+> 2. `crash ratio get` 境外当前不可用（2026-11-19 实测稳定超时 / HTTP 400，境内正常），量级查询改用 `crash timeseries get`，崩溃率另行计算或引导走境外 Web 页面；
+> 3. crash 查询返回全 0 时不得直接报「崩溃清零」，境内业务项目（meituan / waimai-wxapp 等）在境外站点无 crash 数据属已知现象，先确认业务是否为出海项目（如 keetapp）。
+>
 > **前置预检（每次激活时执行，一行兜底，避免首次执行报 command not found）：**
 > ```bash
-> command -v raptorfe >/dev/null 2>&1 || npm install -g @mtfe/raptorfe-cli@beta @dp/sso-auth-cli@latest --registry http://r.npm.sankuai.com
+> command -v raptorfe >/dev/null 2>&1 || npm install -g @mtfe/raptorfe-cli @dp/sso-auth-cli@latest --registry http://r.npm.sankuai.com
 > ```
 
 ```bash
 # 1. 安装 raptorfe CLI
-npm install -g @mtfe/raptorfe-cli@beta --registry http://r.npm.sankuai.com
+npm install -g @mtfe/raptorfe-cli --registry http://r.npm.sankuai.com
 
 # 2. 预装 sso-auth-cli（⚠️ 必须，否则鉴权会失败）
 npm install -g @dp/sso-auth-cli@latest --registry http://r.npm.sankuai.com
 ```
 
-> `@beta` tag 始终指向最新版，无需写死版本号。
+> 公司源默认 latest 即最新正式版，无需写死版本号。
 
 > ⚠️ **sso-auth-cli 必须预先全局安装**。CLI 内部通过 `npx` 动态调用 `sso-auth-cli`，若 `r.npm.sankuai.com` 拉包失败（网络问题、npm 源未配置），鉴权会直接报错。预装后 npx 会优先使用本地已安装版本，不再依赖网络。
 

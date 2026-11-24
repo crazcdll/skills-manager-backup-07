@@ -7,7 +7,7 @@ description: >
   当用户转发「大前端监控」告警、粘贴含「指标名:」「PERF:」「触发规则:」「数据时间」
   的告警文本、或说「分析这个告警」「帮我看这个 P1/P2 告警」时触发。
 tags: 终端基础技术
-version: 1.1.0
+version: 1.1.1
 created: 2026-03-25
 ---
 
@@ -21,9 +21,11 @@ created: 2026-03-25
 
 #### 步骤 1：检查 raptorfe 和 Python 依赖
 
+> **🌏 环境适配（境内 / 境外）**：下文默认使用 `raptorfe`（境内）。若用户提到「海外 / 境外 / overseas」或给出 `raptor.mws.keetapp.com` 链接，**本文所有 `raptorfe` 命令一律改用 `raptorfeov`**（模块、子命令、参数、时间格式完全一致），页面链接同步换成 keetapp 域名。判定规则与完整约束见父技能 `SKILL.md` 的「环境识别：境内 / 境外」章节；一次判定后全程不混用。
+>
 > **前置预检（一行兜底，避免首次执行报 command not found）：**
 > ```bash
-> command -v raptorfe >/dev/null 2>&1 || npm install -g @mtfe/raptorfe-cli@beta @dp/sso-auth-cli@latest --registry http://r.npm.sankuai.com
+> command -v raptorfe >/dev/null 2>&1 || npm install -g @mtfe/raptorfe-cli @dp/sso-auth-cli@latest --registry http://r.npm.sankuai.com
 > ```
 
 ```bash

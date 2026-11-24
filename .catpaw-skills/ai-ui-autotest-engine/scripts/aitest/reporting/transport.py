@@ -43,6 +43,8 @@ S3_CONFIG = {
 
 # 编排层注入的报告 id（多会话共用同一份报告）；缺省则用本 run 自带 id
 REPORT_ID_ENV = "AI_UITEST_REPORT_ID"
+# 补测/重测：只覆盖部分 Case；收尾不得用本轮短跑时长覆盖报告级 duration
+PARTIAL_RERUN_ENV = "AI_UITEST_PARTIAL_RERUN"
 
 
 def fetch_s3_config(timeout=10):
@@ -133,6 +135,15 @@ def report_id(fallback):
 def is_shared_report():
     """是否由编排层托管报告行（是 → 引擎不得自行 Open，避免整行覆盖抹掉其他分片）。"""
     return bool((os.environ.get(REPORT_ID_ENV) or "").strip())
+
+
+def is_partial_rerun():
+    """是否补测/重测（只覆盖报告里的部分 Case）。
+
+    True 时收尾只更新被覆盖的 Case 与行级汇总，**不回写报告级 `duration`**——
+    否则一条 Case 的补跑时长会把整份报告的全量时长覆盖成几分钟。
+    """
+    return (os.environ.get(PARTIAL_RERUN_ENV) or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def build_run_index(cases, env, run_status):

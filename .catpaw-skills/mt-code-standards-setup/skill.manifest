@@ -1,10 +1,10 @@
 skill-manifest-version: 1
-skill-id: df55f3e5705ea6f0b40df8b35fde46c5c3edb20c03c0dbb6fba670b76768be70
+skill-id: 8c9d4f56348aa3f19ac0121f5daa5d4201da2a7f1c2117563f16176b97d4da10
 
 files:
   bd71c8694aa7b1459d913c0569d80f3cd927272697283e6e3cd1cddad91c0561  AGENTS.md
-  95ab7fb47d5e98f86bd657686053d148349c149cbaef64f2abee5b878c8a550b  README.md
-  2550f792a16c403caeca19e5c4d5ffe1b39c65575d2533c03c8bdc50e3203316  SKILL.md
+  ceda68e9e3cd5e1a8cfaa52fab84275d037109215aaec8b3c0097a2a943cfc32  README.md
+  6088df9747bfcf84838540db4adbd7d50f4e97f239a52f7cab6b6e81e058a017  SKILL.md
   54e338e3bf7c01faac79914d95a1a98f9e516bb6912d4d40eea6f74aaf1db394  agents/openai.yaml
   218dcffc419a8e843ed8e2f0f7c401f8925fde748fa06158ec2a82f9c85efc7f  assets/mtcli-service.json
   1ba70dbaa7b7f4616819fd9bbad34c5026a1756da5d3773fe03a674e94292ad1  bin/mt-code-standards.mjs
@@ -12,7 +12,7 @@ files:
   8a8a6a0c5aa7600ee2430f3ae9cab852282e1cf12bfacd5071413af9c1eba284  package.json
   8397c80e0636045f04cf91002499b86a91d4e790e6c8831809d97901bc7b2103  references/mtcli-integration.md
   a7d5289c1b3603ea457c5b585b632d58fcea1dee8cca286b8e26640215a6caf1  references/sso-platforms.md
-  e874c2b58817c2211a0d03061786680b2100f4022f3fe44193010f118d58a1b5  scripts/agents-index.mjs
+  03516bb33e90cb5374f73b9c81684a725fca6ce62362917563d64e903b6ab411  scripts/agents-index.mjs
   29fba5d9c3f87a1317e6f653846d8c46f617e099453b7fcc65050650be3da8db  scripts/agents-index.test.mjs
   78fe33cf5a745de15d72e8d94c3af59b7dee234111de0dc35a91f34cb887186a  scripts/download-observation.mjs
   6997919cae9de832f1fc20600cdcf78690dd7691bfdebac60668c5f33fc15efd  scripts/fixtures/agents-index-runner.json
@@ -20,7 +20,7 @@ files:
   4f4fb6db8695807923c7b3eff977438656f7d61a60b0fb706bb836698834d812  scripts/mtcli-transport.test.mjs
   ecc40c26d626b25ff45f1ec145cf8bc27318a47258a58177a1310741f6edabb5  scripts/portable-user-auth.mjs
   823e2e2f80dec6b2e9459e00d73ed6726d8e2b72a3f9be7749f43d0e1c682cba  scripts/portable-user-auth.test.mjs
-  899cf239f5151670c0983dbf54938e8ad5ec1b789f065687f0107a83645d7b76  scripts/resolve-effective-rules.mjs
-  15dc9b7e00b6d326130e8266336029ba7d06dfc68d3328f3f38aebad4643bb66  scripts/resolve-effective-rules.test.mjs
+  646bb1346dda4ee455663e5f76c6b10d9bdfc50bac91065bf4c7edb005ddd2ec  scripts/resolve-effective-rules.mjs
+  dfb4df04b2b4f016da9a718e57cc277e6508474de4e04213543e871625e89c84  scripts/resolve-effective-rules.test.mjs
   8816d43aa4783d53dd47a7b8c23eba380c32d0b64a59f053dfcc658ff72a94f4  scripts/sync-effective-rules-with-sso.mjs
   3088e35ea6361bb5a5fc8500ac95ab80e2dc4f5e550ac1b964b66a791d265e1d  scripts/sync-effective-rules-with-sso.test.mjs

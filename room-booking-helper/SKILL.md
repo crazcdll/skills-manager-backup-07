@@ -3,20 +3,13 @@ name: room-booking-helper
 description: "美团会议室预订助手。支持：查询空闲会议室（按建筑/楼层/容量/设备筛选）、按 room-id预订会议室（含参会人）、创建候补监测任务（query无结果时）、按关键词搜索会议室信息。取消会议室时，提示用户通过大象日历 Skill（calendar-mcp）操作，未安装时引导至安装页面。触发词：订会议室、预约会议室、查会议室、搜会议室、找会议室、帮我订个会议室、安排会议地点、有没有空会议室、哪个会议室有空、有电视机的会议室、有Zoom的会议室、取消会议室。不用于：修改/转让预订、查看预订记录、发会议邀请、日历编辑、周期性预订（每天/每周）、跨天预订。"
 
 metadata:
-  skillhub.creator: "wangjun137"
-  skillhub.updater: "wangjun137"
-  skillhub.version: "V8"
+  skillhub.creator: "shiyunjing"
+  skillhub.updater: "yuyonggui"
+  skillhub.version: "V9"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "2577"
   skillhub.high_sensitive: "false"
 ---
-
-## [MANDATORY] SKILLHUB_METRIC_REPORTER_START
-执行本 Skill 的任何操作之前，必须先执行 Skill：`skill-metric-reporter`。
-按照 `skill-metric-reporter` 的要求完成 `skill_start` 上报后，再去继续本 Skill 正文。
-如果 `skill-metric-reporter` 不可用或执行失败，跳过上报，继续执行本 Skill 正文——不得因上报失败而阻塞审阅流程。
-本 Skill 全部操作完成后，同样按照 `skill-metric-reporter` 的要求完成 `skill_end` 上报。
-## [MANDATORY] SKILLHUB_METRIC_REPORTER_END
 
 如遇 skill 问题，提 [TT](https://tt.sankuai.com/public/create?cid=17&tid=1615&iid=47000) 反馈。
 
@@ -158,7 +151,7 @@ oa-skills calendar-mcp searchSchedule \
   --title "<mis>的会议" \
   --startTime "<预订日期> <开始时间>" \
   --endTime "<预订日期> <结束时间>" \
-  --force-ciba --raw
+  --raw
 ```
 
 **兜底：全天范围搜索**（第一步查不到时）
@@ -168,7 +161,7 @@ oa-skills calendar-mcp searchSchedule \
   --attendees "<用户mis>" \
   --startTime "<预订日期> 00:00" \
   --endTime "<预订日期> 23:59:59" \
-  --force-ciba --raw
+  --raw
 ```
 
 **匹配逻辑**：从结果中找 `conference` 字段包含目标会议室名称的条目（如 `"北京/恒电大厦B座-2层 - 厦门厅"`）。
@@ -184,11 +177,10 @@ oa-skills calendar-mcp deleteSchedule \
 
 ## 认证
 
-CLI 自动处理：CatPaw Desk → CIBA（首次需大象 App 确认）→ 缓存 cookie。
+CLI 默认使用 MOA 无感认证，失败时自动通过 OIDC 浏览器授权兜底；需要用户操作时，按 CLI 提示在浏览器中完成授权。认证结果自动缓存。
 
 ```bash
 skills-administrative room-booking-helper --clear-cache   # 清除缓存重新认证
-skills-administrative room-booking-helper book --force-ciba ...  # 强制 CIBA
 ```
 
 ---
@@ -197,7 +189,7 @@ skills-administrative room-booking-helper book --force-ciba ...  # 强制 CIBA
 
 | 错误 | 解决 |
 |---|---|
-| `401` / `未登录` | `--clear-cache` 后重试，或加 `--force-ciba` |
+| `401` / `未登录` | `--clear-cache` 后重新认证并重试，必要时按 CLI 提示完成 OIDC 浏览器授权 |
 | `未找到城市/建筑` | 换更具体名称；南京等归属大区，调整 `--city` 为大区名 |
 | `过去时间不可预订` | 先跑 `date` 确认当前日期 |
 | `日期超出预订窗口` | 普通 ≤ 8 天，培训 ≤ 30 天；超出改更近日期或加 `--training` |

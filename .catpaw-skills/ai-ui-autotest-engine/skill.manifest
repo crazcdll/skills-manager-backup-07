@@ -1,13 +1,13 @@
 skill-manifest-version: 1
-skill-id: c1c82af7b790621ea65f6f41b5bcf7a70a72eacbdff4a39c3c45c97328d6da16
+skill-id: 4b5059fed109f7f7441f039a8bcc1e893cc98c554bf4e603726d523241ee728e
 
 files:
-  449a4e6ab8147dfb991e20f04c6bd205d59018100d672780bbe619efd3646dc7  SKILL.md
+  bc5064baf19c832603e355dfd421847493fd381558ffebd95e51ae2b81786639  SKILL.md
   b95da48f4675c01d96be10302f8a46d376d702bc15ee4330df66595d0be5e309  docs/duo-mock-guide.md
-  17847a0b9ffc5b68addb80a6e6083e275534a12bc384368977c956aa450bb9b1  docs/technical-design.md
+  59705fe9a2523025f974444e86a84cd0f2ac738ef58c8e03b375d982eeb219d3  docs/technical-design.md
   e58947734d92d007c7f481d422f16476306dde28fcd1369e2c511dab954d5951  examples/api-track.steps.json
   96df27a8f0e96cd3885744faaf8990bdd680c3a58c28475cf7299cd64078624b  examples/env-scope.steps.json
-  ba561ce18e90880a9bf08dc7739567b6acb108360683aad0f0a0cf9946d348de  examples/ui-assert.steps.json
+  1e30e08aa843948e617fc60547ddac3e658fea31654acd1ff1098f447b1e15b8  examples/ui-assert.steps.json
   c5be822ba447106d393ee6f743e57a7d02fc2d0cf6f258b527532bb47b270df2  examples/ui-input.steps.json
   258e0943188206b5211385a1640eea5da400ff8cee817b9721c51837a0cace3f  examples/ui-interaction.steps.json
   6d2ca06a971c66e3c609dfdc6b0647f6bcfe75ee255b7c491b10ad62d3fd7dae  examples/ui-scroll.steps.json
@@ -19,20 +19,20 @@ files:
   ee39ad5967e95c2a07f04dbcbde96b1a0c916ba376096db5d2f498b7727a5d1d  references/toolchain/platform-tools-darwin-37.0.1.zip
   d230f13842f60f782a8645f9c813f8f845bf36089ea7289f28c48f17979313f1  references/toolchain/platform-tools-linux-37.0.1.zip
   9fd81989088949a5734d7115368cc3a58f01128b230dc97f91d64e992670798e  scripts/aitest/__init__.py
-  40041ce834a0e248ea3d74ab21d5bf95ecfa53b8b99947b34ba0b56e9b86682e  scripts/aitest/cli.py
+  39407b4b089953528e893364f5f8a9964344f4b996a531db73485ebadd1e7365  scripts/aitest/cli.py
   0ed86454dcf64e9e7dcd117c4c39f0b1d24eee05dc3f834d5b4c5a98fbf481ec  scripts/aitest/cli_utils.py
   7ea55b8b5fbc741558191cec80abf13016d6adff9fa3a381bffd4869b116309b  scripts/aitest/console/__init__.py
   0d81aaf023f1f72b2551fa3ab38c4e265cd752bd9e0d88a4460602f979443d89  scripts/aitest/console/aggregator.py
   ba8232a473b4327e5988b7604bc9d4aef639cc35ba2cd505d6cc6d1223ce3427  scripts/aitest/console/commands.py
   f18a9ac3fb39304bf508081f0804410982c98d03ac22a4e14a6c75f5a555d1c3  scripts/aitest/console/config.py
-  99389e9ae6d681fa543290d771a2d40b0a846438c6f0f6f24b80de838efcf6fb  scripts/aitest/console/discovery.py
+  d39dbc064998b1f17270700309eb896e64fdd6efc76c638f8f2d3a05c2381d18  scripts/aitest/console/discovery.py
   af6649a3c5c11c2134734cee247ea3803260d0307fae294bbd5554825c517ed1  scripts/aitest/console/preview/__init__.py
   ab859368d9d7a32a465a6f4784fe194b3df1cf03f93fce12b339b46bb40a8af4  scripts/aitest/console/preview/base.py
   a2b9a5c10bee3265b196b0f58c464c2b754a610961e4fc925bf6be9ee236b4db  scripts/aitest/console/preview/manager.py
   e454391b2bb4202e293816048b7c992e785a552b73e3498294371760515f7cfc  scripts/aitest/console/preview/relay.py
   32e560fc83f9aeafc9c0a84e3fcc9d414fe1a84ca06efb9e943be9498a034f58  scripts/aitest/console/preview/screenshot.py
-  a4af56211919fb0b4e6f5dcc3dc482e5ddce0e1d1c865bd52bfd91c28fa2823e  scripts/aitest/console/server.py
-  e06193ce299fb4f8d79bd1a87c2b584994612d5f37659af8f7aafdf208efb4a4  scripts/aitest/console/service.py
+  18d39c85f69613a633715f14ba903df0f2ea13ce0f3383d8340edbf742f98bf5  scripts/aitest/console/server.py
+  1846e51d6fd3ce5e4609d1c6c24603c3063ec5586b6930ce97ad0ae067045764  scripts/aitest/console/service.py
   8202092fd7a06937dbb6d6ed2eb40b478a76880cd8ae3b8c88f4ac81c8600037  scripts/aitest/console/store.py
   6342d7d92fa148141a0475ab12a59fbb352719e938917582d2983362b8a081ef  scripts/aitest/console/tailer.py
   01dfab8203aacd93e2c02944aacaaec0ecc63b18c5624c46ac6627febe3ab80d  scripts/aitest/console/telemetry.py
@@ -45,7 +45,7 @@ files:
   2c32b9b3ee358c119e210f6f5195f9bd34894d78a785ff2e95d60e718e400af4  scripts/aitest/console/web/fonts/jetbrains-mono-700.woff2
   cc96239972f5bd4627aee31a4eee76741768225b5f408e6d82f003344801c625  scripts/aitest/console/web/index.html
   368cca6424c991e1513921573000e0ceeb4442181e64f45acef146618e4a6c3b  scripts/aitest/console/web/style.css
-  7bec78069187e3d007b9bc4de651810900a5a0e8bc3ee47799da93ed8daf2423  scripts/aitest/dev/check_architecture.py
+  7aaf0d833909cb4f74e51d2cdbcec56ca76bbb9580d96f1cb6367e9ce6eaeaf3  scripts/aitest/dev/check_architecture.py
   954dbd02716ace39b21acab050d66da6ab0f377c983e33c4dd7608f7a8ca870f  scripts/aitest/dev/check_artifact_cache.py
   8f07e152452c8b9a45cf16d473f7711d86775a2894cee601896e8aa5de6cfaaa  scripts/aitest/dev/check_device_pool.py
   0d7dddb9eebf6f2289d5b95c9b8ef4849f41e227bd548b361a0242fa21e9e0af  scripts/aitest/dev/check_parallel_isolation.py
@@ -132,13 +132,13 @@ files:
   ed9a839908fa2d5c964a52a6464aa1a58c29b38043085964c58d020b4918da95  scripts/aitest/execution/engine/flow/commands/fail_cmd.py
   110bf9b28a6eea9ddd9cd4fc846ca507f97e9d10db7351342506cf1d3865b2ce  scripts/aitest/execution/engine/flow/commands/finalize_cmd.py
   56d8f49d99c210cc403c8da89ce5552de543dee6c8fccae95b31592fd0440aee  scripts/aitest/execution/engine/flow/commands/hook_info_cmd.py
-  22bd8e2a4efb6e49a8004bd3e005fcd2f00a294b0c41a27e9c34d0df4c83a366  scripts/aitest/execution/engine/flow/commands/init_cmd.py
+  9d254c64004b0ffe64ea0f29c6f01fb6dbc5e39c93a6f3034feac2865a3dc68a  scripts/aitest/execution/engine/flow/commands/init_cmd.py
   776c270af6a41c3789da69175de934383bb7a51ecd3f49a8daba87df00522c81  scripts/aitest/execution/engine/flow/commands/next_cmd.py
   6db94ab9f8324f628759a5e3b1356d9188ed0ed78be8eb40748315701693a8e0  scripts/aitest/execution/engine/flow/commands/status_cmd.py
   0af75084a2057be52a18cc4476faa538dcdff2856363c3cf129697244d5b2081  scripts/aitest/execution/engine/flow/commands/validate_cmd.py
   114887d43e81945d79e63eb22b8f2badf5034e1aaab965864c0663fb98bf1b6c  scripts/aitest/execution/engine/flow/flow_context.py
   97d5b805339a2a9a24edbac8f2328078981eb49030d2ff0c822f1f5023b715d5  scripts/aitest/execution/engine/flow/flow_init.py
-  6d0166951d13107379ec6acc227ba0f0ea66e251eab2107ac1d9fb732d019066  scripts/aitest/execution/engine/flow/flow_json.py
+  ecd0d4af421005e06f1db81d51406feb2b3387008c01523553f1392432591cd8  scripts/aitest/execution/engine/flow/flow_json.py
   f9bfdf659f8aeaab8ca7c010741f24870faf2e275b797bf8be7a29490b4dd430  scripts/aitest/execution/engine/flow/lifecycle/__init__.py
   7a9b4e3f06efcbe230926bc5cc2ee8adf9c1c134ca92daef1acb20e5102bb8e1  scripts/aitest/execution/engine/flow/lifecycle/advance.py
   9c0b38c90a411f83a91f094a22acb3b5da5c3ccf0ad0774de19768abdce3ecbe  scripts/aitest/execution/engine/flow/lifecycle/fail.py
@@ -148,7 +148,7 @@ files:
   077ace8e24ad953d825ebfb05c6bd1f36d05d07d7fe4f34c369533bce05136bc  scripts/aitest/execution/engine/flow/state/status.py
   796723d3e3c9b566c39740bef33bcbc425b6ec85661a7784310505ae4d6a189c  scripts/aitest/execution/engine/flow/step_scheduler.py
   09145be6bc4436837ab382658b9f6dfc72ee445c06b306fcff3977f3d4ec87bd  scripts/aitest/execution/engine/flow/steps_builder.py
-  c316f89ce6a2dec38f023a00e08069358b4d23f02ec248589a6b70f8b087d108  scripts/aitest/execution/engine/flow/steps_generator.py
+  54efd8dbebf4aeee65d515e8dfc1bf3e803d1c8e3c1ad64b86c53662bfed8386  scripts/aitest/execution/engine/flow/steps_generator.py
   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  scripts/aitest/execution/engine/placeholder/__init__.py
   fdc6d2c94d216e0eefacfb6e3cea043a611006b2a4d74616189f68d194f6145c  scripts/aitest/execution/engine/placeholder/placeholder_resolver.py
   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  scripts/aitest/execution/engine/profile/__init__.py
@@ -222,7 +222,7 @@ files:
   db21aaeaa69b0563b378d1a4db23de5d7303f894efca09a6cd9d0265443f961f  scripts/aitest/integrations/appmock/env_cli.py
   b30e690a8f09b6d779081254e7dff245043c73cc812564deb50ef91397ede13b  scripts/aitest/integrations/appmock/ops.py
   038233a46c1228bb7f60df9011d366c752be741650e5a3e2f6c1a466edea4c92  scripts/aitest/integrations/appmock/ownership.py
-  43be156d9503a5d8c06a9194c6de8697069f8a44314be6e408e741ad65d6672b  scripts/aitest/integrations/appmock/ptest.py
+  46df87403bb3aeb7804c41530325d6792070853abe72bbfabbba0d34f2a575f9  scripts/aitest/integrations/appmock/ptest.py
   5cafb1557b7096aa7981cf06a3cb558308deca0561a5d9b9939e0cd480e6b795  scripts/aitest/integrations/appmock/record.py
   8bac0a2ad48f9143aa8c0f7e0a5cae87ab1b010f781a90b623ddeb52dff02f0c  scripts/aitest/integrations/appmock/rules.py
   018f4b3b8eced8d1b1bbdc218b3ec3e30b3196bfd1057ff08574a7059e2c344f  scripts/aitest/integrations/appmock/session.py
@@ -243,18 +243,18 @@ files:
   24d7c82f4b76095c3c52cb4a08f5ea069b5c04350c8cd55777f8ddc16ce3c37a  scripts/aitest/provisioning/prereq/node_env.py
   73d54dfd5301de8bdbf77257b9aa950d3d31004f1963c594ff3ad66dad83eefd  scripts/aitest/provisioning/questions/__init__.py
   35adda67e316e2a3fb53bc82866e0d2d35ca56b7fc9e7cd4cda700c5575fe488  scripts/aitest/provisioning/questions/commands.py
-  a6bae1330c77011e6531ab51d2f9f3e411aad4ede9f5f4ec3b612ed3a804df0a  scripts/aitest/provisioning/questions/driver.py
+  13e1e855e87ba9319e5cd805e6e3fcf71fe340ee1a2a30532c0e9af815c75cef  scripts/aitest/provisioning/questions/driver.py
   9d40d96ce0b4543665bf6e72c988fbe9db3fe78789306bf3982db0b7568c7671  scripts/aitest/provisioning/questions/providers/__init__.py
   170f6c1893794d0fa4176db4ef2e88bd23bafb89e0d0b57265c25779578cdd17  scripts/aitest/provisioning/questions/providers/auth.py
-  06d41ec4ca41ff36b89f1fbfba4e454ff8f8d7f9043ce2d68af9112b08527aa7  scripts/aitest/provisioning/questions/providers/config.py
+  64e296cdc275f10cc5ce97985c5e7efd6a509c220969b265992f325a1a22801b  scripts/aitest/provisioning/questions/providers/config.py
   7fd149521deb407348958941eea7a7aa172a6bca0c777cf9469e4bad4ea0c6da  scripts/aitest/provisioning/questions/providers/device.py
-  774725bf6bfaeaf3788757d8a644fec838195387160af83b64ebab1b34abb154  scripts/aitest/provisioning/questions/providers/env.py
+  6e511fb904c0831639a322a721da436f220b4d7c6079414be8ea0ce2e89b2839  scripts/aitest/provisioning/questions/providers/env.py
   f9f204093d987d23d5193cd3f88facbca88edec80c8bd8de0daeac2ff215e703  scripts/aitest/provisioning/questions/providers/placeholder.py
   a366381cc37edcfe854e10bbef5ed788358cefae0b581ff7240cfc718b8bc33a  scripts/aitest/provisioning/questions/registry.py
   fff21dd118b1d4d3876d3fa06fb6fcde28a589b8af4078093f54d32ef7687927  scripts/aitest/provisioning/questions/schema.py
   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  scripts/aitest/provisioning/setup/__init__.py
   bafc949fe88bab4c3a64672152283fa2f1e04d046fa6c20cce02522b00a353c2  scripts/aitest/provisioning/setup/app_lifecycle.py
-  e9f47d1f0eee50b935f641a8d7aa492fb5c910f4194e15d4bad0585376823ac0  scripts/aitest/provisioning/setup/env_prepare.py
+  0154cccd7145340694362c1293ffa648fb5e845c3f03db7ac9c648c3045d0747  scripts/aitest/provisioning/setup/env_prepare.py
   202a9ed26213571806fb1e337ef186c0a903e6193627ac67bc834a21116915de  scripts/aitest/provisioning/setup/environment_reconciler.py
   8d5fffe402970bf6209aa64246cbd6c3b521827373ca553c2f7c1fbdfb7b4ba7  scripts/aitest/provisioning/setup/location.py
   5ed97520feb640fd189139a4732bf14a98762e5363727feced091b6ca6c6592b  scripts/aitest/provisioning/setup/login/__init__.py
@@ -265,33 +265,33 @@ files:
   febcbf6af23c30ead8c482232fc955ca737e4bd1e5f3938ed8514c406a688dea  scripts/aitest/provisioning/setup/login/actions/sms.py
   0d089de3b4132a4ee5df15545ea916f9a245bf5f1aac8046f0148ecb73a38148  scripts/aitest/provisioning/setup/login/evidence.py
   7337ff19572b706d3d6acaef744bbe897bf849e0fbbbeb4e49275cb171434581  scripts/aitest/provisioning/setup/login/hooks.py
-  3a4e499c855340bfd0c04834b977c171b947ac343f9cdc3bbf9205aec28ba079  scripts/aitest/provisioning/setup/login/orchestrator.py
-  038385a25976cbc84a056d50b2d7841d2b0723042e4604214a158c67dd356499  scripts/aitest/provisioning/setup/login/plan.py
+  805c20dc574c6f5b9084423e9f9fe3f6aee7dc779cdab768ad56541bc3e6d5ad  scripts/aitest/provisioning/setup/login/orchestrator.py
+  11c319f96f5a8e4024cf67563877050714f814dae18334d07db0eec9ec8aacff  scripts/aitest/provisioning/setup/login/plan.py
   71f3c57178f29ee3e3dc3afc925060ad8a44951c6e9a74805b9abbca35a8faac  scripts/aitest/provisioning/setup/login/policy.py
   fb27be1e5fc4d301f2e08d080b881336ec36a09cd812b3c7a5ea364b1a12943d  scripts/aitest/provisioning/setup/login/probes/__init__.py
   4dc857d7dcf9c5351b342a9921d9b7b60b9acb9ed8c30aea02b76f444e1e7159  scripts/aitest/provisioning/setup/login/probes/android.py
-  5c1f469d38a3e1b40cbaf7820085d8fe74a89f1277a35b6aee934ce0c0ea97b5  scripts/aitest/provisioning/setup/login/registry.py
-  21a551ade6574bcbe0748b1f162d485ee5621cce6e6782ac567eaf55af9485c8  scripts/aitest/provisioning/setup/login/steps.py
+  ee46cc4d727aa07b7024edb8eb6f900c1ebb852f0cd19e7e4d840b022693ac05  scripts/aitest/provisioning/setup/login/registry.py
+  5727795cc066640a27145acce7664181624b411ff4a2b0a11a85ea71d9a32938  scripts/aitest/provisioning/setup/login/steps.py
   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  scripts/aitest/provisioning/validators/__init__.py
   42b99bcc4400a9fddc1ba2c166a2fee8b44b98608375f65cf7f34f6490485ac1  scripts/aitest/provisioning/validators/auth_validator.py
-  ce28508e861d9e3dcaaa6f0e40635c3607b6c053e38e4a930fac33ea1564aa9d  scripts/aitest/provisioning/validators/config_validator.py
+  afdbc3cea5e8775a857cb35dc75840c0182196833cddbc092c56706b9e0fc6eb  scripts/aitest/provisioning/validators/config_validator.py
   8775b7f91154a52dff1d458ee41e7edd6545e8cd304ba8e359abd23f800c144d  scripts/aitest/provisioning/validators/device_validator.py
-  949e7a6c253e9d558caeb4bc8c6517a5515f305f49c103841044a492e61998bb  scripts/aitest/provisioning/validators/env_validator.py
-  f04996e3d455b8710aacd998b0e4e20cc98a88f75949ba37e6dba161c0a27484  scripts/aitest/provisioning/validators/testability_validator.py
+  696dac902207907352084ced0bea2715cc6f81ca940c64365156d59097dae95b  scripts/aitest/provisioning/validators/env_validator.py
+  7d6fa1f06f9604cb9f8866687d0631d65759a5a6a35f6d7a7c6dbc6c5283241e  scripts/aitest/provisioning/validators/testability_validator.py
   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  scripts/aitest/reporting/__init__.py
   7fc326736d258ca20012327b74639ede2df14cc989504e6b0f9547fedafee266  scripts/aitest/reporting/case_report.py
   2ca73eb08891f93abcfa12e58ce201d4dce4db13aecfdb5aed124bf0e2db1ac1  scripts/aitest/reporting/data_collector.py
   3d5871b1b843167831dae470a86ed422103b56bd624fc26ba96474bae1327404  scripts/aitest/reporting/finalizer.py
-  ccaf95afe3c6d1fc454b94d3f110a7c7c2f6997fc329db7d6afb019712f0dbca  scripts/aitest/reporting/gen_report.py
+  ef0aea862910a5d5230bae58bd5c0be873ce4b34add7209668e906dba34b2d85  scripts/aitest/reporting/gen_report.py
   1abe04072ac39c5dd1577e95a7e91a4d77196a85d1220e1022bdd526c480199f  scripts/aitest/reporting/inputs.py
   719cde682e08b1fee4e89ba5170ab3514f842f73d497719ee3d00fd1830c297a  scripts/aitest/reporting/ledger.py
   7f18377c39e7cbb2a39f79c73ded96c427c767e71cc98ee705efecf2fe781b9b  scripts/aitest/reporting/model.py
-  a8e7bc8740ba1185ca8ad363aaa6f027d8574a485331b852e11bcaff32f7d001  scripts/aitest/reporting/run_report.py
+  4f4c94b8a660666e0043287b60e39c47789d63563d62f711d7652b0ae94750f6  scripts/aitest/reporting/run_report.py
   075818a795ac8b1c7cd4b73994174770a7b7dcd8492fb61a03368a4347dae418  scripts/aitest/reporting/schema.py
   12b7c608f81f984f16817dcc483a1a567593660700f79d87bebd3fb519ecd2cc  scripts/aitest/reporting/steps.py
   b3d6cd69b3f8f67971515e3605783a7b1c33545beb4ceb08b70dd2a2e1b83774  scripts/aitest/reporting/timefmt.py
   b1c8a0b7cdcd51781effdbfb35686c3b610df2a7b7ee19a2668a5a42bd501cbe  scripts/aitest/reporting/timeline.py
-  503cded0b506dfe3e7385ebaae43da3311c2e2ce37b6e0ea610fee3e1bc46f08  scripts/aitest/reporting/transport.py
+  44e3bcb0c821011563d925ca41241fdd752c025cd3b9b925834931049a570d83  scripts/aitest/reporting/transport.py
   5b8327d4aff9fbff7d2425151f7f3cc9fa642d7618fb8b6d84536b5c2419522f  scripts/aitest/resources/__init__.py
   46bd3eea1b239963a91186bea4f0adc9b753f2ada5e29a532ea1ae52db27c996  scripts/aitest/resources/device_pool/__init__.py
   069211262cea45107a43a002c657693d6f935b46cc47990d9338026f53d151a3  scripts/aitest/resources/device_pool/commands.py
@@ -300,15 +300,16 @@ files:
   043c7d842701f27adc5ecfd8d6e45f6fb86ab9dcd7205b48d185e909b6009cde  scripts/aitest/resources/mis_pool/__init__.py
   d8d04ef945fc2f24fa9af63cd2c04927f481acf2900b054c1b8d8f8410e21a88  scripts/aitest/resources/mis_pool/commands.py
   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  scripts/aitest/shared/__init__.py
-  c11a1fd8e8366b658c4cf389186952bfb8d9b032125a97d315bef87c2c46834c  scripts/aitest/shared/artifact_cache.py
+  96850ea13738e746ee5071778289033d5efd45bcb5fc7e1e9cce92a8ad2bf602  scripts/aitest/shared/artifact_cache.py
   6aeed1462317ca1979e8f6af70d55e39feed21888790ede800c2954cc99f2024  scripts/aitest/shared/capabilities.py
   fcbe600e7f165015fdc592a50b85ded60153f176207ecb8c226e4d724ee59f40  scripts/aitest/shared/case_utils.py
   2eb2a6c75e50ea8992df45ab96339e1aa68813e0d64fc259289efe264dc33cdb  scripts/aitest/shared/context.py
+  3a1aababa143083010c4e919d53efc0759ad9a75541b987ce6feae32da497da8  scripts/aitest/shared/env_view.py
   6d6173f4b8f5e3b25617c89e48812e8d1ec85a308fdd26fe8368dcfc181d2f43  scripts/aitest/shared/errors.py
   6d9f7745e52b8e789c987b9e100d4ea651be166dc6a13925829c5bba5ead438a  scripts/aitest/shared/exit_codes.py
-  19b651ab8b0ad954262694efe8a82121fc25b0f7f61bf6577ba738bbc5d83e6a  scripts/aitest/shared/imeituan.py
+  67f01f2a15861880f99bcd3ad950a2a5ec51eedaf70a079f5ef56398856f75c8  scripts/aitest/shared/imeituan.py
   64a29296ce732efd5be35d58559f9243b92adfb3c3bd2651b06a88984ad2be98  scripts/aitest/shared/input_freeze.py
-  30be8d010be8fa0a4b11d88017c8809d10c21a1bd37d358d1213c2e33f838e5e  scripts/aitest/shared/intake.py
+  33c8c8cf24716dfc14b342ba0d9d02243233a4ac850122723067fc60174ff561  scripts/aitest/shared/intake.py
   239e64f791b9cafcc5fdb238f64ec9deb6c3fbfdc42ee0c7774c9300b635db31  scripts/aitest/shared/json_utils.py
   acd2f6b3a1ed12156c65b258a4bc6857a37f515545d43fc40d79ace631d53465  scripts/aitest/shared/landing.py
   e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  scripts/aitest/shared/observability/__init__.py
@@ -316,17 +317,18 @@ files:
   d8ab1d1a3b598ebf29080eaaf06f512b716e6e5901daab68b20ae8f4cfc7ca31  scripts/aitest/shared/observability/runtime_audit.py
   11d872aaf22349de2434dbaf4a9e3a576c28184c75f13dfb3bf2939fc5853f10  scripts/aitest/shared/observability/usage_reporter.py
   2ad4e5f679eb2723de557b1ed953b69451741b6bca9fe269b17702aa1c68271b  scripts/aitest/shared/output_guard.py
-  a4556ab487026c9ec03afd6337a36c1a2451056e8d2240ae2102378038ac50bb  scripts/aitest/shared/paths.py
+  a880f4679f49eba2ff5e9a6952a26cb60dba84d9cf4a13e8ab1f84ada11896fe  scripts/aitest/shared/paths.py
   a2e37f73c6900574892738a4ec28c44575b2f68e283310e73f0516f8eaca0782  scripts/aitest/shared/placeholders.py
   5433b638aeac99094104591799922fc413ec177af5fc0c656157d09d563d3b6d  scripts/aitest/shared/popup/__init__.py
   02272da9978fcf97ab5d3a1d96c259e131596c2b8b65dab51e0f7d90d6be9b5e  scripts/aitest/shared/popup/patterns.py
   d0031d6d6e5c39a8349845e0b049a1cf13fdbbffe96427e31a407d1b5cd0fc21  scripts/aitest/shared/records.py
+  a701cfee2a713a595c6b1157faa59828ec0e99f9502724a13572ddd3c119f867  scripts/aitest/shared/retention.py
   1c8124e058bb96cab60f1f2de013fddd760e9add7ce22dc207cc795959728b57  scripts/aitest/shared/selfupdate.py
   bd4741f50d62ac6557112ab85edca31cdeefa57e51e4c3d22d7e9fa2b8558654  scripts/aitest/shared/step_schema.py
-  93571b12c409c06a8825e4149c8527718af20604f46829f8b40d7c97e51282af  scripts/aitest/shared/toolchain_env.py
+  b566bd339e90efaa1f617fff7e1210fb5bb701836df578ee2eef4c2fee20b641  scripts/aitest/shared/toolchain_env.py
   cfaf2f1428f6968c6c9335679f1f08855c68cdd614f3758be72b900d679c61e2  scripts/aitest/shared/transport_port.py
   4522888e99aa856006df78d70be6425a09d589a6bcc7947b8b8c4f18ec62b5e4  scripts/aitest/shared/user_identity.py
-  4a06e24597eb9623efd880d6d58664fa3b2f11b0497128de9f31293d14bcfe0c  scripts/aitest/shared/workspace.py
+  2e38174c176216abbca58d001178838b1659303f278bf593c075e9e7c1e7b43e  scripts/aitest/shared/workspace.py
   3acc7731e26705a6be6b261beff553437db0ce001e222857af68433c1fd36c3b  scripts/cli.py
   6e3db6eb0fb4893a6694bd2c06187bec449fbd9e82736ad247a9f01d3cd085ec  tests/__init__.py
   0bab982ff111a6074e700e13da89f4241bc8f6cfc1e688eee03b9dada1b84b5a  tests/test_screen_layout_contract.py

@@ -8,7 +8,7 @@
 
 因此引擎不使用系统里的任意一份，而是：
 
-  · **唯一安装位置**：`~/.local/share/ai-ui-autotest-engine/npm`
+  · **唯一安装位置**：`$STATE/npm`
     机器级前缀，与当前 Node 版本 / workspace / Skill 重装都无关；
   · **使用即最新**：每次 `ensure_bin()`（设备操作 / adb、hdc 探测 / 投屏）都确认
     受管安装就是 registry 上的 `latest`，不是 → 立即用 Node>=18 的 npm 升级；

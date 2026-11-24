@@ -1,6 +1,6 @@
 ---
 name: component-crash-chart
-version: "2.1.0"
+version: "2.1.2"
 description: >
   生成组件 Crash / ANR 趋势图（折线图 + 柱状图），自动查询 Perf MCP 数据并附带分析结论。支持小时级、N天趋势、多版本对比、小时级同比四种模式；覆盖美团/点评/外卖，Android/iOS/HarmonyOS。
   触发词：组件crash图、babel crash图、dsp crash图、pike crash图、logan crash图、raptor crash图、sniffer crash图、horn crash图、SAKHorn crash、iOS crash、Android crash、鸿蒙crash、HarmonyOS crash、点评crash、DP crash、外卖crash、crash折线图、crash小时级、7天crash、15天crash、30天crash、crash趋势、多版本对比、版本crash对比、发版时间线、同比、环比、修复效果观测、N天同比。
@@ -20,9 +20,11 @@ metadata:
 
 本 skill 使用 `raptorfe` CLI（内置鉴权，无需 mcporter，无需 token 申请）。
 
+> **🌏 环境适配（境内 / 境外）**：下文默认使用 `raptorfe`（境内）。若用户提到「海外 / 境外 / overseas」或给出 `raptor.mws.keetapp.com` 链接，**本文所有 `raptorfe` 命令一律改用 `raptorfeov`**（模块、子命令、参数、时间格式完全一致），页面链接同步换成 keetapp 域名。判定规则与完整约束见父技能 `SKILL.md` 的「环境识别：境内 / 境外」章节；一次判定后全程不混用。
+>
 > **前置预检（每次激活时执行，一行兜底，避免首次执行报 command not found）：**
 > ```bash
-> command -v raptorfe >/dev/null 2>&1 || npm install -g @mtfe/raptorfe-cli@beta @dp/sso-auth-cli@latest --registry http://r.npm.sankuai.com
+> command -v raptorfe >/dev/null 2>&1 || npm install -g @mtfe/raptorfe-cli @dp/sso-auth-cli@latest --registry http://r.npm.sankuai.com
 > ```
 
 **错误处理：**
@@ -159,6 +161,12 @@ python3 scripts/generate_chart.py --date YYYY-MM-DD --group <group> --compare 20
 # 模式6：ANR 图（--type anr，其余参数与 crash 完全相同）
 python3 scripts/generate_chart.py --date YYYY-MM-DD --group android:raptor --type anr
 python3 scripts/generate_chart.py --date YYYY-MM-DD --group android:raptor --type anr --range 7d
+
+# 境外环境（用户提到海外/境外，或 raptor.mws.keetapp.com 域名）：追加 --cli raptorfeov
+python3 scripts/generate_chart.py --date YYYY-MM-DD --group <group> --cli raptorfeov
+# --cli / RAPTOR_CLI_BIN 仅接受 raptorfe / raptorfeov（白名单校验），其他值报错退出（exit 2）
+# 注意：境外站点的 crash 数据主体为出海业务（keetapp 等），境内项目在境外返回全 0；
+# 画图前先确认 group 对应项目在境外是否有数据，全 0 时如实说明，不要当成“崩溃清零”
 # 注意：当天数据不完整时自动用昨日同时段做环比，而非全天对比
 
 # 模式5：修复效果定时推送（--notify 自动上传S3+推大象）

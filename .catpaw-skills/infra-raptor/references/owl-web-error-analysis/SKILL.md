@@ -8,7 +8,7 @@ description: >
   触发词：分析web异常、分析OWL异常、分析JS错误波动、web端异常分析、前端异常分析、JS_ERROR分析、分析前端异常根因、web异常波动。
   注意：如果用户只是简单查询数据（如"查一下最近7天web异常数量"），不要触发本技能，使用 raptorfe-allquery 子技能即可。
 tags: 终端基础技术,Raptor,Web,OWL,前端异常,JS错误
-version: 0.1.0
+version: 0.1.1
 created: 2026-05-26
 metadata:
   skillhub:
@@ -25,9 +25,11 @@ metadata:
 
 ## 🔧 前置依赖
 
+> **🌏 环境适配（境内 / 境外）**：下文默认使用 `raptorfe`（境内）。若用户提到「海外 / 境外 / overseas」或给出 `raptor.mws.keetapp.com` 链接，**本文所有 `raptorfe` 命令一律改用 `raptorfeov`**（模块、子命令、参数、时间格式完全一致），页面链接同步换成 keetapp 域名。判定规则与完整约束见父技能 `SKILL.md` 的「环境识别：境内 / 境外」章节；一次判定后全程不混用。
+>
 > **前置预检（每次激活时执行，一行兜底，避免首次执行报 command not found）：**
 > ```bash
-> command -v raptorfe >/dev/null 2>&1 || npm install -g @mtfe/raptorfe-cli@beta @dp/sso-auth-cli@latest --registry http://r.npm.sankuai.com
+> command -v raptorfe >/dev/null 2>&1 || npm install -g @mtfe/raptorfe-cli @dp/sso-auth-cli@latest --registry http://r.npm.sankuai.com
 > ```
 
 ---

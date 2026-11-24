@@ -34,13 +34,31 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 
 
+# CLI 命令字：默认境内 raptorfe；境外环境（raptor.mws.keetapp.com）传 --cli raptorfeov
+# 或设置环境变量 RAPTOR_CLI_BIN=raptorfeov
+CLI_BIN = os.environ.get("RAPTOR_CLI_BIN", "raptorfe")
+
+# 安全白名单：CLI_BIN 会拼入 subprocess.run(shell=True)，仅允许已知的两个命令字，
+# 防止环境变量/参数携带 shell 元字符被解释执行
+ALLOWED_CLI_BINS = {"raptorfe", "raptorfeov"}
+
+
+def validate_cli_bin():
+    if CLI_BIN not in ALLOWED_CLI_BINS:
+        print(
+            f"❌ 非法 CLI 命令字：{CLI_BIN!r}，仅支持 raptorfe（境内）/ raptorfeov（境外），"
+            f"可用值：{sorted(ALLOWED_CLI_BINS)}",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
 # ── 前置依赖检查 ────────────────────────────────────────
 
 def check_dependencies():
-    """检查 raptorfe CLI 是否可用；不存在则自动安装"""
-    r = subprocess.run("raptorfe --version", shell=True, capture_output=True, text=True)
+    """检查 raptorfe / raptorfeov CLI 是否可用；不存在则自动安装"""
+    r = subprocess.run(f"{CLI_BIN} --version", shell=True, capture_output=True, text=True)
     if r.returncode != 0:
-        print("❌ raptorfe 未安装，正在安装...", file=sys.stderr)
+        print(f"❌ {CLI_BIN} 未安装，正在安装...", file=sys.stderr)
         subprocess.run(
             "npm install -g @mtfe/raptorfe-cli --registry https://r.npm.sankuai.com/",
             shell=True, check=True
@@ -469,7 +487,7 @@ def mcporter_query(metrics_name, start, end, filters, granularity="ONE_MINUTE", 
 
     def _run_query_with_filter(s, e):
         cmd_parts = [
-            "raptorfe crash timeseries get",
+            f"{CLI_BIN} crash timeseries get",
             f"--project {project}",
             f"--type {data_type}",
             f'--start "{s}"',
@@ -607,7 +625,7 @@ def query_top_versions(project, component, date, next_day, top_n=5):
     # Step1: 用 field-suggestions 获取版本枚举（替代 crash_log_detail_post_json 采样）
     filter_arg = f'--filter "default_component:{component}"' if component else ""
     cmd = (
-        f'raptorfe crash field-suggestions get'
+        f'{CLI_BIN} crash field-suggestions get'
         f' --project {project} --type crash --field appVersion'
         f' --start "{sample_start}" --end "{sample_end}"'
         f' {filter_arg}'
@@ -1652,7 +1670,6 @@ def build_notify_message(display_name, date, comp_sums, sum_crash,
 
 # ── Main ────────────────────────────────────────────────
 def main():
-    check_dependencies()
     parser = argparse.ArgumentParser(
         description="Component Crash Chart (multi-platform, hourly or 7-day)",
         epilog=f"Available preset groups:\n{list_groups()}",
@@ -1675,11 +1692,21 @@ def main():
     parser.add_argument("--output", help="Output PNG path")
     parser.add_argument("--minute", action="store_true", help="Minute-level chart (no hourly aggregation)")
     parser.add_argument("--type", default="crash", choices=["crash", "anr"], help="数据类型: crash（默认）或 anr")
+    parser.add_argument("--cli", default=None,
+                        help="CLI 命令字：raptorfe（默认，境内）或 raptorfeov（境外环境 raptor.mws.keetapp.com）；"
+                             "也可用环境变量 RAPTOR_CLI_BIN 指定")
     parser.add_argument("--list", action="store_true", help="List all preset groups")
     parser.add_argument("--notify", metavar="MISID",
                         help="After generating chart: upload to S3 + send Daxiang message "
                              "(e.g. --notify nieyunlong). For cron fix-effect monitoring.")
     args = parser.parse_args()
+
+    global CLI_BIN
+    if args.cli:
+        CLI_BIN = args.cli
+
+    validate_cli_bin()
+    check_dependencies()
 
     if args.list:
         print("Available preset groups:")

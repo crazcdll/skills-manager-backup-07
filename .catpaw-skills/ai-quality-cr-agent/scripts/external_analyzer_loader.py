@@ -335,6 +335,48 @@ def pick_providers(registry, repo):
 
 
 # ---------------- Step 4-E: run ----------------
+# ---------------- targetCommit 契约分类 ----------------
+# SOP 契约: targetCommit 必须为 40 位完整 sha。上游 agent-bridge 历史上传过
+# 分支名/12位短 hash,导致架构漂移分析静默降级为自由分析(虚假"未发现漂移")。
+# 本层只分类打标不拦截(过渡期方针: 不断流,违规显式化;上游修复后二期再收紧 fail fast)。
+SHA40_RE = re.compile(r'^[0-9a-f]{40}$')
+SHORT_HASH_RE = re.compile(r'^[0-9a-f]{7,39}$')
+CONTRACT_LOG_PATH = os.environ.get("EXTAN_CONTRACT_LOG", "/tmp/contract-violations.log")
+
+def _check_commit(tc):
+    """对 targetCommit 做契约分类。
+    返回: 'valid' | 'short-hash' | 'branch-like' | 'invalid'
+    - valid: 40 位 hex(大小写均接受)
+    - short-hash: 7~39 位 hex,可被下游识别但 commit 坐标不确定
+    - branch-like: 含 '/' 或非 hex 字符(分支名/tag 名等 ref 形态)
+    - invalid: 空(由 manifest-missing-field 前置拦截,此处兜底)
+    """
+    v = (tc or "").strip()
+    if not v:
+        return "invalid"
+    lv = v.lower()
+    if SHA40_RE.match(lv):
+        return "valid"
+    if SHORT_HASH_RE.match(lv):
+        return "short-hash"
+    return "branch-like"
+
+def _log_contract_violation(manifest, commit_class):
+    """契约违规事实日志: 在 run() 校验阶段即落盘(而非 collect 阶段),
+    确保即使下游收割链路(TIMEOUT/异常)断裂,违规也有痕迹可查。
+    归因上游,不计入 _record_failure 三振熔断(不应摘除 analyzer)。"""
+    try:
+        rec = {"ts": int(time.time() * 1000),
+               "repo": manifest.get("repo", ""),
+               "prId": manifest.get("prId", ""),
+               "queryId": manifest.get("queryId", ""),
+               "commitClass": commit_class,
+               "rawTargetCommit": str(manifest.get("targetCommit", ""))[:120]}
+        with open(CONTRACT_LOG_PATH, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    except OSError:
+        pass  # 日志失败不阻塞主链路
+
 def _fail_run(out_path, provider, msg):
     payload = {"status": "FAILED", "queryId": None, "provider": provider,
                "elapsedMs": 0, "findings": [], "dropReasons": [msg]}
@@ -498,6 +540,13 @@ def run(args):
     for fld in ("queryId", "repo", "prId", "targetCommit", "title"):
         if not isinstance(manifest.get(fld), str) or not manifest.get(fld):
             return _fail_run(args.output, None, "manifest-missing-field:%s" % fld)
+    # targetCommit 契约分类(过渡期: 打标不拦截,v2 方案 3.2)
+    commit_class = _check_commit(manifest.get("targetCommit"))
+    if commit_class != "valid":
+        _log_contract_violation(manifest, commit_class)
+        # 注入 contractNote 随 manifest 透传给 analyzer 与下游 collect/envelope
+        manifest["contractNote"] = {"commitClass": commit_class,
+                                    "raw": str(manifest.get("targetCommit", ""))[:120]}
     try:
         reg = json.load(open(REGISTRY_PATH))["registry"]
     except Exception:
@@ -596,13 +645,15 @@ def run(args):
         result.setdefault("dropReasons", []).append("status-invalid")
     if result.get("status") in ("FAILED", "REJECTED"):
         _record_failure(provider, "controlled-failure:%s" % result.get("status"))
-    # 附带 changedFiles 锚定校验面(collect 用)
+    # 附带 changedFiles 锚定校验面(collect 用); contractNote 一并透传(commitClass 打标贯穿到 envelope)
     result["_manifest"] = {
         "repo": manifest.get("repo", ""),
         "prId": manifest.get("prId", ""),
         "targetCommit": manifest.get("targetCommit", ""),
         "changedFiles": [f if isinstance(f, str) else str(f.get("path", "")) for f in (manifest.get("changedFiles") or [])],
     }
+    if manifest.get("contractNote"):
+        result["_manifest"]["contractNote"] = manifest["contractNote"]
     _write_result_atomic(out_path, result)
     if result.get("status") in ("READY", "EMPTY"):
         _clear_failures(provider)
@@ -662,10 +713,12 @@ def _any_required(checks):
 
 
 def _write_status_envelope(path, status, error, findings, checks, required=None,
-                           run_id="", target_commit=""):
+                           run_id="", target_commit="", contract_violations=None):
     """落盘带状态的封装体(字段集: status/error/runId/targetCommit/required/findings/checks)。
     已有封装体时合并 checks(多 analyzer 逐个 collect 共写一文件);
-    顶层 runId/targetCommit/required 保留最新非空值(新一轮 CR 覆盖旧值)。"""
+    顶层 runId/targetCommit/required 保留最新非空值(新一轮 CR 覆盖旧值);
+    contract_violations 为 [(queryId, commitClass), ...] 违规明细,透传到 envelope
+    顶层供 Step 7 门禁与学城留档可见(事实源为 contract-violations.log)。"""
     if not path:
         return
     try:
@@ -706,6 +759,7 @@ def _write_status_envelope(path, status, error, findings, checks, required=None,
         "runId": run_id,
         "targetCommit": target_commit,
         "required": required if required is not None else _any_required(prev_checks),
+        "contractViolations": list(contract_violations or []),
         "findings": merged_findings,
         "checks": prev_checks,
     }
@@ -919,9 +973,13 @@ def collect(args):
         changed = set(manifest_data.get("changedFiles") or [])
         drop = []
         kept, downgraded = _validate_findings(raw_findings, provider, changed, drop)
+        _cc = (manifest_data.get("contractNote") or {}).get("commitClass") or None
+        CV = [{"queryId": manifest_data.get("queryId", ""), "commitClass": _cc}]
         check = _build_check(provider, "READY", "", manifest_data,
-                             len(kept), len(raw_findings), downgraded, drop)
+                             len(kept), len(raw_findings), downgraded, drop,
+                             commit_class=_cc)
         _write_status_envelope(args.output, "READY", "", kept, [check],
+                               contract_violations=(CV if _cc and _cc != "valid" else None),
                                run_id=str(manifest_data.get("queryId") or ""),
                                target_commit=str(manifest_data.get("targetCommit") or ""))
         print(json.dumps({"status": "COLLECTED", "provider": provider,
@@ -943,6 +1001,8 @@ def collect(args):
             return _die_noop("result-not-object")
         provider = result.get("provider") or "unknown"
         manifest = result.get("_manifest") or {}
+        _cc = (manifest.get("contractNote") or {}).get("commitClass") or None
+        CV = [{"queryId": manifest.get("queryId", ""), "commitClass": _cc}]
         result_status = str(result.get("status") or "")
         # 状态机: READY/EMPTY=完成;FAILED/REJECTED=受控失败;
         # 超时类→TIMEOUT;其余(含 status-invalid 历史遗留)一律 UNKNOWN
@@ -958,8 +1018,10 @@ def collect(args):
                 return _die_noop("findings-not-list:%s" % type(raw_findings).__name__)
             kept, downgraded = _validate_findings(raw_findings, provider, changed, drop)
             check = _build_check(provider, "READY", "", manifest,
-                                 len(kept), len(raw_findings), downgraded, drop)
-            _write_status_envelope(args.output, "READY", "", kept, [check])
+                                 len(kept), len(raw_findings), downgraded, drop,
+                                 commit_class=_cc)
+            _write_status_envelope(args.output, "READY", "", kept, [check],
+                                   contract_violations=(CV if _cc and _cc != "valid" else None))
             if result_status == "READY":
                 _clear_failures(provider)
             print(json.dumps({"status": "COLLECTED", "provider": provider,
@@ -980,8 +1042,9 @@ def collect(args):
                         "status-%s" % result_status)
         _record_failure(provider, "%s:%s" % (check_status.lower(), result_status))
         check = _build_check(provider, check_status, error_msg, manifest,
-                             0, 0, 0, drop)
-        _write_status_envelope(args.output, check_status, error_msg, [], [check])
+                             0, 0, 0, drop, commit_class=_cc)
+        _write_status_envelope(args.output, check_status, error_msg, [], [check],
+                               contract_violations=(CV if _cc and _cc != "valid" else None))
         print(json.dumps({"status": "COLLECTED-DEGRADED", "provider": provider,
                           "checkStatus": check_status, "error": error_msg,
                           "findingsKept": 0, "findingsTotal": 0,
@@ -990,12 +1053,17 @@ def collect(args):
         return 0
 
 
-def _build_check(provider, status, error, manifest, kept, total, downgraded, drop):
-    """构造单个 analyzer 的 check 条目(身份+状态+计数,发布门禁的判定单元)。"""
+def _build_check(provider, status, error, manifest, kept, total, downgraded, drop,
+                commit_class=None):
+    """构造单个 analyzer 的 check 条目(身份+状态+计数,发布门禁的判定单元)。
+    commit_class: targetCommit 契约分类(valid/short-hash/branch-like/invalid);
+    默认 None → 序列化时省略字段,语义为"本轮未知"(只有显式传入才写入,
+    避免错误收割等拿不到 manifest 的路径被误标为 valid)。门禁侧
+    "无字段 或 字段=valid" 均按正常轮次处理。"""
     meta = _load_registry_meta(provider)
     if not isinstance(manifest, dict):
         manifest = {}
-    return {
+    check = {
         "analyzer": provider,
         "status": status,
         "error": error or "",
@@ -1010,8 +1078,14 @@ def _build_check(provider, status, error, manifest, kept, total, downgraded, dro
         "dropReasons": list(drop or []),
         "collectedAt": _now_ms(),
     }
-
-
+    if commit_class:
+        check["commitClass"] = commit_class
+        if commit_class != "valid":
+            # 降级信息标记(不改变门禁判定,结论效力由 Step 7 综合评估):
+            # 契约违规轮次的分析未做确定性 commit 锚定,ZERO-finding 不可作
+            # "未发现架构漂移"的确定性依据,必须带降级标记供人工复核。
+            check["dropReasons"].append("degraded-analysis:%s" % commit_class)
+    return check
 # ---------------- 验收: self-test ----------------
 def self_test(args):
     """用 mock analyzer 跑全场景,输出验收报告(不依赖任何外部 skill)"""
@@ -1091,6 +1165,13 @@ print(json.dumps({"status":"READY","queryId":m["queryId"],"findings":[
     manifest = {"queryId": "selftest", "repo": "org/mock-repo", "prId": "0",
                 "targetCommit": "0" * 40, "title": "self-test",
                 "changedFiles": ["src/MockService.java"]}
+    # 契约场景: 用非 40 位 targetCommit 验证打标链路(不拦截,照常执行)
+    if scenario == "contract-short":
+        manifest["targetCommit"] = "a1b2c3d4e5f6"          # 12位短 hash
+    elif scenario == "contract-branch":
+        manifest["targetCommit"] = "feature/some-branch"   # 分支名
+    cv_log = os.environ.get("EXTAN_CONTRACT_LOG", "/tmp/contract-violations.log")
+    _unlink_stale(cv_log)
     inp = os.path.join(tmp, "input.json")
     outp = os.path.join(tmp, "result.json")
     json.dump(manifest, open(inp, "w"))
@@ -1121,6 +1202,36 @@ print(json.dumps({"status":"READY","queryId":m["queryId"],"findings":[
     if (rc_d, rc_r, rc_c) != (0, 0, 0):
         ok = False
         msgs.append("rc=(%d,%d,%d) != (0,0,0)" % (rc_d, rc_r, rc_c))
+    if scenario == "normal":
+        # 正常轮次: 不应有 commitClass 字段与 contractViolations
+        if envelope.get("contractViolations"):
+            ok = False
+            msgs.append("normal: contractViolations should be empty")
+        if (envelope.get("checks") or [{}])[0].get("commitClass"):
+            ok = False
+            msgs.append("normal: check.commitClass should be omitted for valid commit")
+    elif scenario in ("contract-short", "contract-branch"):
+        expect = "short-hash" if scenario == "contract-short" else "branch-like"
+        chks = envelope.get("checks") or [{}]
+        # 1) 打标: check.commitClass 正确且带 degraded 标记
+        if chks[0].get("commitClass") != expect:
+            ok = False
+            msgs.append("%s: expect commitClass=%s, got %s" % (scenario, expect, chks[0].get("commitClass")))
+        elif "degraded-analysis:%s" % expect not in (chks[0].get("dropReasons") or []):
+            ok = False
+            msgs.append("%s: expect degraded-analysis in dropReasons" % scenario)
+        # 2) 顶层 contractViolations 透传
+        elif not envelope.get("contractViolations"):
+            ok = False
+            msgs.append("%s: envelope.contractViolations missing" % scenario)
+        # 3) 事实日志已落盘(run 阶段写入)
+        elif not os.path.exists(cv_log):
+            ok = False
+            msgs.append("%s: contract-violations log missing" % scenario)
+        # 4) 分析照常执行不拦截
+        elif envelope.get("status") != "READY":
+            ok = False
+            msgs.append("%s: must still run (status=READY), got %s" % (scenario, envelope.get("status")))
     if scenario == "normal":
         if envelope.get("status") != "READY" or not envelope.get("checks"):
             ok = False

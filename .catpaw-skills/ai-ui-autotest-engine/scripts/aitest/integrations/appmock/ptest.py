@@ -2,15 +2,15 @@
 # -*- coding: utf-8 -*-
 """ptest mock 生命周期管理。
 
-ptest 是「线上环境(A) + 一个 partMock 规则」：在 AppMock 服务端创建/复用一个
+ptest 是环境类型 P（线上泳道）的固有行为：在 AppMock 服务端创建/复用一个
 partMock 规则，为请求注入 isPtest/isGreyTest/isDevBundle 参数与 ptest UA 头，
 并推送 htptest debugconfig 到设备开启 HTTP 测试通道。
 
 两条硬约束（均按最佳方案实现，非补丁）：
 
-1. **适用环境受限**：仅线上环境(A)允许开启（唯一事实来源
-   `provisioning/validators/env_validator.ENV_CAPABILITIES`），采集/校验/执行
-   三层统一门控。
+1. **适用环境由类型决定**：仅 `env.type=P`（线上泳道）启用，它是 `type=P` 的
+   派生事实（唯一事实来源：`provisioning/validators/env_validator.ENV_TYPE_MAP`
+   / `_ENV_TYPE_DEFS`），采集/校验/执行三层统一门控。
 2. **不得遮蔽场景 Mock**：AppMock 对同一请求**命中即短路**，ptest 的全量 partMock
    规则（`/.*?$`）会抢在场景响应型 Mock（如 preview）之前命中，导致场景 Mock 不
    生效（历史事故：alpha 环境 preview 未 Mock → 提单页「售罄」）。因此本模块按

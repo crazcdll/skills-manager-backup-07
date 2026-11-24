@@ -1,6 +1,6 @@
 ---
 name: crash-alarm-check
-version: "5.0.0"
+version: "5.0.1"
 description: >
   【已迁移·转发壳】Crash / ANR / FOOM / Watchdog 告警排查与根因分析。
   本子能力的分析逻辑已统一迁移至 infra-app-stability 技能的 root-cause 子技能，
@@ -45,6 +45,7 @@ metadata:
    - `GroupBy：message=` 后的值 → 崩溃聚类标识（堆栈 hash）
    - `统计开始时间：` / `统计结束时间：` → 告警统计周期
    - `[[聚类列表|URL]]` 中的 URL → project / type / filter 参数
+4. **环境透传**：若告警消息中的聚类链接域名为 `raptor.mws.keetapp.com`，或用户明确提到「海外 / 境外 / overseas」，透传时一并告知 root-cause 当前为境外环境，所有 `raptorfe` 查询命令改用 `raptorfeov`（判定与执行规则见父技能 `SKILL.md` 的「环境识别：境内 / 境外」章节）
 
 > 💡 转发时无需向用户二次确认，也无需重复回述告警内容——root-cause 会自行完成参数回述与路由说明。
 

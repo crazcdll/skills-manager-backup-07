@@ -4,12 +4,12 @@ description: "AI-CR 公众号 Agent 版,支持公众号单聊和群中 @触发�
 
 skill-dependencies:
   mt-code-standards-setup:
-    note: L2 规则包预取(Step 2I)依赖此 Skill 的 Runner;未安装时预取自动跳过,不影响主流程(L1 不拉取,l2-only)
+    note: Step 2I 通过此 Skill 的官方 Runner 获取规则,主流程只交付 L2;缺少依赖时记录规则覆盖缺口
 
 metadata:
   skillhub.creator: "mengmuzi"
   skillhub.updater: "mengmuzi"
-  skillhub.version: "V132"
+  skillhub.version: "V135"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "72066"
   skillhub.high_sensitive: "false"
@@ -28,7 +28,7 @@ metadata:
 5. **Layer 2(code-repo-search 反查)强制执行**:命中任何高危触发器必须反查,不得跳过
 6. **代码行为 ≠ 注释意图**:P0/P1 判断以代码实际行为为准,注释说"可接受"不能降级
 7. **鉴权只能通过 `$CODE_CLI`(scripts/code_cli.py)**:禁止自己写鉴权脚本、禁止直接调 mtsso-* 命令
-8. **全链路必须跑完**:Step 0 → 1+2 → 3 → 4-A‖4-B‖4-C‖4-D → 4-Merge → 5(多仓) → 6 → 7 → 8 → 9。技术栈分工按 Step 2H 协议执行;纯前端 PR 按入口出口模式由 Step 2H/fe-dispatch-protocol 路由,仅保留 Step 0~2、3D、合流与发布;适用步骤缺失或实质变更未覆盖时终止发布,不得标记完成
+8. **全链路必须跑完**:Step 0 → 1+2 → 3 → 4-A‖4-B‖4-C‖4-D → 4-Merge → 5(多仓) → 6 → 7 → 8 → 9。技术栈分工按 Step 2H 协议执行;纯前端 PR 按入口出口模式保留 Step 0~2、3D、前端规则准备、合流与发布;适用步骤缺失或实质变更未覆盖时终止发布,不得标记完成
 9. **审查报告 ≠ 结束**:Step 4-Merge 输出后必须立即进入 Step 5/6→7→8,禁止在 Step 4-Merge 后停止;findings 详情只写入学城文档和 PR 评论,**禁止在对话中输出 findings 完整内容**(对话中仅输出一行摘要:`✅ Step 4-A:P0=n,P1=n,P2=n,P3=n,结论:{四选一}`)
 10. **如实标注命中规则**:已命中 checklist / 规则库的 finding 必须使用其真实编号,不得虚构或使用未约定的占位编号；L3 规则没有定义 ID 时允许使用约定的 `FE:L3_custom` 兜底。FE 结果在主 Agent 结果转换阶段统一添加 `FE:` 前缀，发布脚本只做幂等兜底；L3 规则优先使用规则文件定义的 ID，映射为 `FE:L3_<id>`。纯上下文判断没有命中规则时才允许 `ruleId=""`,保留有证据的问题并计入「无规则标注」;字段本身仍必填。规则编号不能替代问题描述和证据
 11. **Step 6 必须等全部已启动审查返回并合流完成后才能执行**:后端和原生部分等待主流程适用且已启动的审查;前端部分等待 FE 委托;混合 PR 等待全部已分派审查方。所有路由都必须等 Step 4-Merge 和必要复查完成。主 Agent 禁止在任何已启动审查方未返回时提前发布,全部 findings 必须进入统一结果
@@ -39,8 +39,8 @@ metadata:
 16. **🚨 Step 4-D 严重级别映射**:Step 4-D 子 Agent 检出的问题,按证据链置信度定级:三源一致(SDD+需求+上下文)→ P0/P1;两源一致 → P1/P2;仅单源推断 → `confirm`(人工复审)。**禁止输出无依据的推断**
 17. **🚨 去重不得丢失独立问题**:相同 file/line/ruleId 或 anomalyType 不足以证明重复,空 ruleId 不作去重依据。仅同一根因和行为的发现可合并,保留最高严重级别及全部实质证据;`confirm` 不能覆盖已证实的 P0-P3
 18. **🚨 前端与混合 PR 委托原则(Step 2H)**:前端部分必须按 [references/fe-dispatch-protocol.md](references/fe-dispatch-protocol.md) 委托 fe-ai-review,不使用 Java 规则硬审。混合 PR 按技术栈分派并在主 Agent 合流,不得忽略任一侧。纯前端 PR 走入口出口模式:上下文感知、自定义规则与业务逻辑检查由 fe-ai-review 承接(规则路径随委托传入),SDD 和 JSON 门禁留在主流程;混合 PR 全部保留。暂无专项能力或规则的原生部分由主 Agent 执行通用审查并继续发布;已分派审查执行失败或实质文件无人承接时终止发布并告知未覆盖范围
-19. **🚨 自定义规则收割必须脚本化(禁 LLM 转述)**:`.mdp/rules/team|project` 与 `.catpaw/rules` 的搜索结果收割、规则缓存生成、4-C 跳过判定,全部由 `scripts/collect_custom_rules.py` 回执驱动(回执:`$CR_RUN_DIR/rule_harvest.json`)。主 Agent 禁止自行解读 search_*/result.json 得出规则结论并转述给 4-C 子 Agent——只能粘贴回执原文与缓存文件路径。回执 ruleFilesLoaded 非空但主 Agent 判断「无规则」时,回执优先,必须重新执行 4-C(150298 故障根因红线)
-20. **🚨 行内评论锚定校验必须脚本化执行(禁绕过发布链路)**:发布前必须核对本轮 `runId`、PR 身份、实际 diff 绝对路径及 SHA-256 和同源双端点；用真实 diff 核对 issue.code 与行号,不一致时重定位，无法安全锚定的 P0/P1 降级全局兜底,禁止丢弃。发送前双端点任一变化或无法验证均不能宣称快照一致。主 Agent 禁止绕过 `publish_results.py` 用 `$CODE_CLI comment-add` 批量发行内评论(单条补发/删除等运维操作除外);禁止手工修改 issue 的 `line` 字段来"修正"行号——行号修正只能由锚定校验引擎(`scripts/line_anchor.py`)完成。*定位契约*:①不猜行号——code 片段唯一命中但 span 内存在多个合法问题行且原行号缺失时,不取首个,标歧义降级全局(完整报告);②P2/P3 仅增加定位校验展示(状态标注),不改等级/行内策略;③统一位置信息 `positionStatus`(confirmed/unconfirmed)+`positionNote`,描述中旧行引用只能加可追溯警告,禁止批量替换数字或伪造 code;④报告/全局正文/落库(cr_result issues)均携带定位状态,固定「P0/P1 均已行内」声明已去除,所有问题完整保留;⑤晚漂移/锚定模块缺失/异常分支明确降级全局(同步结构化最终状态,保留审查行号并标未确认),不允许旧行内泄漏;⑥快照身份/runId 必填且实际一致,缺失或不一致一律不 trusted
+19. **🚨 自定义规则收割必须脚本化(禁 LLM 转述)**:`scripts/collect_custom_rules.py` 在同一仓库版本列举、读取规则并生成回执。委托 FE 时主 Agent 必须按[前端规则准备](references/fe-dispatch-protocol.md#前端规则准备)从冻结的源提交采集；Step 4-C 的目标分支缓存单独准备。只交回执原文与实际缓存路径；读取失败标注未完成，禁止手工拼接规则或按无规则处理
+20. **🚨 行内评论锚定校验必须脚本化执行(禁绕过发布链路)**:发布前必须核对本轮 `runId`、PR 身份、实际 diff 绝对路径及 SHA-256 和同源双端点；用真实 diff 核对 issue.code 与行号,不一致时重定位。**P0/P1 必须行内**:行号漂移处理统一收拢于 `scripts/line_anchor.py`(发布入口 `resolve_publish_anchors`),漂移时经 L1 坐标迁移+T0 验证收口,验证不过走 T2 就近/T3 近似/T4 文件级降档链,P0/P1 永不降级全局,行内评论以 `📍 行号锚定: <精度>` 标注实际精度(exact/mapped/near/approximate/file-level),禁止伪装精确;仅行号形状非法的极端场景降级全局兜底,禁止丢弃。主列表与末尾「无法行内锚定」章节由 `_is_inline_publishable` 单一事实源去重,同一条目全文只展示一次。发送前双端点任一变化或无法验证均不能宣称快照一致。主 Agent 禁止绕过 `publish_results.py` 用 `$CODE_CLI comment-add` 批量发行内评论(单条补发/删除等运维操作除外);禁止手工修改 issue 的 `line` 字段来"修正"行号——行号修正只能由锚定校验引擎(`scripts/line_anchor.py`)完成。*定位契约*:①不猜行号——code 片段唯一命中但 span 内存在多个合法问题行且原行号缺失时,不取首个,标歧义降级全局(完整报告);②P2/P3 仅增加定位校验展示(状态标注),不改等级/行内策略;③统一位置信息 `positionStatus`(confirmed/unconfirmed)+`positionNote`,描述中旧行引用只能加可追溯警告,禁止人工批量替换数字或伪造 code(唯一例外:漂移迁移(drift-migrated)分支由锚定引擎在 T0 内容验证通过后,对正文中原锚点行号引用做边界感知精确替换,并追加「📍 行号锚定」精度标注保持可追溯,主 Agent 仍禁止手工改行号);④报告/全局正文/落库(cr_result issues)均携带定位状态,固定「P0/P1 均已行内」声明已去除,所有问题完整保留;⑤晚漂移/锚定模块缺失/异常分支明确降级全局(同步结构化最终状态,保留审查行号并标未确认),不允许旧行内泄漏;⑥快照身份/runId 必填且实际一致,缺失或不一致一律不 trusted
 
 ---
 
@@ -85,8 +85,8 @@ Step 1 + Step 2:【并行执行】Step 1(ONES需求上下文)与 Step 2(PR元信
   └── Step 2:提取 PR 元信息 + 仓库归属 + 单/多仓库判断 + 分批判断 + 超大PR检测(文件数≥500时触发2E:pr-changes真翻页全量拉取 + 三层分层)
       └── 2C. 审查模式判定(全量/增量):pr-commits 取目标 commit + pr-comments 找上轮基准 commit → CR_MODE
       └── 2F. diff 落盘 → 2G. 外部知识库后台查询(exec background,不等待,每仓独立)
-      └── 2I. 规则包后台预取(mt-code-standards-setup,backend/mixed 时,每仓独立,3C Layer 3 收割)
       └── 2H. 技术栈与覆盖判定:前端委托 fe-ai-review,混合 PR 分派专业审查后合流;公共准备不能跳过
+      └── 2I. 规则包后台预取(mt-code-standards-setup,backend/mixed/general 时,每仓独立,3C Layer 3 收割)
 Step 1+2 完成后,进入 Step 3(依赖 Step 2 的文件列表)
 
 【单仓库】直接执行 Step 3~9
@@ -159,7 +159,7 @@ Step 9:验证(全链路状态播报)
 | Step 0 | ▶️ 环境自检开始 | ✅ 环境就绪,工具路径已定位,团队配置已加载 | ❌ 工具路径缺失或配置加载失败,中止 |
 | Step 0E | ▶️ 外部知识库发现 | ✅ 发现 {n} 个:{名单} / ⏭️ 无外部知识库,跳过 | ⚠️ 任何失败=功能不存在,继续 Step 1 |
 | Step 2G | ▶️ 外部知识库查询已后台发出 | ✅(不在主流程确认,由冻结点收口) | ⚠️ 失败=空结果,禁止重试禁止中止 |
-| Step 2I | ▶️ 规则包预取已后台发出 | ✅ 规则包就位(L2={n2} 个规则集) / ⏭️ 预取未就绪,回退仓库内规则(3C Layer 3 收割时确认) | ⚠️ 失败=回退仓库内规则,禁止重试禁止中止 |
+| Step 2I | ▶️ 规则包预取已后台发出 | ✅ 规则包就位(L2={n2} 个规则集) / ⏭️ 本轮无可交付 L2 / ⚠️ 预取未完成(3C 收割) | 失败时保留覆盖缺口,继续检查可用规则 |
 | 冻结点(3F) | ▶️(紧随 3E,单次) | ✅ {n} 卡已冻结(丢弃 {m}:{原因}) / ⏭️ 未就绪,废弃 | ⚠️ NOT_READY=废弃,晚到不回填 |
 | Step 1+2 | ▶️ Step 1+2 并行开始(ONES上下文 + PR元信息) | ✅ Step 1:已加载需求:{标题}(或跳过);Step 2:PR #{id},{提交人},{文件数}个文件,{单/多}仓库 | Step 1 失败跳过;Step 2 失败中止 |
 | Step 3 | ▶️ 三层上下文感知(Layer 1/2/3) | ✅ Layer 1 读取 N 个文件,Layer 2 反查 N 个引用,Layer 3 加载 {知识库内容概要} | ❌/⚠️ Layer 2 降级时必须告知 |
@@ -461,6 +461,7 @@ python3 "${SKILL_DIR}/scripts/get_pr_diff.py" --url "$PR_URL" --since "$BASE_COM
 > 🚨 **执行后立即核对并冻结本轮范围**:仅在脚本 exit 0 且 mode_info 的 `snapshotStatus=sampled-consistent` 时继续；核对 org/repo/prId、`runId=$CR_RUN_ID`、`diffPath=$CR_DIFF_FILE` 的绝对路径、文件字节 SHA-256 与 `diffSha256`,以及同源完整 `snapshotFromHash`/`snapshotToHash`。按 `crMode`/`baseCommit`/`targetCommit`/`commitCount` 校正范围：全量 base/count 为 null 或缺省，增量须两个不同的完整 hash 和正整数 count。`targetCommit` 来自 PR commit 链；增量真实 diff 是固定 `compareFromHash=targetCommit` 到 `compareToHash=baseCommit`，与 `pr-changes` 两快照端点不是同一范围，严禁互换。前后端点采样一致仅代表两次读取一致，并非逐文件的原子快照保证；采样期间发生后又回退的变化无法排除。`omittedFiles` 非空时直接中止，不得作为完整审查发布；`failedFiles` 非空按覆盖缺口标注。此后 diff、范围和清单只读使用，传给子 Agent 和旧指南的 diff 路径均替换为 `$CR_DIFF_FILE` 实际绝对路径。
 >
 > ⚠️ **exit code 2 = 无新提交**(非错误):终止流程并提示用户「自上次 CR 以来无新 commit,如需重审请说明要全量 CR」,不要当作脚本崩溃去重试。
+> ⚠️ **targetCommit 必须 40 位完整 sha**(外部审查对接 SOP 契约):Step 2 冻结范围时校验 `snapshotToHash`(增量)或 PR 元信息中 commit 链的完整 hash(全量),不足 40 位时优先从 PR API 的完整 commit sha 补齐后再冻结。若最终仍拿不到 40 位值,如实保留并在发布上下文标注 `commitClass=short-hash/branch-like`,后续 4-E manifest 照实透传(loader 会打标不拦截,见 operations.md 契约分类节)。严禁手拼短 hash 或分支名掩饰为合规值。
 > ⚠️ **exit code 3 = PR 无变更文件**(拒绝审查):常见于 RESCOPED/force-push 事件触发但拿不到有效 diff。直接终止并告知用户「本次触发未拿到变更内容(可能是重定范围事件),请重新 push 或手动重新触发 CR」,禁止拿空 diff 继续审查。
 > ⚠️ **exit code 4 = 快照取证失败/漂移**:禁止审查和发布现有 diff；保留失败状态供诊断，新建本轮目录重新获取。其他非零退出亦不得继续。
 > ⚠️ **部分文件拉取失败**(exit 0):`fetch_diffs` 返回失败文件列表并写入 mode_info 的 `failedFiles` 字段,发布器会自动在学城文档概述表、PR 全局评论、大象推送标注「审查覆盖缺口」。Agent 不得隐瞒或删除该标注。
@@ -509,47 +510,41 @@ python3 "$SKILL_DIR/scripts/external_kb_loader.py" run \
 
 ### 2I. 规则包后台预取(mt-code-standards-setup,L2 团队规范正式链路)
 
-> 🚨 **前置条件**:2F 范围冻结完成后、2H 判定为 backend 或 mixed 时执行(纯前端路由不预取,L2 规则获取由 fe 内部自理,主流程不传)。多仓 PR:**每仓独立执行一次 2I**。
-
-**目标**:在 Step 3 执行期间后台拉取平台"当前有效规则包"——**只交付仓库已订阅的 L2 团队规范**(--l2-only,公司 L1 不落盘不注入)。封装脚本以 `$CR_RULES_OUT` 空目录为输出目录调官方 Runner 原地拉取,产出 `team/<规则集ID>/*.md + manifest.json`(供 Step 4-C 消费;Step 3C Layer 3 扫描只收割合并后的缓存文件,不碰拉取目录)。**背景与设计说明(空目录原理/平台契约/产品决策记录)→ `references/rule-bundle-prefetch-guide.md`(平时不需要 read,排查预取问题、调整链路时 read)**
-
-**路径探测(软依赖,未装则跳过)**:由封装脚本 `scripts/fetch-rule-bundle.sh` 自动处理(探测 mt-code-standards-setup Runner,未安装退出码 3 → 播报提示后跳过,不报错)。
-
-**后台启动(exec background,不等待)**:
-```bash
-# 2H 判定 backend → 预传 --domain backend(避免卡 DOMAIN_CONFIRMATION);
-# 2H 判定 mixed → 不传,由 Runner 按代码自判,判不出则降级(rc=5)
-CR_RULES_OUT="$CR_RUN_DIR/rule_bundle"
-[ "$(2H判定值)" = "backend" ] && DOMAIN_ARG="--domain backend" || DOMAIN_ARG=""
-bash "$SKILL_DIR/scripts/fetch-rule-bundle.sh" \
-  --repo "$ORG/$REPO" $DOMAIN_ARG --out "$CR_RULES_OUT" --timeout 90 --l2-only \
-  >>"$CR_RUN_DIR/rules_prefetch.log" 2>&1
-```
-
-- **不等待、不重试**,立即继续 2H → Step 3。结果在 3C Layer 3 扫描前一次性收割
-- 脚本退出码契约:0=成功(resolve 或 l1_bootstrap 都算);3=skill 未装(播报提示跳过);4=失败/超时;5=DOMAIN_CONFIRMATION(仅 mixed 未传 domain 时可能)→ 均不阻塞,回退仓库内已有规则
-- 未登记仓库返回 `l1_bootstrap`(仅 L1)属正常结果:l2-only 下输出空 team/,Step 4-C 按无 L2 处理
-- 首次执行若需安装 `@it/oa-skills`(耗时 30-60s),可能超出收割窗口 → 收割时视为超时降级,下次 CR 自然生效
-
-**收割预算**:Step 3A/3B/3C 执行完后,L Layer 3 目录扫描前 poll 一次(总预算 90s,从 2I 启动计时;拉取本身仅 2-5s,预算充裕)。未完成/失败 → kill 后台任务,回退仓库内已有 `.mdp/rules/`,不阻塞 CR。**收割动作及全部背景(平台契约/产品决策/空目录原理/踩坑史)→ `references/rule-bundle-prefetch-guide.md`(排查问题时 read)**
-
-**收割动作**:poll 后台任务完成 → 读 `$CR_RULES_OUT/manifest.json` 确认成功 → 将 `team/*/*.md`(L2)合并进 **`/tmp/cr_l2_rules_{prId}.md`**(独立缓存;每个文件前加 `## {规则集}/{文件名}` 分隔标题)。**L1 不消费**(l2-only)。未完成/超时/失败(rc≠0) → kill 后台任务,播报 `⏭️ Step 2I:预取未就绪,回退仓库内规则`,主流程继续。**禁止因预取失败阻塞或重试**。
-
-**播报**:`▶️ Step 2I:规则包预取已后台发出({org}/{repo}),不等待` / 收割时 `✅ Step 2I:规则包就位(L2={n2}规则集)` 或 `⏭️ Step 2I:预取未就绪,回退仓库内规则`
-
----
-
 ### 2H. 技术栈判定与审查分派(fe-dispatch)
 
 > 🚨 **主 Agent 在 2F 完成后必须执行**:扫描变更文件清单,按模块用途识别前端、后端和原生部分。
 > 判定标准、委托流程、结果回收格式**全部见 [references/fe-dispatch-protocol.md](references/fe-dispatch-protocol.md)**(先读它再执行)。
 
-- **前端 PR**(纯前端)→ **入口出口模式**:主流程只保留 Step 0~2(环境+范围冻结)、Step 3D(SDD,发布字段来源)、4-Merge 合流和 Step 6 发布;Step 3A/3B/3C/3E/3F 上下文感知与 Step 4 全部子步都由 fe-ai-review 承接(自定义规则路径+已有冻结上下文随委托传入,未拉取的由其自行准备);结果统一合流到 Step 6
-- **纯原生仓库 PR** → `general`,主 Agent 按协议执行通用审查,不委托 fe-ai-review。本次暂不扩展原生与前后端耦合的审查流程。当前不加载原生专项规则,跳过 2I/3E/4-B;所需上下文、SDD、适用仓库自定义规则、JSON 校验、P0/P1 复查及发布照常执行
+- **前端 PR**(纯前端)→ **入口出口模式**:主流程保留 Step 0~2(环境+范围冻结)、Step 3D(SDD,发布字段来源)、[前端规则准备](references/fe-dispatch-protocol.md#前端规则准备)、4-Merge 合流和 Step 6 发布。主 Agent 负责从源提交采集交接的仓库规则，fe-ai-review 承接前端上下文感知、规则应用和其余审查；已有冻结上下文随委托传入
+- **纯原生仓库 PR** → `general`,主 Agent 按协议执行通用审查,不委托 fe-ai-review。本次暂不扩展原生与前后端耦合的审查流程。general 仍执行 2I 获取平台 L2,继续跳过原生专项 3E/4-B;所需上下文、SDD、适用仓库自定义规则、JSON 校验、P0/P1 复查及发布照常执行
 - **混合 PR**(前后端均有实质变更)→ 无论行数占比,前后端分别专业审查,主 Agent 核对共享契约并合流全部发现;Java 流程不能冒充 Node 等后端专业审查
 - **fe-ai-review 不可用** → 终止并告知用户,不降级为 Java 规则审查
 
 **播报**:`✅ Step 2H:技术栈判定 = {frontend/backend/general/mixed},前端/后端/原生/共享文件 = {数量},未归属 = {数量}`。manifest 仅按所属 package 佐证,不能覆盖其它模块的实质变更。原生通用审查的步骤适用性和合流要求以协议为准;后续等待只针对适用且已启动的审查,规则缺失不等于审查失败。未归属或无人承接的文件先补齐证据与分工
+
+---
+
+### 2I. 规则包后台预取(mt-code-standards-setup,L2 团队规范正式链路)
+
+> **执行条件**:2F 冻结范围后,2H 判定为 `backend`、`mixed` 或 `general` 时执行。纯前端由 fe-ai-review 自行拉取平台规则。多仓 PR 每仓使用独立输出目录。
+
+平台按仓库分发当前有效规则。封装脚本用临时空目录调用官方 Runner,校验仓库、审查阶段与本轮安装回执,按清单给出的路径读取并整理 L2 正文。只给审查交付 L2;L1 和索引文件留在临时目录并随任务清理。排查时参阅 [预取指南](references/rule-bundle-prefetch-guide.md)。
+
+**后台启动(exec background,不等待)**:将 2H 判定值设为 `CR_ROUTE`。
+```bash
+CR_RULES_OUT="$CR_RUN_DIR/rule_bundle"
+bash "$SKILL_DIR/scripts/fetch-rule-bundle.sh" \
+  --repo "$ORG/$REPO" --route "$CR_ROUTE" --out "$CR_RULES_OUT" --timeout 90 \
+  >"$CR_RUN_DIR/rules_prefetch.log" 2>&1
+```
+
+启动后继续 Step 3。`backend` 显式传后端领域;`mixed` 和 `general` 使用平台登记的仓库领域,不根据 PR 技术栈猜领域。
+
+**收割动作**:3C 在目录扫描前查看本轮后台任务,从启动算起最多等到 90 秒,以 `$CR_RULES_OUT/manifest.json` 为准。核对仓库与路由。只在任务退出 0、状态为 `loaded` 且 `rules_path` 指向本轮存在的正文时,把回执和正文交给 4-C;混合 PR 按 FE 交接协议透传同一份已验证正文。状态为 `no_team_rules` 时记录平台确认本轮无可交付 L2。
+
+任务未启动、尚未写回执时记录 `not_started` 或启动失败;`running` 超过预算记 `fetch_failed/wait_timeout`,本轮不接收迟到结果。退出码 3 表示依赖缺失;4 表示拉取失败、超时、覆盖不可确认或正文校验失败;5 表示 `domain_unresolved`。回执缺失、来源不符或正文不可用均记录覆盖缺口,保留可用的仓库规则,不重试,不把缺口记成无规则。
+
+**播报**:`▶️ Step 2I:规则包预取已后台发出({org}/{repo})` / 收割时 `✅ Step 2I:规则包就位(L2={n2}规则集)`、`⏭️ Step 2I:本轮无可交付 L2` 或 `⚠️ Step 2I:预取未完成(status={status},error={error_code})`。
 
 ---
 
@@ -560,7 +555,7 @@ bash "$SKILL_DIR/scripts/fetch-rule-bundle.sh" \
 
 **核心原则:bug 藏在「变化 × 存量语义」的交集里,光看 diff 不够。**
 
-> 🚨 **纯前端 PR 不执行本 Step 的 3A/3B/3C/3E/3F**,上下文感知由 fe-ai-review 承接(入口出口模式,见 [references/fe-dispatch-protocol.md](references/fe-dispatch-protocol.md))。仅 Step 3D(SDD spec 发现/完备性检查)保留在主流程,作为发布字段的结构化来源。
+> 🚨 **纯前端 PR 不执行 3A/3B/3C/3E/3F 的通用上下文流程**。主 Agent 执行 3D 的 spec 发现和校验，复用下文来源 A/B/C 的 spec 查找方式，并按[前端规则准备](references/fe-dispatch-protocol.md#前端规则准备)单独采集本轮 FE 规则。
 
 ### 3A. Layer 1 - 代码结构
 
@@ -685,6 +680,8 @@ fi
 
 ### 3C. Layer 3 - 业务语义
 
+**平台 L2 预取收割**:在目录扫描前按 Step 2I 核对本轮任务和回执。校验通过的 L2 正文路径随回执交给后续审查;其余结果按回执记录未覆盖原因或确认无可交付 L2。
+
 加载顺序(**三层叠加注入,编号越大越贴近当前仓库实际,优先用于业务语义判断**):
 
 1. **Skill 内置通用规则**(所有团队共享):
@@ -701,7 +698,7 @@ fi
 
 3. **仓库级 spec 文档**(双源合并,权威性最高,与前两层叠加注入,不覆盖通用 P0/P1 规则):
 
-   > **spec 文件两种来源都要读,合并去重后注入 Layer 3。有任一来源有内容即可;只有两处都完整检查且无内容才可跳过。搜索失败不等于无 spec,必须标注来源未完成,不能据此输出「未采用 SDD」或跳过自定义规则检查。**
+   > **来源 A/B 分别查找存量和新增 spec，合并去重后注入 Layer 3；来源 C 补充随单方案。搜索失败时记录未完成的来源。规则目录由独立的规则收割脚本处理。**
 
    **来源 A - 目标分支存量 spec**(仓库长期维护的领域文档,搜 `$TARGET_BRANCH`,PR 是 feature→feature 时即 feature 分支上的存量 spec):
    ```bash
@@ -710,8 +707,7 @@ fi
    # 零命中不直接下「无存量 spec」结论,按两段式回退 -b master 重搜后才下结论(见 3B 回退规则)
    # repo_search 无 --list-files 参数,用 -k "" + --path + --ext 列出文件
    SPEC_SEARCH_COMPLETE=true
-   for SPEC_DIR in specs .mdp/context .mdp/rules/team .mdp/rules/project \
-     .catpaw/rules docs/superpowers/specs docs/superpowers/plans; do
+   for SPEC_DIR in specs .mdp/context docs/superpowers/specs docs/superpowers/plans; do
      if SPEC_SEARCH_FILE=$(python3 "$SKILL_DIR/scripts/repo_search_json.py" \
        --run-dir "$CR_RUN_DIR" -- -r "$ORG/$REPO" -b "$TARGET_BRANCH" -k "" --path "$SPEC_DIR" --ext .md); then
        python3 -m json.tool "$SPEC_SEARCH_FILE"
@@ -730,8 +726,7 @@ fi
    **来源 B - PR feature 分支新增 spec**(本次需求新增/更新的规范文档,与来源 A 并行执行):
    ```bash
    # 从 Step 2 的 PR diff 文件列表中过滤,路径模式:
-   #   specs/**/*.md  /  .mdp/context/*.md  /  .mdp/rules/team/*.md  /  .mdp/rules/project/*.md
-   #   .catpaw/rules/*.md  /  docs/superpowers/specs/**/*.md  /  docs/superpowers/plans/**/*.md
+   #   specs/**/*.md  /  .mdp/context/**/*.md  /  docs/superpowers/specs/**/*.md  /  docs/superpowers/plans/**/*.md
    # 命中的文件从 diff 内容提取(-行或+行,取有实质内容的一侧)
    # diff 内容已在 Step 2F 写入 $CR_DIFF_FILE,使用本轮实际绝对路径读取
    # 无命中 → 跳过
@@ -744,33 +739,26 @@ fi
    **优先读取顺序**(文件多时按此顺序,时间有限可截断后面的):
    1. `specs/*/spec.md` / `specs/*/design.md` - 需求规范 + 技术方案(最高价值)
    2. `.mdp/context/*.md` - 领域知识、业务概念、状态机
-   3. `.mdp/rules/team/*.md`、`.mdp/rules/project/*.md` - 团队/项目规则
-   3.5. `.catpaw/rules/*.md` - CatPaw 用户自定义规则(用于 Step 4-C 检查)
-   4. `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` - Superpowers 设计文档
-   5. `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md` - Superpowers 实现计划
+   3. `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` - Superpowers 设计文档
+   4. `docs/superpowers/plans/YYYY-MM-DD-<feature-name>.md` - Superpowers 实现计划
 
    **直接跳过**(纯工具脚手架,与业务语义完全无关):`.mdp/workflows/`、`.claude/`、`.specify/`
 
-   **`.mdp/rules/company/`**:仓库级 Java 编码规范,仅作参考阅读(不进入 Step 4-C 规则链;Step 2I 的 l2-only 产品决策下不主动注入)。若时间充裕可抽样阅读补充 P2/P3 判断依据,不影响主要检出率。
+   **`.mdp/rules/company/`**:仓库级 Java 编码规范,仅作参考阅读(不进入 Step 4-C 规则链)。若时间充裕可抽样阅读补充 P2/P3 判断依据,不影响主要检出率。
 
    **自定义规则缓存(供 Step 4-C 使用,脚本化收割——禁止 LLM 转述)**:
-   3C 搜索完成后,由 `collect_custom_rules.py` 程序化收割规则文件——主 Agent **不得自行解读 search_*/result.json、不得自行拼接规则结论给 4-C 子 Agent**(150298 故障根因:搜到了规则但误报「无相关规范」,错误结论预进子 Agent prompt 后全链路失效)。主 Agent 只执行脚本并转述回执文件路径:
+   `collect_custom_rules.py` 单独从 `$TARGET_BRANCH` 列举并读取 `.mdp/rules/team/`、`.mdp/rules/project/` 和 `.catpaw/rules/` 的规则。存量 spec 搜索与规则收割分别记录，规则目录不计入 SDD。纯前端跳过下面这次 Step 4-C 采集；所有 FE 委托使用[前端规则准备](references/fe-dispatch-protocol.md#前端规则准备)的独立回执。
    ```bash
-   # 输入:本轮 CR_RUN_DIR(含 3C 的 search_*/result.json);输出:规则缓存+机器可读回执
-   python3 "$SKILL_DIR/scripts/collect_custom_rules.py" \
+   CU_RULE_RC=0
+   CU_RULE_RECEIPT=$(python3 "$SKILL_DIR/scripts/collect_custom_rules.py" \
      --run-dir "$CR_RUN_DIR" --repo "$ORG/$REPO" --branch "$TARGET_BRANCH" \
-     --pr-id "$PR_ID" --receipt "$CR_RUN_DIR/rule_harvest.json"
-   # 回执字段:ruleFilesFound/ruleFilesLoaded/indexResolved/failed/emptyReason/rulesPath
-   # exit 0=成功(含空缓存);2=run_dir 无有效搜索结果(检查 3C 是否执行);3=部分读取失败
+     --pr-id "$PR_ID") || CU_RULE_RC=$?
+   # exit 0=完成(含无规则);2=输入无效;3=列举或读取未完成(回执保留失败和已读文件)
    ```
-   - 4-C 子 Agent 输入**只传回执路径 + 回执原文(不解读)**:`回执文件:$CR_RUN_DIR/rule_harvest.json;规则缓存:$rulesPath(回执中的 rulesPath 字段值)`,子 Agent 自行读缓存文件全量内容执行检查
-   - 主 Agent 播报只引用回执事实:`✅ 自定义规则收割:{loaded 个文件已加载}(回执:rule_harvest.json)`或`⏭ 无自定义规则(回执:emptyReason={值})`
-   - 回执 `failed` 非空 → 播报「自定义规则检查未完成:{failed 文件清单}」,4-C prompt 必须附上未读文件清单,不得按无规则处理
-   - 仅当回执 `ruleFilesLoaded=[]` 且 `failed=[]` 时(即 emptyReason=all_rule_dirs_searched_empty)才允许跳过 4-C;**主 Agent 不得凭自己读搜索结果得出「无规则」结论,跳过判定权在脚本回执**
+   - 只接受本次命令返回的回执路径（退出码 0 或 3，默认 `$CR_RUN_DIR/rule_harvest.json`）。向 4-C 传入回执原文及其中有效的 `rulesPath`（默认 `$CR_RUN_DIR/custom_rules.md`），由子 Agent 读取缓存全文。
+   - 列举、正文或引用读取失败时，在汇总的人工复审要点标注「自定义规则检查未完成」，保留失败原因、受影响目录或文件；仍使用本轮已读规则。输入无效或本次回执缺失时记录缺口，不读旧缓存；是否启动审查按 Step 4-C 的可用输入决定。
 
    **🛡 一致性守卫(强制)**:若主 Agent 或 4-C 输出的任何文本声称「无相关规范/未发现自定义规则/规则文件不存在」,但回执 `ruleFilesLoaded` 非空——该结论无效,必须以回执为准重新执行 4-C。主 Agent 预置进 4-C prompt 的任何搜索结论与回执冲突时,回执优先。
-
-   **📥 Step 2I 预取收割(目录扫描前执行)**:若 2I 已后台发出规则包预取,在此收割——poll 一次后台任务(总预算 90s,从 2I 启动计时),收割/降级动作与播报文案**按 Step 2I「收割动作」段执行**(合并 `team/*/*.md` 进 `/tmp/cr_l2_rules_{prId}.md`,失败 kill+回退,禁止阻塞重试),此处不重复定义。
 
    **🔗 规则引用解析(Reference Resolution)**:
    已内置于 `collect_custom_rules.py`(索引文件判定与引用解析由脚本完成,判定标准见 [references/rule-reference-resolution.md](references/rule-reference-resolution.md)),主 Agent 无需手工解析。
@@ -804,8 +792,8 @@ fi
 
 ### 3D. SDD 产物校验(Spec-Code Alignment Check)
 
-> **前置条件**:**始终执行**。有 spec 文件时做完备性 + 文码一致性检查;仅在 3C 两种来源均完整检查且无 spec 时输出「本次变更未采用 SDD」。来源查询失败时标注「SDD 上下文获取未完成」和未覆盖来源,不得伪装成无 spec 或完整通过。
-> **零额外 IO**:3D 不做额外文件读取,复用 3C 已加载的 spec 内容进行分析。
+> **前置条件**:**始终执行**。纯前端由主 Agent 在此按上文来源 A/B/C 查找 spec；存量 spec 使用 `$TARGET_BRANCH`。有 spec 时做完备性和文码一致性检查；仅在适用来源均已检查且无 spec 时输出「本次变更未采用 SDD」。来源查询失败时标注「SDD 上下文获取未完成」和未覆盖来源。
+> **复用已读内容**:在 3C 已取得 spec 时直接复用，不重复拉取。
 > **核心原则**:客观列出差异事实,不预设谁对谁错,由 Reviewer 自行判断。
 
 #### 3D-1. 完备性检查
@@ -820,7 +808,7 @@ fi
 
 #### 3D-2. 文码一致性检查
 
-将 3C 加载的 spec 内容与 diff 代码做双向比对,**仅在完备性为「完备」或「简略」时执行**:
+将本轮已读取的 spec 与 diff 代码做双向比对,**仅在完备性为「完备」或「简略」时执行**:
 
 - **正向**(spec → 代码):spec 描述的关键设计决策(接口定义、数据模型、处理流程、异常策略、技术选型),代码实现是否符合
 - **反向**(代码 → spec):代码中新增的关键实现(新增 public 方法、新增异常分支、新增业务规则、新增外部依赖),spec 中是否有对应描述
@@ -883,7 +871,7 @@ python3 "$SKILL_DIR/scripts/external_kb_loader.py" freeze \
 
 **播报**:`✅ 冻结点:外部知识 {n} 卡已冻结(丢弃 {m} 卡:{原因})` 或 `⏭ 冻结点:外部知识未就绪,废弃`
 
-> 🚨 **Step 3E(含冻结点)完成后立即并行启动 Step 4-A、Step 4-B、Step 4-C 和 Step 4-D,不得停顿。ACTIVE_SIGNALS 透传给 Step 4-B 使用;`/tmp/cr_custom_rules_{prId}.md`(仓库自定义规则)与 `/tmp/cr_l2_rules_{prId}.md`(平台 L2 规则,若存在)均透传给 Step 4-C 使用;`/tmp/cr_kb_frozen_{prId}_{repoSafe}.md`(若存在)透传给 Step 4-A 与 Step 4-D 使用。**
+> 🚨 **Step 3E(含冻结点)完成后立即并行启动适用的 Step 4-A、Step 4-B、Step 4-C 和 Step 4-D。ACTIVE_SIGNALS 透传给 Step 4-B；本轮规则回执和缓存，以及已收割的平台 L2 规则，透传给 Step 4-C；`/tmp/cr_kb_frozen_{prId}_{repoSafe}.md`(若存在)透传给 Step 4-A 与 Step 4-D。**
 
 ---
 
@@ -1094,23 +1082,24 @@ python3 "$SKILL_DIR/scripts/external_kb_loader.py" freeze \
 
 > 🚨 **纯前端 PR 不执行本步**:自定义规则检查由 fe-ai-review 承接(规则路径随委托传入,见 Step 2H / fe-dispatch-protocol)。混合 PR 照常执行。
 > 🚨 **与 Step 4-A/4-B 并行**:Step 4-C 由子 Agent 执行,与主 Agent 的 Step 4-A 四层审查和 Step 4-B 规范检查同时启动。
-> **跳过条件**:纯前端路由;或回执 `rule_harvest.json` 的 `ruleFilesLoaded=[]` 且 `failed=[]`(即 emptyReason=all_rule_dirs_searched_empty)且 `/tmp/cr_l2_rules_{prId}.md` 为空/不存在时,不 spawn 子 Agent,直接跳过。**跳过判定依据是脚本回执,不是主 Agent 对搜索结果的解读**;主 Agent 不得凭自己读搜索结果得出「无规则」结论。
+> **启动条件**:非纯前端路由且有本轮已读仓库规则或已收割的平台 L2。两者均无时,仅当本轮回执 `ruleFilesLoaded=[]` 且 `failed=[]` 且 L2 状态为 `no_team_rules`(或本路由未适用 2I)才可按「无规则」跳过；L2 状态为 `not_started`、`fetch_failed` 或 `domain_unresolved` 时记录平台规则获取未完成,不得播报成无规则。仍有可用规则时继续检查。
+> **混合路由**:合入分支的仓库规则仅用于后端侧分配的文件；共享文件仅检查适用于后端侧的约束。前端侧使用源提交的仓库规则，由 FE 负责。完整 diff 用于理解上下文。
 
 ### 4-C-1 子 Agent 任务
 
 **分片并发(规则包接入后启用)**:两个规则缓存合并后若包含多个来源(仓库规则 + Step 2I 拉取的多个 L2 规则集),按 `## 文件名` 分隔边界切分,每个分片 spawn 一个子 Agent **在同一轮 tool call 中并发执行**,上限 `min(分片数, 3)`;单分片或规则量小(两缓存合计字节数 ≤ 30KB)时保持单子 Agent,行为与旧版一致。分片命名 `4-C-1a/4-C-1b/4-C-1c`,各自输出 `/tmp/cr_issues_{prId}_step4c_{shard}.json`(shard=a/b/c),4-Merge 统一收割合并。
 
 spawn 子 Agent(单分片或分片后),传入以下内容:
-- **回执原文(不解读)**:`$CR_RUN_DIR/rule_harvest.json` 的文件内容(collect_custom_rules.py 产出,含 ruleFilesLoaded/failed/emptyReason),以及规则缓存文件路径(回执 `rulesPath` 字段值,即 `/tmp/cr_custom_rules_{prId}.md`)
-- `/tmp/cr_custom_rules_{prId}.md`(仓库自定义规则)与 `/tmp/cr_l2_rules_{prId}.md`(平台 L2 规则,若存在)中的所有规则文件内容
-- Step 2 的本轮 diff 内容(`$CR_DIFF_FILE` 实际绝对路径)
+- 本轮有效规则回执原文，`ruleFilesLoaded` 非空时附回执里的 `rulesPath`；回执缺失时传明缺口
+- 本轮平台 L2 回执与 `rules_path` 所指正文(若收割成功),逐条检查适用于本轮 diff 的规则
+- Step 2 的本轮完整 diff (`$CR_DIFF_FILE` 实际绝对路径)；混合时同时传入后端侧分配文件清单和共享文件的后端范围
 - Step 3 Layer 1 的代码结构上下文
 
 > 🚨 **禁止主 Agent 转述搜索结论**:主 Agent 不得在 4-C prompt 中写入自己解读的搜索结论(如「仅发现通用规则文件」「无相关规范」),只能粘贴回执原文与文件路径。回执 `ruleFilesLoaded` 非空但主 Agent 判断「无规则」时,以回执为准。
 
 子 Agent 任务:
-1. 直接读取规则缓存文件全文(按 `## 文件名` 分段),理解每条规则的要求;回执 failed 非空时优先对已加载文件执行检查,并在结论中列明未读文件
-2. 对 diff 中的变更代码逐条检查是否违反自定义规则
+1. 读取本轮可用规则缓存全文(按 `## 文件名` 分段)；有获取缺口时在结论中列明。
+2. 对适用范围内的变更逐条检查。混合时合入分支仓库规则不得产生针对前端侧变更的发现。
 3. 输出统一 Issue JSON
 
 ### 4-C-2 输出格式
@@ -1118,11 +1107,11 @@ spawn 子 Agent(单分片或分片后),传入以下内容:
 每条检出的 issue 写入 `/tmp/cr_issues_{prId}_step4c.json`(JSON 数组),字段与[统一 Issue JSON 格式](references/output/issue-json-schema.md)一致:
 
 - `ruleId`:前缀 `CU:`,后接规则文件中定义的编号或规则名称简写(如 `CU:TEAM-001`、`CU:CATPAW-LOG-01`)。
-  **L2 规则(来自 `/tmp/cr_l2_rules_{prId}.md`)用 `L2:` 前缀 + 规则集ID + 稳定标识**:格式 `L2:{规则集ID}:{稳定标识}`。稳定标识直接取规则文件内「稳定标识」字段(如 `new-be-l2:FE-01.N001` → `L2:new-be-l2:FE-01.N001`);规则文件未提供稳定标识时用 `L2:{规则集ID}:{文件名去.md}` 占位(如 `L2:new-be-l2:L2-rules`),并在 description 注明规则原文标题。照抄规则文件已定义的标识,**禁止子 Agent 自行编号**
+  **L2 规则用 `L2:` 前缀 + 规则集ID + 稳定标识**:格式 `L2:{规则集ID}:{稳定标识}`。稳定标识直接取规则文件内「稳定标识」字段(如 `new-be-l2:FE-01.N001` → `L2:new-be-l2:FE-01.N001`);规则文件未提供稳定标识时用 `L2:{规则集ID}:{文件名去.md}` 占位(如 `L2:new-be-l2:L2-rules`),并在 description 注明规则原文标题。照抄规则文件已定义的标识,**禁止子 Agent 自行编号**
 - `anomalyType`:填规则类别(如 `自定义规范`、`团队约定`)
 - `source`:固定填 `step4c`
 - `ruleName`:规则名称
-- `ruleFile`:规则来源文件名(如 `team-naming-convention.md`)。**L2 规则带规则集目录前缀**,与 `/tmp/cr_l2_rules_{prId}.md` 分段标题一致(如 `new-be-l2/L2-rules.md`),用于采纳率分口径统计(平台 L2 命中 vs 仓库自定义规则命中)
+- `ruleFile`:规则来源文件名(如 `team-naming-convention.md`)。**平台 L2 使用回执的 `files[].rule_file`**(如 `new-be-l2/L2-rules.md`),与正文分段标题一致。规则集 ID 取自平台清单。
 - `severity`:按自定义规则文件中的严重级别标注定级:标注「P0」或「零容忍」→ `P0`;标注「建议」或「推荐」→ `P2`;其余(未标注) → `P3`。**L2 规则同理**:规则文件「等级」字段标「严重/高」→ `P1`,「中(建议修复)」→ `P2`,「低/提示」→ `P3`,未标注 → `P3`
 
 **返回校验**:4-C 输出的每条 issue,ruleId 必须以 `CU:` 或 `L2:` 开头 → L2 来源却标了 `CU:`(或反之) → 纠正前缀后落盘;其余字段校验同 4-A 契约。
@@ -1136,7 +1125,7 @@ spawn 子 Agent(单分片或分片后),传入以下内容:
 ✅ Step 4-C:自定义规则检查完成 - 发现 {n} 条违规(P0={x}, P2={x}, P3={x})
 ```
 
-> 说明:Step 4-C 按规则文件中的严重级别标注映射。无自定义规则时播报 `⏭️ Step 4-C:跳过(未检测到自定义规则文件)`。
+> 说明:Step 4-C 按规则文件中的严重级别标注映射。两类规则均无、本轮仓库规则扫描成功且 L2 状态为 `no_team_rules`(或本路由未适用 2I)时播报 `⏭️ Step 4-C:跳过(无可用规则)`；L2 状态为 `not_started`、`fetch_failed` 或 `domain_unresolved` 时注明平台规则获取未完成及已覆盖的规则。
 
 > 🚨 **Step 4-C 完成后,如 Step 4-A、Step 4-B 和 Step 4-D 也已完成,立即进入 Step 4-Merge;如未完成,等待完成后进入 4-Merge。**
 
@@ -1705,8 +1694,6 @@ rm -f /tmp/cr_review_{prId}.md \
       /tmp/cr_issues_{prId}_step4c.json \
       /tmp/cr_issues_{prId}_step4c_?.json \
       /tmp/cr_issues_{prId}_step4d.json \
-      /tmp/cr_custom_rules_{prId}.md \
-      /tmp/cr_l2_rules_{prId}.md \
       /tmp/cr_issues_{prId}_step4.json \
       /tmp/cr_issues_{prId}_step4e.json \
       /tmp/cr_extan_input_{prId}_*.json \
@@ -1714,7 +1701,6 @@ rm -f /tmp/cr_review_{prId}.md \
       /tmp/cr_extan_result_{prId}_*.json \
       /tmp/cr_sdd_{prId}.md \
       "$CR_CHANGED_FILES_FILE" \
-      "$CR_RUN_DIR/rule_bundle" \
       /tmp/cr_summary_{prId}.md \
       /tmp/cr_signals_{prId}.md \
       /tmp/cr_catpaw_{prId}.md \
@@ -1728,9 +1714,7 @@ rm -f /tmp/cr_review_{prId}.md \
       "$CR_DIFF_FILE" \
       "$CR_MODE_INFO_FILE" \
       /tmp/cr_repo_files_*.txt
-# rule_bundle 是目录(Step 2I 产出),rm -f 删不掉,单独用 rm -rf
-rm -rf "$CR_RUN_DIR/rule_bundle"
-# 3C 来源 C 产物(pr_desc/design_links/wiki_raw_*/wiki_spec_frozen)均在 $CR_RUN_DIR 下,一并清理
+# 2I 的 rule_bundle 与 3C 来源 C 产物均在 $CR_RUN_DIR 下,一并清理
 rm -rf "$CR_RUN_DIR"
 ```
 

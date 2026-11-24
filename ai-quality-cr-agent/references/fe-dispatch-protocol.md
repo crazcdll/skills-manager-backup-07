@@ -55,7 +55,22 @@
 
 1. Step 2F 从首次拉取起即将 **diff、范围 JSON、变更文件清单** 写入本轮独立 `$CR_RUN_DIR`,复用其 runId 和配对路径,不经共享暂存文件转存。主 Agent 核对范围文件绑定的 org/repo/prId,冻结 **CR_MODE、BASE_COMMIT、TARGET_COMMIT、COMMIT_COUNT**;后续只读该快照,不得被其它 PR 的文件覆盖。全量 base/count 为空,增量必须完整;target 必须是实际审查目标 hash。
 2. 主 Agent 执行 Step 3D 的 spec 发现/完备性检查(发布字段的结构化来源,保留在主流程)。
-3. **纯前端 PR 简化为「入口出口模式」**:主流程只控制入口(Step 0~2 环境准备+范围冻结)和出口(4-Merge 合流→门禁→Step 6 发布),中间的上下文感知(Step 3A/3B/3C/3E/3F)、自定义规则、业务逻辑审查全部由 fe-ai-review 承接;自定义规则路径、冻结的 ONES 需求上下文(如已拉取)、仓库 spec 线索作为补充信息随委托传入,未拉取时由 fe-ai-review 按 PR 元信息自行准备。其 Open Questions/待确认项按结果回收规则转 `confirm`。混合 PR 不变:主流程上下文+Step 4-C/4-D 照常,前端侧归 fe-ai-review。
+3. 有前端委托时，主 Agent 在委托前执行[前端规则准备](#前端规则准备)。纯前端的上下文感知和审查由 fe-ai-review 承接，主流程保留范围冻结、SDD、前端规则准备和合流发布。混合 PR 按下文分配范围执行 Step 4-C/4-D。
+
+### 前端规则准备
+
+主 Agent 在每个有 FE 委托的 PR 上执行以下命令（纯前端和混合均适用）。范围文件中的 `targetCommit` 是本轮实际审查的源提交；`TARGET_BRANCH` 是合入分支，仅在主流程查存量 spec、反查或准备 Step 4-C 规则时使用。
+
+```bash
+FE_RULE_RC=0
+FE_RULE_RECEIPT=$(python3 "$SKILL_DIR/scripts/collect_custom_rules.py" \
+  --run-dir "$CR_RUN_DIR" --repo "$ORG/$REPO" --pr-id "$PR_ID" \
+  --fe-snapshot "$CR_MODE_INFO_FILE") || FE_RULE_RC=$?
+```
+
+脚本核对本轮仓库、PR 和范围文件，从同一源提交列举、读取规则，默认写 `$CR_RUN_DIR/fe_rule_harvest.json` 和 `$CR_RUN_DIR/fe_custom_rules.md`。主 Agent 只读取本次命令返回的 FE 回执（退出码 0 或 3），核对 `sourceCommit` 与 `TARGET_COMMIT` 一致后交接原文；`ruleFilesLoaded` 非空时，传入回执的 `rulesPath` 供 FE 直接使用。FE 信任上游交接，无需重复核对这份缓存。
+
+`exit 0` 且无已读文件表示本次扫描的规则目录没有可用规则；`exit 3` 时传入同一源提交已读规则，并标注回执中未读取的目录或文件；输入无效或拿不到本轮有效回执时，标注仓库规则获取未完成。把缺口写入汇总的人工复审要点，禁止用合入分支、`master`、其他提交或其他轮次的缓存填补缺口。
 
 ## 委托与混合审查
 
@@ -72,20 +87,20 @@
 
 **返回后回接主流程**:fe 跑完后不会终结在它自己的报告里,主 Agent 接回执行:结果转换(见下节) → Step 4-Merge 统一合流 → issue_io 门禁 → Step 6 发布(学城/PR评论/大象/DB)。fe 不管发布,主 Agent 不重复审查。
 
-仅省略主流程的 **Java 专用** Step 3A/3B/3E 和 Step 4-A/4-B;**纯前端 PR 进一步省略 Step 3C/3F 和 Step 4-C/4-D(入口出口模式:上下文感知与全部审查由 fe-ai-review 承接,主流程只控制入口 Step 0~2+范围冻结、SDD、出口 4-Merge/门禁/发布)**。统一合流不能省略。前端存量代码读取、调用影响分析和规则检查由 fe-ai-review 负责。
+纯前端 PR 省略主流程的 Step 3A/3B/3C/3E/3F 和 Step 4-A/4-B/4-C/4-D。前端存量代码读取、调用影响分析和规则检查由 fe-ai-review 负责；主 Agent 保留前端规则准备和统一合流。
 
 ### mixed
 
 按文件/模块分配专业审查责任:前端部分委托 fe-ai-review,Java 后端部分执行主流程 Step 3~4,共享文件交由相关双方核对。Node 等后端需有对应专业审查方,缺少时终止完整发布并说明未覆盖范围。
 
-主 Agent 保留完整 diff 和跨端接口上下文,分别交给审查方;不能把拆分文件当成隔离语义的理由。混合 PR 的 Step 4-C/4-D 对本轮完整变更执行一次,避免分派后遗漏自定义规则或业务链路。**全部审查方返回后**,由主 Agent 执行 Step 4-Merge 合并为一份 PR 结果,只发布一次。
+主 Agent 将完整 diff 和跨端接口上下文交给审查方。Step 4-D 对完整变更检查业务逻辑；Step 4-C 的合入分支仓库规则仅用于后端侧分配的文件，共享文件仅检查适用于后端侧的约束。FE 使用源提交规则检查前端侧。**全部审查方返回后**，由主 Agent 执行 Step 4-Merge 合并为一份 PR 结果，只发布一次。
 
 ### 原生通用审查（纯原生仓库,general）
 
 - 原生代码由主 Agent 执行通用审查,不委托 fe-ai-review。基于冻结的 diff 和目标 commit 补读上下文、调用方与需求,检查逻辑、契约、边界、异常流、并发、生命周期及资源释放。执行 Step 3 的适用上下文准备、Step 4-A 通用审查和适用的 4-C/4-D。
-- 当前未接入原生专项规则,跳过 Step 2I 规则包预取和 Step 3E/4-B,不将 Java 服务端、Web、MRN 规则套用原生代码。仓库已有且明确适用的自定义规则仍由 4-C 检查,没有则跳过。
+- 当前未接入原生专项规则,**仍执行 Step 2I 规则包预取**,但继续跳过 Step 3E/4-B,不将 Java 服务端、Web、MRN 规则套用原生代码。平台 L2 规则交给 4-C 判断适用性;仓库已有且明确适用的自定义规则继续由 4-C 检查,没有可用规则时才跳过。
 - 通用代码发现写入 `step4a.json`,使用 `source=step4a`。未命中实际规则时 `ruleId=""`,保留代码证据;命中规则时使用真实编号及对应来源。P0/P1 仍需完整证据并进入 Step 4-Review,不能因无规则编号而丢弃或自动降级。
-- 合流时检查实际适用和已启动的审查结果;general 必须有通过校验的 `step4a.json`（无发现也写 `[]`）,不等待已记录不适用的规则审查。
+- 合流时检查实际适用和已启动的审查结果;general 必须有通过校验的 `step4a.json`（无发现也写 `[]`）,并收口本轮 L2 状态；`not_started`、`fetch_failed`、`domain_unresolved` 记录规则获取缺口,不能改写成无订阅或无规则。不等待已记录不适用的原生专项规则审查。
 - 在 summary 总体评价中注明原生部分已执行通用审查、实际使用的规则;缺少专项规则时明确说明,实际未验证事项写入人工复审要点。完成通用审查后继续合流、复查、报告、评论和结果回写;不将规则缺失本身作为缺陷或失败结论。
 - 原生平台明确时显式上报 `android` / `ios` / `harmony`;已确认原生库但平台不明时传 `native`。
 
@@ -93,7 +108,8 @@
 
 - PR URL、prId、org/repo、标题、提交人和本轮 runId。
 - 冻结的完整 diff、变更文件清单、分配文件清单、CR_MODE、BASE_COMMIT、TARGET_COMMIT、COMMIT_COUNT。
-- ONES/PR 需求、spec、自定义规则（`/tmp/cr_custom_rules_{prId}.md`）、**平台 L2 团队规范（`/tmp/cr_l2_rules_{prId}.md`，若存在则原样透传；拉取不在 fe 侧职责内，纯前端路由时 fe 内部自行处理规则获取）**、冻结业务知识，以及需要核对的跨端契约。
+- 按[前端规则准备](#前端规则准备)交接本轮源提交的规则回执及已读规则缓存。
+- ONES/PR 需求、spec、冻结业务知识，以及需要核对的跨端契约。混合 PR 在 Step 2I 确认可用后，将本轮回执 `rules_path` 指向的 **平台 L2 团队规范** 原样透传；纯前端由 FE 自行获取平台规则。
 
 **fe-ai-review 按自己 SOP 拉取的 diff 仅作审查输入,必须与委托时传入的冻结范围标识核对;不一致时以冻结范围为准并报告,禁止以 fe-ai-review 的 PR-only 默认拉取结果替换本轮冻结范围。** 读取存量代码必须定位 TARGET_COMMIT;增量审查必须保持 BASE_COMMIT → TARGET_COMMIT。委托方需返回实际使用的范围标识,主 Agent 与快照核对一致后才接收结果。若工具无法按该范围执行,终止并说明原因;若确需全量重审,必须重新开始范围判定并将所有产出统一标为全量,不能用全量发现配增量标签。
 

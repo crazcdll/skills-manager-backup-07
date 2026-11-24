@@ -6,11 +6,12 @@ skill-dependencies:
     user_access_token_placeholder: ${user_access_token}
     audience:
       - Metrics
+      - com.sankuai.it.ead.citadel
 
 metadata:
   skillhub.creator: "zhangce07"
   skillhub.updater: "zhangce07"
-  skillhub.version: "V12"
+  skillhub.version: "V13"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "141227"
   skillhub.high_sensitive: "false"
@@ -26,8 +27,8 @@ metadata:
 
 仓库识别通过固定 Runner 完成以下确定性流程。单仓任务继续使用
 `repository-authority-task/v1`；`authority_shard` 继续使用
-`repository-authority-task/v2`（执行合同 `mt-code-repository-authority/v3`）；`source_scan` 使用
-`repository-authority-task/v3`（执行合同 `mt-code-repository-authority/v4`）：
+`repository-authority-task/v2`（执行合同 `mt-code-repository-authority/v3`）；新 `source_scan` 使用
+`repository-authority-task/v4`（执行合同 `mt-code-repository-authority/v5`），已签发的 v3/v4 仅在途兼容：
 
 1. 校验 task 原始字节 Hash、Schema、身份、仓库 canonical 字段、deadline 和 callback capability。
 2. 在 Session 私有目录安装并验证锁定的 `@ee/yuntu-cli@1.0.15`。
@@ -76,7 +77,8 @@ node <skill_dir>/scripts/run-organization-refresh.mjs \
 ```
 
 对于平台签发的 `repository-authority-task/v2`（仅 `authority_shard`）或
-`repository-authority-task/v3`（仅 `source_scan`），立即且只执行一次：
+`repository-authority-task/v3`（仅历史 `source_scan`）或
+`repository-authority-task/v4`（本人 SSO 的新 `source_scan`），立即且只执行一次：
 
 ```shell
 node <skill_dir>/scripts/run-repository-authority-v3.mjs \
@@ -87,12 +89,12 @@ node <skill_dir>/scripts/run-repository-authority-v3.mjs \
 
 `mode=authority_shard` 时，一个 Session 最多包含 10 个仓库，Runner 固定使用两个 worker，
 每个仓库使用独立 attempt capability 回调；单项失败不阻断其余项。`mode=source_scan` 时，
-Runner 只接受 task 中平台核验的 `actor.mis`，以该 MIS 和 `sso-ciba` 发起当前用户的大象授权，
-再只读调用 `oa-skills citadel getSimpleMarkdown`，并通过
+Runner 对新 v4/v5 source_scan 只接受 task 中 allowlist 的 `source_access.auth`，先通过官方网关换取并核验本人票据，
+再只读调用固定 Citadel reader（旧 v3/v4 任务仅为在途兼容），并通过
 `getDocumentJson` 和 `citadel-database listTables/getTableMeta` 枚举多维表及全部列，固定页面读取器
 调用同一官方包的单页客户端接口逐页读取，不使用会隐藏分页错误的 CLI 全量缓存结果。
 每个 attempt 使用权限为 `0700` 的私有认证缓存目录，受控子进程移除继承的 `SSO_CIBA_TOKEN` 并关闭
-OIDC fallback；同一 attempt 的多次文档/表格读取复用该缓存，结束时由最外层 Runner 清理，不跨 attempt 复用。
+OIDC fallback；同一 attempt 的多次文档/表格读取复用该缓存和本人票据，结束时由最外层 Runner 清理，不跨 attempt 复用。
 运行环境必须提供 Node.js 24 与 `oa-skills`，且官方客户端支持 `queryTableDataSinglePage`。
 旧结果合同只提取完整 MCode HTTPS/SSH 地址。新版
 `repository-association-source-scan-result/v2` 提取地址原文并保留来源位置；HTTP(S) 仅接受
@@ -102,8 +104,8 @@ OIDC fallback；同一 attempt 的多次文档/表格读取复用该缓存，结
 也由平台统一判定，Runner 不按同路径猜测等价仓库。普通来源读取中断可保留已完成结果并返回
 `partially_scanned`；本人拒绝、未完成认证、认证过期、认证超时或文档 ACL 失败必须立即停止后续读取并返回
 `failed`，不得继续触发授权或伪造全量完成。source scan 的 `actor.execution_mis` 与结果
-`execution_mis` 都必须等于 `actor.mis`；MIS 只是 CIBA 发起参数，不能单独作为已认证主体证据，
-最终授权仍由官方 CIBA/学城响应决定。
+`execution_mis` 都必须等于 `actor.mis`；MIS 不能单独作为已认证主体证据，最终授权以官方网关
+`whoami` 与学城响应决定。
 
 组织核验每个 Session 最多 10 人，顺序调用 Yuntu 的 `user org <mis>` 并逐项回调，不调用 Code。
 单人查询失败会回传该项失败并继续其他项；认证失败不会切换账号。`dry_run` 与 `apply` 的区别由平台

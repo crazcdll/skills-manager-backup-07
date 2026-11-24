@@ -78,14 +78,17 @@ from rule_id import normalize_fe_rule_id
 # 锚定校验引擎（同目录优先；回退链与 cr_comment 一致）
 try:
     from line_anchor import anchor_issues as _la_anchor_issues
+    from line_anchor import resolve_publish_anchors as _la_resolve
 except ImportError:
     _la_dir = os.path.dirname(os.path.abspath(__file__))
     if _la_dir not in sys.path:
         sys.path.insert(0, _la_dir)
     try:
         from line_anchor import anchor_issues as _la_anchor_issues
+        from line_anchor import resolve_publish_anchors as _la_resolve
     except ImportError:
         _la_anchor_issues = None
+        _la_resolve = None
 
 
 
@@ -772,7 +775,8 @@ def _issue_doc_block(it, idx):
         if _pub_note:
             lines.append("")
             lines.append(f"> ⚠️ 行号为审查时快照口径，未能在当前代码上验证锚定"
-                         f"（{_pub_note}）；该问题已兜底至 PR 全局评论展示")
+                         f"（{_pub_note}）；该问题将附于 PR 全局评论（发送前口径，"
+                         f"实际发布结果以 PR 评论为准）")
         if code:
             lines.append("")
             lines.append(f"**问题代码**：")
@@ -854,7 +858,8 @@ def _issue_doc_block(it, idx):
         if _pub_note:
             lines.append("")
             lines.append(f"> ⚠️ 行号为审查时快照口径，未能在当前代码上验证锚定"
-                         f"（{_pub_note}）；该问题已兜底至 PR 全局评论展示")
+                         f"（{_pub_note}）；该问题将附于 PR 全局评论（发送前口径，"
+                         f"实际发布结果以 PR 评论为准）")
         lines.append("")
         lines.append("**现象与差异**：")
         lines.append("")
@@ -1774,6 +1779,31 @@ def _fetch_file_diff(pr_url, code_cli_py, file_path,
     return ""
 
 
+def _fetch_drift_diff(args, pr_url, code_cli_py, file_path, plan, timeout=60):
+    """拉取漂移 diff（snap_to → cur_to，某文件）供 L1 坐标迁移。
+
+    方向与 get_pr_diff 增量口径一致：--from 新(cur_to) --to 旧(snap_to)，
+    输出 hunk 的 source(旧坐标) → destination(新坐标) 即迁移方向。
+    双端 hash 不完整（上游契约违规/短 hash）时返回空串（L1 跳过，
+    仅重锚定 + 降档链，不产生假迁移）。失败安全：任何异常返回空串。
+    """
+    try:
+        import subprocess as _sp
+        exp = [str(plan.get("cur_to") or ""), str(plan.get("snap_to") or "")]
+        if not all(h and len(h) == 40 for h in exp):
+            return ""
+        r = _sp.run(
+            [sys.executable, code_cli_py, "compare-diff", "--url", pr_url,
+             "--file", file_path, "--from", exp[0], "--to", exp[1],
+             "--context", "0"],
+            capture_output=True, text=True, timeout=timeout)
+        if r.returncode == 0 and "@@" in (r.stdout or ""):
+            return r.stdout
+    except Exception:
+        pass
+    return ""
+
+
 def _inline_severity(it):
     """行内候选级别（与 assemble_inline_comments 同口径）：
     转正 EXT 用原级；灰度 EXT 用 _origSeverity；其余用 severity。"""
@@ -1793,6 +1823,14 @@ def _inline_candidates(issues):
         elif it.get("severity") == "confirm" and it.get("source") == "fe-ai-review":
             out.append(it)
     return out
+
+
+def _line_shape_ok(it):
+    """行号形状合法性（assemble_inline_comments 同口径的最终闸）。"""
+    line = it.get("line")
+    lt = (it.get("lineType") or "ADDED").upper()
+    return (isinstance(line, int) and not isinstance(line, bool) and line > 0
+            and lt in ("ADDED", "REMOVED"))
 
 
 def _publish_note_of(it, mark, plan, diff_trust):
@@ -1944,20 +1982,50 @@ def plan_publish_anchors(args, issues):
             fetched = sum(1 for v in fresh.values() if v)
             log("🧭 重拉 %d 个文件 diff（成功 %d，context=%d）"
                 % (len(capped), fetched, _LIVE_REFETCH_CONTEXT))
-            for it in need_live:
-                fp = (it.get("file") or "").strip()
-                diff_text = fresh.get(fp, "")
-                # 清除首轮标记（幂等要求：二次校验前 pop 旧标记，防陈旧 note 混入）
-                for k in ("_anchor", "_anchorNote", "_anchorOrigLine"):
-                    it.pop(k, None)
-                if diff_text:
-                    _la_anchor_issues([it], diff_text)
-                    if (it.get("_anchor") or "") in ("verified", "relocated"):
+            if _la_resolve is not None:
+                # 收拢入口: 漂移坐标迁移(L1) + T0 重锚定 + P0/P1 降档链(T2-T4)
+                # 全部在 line_anchor.resolve_publish_anchors 内完成（行号漂移
+                # 处理唯一实现点;漂移 diff 逐文件 compare-diff 拉取）
+                for it in need_live:
+                    for k in ("_anchor", "_anchorNote", "_anchorOrigLine"):
+                        it.pop(k, None)
+                for fp in capped:
+                    group = [it for it in need_live
+                             if (it.get("file") or "").strip() == fp]
+                    if not group or not fresh.get(fp):
+                        continue
+                    drift_diff = _fetch_drift_diff(args, pr_url, code_cli_py, fp, plan) \
+                        if (plan.get("consistent") is not True
+                            and plan.get("snap_to") and plan.get("cur_to")) else None
+                    try:
+                        _la_resolve(group, fresh[fp], drift_diff)
+                    except Exception:
+                        _la_anchor_issues(group, fresh[fp])
+                    live_verified += sum(
+                        1 for it in group
+                        if (it.get("_anchor") or "") in ("verified", "relocated"))
+                for it in need_live:
+                    fp = (it.get("file") or "").strip()
+                    if not fresh.get(fp):
+                        it["_anchor"] = "skipped"
+                        it["_anchorNote"] = "当前文件 diff 重拉失败，无法校验行号"
+                    elif (it.get("_anchor") or "") in ("verified", "relocated"):
                         it["_liveVerified"] = True
-                        live_verified += 1
-                else:
-                    it["_anchor"] = "skipped"
-                    it["_anchorNote"] = "当前文件 diff 重拉失败，无法校验行号"
+            else:
+                for it in need_live:
+                    fp = (it.get("file") or "").strip()
+                    diff_text = fresh.get(fp, "")
+                    # 清除首轮标记（幂等要求：二次校验前 pop 旧标记，防陈旧 note 混入）
+                    for k in ("_anchor", "_anchorNote", "_anchorOrigLine"):
+                        it.pop(k, None)
+                    if diff_text:
+                        _la_anchor_issues([it], diff_text)
+                        if (it.get("_anchor") or "") in ("verified", "relocated"):
+                            it["_liveVerified"] = True
+                            live_verified += 1
+                    else:
+                        it["_anchor"] = "skipped"
+                        it["_anchorNote"] = "当前文件 diff 重拉失败，无法校验行号"  
         else:
             reason = "line_anchor 不可用" if _la_anchor_issues is None else "code_cli 不可用"
             for it in need_live:
@@ -1970,13 +2038,28 @@ def plan_publish_anchors(args, issues):
     # ── P4 终态标记 ──
     for it in candidates:
         mark = it.get("_anchor") or "skipped"
+        _sev = _inline_severity(it)
         if mark in ("verified", "relocated"):
             basis_ok = bool(it.get("_liveVerified")) or \
                 (plan["consistent"] is True and diff_trust == "trusted")
-            if basis_ok:
+            if basis_ok or (_sev in ("P0", "P1")
+                            and it.get("_anchorPrecision")):
+                # P0/P1: 经降档链(near/approximate/file-level/mapped)产出的
+                # relocated 同样发行内（行号漂移处理统一收拢于 line_anchor，
+                # 此处不再弃权；精度档记录在 _anchorPrecision 供追溯与播报）
                 it["_publishPlan"] = "inline"
                 plan["inline_ok"] += 1
                 continue
+        if _sev in ("P0", "P1") and _line_shape_ok(it):
+            # 极端兜底: P0/P1 不落 global——重拉通道整体不可用/锚定 invalid
+            # 时，只要行号形状合法（int>0 + lineType 合法）就以现有最优行号
+            # 发行内；invalid 且行号形状非法（如 None/0）的极端情况由
+            # line_anchor 降档链保证不出现，此处仅为防御性最终闸。
+            it["_publishPlan"] = "inline"
+            it.setdefault("_publishNote",
+                          "P0/P1 强制行内（锚定降级，采用最优可用锚点：%s）" % (mark or "unknown"))
+            plan["inline_ok"] += 1
+            continue
         it["_publishPlan"] = "global"
         plan["global_fallback"] += 1
         it["_publishNote"] = _publish_note_of(it, mark, plan, diff_trust)
@@ -2035,6 +2118,17 @@ def _verify_late_drift(args, pr_url, code_cli_py, inline_comments):
         # 模块缺失分支同样标记 _snapshot=degrade（
         # degraded 列表不标记，step7 过滤不生效 → 同一问题既全局兜底又发行内）
         for c in inline_comments:
+            _iss_m = c.get("_issue")
+            if (isinstance(_iss_m, dict)
+                    and _inline_severity(_iss_m) in ("P0", "P1")
+                    and _line_shape_ok(_iss_m)):
+                # P0/P1 强制行内：无法复核但锚点形状合法，按现有锚点行内
+                c["_snapshot"] = "degraded-inline"
+                c["_snapshotNote"] = ("%s且 line_anchor 不可用，按现有锚点发行内（未复核）"
+                                      % base_note)
+                _iss_m.setdefault("_publishNote", c["_snapshotNote"])
+                _iss_m["positionStatus"] = "unconfirmed"
+                continue
             c["_snapshot"] = "degrade"
             c["_snapshotNote"] = ("%s且 line_anchor 不可用，无法复核 `%s` L%s"
                                   % (base_note, c.get("file_keyword", ""),
@@ -2061,6 +2155,14 @@ def _verify_late_drift(args, pr_url, code_cli_py, inline_comments):
         for k in ("_anchor", "_anchorNote", "_anchorOrigLine"):
             issue.pop(k, None)
         if not diff_text:
+            if _inline_severity(issue) in ("P0", "P1") and _line_shape_ok(issue):
+                # P0/P1 强制行内：diff 拉取失败按现有最优锚点发行内，
+                # 标注未确认（不盲信快照也不降级丢可见性）
+                c["_snapshot"] = "degraded-inline"
+                c["_snapshotNote"] = "%s且当前 diff 拉取失败，按现有锚点发行内（未复核）" % base_note
+                issue.setdefault("_publishNote", c["_snapshotNote"])
+                issue["positionStatus"] = "unconfirmed"
+                continue
             c["_snapshot"] = "degrade"
             c["_snapshotNote"] = "%s且当前 diff 拉取失败，无法校验行号" % base_note
             # 拉取失败降级同样同步结构化最终状态（同下方漂移分支口径）
@@ -2074,22 +2176,66 @@ def _verify_late_drift(args, pr_url, code_cli_py, inline_comments):
         if mark in ("verified", "relocated") and new_line == planned_line:
             c["_snapshot"] = "kept"   # 计划行号当前仍有效（复核通过）
             continue
-        # 行号漂移或无法确认：明确标识过晚漂移，降级全局（不丢内容，不改锚点）
-        if mark == "relocated" and new_line != planned_line:
-            why = "代码证据重定位为 L%s，为保持与报告行号一致不改动锚点" % new_line
-        elif mark == "verified":
-            why = "行号一致但代码证据复核未通过"
+        _sev_late = _inline_severity(issue)
+        if _sev_late in ("P0", "P1"):
+            # P0/P1 强制行内（红线 20）：发送前漂移不降级全局——
+            # verified/relocated 迁移到新坐标继续行内；invalid 等极端
+            # 场景行号形状合法即按现有最优锚点发行内（与 P4 兜底同口径）。
+            # 全文只在主列表出现一次（_is_inline_publishable 去重）。
+            if mark in ("verified", "relocated"):
+                c["line"] = new_line
+                issue["line"] = new_line
+                issue["_liveVerified"] = True
+                c["_snapshot"] = "drift-migrated"
+                c["_snapshotNote"] = ("%s，已迁移至新坐标 L%s（重锚定 %s）"
+                                      % (base_note, new_line, mark))
+                # 正文中的原行号引用同步更新（审计 11-24：
+                # 发送锚点 L700 而正文仍写 L691——视图错位）。
+                # 仅替换明确的 L{n} / 行 {n} 形态；找不到引用不改（保守）。
+                # 前置条件：本分支 mark 已是 verified/relocated（T0 内容
+                # 验证通过）——SKILL 红线 20-③ 唯一允许的行号替换路径，
+                # 引擎受控修正，非人工改号。
+                if isinstance(planned_line, int) and planned_line != new_line:
+                    # 三种形态边界感知替换（数字后不能再跟数字，
+                    # 防 L691 误伤 L6912→L7002 的子串碰撞）：
+                    # L691→L700、行 691→行 700、第691行→第700行
+                    _body = c.get("text") or ""
+                    _p = str(planned_line)
+                    _n = str(new_line)
+                    _body = re.sub(r"(?<!\d)L%d(?!\d)" % planned_line,
+                                   "L" + _n, _body)
+                    _body = re.sub(r"(?<!\d)行 %d(?!\d)" % planned_line,
+                                   "行 " + _n, _body)
+                    _body = re.sub(r"(?<!\d)第%d行" % planned_line,
+                                   "第" + _n + "行", _body)
+                    c["text"] = _body
+                if "📍 行号锚定" not in (c.get("text") or ""):
+                    c["text"] = (c.get("text") or "") + \
+                        "\n📍 行号锚定：发送前代码更新，已迁移至新位置（精度：迁移）"
+                issue.setdefault("_publishNote", "发送前漂移已迁移 L%s" % new_line)
+                if issue.get("positionStatus") != "confirmed":
+                    issue["positionStatus"] = "unconfirmed"
+                log("📍 P0/P1 %s:%s 晚漂移迁移 → L%s（保持行内）"
+                    % (fp, planned_line, new_line))
+                continue
+            if _line_shape_ok(issue):
+                c["_snapshot"] = "degraded-inline"
+                c["_snapshotNote"] = ("%s，%s——按最优可用锚点发行内（P0/P1 不降级全局）"
+                                      % (base_note, issue.get("_anchorNote") or mark))
+                issue.setdefault("_publishNote", c["_snapshotNote"])
+                issue["positionStatus"] = "unconfirmed"
+                continue
+            # 行号形状非法（理论不可达，防御）：落入通用降级
+        if mark in ("verified", "relocated") and new_line != planned_line:
+            # 走到这里 new_line 必 != planned_line（一致情形已 kept 返回）
+            why = ("代码证据定位至 L%s，与计划行号 L%s 不一致，"
+                   "为保持与报告正文一致不改动锚点" % (new_line, planned_line))
         else:
             why = "无法锚定（%s）" % (issue.get("_anchorNote") or mark)
         c["_snapshot"] = "degrade"
         c["_snapshotNote"] = "%s，%s" % (base_note, why)
-        # 降级条目同步结构化最终状态——行号保留审查时值（与已生成
-        # 文档/正文同视图），但 positionStatus 明确标 unconfirmed，note 记录
-        # 过晚漂移原因；不回写重锚定行号，不将历史证据伪装成当前已证实。
         issue["_publishPlan"] = "global"
         issue["_publishNote"] = c["_snapshotNote"]
-        # 恢复计划行号：文档/全局正文/cr_result 均按计划行号生成，重锚定的
-        # new_line 只作降级说明，不回写（避免同一视图行号不一致）
         if issue.get("line") != planned_line:
             issue["line"] = planned_line
         degraded.append(("%s：`%s` L%s" % (c["_snapshotNote"], fp, planned_line), text))
@@ -2158,6 +2304,21 @@ def _fallback_issue_text(it, sev, idx, emoji, rule_id, reason):
         f"**修复建议**：\n{it.get('suggestion', '') or ''}"
         f"{trace}"
     )
+
+
+def _is_inline_publishable(it):
+    """行内发布判定的单一事实源。
+
+    assemble_inline_comments 的收口三条件（lineType 枚举 / 行号形状 /
+    发布计划 inline）收敛为一个函数；assemble_global_comment 据此决定
+    主列表是否展开详情——两处共用同一口径，物理上不会再分叉。
+    """
+    line = it.get("line")
+    line_shape_ok = isinstance(line, int) and not isinstance(line, bool) and line > 0
+    line_type = (it.get("lineType") or "ADDED").upper()
+    return (line_type in ("ADDED", "REMOVED")
+            and line_shape_ok
+            and it.get("_publishPlan") == "inline")
 
 
 def _rewrite_inline_claim(global_text, annotated, total):
@@ -2229,9 +2390,10 @@ def assemble_inline_comments(issues, cr_mode="full"):
         # nofile/kept/skipped/error/disabled/invalid、行号形状非法、
         # lineType 非法（Bitbucket segment 枚举仅支持 ADDED/REMOVED，MODIFIED
         # 等非法值会被服务端拒绝）一律不盲发行内 → 全局兜底（保留全部内容）
-        line_shape_ok = isinstance(line, int) and not isinstance(line, bool) and line > 0
         plan_ok = it.get("_publishPlan") == "inline"
-        if line_type not in ("ADDED", "REMOVED") or not line_shape_ok or not plan_ok:
+        line_shape_ok = isinstance(line, int) and not isinstance(line, bool) and line > 0
+        publishable = _is_inline_publishable(it)
+        if not publishable:
             reasons = []
             if not plan_ok:
                 reasons.append(it.get("_publishNote")
@@ -2276,6 +2438,14 @@ def assemble_inline_comments(issues, cr_mode="full"):
             f"---\n"
             f"{footer}"
         )
+        # 锚定精度标注（行号漂移处理收拢后，P0/P1 降档链产出的近似锚点
+        # 需在评论中透明标注，不伪装成精确锚点）
+        _prec = it.get("_anchorPrecision") or ""
+        if _prec and _prec != "exact":
+            _prec_label = {"mapped": "坐标迁移已验证", "near": "就近（片段命中区间首行）",
+                           "approximate": "近似（片段首行唯一命中）",
+                           "file-level": "文件级（问题行在更新后不可定位）"}.get(_prec, _prec)
+            text += f"\n📍 行号锚定：{_prec_label}"
 
         inline.append({
             "file_keyword": file_,
@@ -2386,6 +2556,15 @@ def assemble_global_comment(args, issues, counts, conclusion, km_url, inline_fal
                 title = f"**{emoji} {sev}-{i:02d}: [{rule_id}] {anomaly} — {summary}**" if anomaly else f"**{emoji} {sev}-{i:02d}: [{rule_id}] {summary}**"
                 lines.append(title)
                 lines.append(f"文件: `{file_}:{line}`")
+                if not _is_inline_publishable(it):
+                    # 未发行内（锚定失败/行号形状非法/计划未过）：详情全文
+                    # 统一由末尾「无法行内锚定的问题」章节展示一次，此处
+                    # 只留索引行——修复同一条 P0/P1 主列表+fallback 重复
+                    # 展示两遍的渲染 bug（单一事实源:_is_inline_publishable）
+                    lines.append("↩ 详情见下方「无法行内锚定的问题」章节（行内锚定未通过，内容完整保留）")
+                    lines.append("💬 无回复默认检出正确，计入准确率。有异议请回复：❌误报 / ⚠️规则太严 / ⏭暂不修复")
+                    lines.append("")
+                    continue
                 _pos_note = it.get("_publishNote") or it.get("_anchorNote")
                 if _pos_note and _position_status_of(it) == "unconfirmed":
                     lines.append(f"⚠️ 行号未确认（{_pos_note}）")
@@ -2589,7 +2768,12 @@ def _position_status_of(it):
     """
     if (it.get("_anchor") in ("verified", "relocated")
             and it.get("_publishPlan") != "global"):
-        return "confirmed"
+        # 精度档语义：exact（内容验证）/ mapped（L1 显式配对迁移）= 已确认；
+        # near / approximate / file-level（降档链择优，代码内容未逐行验证）= 未确认。
+        # 强制行内红线只解决「可见性」，不等于「定位可靠」——两维度分开表达。
+        prec = str(it.get("_anchorPrecision") or "")
+        if prec in ("", "exact", "mapped") and not it.get("_pendingReanchor"):
+            return "confirmed"
     return "unconfirmed"
 
 
@@ -3429,6 +3613,8 @@ def step7_comment_to_pr(args, inline_comments, global_text):
                     args, pr_url, code_cli_py, inline_comments)
                 log(f"📸 发送前复核: {snap_note}")
                 if late_degraded:
+                    # V135: P0/P1 漂移迁移(drift-migrated)与降级行内
+                    # (degraded-inline)条目保留发送；仅真降级(degrade)过滤
                     inline_comments = [c for c in inline_comments
                                        if c.get("_snapshot") != "degrade"]
                     snapshot_degraded = late_degraded
@@ -3437,17 +3623,28 @@ def step7_comment_to_pr(args, inline_comments, global_text):
                 # 复核异常同样全部降级全局（
                 # 发送」与版本声明「异常显式降级」矛盾——异常时无法确认快照有效，
                 # 盲发行内可能锚错行；expected 冻结仅覆盖能查到 hash 的场景）
-                log(f"⚠️ 发送前复核异常（{type(e).__name__}），全部行内评论降级全局（内容不丢）: {e}")
+                log(f"⚠️ 发送前复核异常（{type(e).__name__}）: {e}")
                 for c in inline_comments:
-                    c["_snapshot"] = "degrade"
-                    c["_snapshotNote"] = f"发送前复核异常（{type(e).__name__}），降级全局"
                     _iss = c.get("_issue")
-                    if isinstance(_iss, dict):
-                        _iss["_publishPlan"] = "global"
-                        _iss["_publishNote"] = c["_snapshotNote"]
-                    snapshot_degraded.append((
-                        f"{c['_snapshotNote']}：`{c.get('file_keyword', '')}` L{c.get('line', '?')}",
-                        c.get("text", "")))
+                    _lp = (_inline_severity(_iss) in ("P0", "P1")
+                           and _line_shape_ok(_iss)) if isinstance(_iss, dict) else False
+                    if _lp:
+                        # P0/P1 强制行内：复核异常不盲降级（expected 第三道
+                        # 闸门仍在，hash 冻结比对失败会拒绝单条发送→该条兜底）
+                        c["_snapshot"] = "degraded-inline"
+                        c["_snapshotNote"] = f"发送前复核异常（{type(e).__name__}），按现有锚点发行内"
+                        if isinstance(_iss, dict):
+                            _iss.setdefault("_publishNote", c["_snapshotNote"])
+                            _iss["positionStatus"] = "unconfirmed"
+                    else:
+                        c["_snapshot"] = "degrade"
+                        c["_snapshotNote"] = f"发送前复核异常（{type(e).__name__}），降级全局"
+                        if isinstance(_iss, dict):
+                            _iss["_publishPlan"] = "global"
+                            _iss["_publishNote"] = c["_snapshotNote"]
+                        snapshot_degraded.append((
+                            f"{c['_snapshotNote']}：`{c.get('file_keyword', '')}` L{c.get('line', '?')}",
+                            c.get("text", "")))
                 inline_comments = [c for c in inline_comments
                                    if c.get("_snapshot") != "degrade"]
         else:
@@ -3547,14 +3744,23 @@ def step7_comment_to_pr(args, inline_comments, global_text):
             except CommentError as e:
                 inline_errors.append(f"#{idx+1} {file_keyword}:{line} - {e}")
                 log(f"  ❌ 行内评论 #{idx+1}: {e}")
-                # 发送失败不丢弃——正文进全局评论兜底
-                if text:
+                # 发送失败不丢弃——分两种兜底口径（防重复展示）：
+                # ① 主列表已展开详情的（原 plan=inline 的 P0/P1）：
+                #    全文已在全局评论区主列表，只追加单行标注防重复；
+                # ② 未在主列表展开的：全文进兜底章节（内容不丢）
+                _fiss = comment.get("_issue")
+                _shown_in_main = (isinstance(_fiss, dict)
+                                  and _inline_severity(_fiss) in ("P0", "P1"))
+                if text and not _shown_in_main:
                     inline_send_failures.append(
                         (f"行内评论发送失败：`{file_keyword}` L{line}", text))
+                elif _shown_in_main:
+                    inline_send_failures.append(
+                        (f"行内评论发送失败：`{file_keyword}` L{line}",
+                         "详情见上方主列表（已完整展示，此处不重复）"))
                 # 失败分支同步 issue 结构化终态（与漂移降级分支
                 # 同口径）——否则 issue 仍按计划口径标 confirmed 行内，
                 # cr_result/学城文档与 PR 实际（全局兜底）不一致
-                _fiss = comment.get("_issue")
                 if isinstance(_fiss, dict):
                     _fiss["_publishPlan"] = "global"
                     _fiss["_publishNote"] = f"行内评论发送失败（{str(e)[:120]}），兜底全局"

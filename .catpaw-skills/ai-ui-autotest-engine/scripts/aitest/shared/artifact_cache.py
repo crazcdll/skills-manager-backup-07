@@ -9,7 +9,7 @@
 所以制品必须有**一份**跨 run 的本地缓存，且安装前必须**先看缓存**。
 
 【分层模型】
-  L1 制品缓存（本模块，host 侧）：`~/.local/share/ai-ui-autotest-engine/cache/artifacts/<platform>/<form>/<pkg>/<文件名>`
+  L1 制品缓存（本模块，host 侧）：`$STATE/cache/artifacts/<platform>/<form>/<pkg>/<文件名>`
       · 所有"需要本地制品"的通道（鸿蒙 HAP、Android APK、iOS 制品）共用这一份；
       · **机器级**（跨安装 / 跨 workspace / 跨子 Agent 共享），不能落在 Skill 目录：
         Skill 会被多份安装/镜像，落在里面会各下一份，且 Skill 更新时整目录被替换；
@@ -55,7 +55,7 @@ _SOCKET_TIMEOUT = 300
 
 
 def cache_root() -> str:
-    """L1 制品缓存的根目录（`~/.local/share/ai-ui-autotest-engine/cache`）。"""
+    """L1 制品缓存的根目录（`$STATE/cache`）。"""
     return CACHE_ROOT
 
 

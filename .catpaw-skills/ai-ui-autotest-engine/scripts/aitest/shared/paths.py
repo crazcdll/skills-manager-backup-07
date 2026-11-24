@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 """ai-ui-autotest-engine 统一路径管理（作用域分层）。
 
-作用域（`$STATE` = `~/.local/share/ai-ui-autotest-engine`，可用 `AI_UITEST_STATE_HOME` 覆盖）：
+作用域（`$STATE` = `$AI_UITEST_HOME/engine`，缺省 `~/.local/share/ai-ui-autotest/engine`，
+可用 `AI_UITEST_STATE_HOME` 直接覆盖）：
 
   机器级（`$STATE/`，跨安装 / 跨项目唯一）
       device-pool/   本机辅助文件（预热台账；设备租约在服务端）
@@ -24,7 +25,7 @@ Skill 会被多份安装/镜像（`~/.catpaw/skills`、各项目的 `.claude/ski
   · 常驻服务的心跳会在目录被删后立刻重建（「删不掉的幽灵目录」）。
 
 workspace 身份（**无模式**：1 个 Agent 与 N 个 Agent 走完全同一条路径）：
-  ① `ws-init` 分配 workspace id（uuid）并生成入口脚本 `~/.local/share/ai-ui-autotest-engine/run/ws/<id>/cli`
+  ① `ws-init` 分配 workspace id（uuid）并生成入口脚本 `$STATE/run/ws/<id>/cli`
   ② 之后所有命令通过该入口执行；入口把 `AI_UITEST_TASK=<id>` 注入进程
   ③ 代码读 `AI_UITEST_TASK` 定位工作区；**没有则报错**（不回落默认值，
      避免任何“静默落到共享目录”的可能）
@@ -48,10 +49,25 @@ SCRIPTS_DIR = os.path.dirname(
 # Skill 根目录（`scripts/` 的父目录）。
 SKILL_DIR = os.path.dirname(SCRIPTS_DIR)
 
-# 机器级运行态根（**不在 Skill 目录内**，可用 AI_UITEST_STATE_HOME 覆盖）。
+def _machine_home():
+    """机器顶层根：`$AI_UITEST_HOME`，缺省 `~/.local/share/ai-ui-autotest`。
+
+    同一根下并列三类产物（都在 Skill 目录之外）：
+      cases/          用例资产（本地转化 / 平台镜像，不被 prune）
+      orchestration/  编排过程目录（ai-auto-ui-test 所有）
+      engine/         引擎运行态（本文件定义的 `$STATE`）
+    """
+    override = (os.environ.get("AI_UITEST_HOME") or "").strip()
+    if override:
+        return os.path.abspath(os.path.expanduser(override))
+    return os.path.join(os.path.expanduser("~/.local/share"), "ai-ui-autotest")
+
+
+# 机器级运行态根：`$AI_UITEST_HOME/engine`（**不在 Skill 目录内**，可用
+# `AI_UITEST_STATE_HOME` 整体改写——workspace 入口脚本会把它烧进 `run/ws/<id>/cli`）。
 STATE_HOME = os.path.abspath(
     os.environ.get("AI_UITEST_STATE_HOME", "").strip()
-    or os.path.join(os.path.expanduser("~/.local/share"), "ai-ui-autotest-engine")
+    or os.path.join(_machine_home(), "engine")
 )
 
 # ─── 全局 ─────────────────────────────────────────
@@ -148,7 +164,7 @@ def active_run_file(task_id: str = None) -> str:
 
 
 def appmock_cookie_path() -> str:
-    """AppMock SSO Cookie 缓存：`~/.local/share/ai-ui-autotest-engine/credentials/appmock_session_cookie.json`。
+    """AppMock SSO Cookie 缓存：`$STATE/credentials/appmock_session_cookie.json`。
 
     它是**机器级凭据**（同一个用户在同一台机器上取的是同一张票），不是 workspace 状态：
     放在机器级位置，所有 Skill 安装与并行 workspace 共用，不随 Skill 更新/重装丢失。
@@ -157,7 +173,7 @@ def appmock_cookie_path() -> str:
 
 
 def toolchain_env_path() -> str:
-    """连接工具链路径缓存：`~/.local/share/ai-ui-autotest-engine/toolchain/toolchain.json`。
+    """连接工具链路径缓存：`$STATE/toolchain/toolchain.json`。
 
     adb/hdc 解析出的目录是机器级事实：既有 `ws-init` 这类「尚无 workspace」的命令要读，
     也不能被 workspace 收尾清理带走，又不该在每份 Skill 副本里各探测一遍
@@ -440,7 +456,7 @@ def resolve_input_path(raw: str) -> str:
 # ═══════════════════════════════════════════════════════════════════
 
 def console_dir() -> str:
-    """控制台服务根目录：`~/.local/share/ai-ui-autotest-engine/console/`。
+    """控制台服务根目录：`$STATE/console/`。
 
     **机器级、跨安装唯一**：同一台机器上不管从哪个 Skill 副本启动，都落到同一目录，
     因此单例锁 / 名片 / token 天然全局唯一，不会出现多个常驻实例互相覆盖名片。

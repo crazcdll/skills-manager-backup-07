@@ -524,6 +524,58 @@
       "install_cmd": "mtskills i ai-auto-ui-test",
       "check_cmd": "find skill file by search_paths",
       "update_cmd": "mtskills pull ai-auto-ui-test"
+    },
+    {
+      "name": "ai-tr",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "技术方案三维评审（文码一致性/完备性/架构合理性）：产出评级报告 + 方案原文划线评论，供 Stage 3 Step 3.2.4 在编码前消化 P0-P2 问题",
+      "phase": "Stage 3（Step 3.2.4 技术方案评审）",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [],
+      "min_version": "1.0.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i ai-tr",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull ai-tr"
+    },
+    {
+      "name": "mt-code-standards-setup",
+      "type": "skill",
+      "runtime": "mtskills",
+      "purpose": "业务研发平台统一编码规范接入：按仓库同步生效 L1/L2 规范到 .mdp/rules/，供 Stage 4 编码前读取并遵循",
+      "phase": "Stage 4（Step 4.0 编码规范同步）",
+      "used_by": [
+        "fe-rd-workflow"
+      ],
+      "alternatives": [],
+      "min_version": "1.2.0",
+      "search_paths": [
+        "{workspace_root}/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/{name}/SKILL.md",
+        "{work_root}/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "{work_root}/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills/{name}/SKILL.md",
+        "~/.claude/skills-market/{name}/SKILL.md",
+        "~/.catpaw/skills/{name}/SKILL.md",
+        "~/.catpaw/skills/skills-market/{name}/SKILL.md",
+        "~/.openclaw/skills/{name}/SKILL.md"
+      ],
+      "install_cmd": "mtskills i mt-code-standards-setup",
+      "check_cmd": "find skill file by search_paths",
+      "update_cmd": "mtskills pull mt-code-standards-setup"
     }
   ],
   "system_requirements": [

@@ -60,18 +60,20 @@ _SETTLE_LAST = (SettlePopups,)
 _AFTER_CLEAR_LOGIN_PREREQ = _PUSH_LOCATION + _SETTLE_LAST
 
 ENV_STEPS = {
-    # A(online)：reset → enable → 定位 → 澄清 → [ptest] → 下发 signin（无重启）
+    # A(online) / P(online_ptest)：reset → enable → 定位 → 澄清 → 下发 signin（无重启）
+    # P 的 ptest mock 由 orchestrator 按 plan.ptest 追加（环境类型派生，不是独立配置）
     TARGET_ENV_ONLINE: EnvPipeline(pre=_COMMON_PRE + _AFTER_CLEAR_LOGIN_PREREQ),
 
-    # C(alpha) 与"B 但泳道配置为空而降级"的形态：额外切 alpha 环境（R5，含冷重启）
+    # C(alpha)：额外切 alpha 环境（R5，含冷重启）
     # 定位排在其**之后**（在最终环境里下发并重启生效）；澄清必须最后。
     TARGET_ENV_ALPHA: EnvPipeline(
         pre=_COMMON_PRE + (SwitchServerEnv,) + _AFTER_CLEAR_LOGIN_PREREQ),
 
-    # B(swimline)：
-    #   · 有 lane_name → 配置泳道（R6，含登录前域名映射 ensure）→ 定位 → 澄清
-    #   · 无 lane_name → 走纯域名映射模式（R5 切 alpha）→ 登录后再激活映射（R7）
-    # 两种形态共用同一 target_env，由 `build_pipeline` 分流。
+    # B(swimline) / E(urlmapping) 共用 target_env=swimline，按配置分流：
+    #   · B（测试泳道）→ 有 lane_name → 配置泳道（R6，含登录前域名映射 ensure）→ 定位 → 澄清
+    #   · E（测试域名映射）→ 无 lane_name → 切 alpha（R5）→ 登录后再激活映射（R7）
+    # 分流在 `build_pipeline`，B 的 lane_name 由 env_validator 强制校验，
+    # 所以「有/无 lane_name」与「B/E」是一一对应的。
     TARGET_ENV_SWIMLINE: EnvPipeline(
         pre=_COMMON_PRE + (ConfigureSwimline,) + _AFTER_CLEAR_LOGIN_PREREQ,
         post=(),
@@ -87,7 +89,7 @@ ENV_STEPS = {
 def build_pipeline(plan) -> EnvPipeline:
     """按 plan 解析出实际要执行的管线（含 swimline 两种形态的分流）。
 
-    纯域名映射模式（swimline 但无 lane_name）：
+    E（测试域名映射，无 lane_name）：
       pre 用 `SwitchServerEnv(alpha)` 替代 `ConfigureSwimline`，
         post 追加 `ConfigureUrlMappings`。
     """

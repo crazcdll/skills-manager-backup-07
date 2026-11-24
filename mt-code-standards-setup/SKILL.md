@@ -6,7 +6,7 @@ description: "按用户指定的仓库名称或当前 Git 仓库，从业务研�
 metadata:
   skillhub.creator: "zhangce07"
   skillhub.updater: "zhangce07"
-  skillhub.version: "V24"
+  skillhub.version: "V25"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "141006"
   skillhub.high_sensitive: "false"
@@ -119,6 +119,7 @@ CatDesk、CatPaw IDE、CatPaw 云端 Agent 和美团沙箱沿用同一份 Skill�
 .mdp/rules/
 ├── .mt-effective-rule-bundle.json   # 生效包 manifest v8
 ├── .mt-l1-bootstrap.json           # 仅 L1 包 manifest v5；与上项互斥
+├── company/fe/AGENTS.md             # 前端 L1 索引（发布包提供时）
 ├── company/fe/<文件>.md
 ├── company/java/<文件>.md
 ├── team/fe/<规则集名称>/<文件>.md
@@ -131,7 +132,7 @@ manifest 的 managed_file_releases、来源路径、Hash、大小及索引参与
 安装使用暂存和原子替换；仅 L1 与 L1+L2 双向迁移时清理原清单认领且未被修改的旧规则/索引，保留未知文件和 L3。
 本地被修改的文件、Hash 损坏、路径冲突、符号链接或不同仓库身份必须停止。无仓库请求不能覆盖一个已知 canonical 的正式包。
 相同内容可返回 not_modified，仍校验本地文件和索引；展示名或选择原因变化时原子更新清单元数据。
-索引按现有合同转换为受管 AGENTS.md；缺少索引合同则仅报告警告，不能编造索引。
+规则集索引与其正文同目录。通常前端 L1 为 `.mdp/rules/company/fe/AGENTS.md`，Java L1 为 `.mdp/rules/company/java/AGENTS.md`，L2 为 `.mdp/rules/team/<fe|java>/<规则集名称>/AGENTS.md`。同一领域同时交付多套 L1 时，有索引的规则集在领域目录下按规则集名称分开存放。新版首次拉取会迁移旧清单认领且未修改的索引。缺少索引合同则仅报告警告，不能编造索引。
 
 ## 分发上报与错误
 

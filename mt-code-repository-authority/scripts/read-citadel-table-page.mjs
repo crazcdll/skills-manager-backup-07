@@ -3,6 +3,7 @@ import { delimiter, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const MIS = /^[a-z][a-z0-9._-]{0,63}$/u;
+const SOURCE_TOKEN = /^AT_FOR_GW_BASE64_[A-Za-z0-9+/]+={0,2}$/u;
 const SAFE_ERROR_CODES = new Set([
   "citadel_auth_required",
   "citadel_auth_rejected",
@@ -29,15 +30,23 @@ const safeCitadelErrorCode = (error) => {
   return "citadel_database_page_unavailable";
 };
 
-export const readCitadelTablePage = async ({ tableId, columnIds, pageToken, actorMis, Client }) => {
+export const readCitadelTablePage = async ({ tableId, columnIds, pageToken, actorMis, authToken = process.env.CITADEL_SOURCE_TOKEN, Client }) => {
   if (!/^\d{3,30}$/u.test(tableId) || !Number.isSafeInteger(Number(tableId)) || !Array.isArray(columnIds) || !columnIds.length || columnIds.some((id) => !/^\d{1,30}$/u.test(String(id)))) throw new Error("invalid table page parameters");
   if (!MIS.test(String(actorMis ?? ""))) throw new Error("invalid Citadel actor");
-  const client = new Client({ skillName: "citadel-database", ssoStrategy: "sso-ciba", oidcFallback: false });
+  if (authToken !== undefined && !SOURCE_TOKEN.test(String(authToken))) throw new Error("invalid Citadel source token");
+  const client = new Client({ skillName: "citadel-database", oidcFallback: false });
   if (typeof client.queryTableDataSinglePage !== "function") throw new Error("official Citadel single-page capability unavailable");
-  try { await client.ensureAuth(actorMis); }
-  catch (error) {
-    const code = safeCitadelErrorCode(error);
-    throw new Error(code === "citadel_database_page_unavailable" ? "citadel_auth_failed" : code);
+  if (authToken) {
+    // XTableClient's public API still only exposes CIBA. Set the already
+    // gateway-verified token on its request client without starting auth.
+    client.accessToken = authToken;
+    client.httpClient?.setDefaultHeaders?.({ "Access-Token": authToken });
+  } else {
+    try { await client.ensureAuth(actorMis); }
+    catch (error) {
+      const code = safeCitadelErrorCode(error);
+      throw new Error(code === "citadel_database_page_unavailable" ? "citadel_auth_failed" : code);
+    }
   }
   // The CLI's automatic pagination writes rows to a file and can hide page errors.
   const result = await client.queryTableDataSinglePage({ tableId: Number(tableId), columnIds, pageSize: 100, pageToken: pageToken || undefined });

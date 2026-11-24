@@ -26,6 +26,7 @@ from aitest.reporting.transport import (
     append_case,
     fetch_s3_config,
     format_duration,
+    is_partial_rerun,
     is_shared_report,
     open_report_row,
     report_id,
@@ -172,26 +173,31 @@ def _close_report(context, run):
             ok = False
 
     if ok:
-        _sync_row_meta(context, run, opened=book["opened"])
+        # 补测/重测只覆盖部分 Case：报告级 duration 是首轮全量口径，不能拿本轮短跑覆盖
+        _sync_row_meta(context, run, opened=book["opened"], preserve_duration=is_partial_rerun())
         ledger.mark_closed(output_dir, rid)
         print(f"  🔗 平台报告: {REPORT_PORTAL_BASE}{rid}")
     return ok
 
 
-def _sync_row_meta(context, run, opened):
+def _sync_row_meta(context, run, opened, preserve_duration=False):
     """Close 时回写 append 覆盖不到的列。
 
     `duration` 只有收尾才知道；`platform` / `app` 由引擎按真实运行平台纠正（编排层预置时
     只能给默认值）。Open 没成功（行是首个 append 建的，行级列全为 NULL）时，把整份行级
     元信息一起补上，避免门户列表页标题/时间/设备为空。
+
+    `preserve_duration=True`（补测/重测）：只覆盖被重跑的 Case，行级 duration 保持首轮
+    全量口径不写回——否则一条 Case 的短跑时长会把整份报告时长改成几分钟。
     """
     meta = report_row_meta(context)
     shared = is_shared_report()
     fields = {
-        "duration": format_duration(run.get("duration_ms")) or "",
         "platform": meta["platform"],
         "app": meta["app"],
     }
+    if not preserve_duration:
+        fields["duration"] = format_duration(run.get("duration_ms")) or ""
     # 共享报告的行级元信息由编排层 Open 时写死，分片不得改写（title 口径不同）
     if not opened and not shared:
         fields.update({key: meta[key] for key in ("title", "device", "timestamp", "user_id", "run_type")})

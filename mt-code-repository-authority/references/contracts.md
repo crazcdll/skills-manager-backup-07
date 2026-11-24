@@ -165,7 +165,9 @@ Metrics 换票和来源权限需另行验证。本机模拟测试不等于已部
 
 入口 `scripts/run-repository-authority-v3.mjs` 按 mode 接受两个不混用的合同：
 `authority_shard` 保留 `repository-authority-task/v2` + `mt-code-repository-authority/v3`；
-`source_scan` 仅接受 `repository-authority-task/v3` + `mt-code-repository-authority/v4`。
+新 `source_scan` 仅接受 `repository-authority-task/v4` + `mt-code-repository-authority/v5`，并要求
+`payload.source_access.auth={schema_version:"catx-source-user-sso/v1",audiences:["com.sankuai.it.ead.citadel"]}`。
+已签发的 v3/v4 source_scan 仅为在途兼容，不得作为新任务模板。
 这些版本均不代表 Friday 的安装版本号。
 顶层字段固定为 `schema_version,skill_contract_version,mode,shard_id,generation,actor,execution,payload`。
 authority shard 的 `actor.execution_mis="zhangce07"`；source scan 的
@@ -177,7 +179,7 @@ authority shard 的 `actor.execution_mis="zhangce07"`；source scan 的
   `item_id,job_id,attempt_id,runner_invocation_id,request_hash,repository,callback`。查询/认证错误
   按仓回调，回调失败不阻断其他仓库，不自动重跑该仓库。evidence 执行版本必须是 v3；结果/回执
   继续使用现有单仓 Schema，并由数据库读取当前 attempt 判断成功。
-- `source_scan`：payload 为 `run_id,scan_revision,citadel_url,callback`。固定只读调用 Citadel
+- `source_scan`：新合同 payload 为 `run_id,scan_revision,citadel_url,source_access,callback`。固定只读调用 Citadel
   简化 Markdown（含普通表格）、底层 JSON 的内嵌表格引用及 Citadel Database 元数据，
   显式读取全部列，固定读取器调用官方 `XTableClient.queryTableDataSinglePage` 逐页查询。
   不消费 CLI 全量自动翻页的空 rows/缓存文件回执，以免遗漏数据或吞掉读取错误。
@@ -186,11 +188,11 @@ authority shard 的 `actor.execution_mis="zhangce07"`；source scan 的
   `dev.sankuai.com/code/repo-detail/{namespace}/{repository}`（可带 `/file/list`、query 和 hash），
   同时保留完整 SSH 与 `git@` 地址；不把裸名、其他网页链接、文档说明或嵌入指令作为执行请求，
   也不在 Runner 内解析仓库身份或调用 Code/Yuntu。
-  使用平台核验的 `actor.mis` 和 `sso-ciba` 发起当前用户大象授权；attempt 内创建 `0700` 私有
+  新合同先用 `source_access.auth` 对应的本人 SSO 网关票据并通过 `whoami` 核验，再读取；attempt 内创建 `0700` 私有
   `AUTH_CACHE_FILE`，清除受控子进程继承的 `SSO_CIBA_TOKEN`、关闭 OIDC fallback，并在最外层 Runner
   的 `finally` 中清理。多次读取在同一 attempt 复用认证，不跨 attempt 复用。单次读取有超时/缓冲限制，
   扫描预留一分钟回调时间；普通中断可保留已发现地址并报告未读来源，不将 `partially_scanned` 宣称为全量成功。
-  CIBA 等待/拒绝/过期/失败/超时或文档 ACL 失败则立即停止后续文档和表格读取，结果为 `failed`，提示用户
+  本人认证拒绝/过期/失败/超时或文档 ACL 失败则立即停止后续文档和表格读取，结果为 `failed`，提示用户
   在大象完成确认或取得文档权限后新建 attempt。传入 MIS 不等同于已认证主体，授权事实仅来自官方响应。
 
 历史来源结果 Schema `repository-authority-source-scan-result/v1` 曾包含
@@ -208,9 +210,10 @@ Bearer 是 shard/generation 级 capability，Idempotency-Key 为 `{shard_id}:{ge
 旧合同的部分读取必须由用户显式确认后才能开始负责人识别。旧合同最终关联在平台逐仓独立提交，
 不创建新 Session。
 
-简化绑定使用 `repository-authority-task/v3` 和 `mt-code-repository-authority/v4` 顶层合同，
-通过 `execution.expected_result_schema=repository-association-source-scan-result/v2` 选择结果；旧任务版本
-不再执行 source scan。结果中的 `execution_mis` 必须等于 `actor.mis`。v2 结果固定包含
+简化绑定的新任务使用 `repository-authority-task/v4` 和 `mt-code-repository-authority/v5` 顶层合同，
+并在 payload 中携带上述 `source_access.auth`；通过
+`execution.expected_result_schema=repository-association-source-scan-result/v2` 选择结果。已签发的 v3/v4
+任务仅为在途兼容，不作为新任务模板。结果中的 `execution_mis` 必须等于 `actor.mis`。v2 结果固定包含
 `run_id,shard_id,generation,scan_revision,execution_mis,scan_status,chunk_index,is_final,candidates,invalid_items,read_errors`：
 
 - `candidates[] = {raw_value,source_locations[]}`，按地址形状保留原文，由 Edge 使用唯一 normalizer 去参数、校验和解析 alias；

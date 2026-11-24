@@ -174,10 +174,10 @@ def _reconcile(ctx: IntakeContext) -> list:
     """统一收口：① 让派生值反映最新输入 → ② 清理「已落库但当前不适用」的字段。
 
     背景：`inapplicable` 只在「求值当时」拒绝新值，不会清理**已落库**的旧值。
-    当 `env_type` 从 A 切到 C 时，先落的 `ptest`（仅线上适用）会残留于 intake，
-    随后被 `build_env_from_intake` 重新带入 env —— 这正是「配置与实际不符」的
-    漏网路径。此处补齐：凡当前 `inapplicable` 的字段，其已落库答案、挂起的
-    预置值与覆盖标记一并清除。
+    当 `env_type` 从 B 切到 C 时，先落的 `swim_lane_name`（仅测试泳道 B 适用）
+    会残留于 intake，随后被 `build_env_from_intake` 重新带入 env —— 这正是
+    「配置与实际不符」的漏网路径。此处补齐：凡当前 `inapplicable` 的字段，其
+    已落库答案、挂起的预置值与覆盖标记一并清除。
 
     必须**先重算派生值**：`password` 这类字段的条件是派生键 `auth_method`，只有
     派生值跟随 `env_type` 更新后，其适用性判定才正确。

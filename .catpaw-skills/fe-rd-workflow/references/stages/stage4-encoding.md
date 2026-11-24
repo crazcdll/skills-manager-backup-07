@@ -6,6 +6,7 @@
 ## 入场门禁（必须逐条输出确认，否则 MUST_NOT 继续）
 - [ ] 已输出 Stage 3 → Stage 4 交接检查点摘要
 - [ ] 已判断需求类型：{A直接开发 / B完整流程 / P发布 / T测试}，判断依据：{...}
+- [ ] 已执行 Step 4.0 并输出「编码规范声明」（含规范来源：`.mdp/rules/` 或回退内置规范 + 原因）
 - [ ] 已输出「物料组件和协议开发 Skill 声明」
 - [ ] 已读取 `dev-tasks.md`，将其中每个开发任务导入 `workflow-context.runtime.stage4_tasks[]`，逐条设置 `id` / `desc` / `type`(material|protocol|logic) / `status=pending` / `artifact`。导入的任务数量必须与 Stage 3 交接摘要中声明的任务数量一致，否则 MUST_NOT 继续。
 
@@ -17,6 +18,7 @@
 - 物料组件开发依赖的 skill 路径：`max-material-dev`
 - 页面协议开发依赖的 skill 路径：`duo-protocol`
 - 前端代码编写规范 skill `fe-ai-review`
+- **编码规范（平台下发）**：`<repo_root>/.mdp/rules/`（由 Step 4.0 调用 `mt-code-standards-setup` 同步；缺失时回退 `fe-ai-review` 内置规范）
 
 ## TDD 开发约束
 
@@ -38,13 +40,47 @@
 
 按照先开发物料组件再开发页面协议，顺序不可以改变。
 
+### Step 4.0：同步并读取编码规范（编码前置，MUST 先于 Step 4.1）
+
+> **依赖 Skill（可选）**：`mt-code-standards-setup`（业务研发平台统一编码规范接入）。
+> **目标**：编码前拿到**当前仓库实际生效**的编码规范（L1 公司 / L2 团队 / L3 项目），让 Step 4.1、Step 4.2 的代码产出有可追溯的规范依据。
+> 同步失败或 skill 不可用时回退到 `fe-ai-review` 内置规范，**不阻断编码**，但 MUST 在出场门禁记录规范来源与原因。
+
+严格按以下步骤执行，缺一不可：
+
+- 1. 阅读 `mt-code-standards-setup/SKILL.md`，禁止用 summary / 历史上下文替代 read 操作
+- 2. 在**代码仓库根目录**同步规范（`--stage` 固定 `coding`；前端仓库 `--domain frontend`，仅后端仓库才用 `backend`）：
+
+```shell
+node <mt-code-standards-setup>/scripts/sync-effective-rules-with-sso.mjs \
+  --repo-root "<repo_root>" \
+  --domain frontend \
+  --stage coding \
+  --execution-agent <当前 Agent 标识>
+```
+
+> `--execution-agent` 填当前运行环境标识（如 `codex` / `catpaw` / `claude-code`），用于服务端分发统计，不影响规范内容。
+
+> `--repo-root` 传当前开发仓库根目录（`meta.project_root`），**不要**传工作区/skill 目录；规范输出到 `<repo_root>/.mdp/rules/`。
+
+- 3. 读取下发规范（按目录层级读取全部 `*.md`）：
+  - 索引/受管说明：`.mdp/rules/AGENTS.md`
+  - L1 公司规范：`.mdp/rules/company/fe/*.md`
+  - L2 团队规范：`.mdp/rules/team/fe/<规则集名称>/*.md`
+  - L3 项目自管：`.mdp/rules/project/*.md`（存在时）
+- 4. **输出「编码规范声明」**：同步结果（installed / not_modified / 仅 L1）、领域与阶段、读取到的规范文件数量与路径、索引路径；失败时写明失败原因与回退方式
+- 5. **规范遵循优先级**（冲突时以更具体层级为准）：`project/`（L3）> `team/`（L2）> `company/`（L1）> `fe-ai-review` 内置规范
+- 6. 同步失败 / skill 不可用 / `.mdp/rules/` 为空 → 回退 `fe-ai-review` 内置规范（`references/rules/base/general-rules.md` + 对应技术栈 context），在出场门禁写「规范来源：内置规范（原因）」，MUST NOT 因规范拉取失败而中止编码
+
+**产物**：编码规范声明（输出到对话；失败原因同时记录到 `workflow-context.errors[]`，不新增文件、不新增 context 字段）。
+
 ### Step 4.1：物料组件开发与发布
 
 严格按以下步骤执行，缺一不可：
 - 1. 开始物料组件开发之前先阅读`max-material-dev/SKILL.md`，禁止用 summary / 历史上下文替代 read 操作，未完成 read 前 MUST_NOT 开始任何物料组件开发动作
 - 2. **输出「物料组件开发 Skill 声明」**，列出已读取的 skill 路径
-- 3. 在进行代码开发之前必须先阅读代码规范 skill `fe-ai-review`
-  - 阅读通用前端编码规范 `{fe-ai-review}/references/rule/base/general-rules.md`
+- 3. 以 Step 4.0 同步的 `.mdp/rules/` 生效规范为编码依据；Step 4.0 回退时改为阅读 `fe-ai-review` 内置规范：
+  - 阅读通用前端编码规范 `{fe-ai-review}/references/rules/base/general-rules.md`
   - 如果是 MRN 技术栈、则阅读规范 `{fe-ai-review}/references/context/mrn-context.md`
   - 如果是 MAX 技术栈、则阅读规范 `{fe-ai-review}/references/context/max-context.md`
 
@@ -87,6 +123,7 @@
 - [ ] `workflow-context.runtime.stage4_tasks[]` 中每个任务的 `status` 均为 `done` 或 `skipped`（`skipped` 必须附 `skip_reason`），无 `pending` 遗留。
 - [ ] 声明改动的产物实际存在 git 变更：执行 `git diff --name-only {base_branch}...HEAD`，其覆盖的路径应包含 `stage4_tasks[].artifact` 声明的模块，无声明但未改动的任务。
 - [ ] 若涉及物料组件新增或 `description.json` 变更：已执行 Step 4.1.2 发布并通过发布结果校验（`stage4.1` 已标记 completed）。
+- [ ] 已输出「编码规范声明」，且代码符合本次同步的生效规范（或已记录回退内置规范的原因）。
 - [ ] 本地构建/类型检查通过（若仓库存在 `build` / `tsc` 等脚本则执行，失败记录到 `errors[]` 并暂停修复）。
 
 ## 输出

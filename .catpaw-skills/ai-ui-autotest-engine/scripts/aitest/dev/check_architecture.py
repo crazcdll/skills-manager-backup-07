@@ -195,6 +195,7 @@ SWALLOW_ALLOWLIST = {
     "console/preview/base.py",                 # 预览帧 IO 容错
     "console/preview/manager.py",              # 预览帧抓取 best-effort
     "console/preview/relay.py",                # 预览流转发 best-effort
+    "execution/screen/post_scan.py",           # 重复帧证据删除 best-effort（OSError 不得中断取证）
 }
 
 
@@ -1680,12 +1681,11 @@ def check_question_framework_contract():
             # 场景 AppMock 已下沉为 case 级，故不出现在提问序列中；
             # 凭证已收敛为单一派生题 credential，三种来源都不上问
             expected = ["device_combo", "env_type",
-                        "swim_lane_name", "swim_url_mappings",
-                        "bundle_lock", "order_id"]
+                        "swim_lane_name", "bundle_lock", "order_id"]
             if sequence != expected:
                 bad.append(f"providers: 提问顺序异常 {sequence}（期望 {expected}）")
             if "ptest" in sequence:
-                bad.append("providers: B（泳道）环境不应提问 ptest（仅线上 A 适用）")
+                bad.append("providers: ptest 不应作为独立问题出现（线上泳道已收敛为 env.type=P）")
             ans = ctx2.answers
             if ans.get("auth_method") != "qahome":
                 bad.append(f"providers: auth_method 派生异常 {ans.get('auth_method')!r}")
@@ -1786,29 +1786,30 @@ def check_question_framework_contract():
             if ctx5.pending_seeds:
                 bad.append(f"seed: 依赖就绪后 pending_seeds 应清空，实得 {ctx5.pending_seeds}")
 
-            # ── D. 环境能力门控 + 级联失效 + 组合校验 ──
-            # ptest 仅线上(A)适用：A 应适用且可落值；C 不适用且预置被拒
+            # ── D. 环境建模 + 旧 ptest 写法门禁 ──
+            # 环境类型即场景：P（线上泳道）自带凭证登录，ptest 不再是独立问题
             ctx6 = _fresh_ctx()
             _drv.seed(ctx6, {"device_combo": "sandbox-android-meituan",
-                             "env_type": "A", "resource_mis": "guard_mis",
-                             "credential": _test_identity(), "ptest": True})
+                             "env_type": "P", "resource_mis": "guard_mis",
+                             "credential": _test_identity()})
             _st6 = {i["id"]: i["applicable"] for i in _drv.status(ctx6)["questions"]}
-            if not _st6.get("ptest"):
-                bad.append("providers: A（线上）环境 ptest 应适用")
-            if not ctx6.is_resolved("ptest") or ctx6.get("ptest") is not True:
-                bad.append("seed: A（线上）环境应允许预置 ptest")
+            if "ptest" in _st6:
+                bad.append("providers: ptest 不应再作为独立问题出现（应归属 env.type=P）")
+            if not _st6.get("credential"):
+                bad.append("providers: P（线上泳道）环境凭证题应适用")
             if _st6.get("swim_lane_name"):
-                bad.append("providers: A 环境泳道题不应适用")
+                bad.append("providers: P 环境泳道题不应适用")
+            if ctx6.get("env_type") != "P":
+                bad.append(f"seed: env_type=P 应落库，实得 {ctx6.get('env_type')!r}")
 
+            # 旧写法（把 ptest 当独立问题预置）必须被拒绝，而不是静默生效
             ctx7 = _fresh_ctx()
-            _drv.seed(ctx7, {"device_combo": "sandbox-android-meituan",
-                             "env_type": "C", "resource_mis": "guard_mis",
-                             "ptest": True})
+            _seed7 = _drv.seed(ctx7, {"device_combo": "sandbox-android-meituan",
+                                      "env_type": "C", "resource_mis": "guard_mis",
+                                      "ptest": True})
+            if "ptest" not in [r["id"] for r in _seed7["rejected"]]:
+                bad.append("seed: ptest 已并入 env.type，C 环境下不应接受 ptest")
             _st7 = {i["id"]: i["applicable"] for i in _drv.status(ctx7)["questions"]}
-            if _st7.get("ptest"):
-                bad.append("providers: C（alpha）环境 ptest 不应适用")
-            if ctx7.is_resolved("ptest"):
-                bad.append("seed: C（alpha）环境不应允许 ptest 落值（depends_on 泄漏）")
             _c7 = ctx7.get("credential") or {}
             if not _st7.get("credential"):
                 bad.append("providers: C（qahome）凭证题应适用")
@@ -1817,38 +1818,46 @@ def check_question_framework_contract():
             if _c7.get("source") != _cred.SOURCE_SYNTHETIC:
                 bad.append(f"providers: C（qahome）凭证来源应为号池，实得 {_c7.get('source')!r}")
 
-            # 级联失效：A+ptest 落库后把环境改成 C → ptest 应被清除
+            # 环境切换：P→C 后登录方式随类型重算（不存在需要级联清理的 ptest 值）
             ctx8 = _fresh_ctx()
             _drv.seed(ctx8, {"device_combo": "sandbox-android-meituan",
-                             "env_type": "A", "resource_mis": "guard_mis",
-                             "credential": _test_identity(), "ptest": True})
-            if not ctx8.is_resolved("ptest"):
-                bad.append("级联前置：A 环境 ptest 应先落库")
+                             "env_type": "P", "resource_mis": "guard_mis",
+                             "credential": _test_identity()})
             _drv.seed(ctx8, {"env_type": "C"})
-            if ctx8.is_resolved("ptest"):
-                bad.append("seed: 环境由 A 切到 C 后 ptest 应级联失效（invalidate 未生效）")
             if ctx8.get("auth_method") != "qahome":
-                bad.append(f"级联: A→C 后 auth_method 应为 qahome，实得 {ctx8.get('auth_method')!r}")
+                bad.append(f"级联: P→C 后 auth_method 应为 qahome，实得 {ctx8.get('auth_method')!r}")
             _c8 = ctx8.get("credential") or {}
             if _c8.get("source") != _cred.SOURCE_SYNTHETIC or \
                     not _cred.is_valid_test_account(_c8.get("account")):
-                bad.append("级联: A→C 后凭证应按新登录方式重算为测试号，"
+                bad.append("级联: P→C 后凭证应按新登录方式重算为测试号，"
                            f"实得 {_c8!r}")
 
-            # 组合校验：env 块显式声明 C + ptest=true 必须报错（不得静默放行）
-            from aitest.provisioning.validators.env_validator import validate_env_config as _vec
+            # 旧写法门禁：把 ptest 叠到其它环境上必须报错；P 才是线上泳道的唯一写法
+            from aitest.provisioning.validators.env_validator import (
+                validate_env_config as _vec, build_env_from_intake as _bei,
+            )
             from aitest.shared.errors import ConfigError as _CfgErr
             try:
                 _vec({"type": "C", "ptest": True}, app="meituan", device_type="sandbox")
-                bad.append("validate_env_config: C + ptest=true 未报错（组合校验缺失）")
+                bad.append("validate_env_config: C + ptest=true 未报错（旧写法未拦截）")
             except _CfgErr:
                 pass
             try:
-                _vec({"type": "A", "ptest": True,
-                      "credential": _test_identity(country_code="44")},
-                     app="meituan", device_type="sandbox")
+                _p_env = _vec({"type": "P", "credential": _test_identity(country_code="44")},
+                              app="meituan", device_type="sandbox")
             except _CfgErr as exc:
-                bad.append(f"validate_env_config: A + ptest=true 不应报错（{exc}）")
+                bad.append(f"validate_env_config: P 环境不应报错（{exc}）")
+            else:
+                if _p_env.get("ptest") is not True or _p_env.get("env_name") != "online_ptest":
+                    bad.append(f"validate_env_config: P 应派生 ptest=True + online_ptest，实得 {_p_env!r}")
+            _a_env = _vec({"type": "A", "credential": _test_identity(country_code="44")},
+                          app="meituan", device_type="sandbox")
+            if _a_env.get("ptest"):
+                bad.append("validate_env_config: A 环境不应派生 ptest")
+            if _bei({"env_type": "P"}).get("ptest") is not True:
+                bad.append("build_env_from_intake: env_type=P 应派生 ptest=True")
+            if "ptest" in _bei({"env_type": "A"}):
+                bad.append("build_env_from_intake: A 环境不应物化 ptest")
 
             # 环境能力矩阵与环境类型定义必须同域（新增环境类型必须显式登记能力，
             # 否则新环境会「静默无任何可选能力」而与直觉不符）

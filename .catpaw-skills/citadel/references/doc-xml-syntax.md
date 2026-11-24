@@ -289,11 +289,9 @@ console.log(hello);</code></pre>
 
 ### LaTeX 数学公式
 
-```xml
-<!-- 块级公式：必须使用 <km-latex>，禁止写成 <km-latex-block> -->
-<km-latex nodeId="a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d">E = mc^2</km-latex>
+通过 XML 插入公式时使用行级（行内）公式，将 `<km-latex-inline>` 放在段落中；需要独占一行时，使用单独的 `<p>`。
 
-<!-- 行内公式（在段落内使用） -->
+```xml
 <p nodeId="b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e"><km-latex-inline nodeId="c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f">E = mc^2</km-latex-inline></p>
 ```
 
@@ -557,7 +555,7 @@ A -> B : 消息
 
 ### 支持的节点类型
 
-后端仅接受以下节点类型，**任何其他类型均会导致校验失败**：
+常用的文档节点类型如下：
 
 | 分类 | 支持的类型 |
 | --- | --- |
@@ -567,7 +565,7 @@ A -> B : 消息
 | 表格 | `table`, `table_row`, `table_cell`, `table_header` |
 | 媒体 | `image`, `audio`, `video`, `attachment` |
 | 折叠/提示 | `collapse`, `collapse_title`, `collapse_content`, `note`, `note_title`, `note_content` |
-| 代码/公式 | `latex_block`, `markdown`, `html` |
+| 嵌入文本 | `markdown`, `html` |
 | 嵌入内容 | `catalog`, `spaceupdate`, `page_tree`, `gantt`, `data2chart`, `calendar`, `plantuml`, `drawio`, `minder`, `xtable` |
 | 卡片/链接 | `open_iframe`, `open_link`, `open_card` |
 | 其他块级 | `appendix`, `not_support`, `control`, `doc_list_view`, `title`, `footnote_list`, `footnote_list_item` |

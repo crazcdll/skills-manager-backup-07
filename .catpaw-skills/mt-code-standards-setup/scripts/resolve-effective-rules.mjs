@@ -19,7 +19,7 @@ import {
 import { isIP } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { AGENTS_INDEX_CONTRACT, validateAgentsIndexes, renderAgentsIndexes, agentsManifestFields, validateAgentsManifest, agentsIndexDestinations } from "./agents-index.mjs";
+import { AGENTS_INDEX_CONTRACT, RULESET_INDEX_PLACEMENT, isCurrentAgentsIndexRenderer, validateAgentsIndexes, renderAgentsIndexes, agentsManifestFields, validateAgentsManifest, agentsIndexDestinations } from "./agents-index.mjs";
 
 export const DEFAULT_GATEWAY =
   "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-distribution";
@@ -31,9 +31,11 @@ const BUNDLE_SCHEMA = "effective-rule-bundle/v2";
 const STAGED_BUNDLE_SCHEMA = "effective-rule-bundle/v3";
 const LAYOUT_BUNDLE_SCHEMA = "effective-rule-bundle/v4";
 export const LOCAL_LAYOUT = "scope-domain-ruleset/v1";
-const FLAT_L1_LAYOUT = "domain-flat/v1";
+const FLAT_L1_LAYOUT = "domain-flat/v2";
+const PREVIOUS_FLAT_L1_LAYOUT = "domain-flat/v1";
+const isDomainFlatLayout = (layout) => layout === FLAT_L1_LAYOUT || layout === PREVIOUS_FLAT_L1_LAYOUT;
 const manifestL1Layout = (manifest) => manifest?.local_l1_layout ?? "ruleset/v1";
-const validManifestL1Layout = (manifest) => !Object.hasOwn(manifest, "local_l1_layout") || manifest.local_l1_layout === FLAT_L1_LAYOUT;
+const validManifestL1Layout = (manifest) => !Object.hasOwn(manifest, "local_l1_layout") || isDomainFlatLayout(manifest.local_l1_layout);
 const LEGACY_LAYOUT_LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v5";
 const PREVIOUS_LAYOUT_LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v6";
 const LAYOUT_LOCAL_MANIFEST_SCHEMA = "mt-effective-rule-bundle-manifest/v7";
@@ -1043,13 +1045,14 @@ const isNamedLocalManifest = (manifest) => manifest?.local_layout === LOCAL_LAYO
   && [LEGACY_LAYOUT_LOCAL_MANIFEST_SCHEMA, PREVIOUS_LAYOUT_LOCAL_MANIFEST_SCHEMA, LAYOUT_LOCAL_MANIFEST_SCHEMA, UNIFIED_LOCAL_SCHEMA].includes(manifest.schema_version);
 const isNamedBootstrapManifest = (manifest) => manifest?.local_layout === LOCAL_LAYOUT
   && [LEGACY_LAYOUT_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA, LAYOUT_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA, UNIFIED_L1_LOCAL_SCHEMA].includes(manifest.schema_version);
-const hasAgentsManifestFields = (manifest) => ["agents_index_contract", "agents_indexes_hash", "agents_indexes",
+const hasAgentsManifestFields = (manifest) => ["agents_index_renderer", "agents_index_contract", "agents_indexes_hash", "agents_indexes",
   "managed_agents_indexes", "managed_agents_index_hashes", "managed_agents_index_sizes", "agents_index_warnings"]
   .some((key) => Object.hasOwn(manifest, key));
-const manifestIndexPlacement = (manifest) => [LAYOUT_LOCAL_MANIFEST_SCHEMA, UNIFIED_LOCAL_SCHEMA].includes(manifest.schema_version) && isNamedLocalManifest(manifest)
-  ? "named-team"
-  : manifest.schema_version === AGENTS_LOCAL_MANIFEST_SCHEMA && manifest.local_layout === FLAT_LOCAL_LAYOUT
-    ? "flat-team" : "separate";
+const manifestIndexPlacement = (manifest) => {
+  if (manifestL1Layout(manifest) === FLAT_L1_LAYOUT && (isNamedLocalManifest(manifest) || isNamedBootstrapManifest(manifest))) return RULESET_INDEX_PLACEMENT;
+  if ([LAYOUT_LOCAL_MANIFEST_SCHEMA, UNIFIED_LOCAL_SCHEMA].includes(manifest.schema_version) && isNamedLocalManifest(manifest)) return "named-team";
+  return manifest.schema_version === AGENTS_LOCAL_MANIFEST_SCHEMA && manifest.local_layout === FLAT_LOCAL_LAYOUT ? "flat-team" : "separate";
+};
 const validateOptionalAgentsManifest = (manifest, required = false) =>
   required || hasAgentsManifestFields(manifest)
     ? validateAgentsManifest(manifest, { indexPlacement: manifestIndexPlacement(manifest) }) : true;
@@ -1107,12 +1110,13 @@ const suffixFileName = (fileName, sourcePath, attempt = 0) => {
 const isLayoutManagedPath = (value, l1Layout = FLAT_L1_LAYOUT) => {
   const pathValue = normalizeRelativePath(value, true);
   const parts = pathValue.split("/");
-  if (parts[0] === "company" && l1Layout === FLAT_L1_LAYOUT) return parts.length === 3 && ["fe", "java"].includes(parts[1]);
+  if (parts[0] === "company" && isDomainFlatLayout(l1Layout) && parts.length === 3) return ["fe", "java"].includes(parts[1]);
+  if (parts[0] === "company" && l1Layout === PREVIOUS_FLAT_L1_LAYOUT) return false;
   return parts.length === 4 && ["company", "team"].includes(parts[0])
     && ["fe", "java"].includes(parts[1]) && normalizeLocalRuleSetName(parts[2]) === parts[2];
 };
 
-const localFilesForBundle = (bundle, { indexPlacement = "named-team", l1Layout = FLAT_L1_LAYOUT } = {}) => {
+const localFilesForBundle = (bundle, { indexPlacement = RULESET_INDEX_PLACEMENT, l1Layout = FLAT_L1_LAYOUT } = {}) => {
   const layout = bundle.snapshot.resolver_version === LAYOUT_BUNDLE_SCHEMA;
   const versionTwo = bundle.snapshot.resolver_version !== LEGACY_BUNDLE_SCHEMA;
   const directoryOwners = new Map();
@@ -1123,6 +1127,7 @@ const localFilesForBundle = (bundle, { indexPlacement = "named-team", l1Layout =
     if (directoryOwners.has(key)) fail("RULE_BUNDLE_RULE_SET_NAME_COLLISION", `同层级和领域的规则集目录名称冲突：${ref.local_rule_set_name}`);
     directoryOwners.set(key, ref.rule_set_id);
   }
+  const reservedIndexPaths = agentsIndexDestinations(bundle.agents_indexes, refs, { indexPlacement });
   const candidates = bundle.files.map((file) => {
     const sourcePath = normalizeRelativePath(file.relative_path, versionTwo);
     const parts = sourcePath.split("/");
@@ -1133,12 +1138,17 @@ const localFilesForBundle = (bundle, { indexPlacement = "named-team", l1Layout =
     if (layout && (owners.length !== 1 || owners[0].scope_level.toLowerCase() !== scope)) fail("RULE_BUNDLE_FILE_RELEASE_INVALID", `规则文件没有唯一匹配的 release：${sourcePath}`);
     const owner = owners[0];
     const inferredRuleSetId = parts.length > 2 ? parts[1] : fileName.replace(/[.]md$/iu, "");
-    const candidate = layout
-      ? `${scope === "l1" ? "company" : "team"}/${owner.standard_domain === "frontend" ? "fe" : "java"}/${scope === "l1" && l1Layout === FLAT_L1_LAYOUT ? "" : `${owner.local_rule_set_name}/`}${fileName}`
-      : scope === "l1" ? `company/${fileName}` : `team/${inferredRuleSetId}/${fileName}`;
+    let directory;
+    if (layout) {
+      const domain = owner.standard_domain === "frontend" ? "fe" : "java";
+      if (scope === "l2") directory = `team/${domain}/${owner.local_rule_set_name}`;
+      else if (indexPlacement === RULESET_INDEX_PLACEMENT && reservedIndexPaths.has(owner.rule_set_id)) {
+        directory = path.posix.dirname(reservedIndexPaths.get(owner.rule_set_id));
+      } else directory = isDomainFlatLayout(l1Layout) ? `company/${domain}` : `company/${domain}/${owner.local_rule_set_name}`;
+    } else directory = scope === "l1" ? "company" : `team/${inferredRuleSetId}`;
+    const candidate = `${directory}/${fileName}`;
     return { ...file, source_relative_path: sourcePath, local_relative_path: candidate };
   });
-  const reservedIndexPaths = agentsIndexDestinations(bundle.agents_indexes, refs, { indexPlacement });
   if (indexPlacement !== "separate") for (const entry of bundle.agents_indexes || []) {
     const ref = refs.find(item => item.rule_set_id === entry.rule_set_id && item.release_id === entry.release_id);
     if (ref?.scope_level !== "L2") continue;
@@ -1359,7 +1369,7 @@ const validateBootstrapManifestStructure = (manifest) => {
   if (releaseRefs.some((release) => release.scope_level !== "L1" || (layout && release.standard_domain !== manifest.standard_domain))) return false;
   if (layout) {
     if (Object.keys(manifest.managed_file_releases).length !== uniquePaths.size) return false;
-    const derived = localFilesForBundle({ snapshot: { resolver_version: LAYOUT_BUNDLE_SCHEMA, release_refs: releaseRefs }, files: projection }, { indexPlacement: "separate", l1Layout: manifestL1Layout(manifest) });
+    const derived = localFilesForBundle({ snapshot: { resolver_version: LAYOUT_BUNDLE_SCHEMA, release_refs: releaseRefs }, files: projection, agents_indexes: manifest.agents_indexes }, { indexPlacement: manifestIndexPlacement(manifest), l1Layout: manifestL1Layout(manifest) });
     if (derived.some((file) => !uniquePaths.has(file.local_relative_path) || manifest.managed_file_sources[file.local_relative_path] !== file.relative_path)) return false;
   }
   const indexCapable = manifest.schema_version === LAYOUT_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA
@@ -1428,7 +1438,7 @@ const buildLocalManifest = (bundle) => {
       file.local_relative_path,
       file.byte_size,
     ])),
-    ...agentsManifestFields(bundle, localFiles, { indexPlacement: "named-team" }),
+    ...agentsManifestFields(bundle, localFiles, { indexPlacement: RULESET_INDEX_PLACEMENT }),
     installed_at: new Date().toISOString(),
   };
 };
@@ -1441,7 +1451,7 @@ const buildBootstrapManifest = (bundle, domainSource, domainEvidence) => {
       resolver_version: LAYOUT_BUNDLE_SCHEMA,
       repository: { standard_domain: bundle.snapshot.standard_domain },
     },
-  }, { indexPlacement: "separate" });
+  });
   const managedFiles = localFiles.map((file) => file.local_relative_path);
   return {
     schema_version: LAYOUT_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA,
@@ -1472,7 +1482,7 @@ const buildBootstrapManifest = (bundle, domainSource, domainEvidence) => {
     managed_file_sizes: Object.fromEntries(localFiles.map((file) => [
       file.local_relative_path, file.byte_size,
     ])),
-    ...agentsManifestFields(bundle, localFiles, { indexPlacement: "separate" }),
+    ...agentsManifestFields(bundle, localFiles, { indexPlacement: RULESET_INDEX_PLACEMENT }),
     installed_at: new Date().toISOString(),
   };
 };
@@ -1571,7 +1581,7 @@ const installReadyBundle = async (repoRoot, bundle, previousManifest, bootstrapM
   ]);
   const previousManagedNfc = new Set([...previousPhysicalPaths].map((name) => name.normalize("NFC")));
   const localFiles = localFilesForBundle(bundle);
-  const indexFiles = renderAgentsIndexes(bundle.agents_indexes, localFiles, bundle.snapshot.release_refs, { indexPlacement: "named-team" }).files;
+  const indexFiles = renderAgentsIndexes(bundle.agents_indexes, localFiles, bundle.snapshot.release_refs, { indexPlacement: RULESET_INDEX_PLACEMENT }).files;
   const directoryCache = new Map();
   for (const file of [...localFiles, ...indexFiles]) {
     const currentPath = path.join(rulesRoot, ...file.local_relative_path.split("/"));
@@ -1672,8 +1682,8 @@ const installBootstrapBundle = async ({
       resolver_version: LAYOUT_BUNDLE_SCHEMA,
       repository: { standard_domain: bundle.snapshot.standard_domain },
     },
-  }, { indexPlacement: "separate" });
-  const indexFiles = renderAgentsIndexes(bundle.agents_indexes, localFiles, bundle.snapshot.release_refs, { indexPlacement: "separate" }).files;
+  });
+  const indexFiles = renderAgentsIndexes(bundle.agents_indexes, localFiles, bundle.snapshot.release_refs, { indexPlacement: RULESET_INDEX_PLACEMENT }).files;
   const previousManaged = new Set([...(previousManifest?.managed_files || []), ...(previousManifest?.managed_agents_indexes || []),
     ...(formalManifest?.managed_files || []).map(name => manifestPhysicalPath(formalManifest, name)),
     ...(formalManifest?.managed_agents_indexes || []),
@@ -1873,7 +1883,7 @@ export const syncUnifiedRuleBundle = async ({ gatewayUrl, token, repositoryLocat
   if (!previousCanonical && baseline?.resolution?.target.source === "local_directory"
     && baseline.resolution.target.display_name !== prepared.sourceRoot) fail("RULE_BUNDLE_REPOSITORY_CONFLICT", "本地规则属于其他来源目录，未覆盖现有规则");
   const known = previous && validateResolutionManifest(previous)
-    && manifestL1Layout(previous) === FLAT_L1_LAYOUT
+    && manifestL1Layout(previous) === FLAT_L1_LAYOUT && isCurrentAgentsIndexRenderer(previous)
     && previous.stage === stage && (!prepared.domain || previous.standard_domain === prepared.domain)
     && previous.resolution.scope === prepared.scope
     && previous.resolution.target.canonical_key === prepared.repositoryLocator
@@ -2059,7 +2069,7 @@ export const syncEffectiveRuleBundle = async ({
     ? text(previousManifest.stage)
     : "";
   const knownSnapshotId = previousCurrent && previousManifest?.schema_version === LAYOUT_LOCAL_MANIFEST_SCHEMA
-    && manifestL1Layout(previousManifest) === FLAT_L1_LAYOUT
+    && manifestL1Layout(previousManifest) === FLAT_L1_LAYOUT && isCurrentAgentsIndexRenderer(previousManifest)
     && previousStage === deliveryStage
     ? previousManifest.snapshot_id
     : "";
@@ -2094,7 +2104,7 @@ export const syncEffectiveRuleBundle = async ({
       ? text(bootstrapManifest.stage)
       : "";
     const bootstrapKnownSnapshotId = bootstrapCurrent && bootstrapManifest?.schema_version === LAYOUT_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA && bootstrapStage === deliveryStage
-      && manifestL1Layout(bootstrapManifest) === FLAT_L1_LAYOUT
+      && manifestL1Layout(bootstrapManifest) === FLAT_L1_LAYOUT && isCurrentAgentsIndexRenderer(bootstrapManifest)
       ? bootstrapManifest.snapshot_id
       : "";
     const bootstrapBody = await requestBootstrapBundle({

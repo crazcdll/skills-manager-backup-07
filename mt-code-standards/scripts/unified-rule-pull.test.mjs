@@ -220,7 +220,7 @@ test("unified effective and bootstrap pulls migrate named L1 files before reusin
     await pull(root, { ...options, fetchImpl: server(body, request => assert.equal(request.known_snapshot, undefined)) });
     for (const old of manifest.managed_files.filter(file => file.startsWith("company/"))) await assert.rejects(access(path.join(rulesRoot, old)), { code: "ENOENT" });
     const current = JSON.parse(await readFile(filename, "utf8"));
-    assert.equal(current.local_l1_layout, "domain-flat/v1");
+    assert.equal(current.local_l1_layout, "domain-flat/v2");
     assert.equal(current.snapshot_id, manifest.snapshot_id);
     const result = await pull(root, { ...options, fetchImpl: server({ ...body, status: "not_modified", files: [] }, request => assert.equal(request.known_snapshot.snapshot_id, manifest.snapshot_id)) });
     assert.equal(result.status, "not_modified");

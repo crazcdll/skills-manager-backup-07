@@ -5,7 +5,7 @@
 执行顺序：
   1. env pipeline.pre      环境前置（重置 / AppMock 启用 / 环境切换 / 泳道）
                             —— 澄清步骤（SettlePopups）固定排在 pre **末位**（所有重启之后）
-  2. ptest（可选）
+  2. ptest（仅 env.type=P）
   3. auth action           认证动作；qahome 附带两层重试链
   4. env pipeline.post     登录后环境配置（域名映射激活）
   5. post 重启后澄清        post 阶段实际发生冷重启时，按唯一入口复核屏幕干净度
@@ -131,7 +131,7 @@ def execute_login(plan: LoginPlan, ctx: LoginContext, run_dir: str = "") -> dict
                 "evidence": (), "probe": None, "steps": steps,
                 "hook_ids": [h["id"] for h in hooks], "hooks": hooks}
 
-    # ── 2. ptest（可选）────────────────────────────────────────────
+    # ── 2. ptest（仅 env.type=P）────────────────────────────────────
     if plan.ptest:
         from aitest.provisioning.setup.login.steps import EnablePtestMock
         ptest = EnablePtestMock()

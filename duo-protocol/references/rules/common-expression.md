@@ -1,15 +1,15 @@
 # 常见表达式规则
 
-DUO 页面协议表达式是放在 `props` 内 `{{ }}` 中的 **Groovy 2.4.17** 代码。
+DUO 页面协议表达式是放在 DSL 表达式字段的 `{{ }}` 中的 **Groovy 2.4.17** 代码；`props` 只是其中一种使用场景。
 
 ## 一、语法铁律
 
 | # | 规则 |
 |---|------|
-| 1 | 表达式写在 `props {}` 内，形如 `number('xx') {{ Groovy代码 }}` |
+| 1 | 表达式一律用 `{{ }}` 包裹；可出现在 `props` 字段、`xIf`/`xFor`/`key`、`condition`、`style`、`constant`、`dataSourceMap` 的 `requestProps`/`currentData` |
 | 2 | 兼容 Groovy 2.4.17，禁止 JS 语法与高版本 Groovy |
 | 3 | 外部用 `{{` + `}}` 包裹，内部是 Groovy 代码 |
-| 4 | 求值类型须与声明的字段类型一致（bool/number/string/object/array） |
+| 4 | 求值类型须与声明的字段类型一致（bool/number/string/object/array/objectWithSub） |
 
 ## 二、字段类型声明
 
@@ -40,7 +40,7 @@ props {
 | Bad | 问题 |
 |-----|------|
 | `xxx.includes('a')` | includes 是 JS，Groovy 用 `contains` |
-| `xxx.map/y.filter/xxx.reduce` | JS 数组方法，Groovy 用 `.collect{}/.findAll{}/.find{}` |
+| `xxx.map / xxx.filter / xxx.reduce` | JS 数组方法，Groovy 用 `.collect{}/.findAll{}/.find{}` |
 | `xxx == '2'`（数字 vs 字符串） | 强类型比较，用 `== 2` 或转字符串 |
 | `const x = 1` | Groovy 用 `def x = 1` |
 | 裸 `disabled = xxx` 而非 `bool('disabled') {{ xxx }}` | 字段未类型化声明 |

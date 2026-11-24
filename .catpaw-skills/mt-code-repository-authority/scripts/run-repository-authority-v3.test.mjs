@@ -27,14 +27,16 @@ const batchTask = () => ({
     callback: { url: `https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-observability/internal/repository-authority/attempts/${uuid(4 + index * 4)}/result`, token: "t".repeat(43) },
   })),
 });
-const sourceTask = (expectedResultSchema = V3_SOURCE_RESULT_SCHEMA_V2) => ({
-  schema_version: "repository-authority-task/v3", skill_contract_version: "mt-code-repository-authority/v4",
+const sourceTask = (expectedResultSchema = V3_SOURCE_RESULT_SCHEMA_V2, sourceUserSso = false) => ({
+  schema_version: sourceUserSso ? "repository-authority-task/v4" : "repository-authority-task/v3",
+  skill_contract_version: sourceUserSso ? "mt-code-repository-authority/v5" : "mt-code-repository-authority/v4",
   mode: "source_scan", shard_id: uuid(20), generation: 2,
   actor: { mis: "actual_user", source: "verified-edge", execution_mis: "actual_user" },
   execution: { deadline: new Date(Date.now() + 300_000).toISOString(), workers: 2, expected_result_schema: expectedResultSchema },
   payload: {
     run_id: uuid(21), scan_revision: 2, citadel_url: "https://km.sankuai.com/collabpage/1280163608",
     callback: { url: `https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-observability/internal/repository-association/runs/${uuid(21)}/source-result`, token: "t".repeat(43) },
+    ...(sourceUserSso ? { source_access: { auth: { schema_version: "catx-source-user-sso/v1", audiences: ["com.sankuai.it.ead.citadel"] } } } : {}),
   },
 });
 const validateTask = (task) => { const taskBytes = Buffer.from(JSON.stringify(task)); return validateV3TaskArtifact({ taskBytes, expectedTaskArtifactHash: sha256(taskBytes) }); };
@@ -115,6 +117,22 @@ test("source task selects the versioned result contract without changing the tas
   }
 });
 
+test("source task requires the allowlisted本人 SSO contract for the migrated schema", () => {
+  const task = sourceTask(V3_SOURCE_RESULT_SCHEMA_V2, true);
+  const context = validateTask(task);
+  assert.equal(context.source.sourceUserSso, true);
+  assert.deepEqual(context.source.sourceAccess.auth, {
+    schema_version: "catx-source-user-sso/v1",
+    audiences: ["com.sankuai.it.ead.citadel"],
+  });
+  const invalid = sourceTask(V3_SOURCE_RESULT_SCHEMA_V2, true);
+  invalid.payload.source_access.auth.audiences = ["f32a546874"];
+  assert.throws(() => validateTask(invalid), /source access auth contract is invalid/u);
+  const missing = sourceTask(V3_SOURCE_RESULT_SCHEMA_V2, true);
+  delete missing.payload.source_access;
+  assert.throws(() => validateTask(missing), /source access|payload fields/u);
+});
+
 test("source attempts isolate and clean actor CIBA state after success, rejection, and timeout", async () => {
   const root = await mkdtemp(join(tmpdir(), "repository-source-auth-test-"));
   const cacheFiles = [];
@@ -180,6 +198,36 @@ test("source attempts isolate and clean actor CIBA state after success, rejectio
     else process.env.SSO_CIBA_TOKEN = previousToken;
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("migrated source scan authenticates through本人 SSO and keeps the token out of Runner arguments", async () => {
+  const token = "AT_FOR_GW_BASE64_test-token";
+  const calls = [];
+  const scan = await scanSource({
+    source: { citadelUrl: "https://km.sankuai.com/page/123", sourceUserSso: true },
+    resultSchema: V3_SOURCE_RESULT_SCHEMA_V2,
+    authenticate: async ({ actorMis, audience, env }) => {
+      assert.equal(actorMis, "actual_user");
+      assert.equal(audience, "com.sankuai.it.ead.citadel");
+      assert.equal(env.SSO_CIBA_TOKEN, undefined);
+      return token;
+    },
+    processRunner: async (command, args, options) => {
+      calls.push({ command, args, env: options.env });
+      assert.equal(command, process.execPath);
+      assert.equal(args[0].endsWith("read-citadel-command.mjs"), true);
+      assert.equal(args.includes(token), false);
+      assert.equal(options.env.CITADEL_SOURCE_TOKEN, token);
+      assert.equal(options.env.SSO_CIBA_TOKEN, undefined);
+      if (args.includes("getSimpleMarkdown")) return result({ content: "https://dev.sankuai.com/code/repo-detail/team/repository/file/list" });
+      if (args.includes("getDocumentJson")) return result({ body: "{\"content\":[]}" });
+      if (args.includes("listTables")) return result({ tableIds: [] });
+      assert.fail(`unexpected command: ${args.join(" ")}`);
+    },
+  });
+  assert.equal(scan.scan_status, "completed");
+  assert.equal(scan.candidates[0].raw_value, "https://dev.sankuai.com/code/repo-detail/team/repository/file/list");
+  assert.equal(calls.length, 3);
 });
 
 test("v2 extraction preserves address-shaped values for the Edge normalizer", () => {
@@ -340,7 +388,7 @@ test("v2 Citadel scan extracts hyperlinks from arbitrary table cell shapes", asy
 
 test("official single-page adapter keeps authentication and paging errors explicit", async () => {
   class Client {
-    constructor(config) { assert.deepEqual(config, { skillName: "citadel-database", ssoStrategy: "sso-ciba", oidcFallback: false }); }
+    constructor(config) { assert.deepEqual(config, { skillName: "citadel-database", oidcFallback: false }); }
     async ensureAuth(mis) { assert.equal(mis, "actual_user"); }
     async queryTableDataSinglePage(params) {
       assert.deepEqual(params, { tableId: 12345, columnIds: [1, 12], pageSize: 100, pageToken: undefined });
@@ -360,6 +408,13 @@ test("official single-page adapter keeps authentication and paging errors explic
   await assert.rejects(readCitadelTablePage({ tableId: "12345", columnIds: [1], actorMis: "actual_user", Client: PendingAuthClient }), /citadel_auth_required/u);
   class FailedClient extends Client { async queryTableDataSinglePage() { throw new Error("permission denied"); } }
   await assert.rejects(readCitadelTablePage({ tableId: "12345", columnIds: [1], actorMis: "actual_user", Client: FailedClient }), /permission denied/u);
+  class TokenClient {
+    constructor(config) { assert.deepEqual(config, { skillName: "citadel-database", oidcFallback: false }); this.httpClient = { setDefaultHeaders: (headers) => { this.headers = headers; } }; }
+    async ensureAuth() { throw new Error("must not start CIBA"); }
+    async queryTableDataSinglePage(params) { assert.equal(this.accessToken, "AT_FOR_GW_BASE64_token"); assert.deepEqual(this.headers, { "Access-Token": "AT_FOR_GW_BASE64_token" }); return { rows: [], nextPageToken: "" }; }
+  }
+  await readCitadelTablePage({ tableId: "12345", columnIds: [1], actorMis: "actual_user", authToken: "AT_FOR_GW_BASE64_token", Client: TokenClient });
+  await assert.rejects(readCitadelTablePage({ tableId: "12345", columnIds: [1], actorMis: "actual_user", authToken: "bad", Client: TokenClient }), /invalid Citadel source token/u);
 });
 
 test("source scan pins actor CIBA and stops after authorization rejection", async () => {

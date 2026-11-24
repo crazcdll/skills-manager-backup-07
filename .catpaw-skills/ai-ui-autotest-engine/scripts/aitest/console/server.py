@@ -152,7 +152,7 @@ def _tail_loop():
 def _heartbeat_loop(info):
     """周期重写服务名片与 token 文件（写到**机器级** console 目录，误删可自愈）。
 
-    ⚠️ home 固定为 `~/.local/share/ai-ui-autotest-engine/console/`，**不再**写回
+    ⚠️ home 固定为 `$STATE/console/`，**不再**写回
     Skill 目录：否则 Skill 每多一份副本（.catpaw / .claude / 各项目）就会多出一个
     `.console`，而且删掉后 15s 就被本心跳重建，表现为「删不掉的幽灵目录」。
     """

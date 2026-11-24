@@ -29,6 +29,7 @@ os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 
 from aitest.cli_utils import resolve_active_context, auto_log_command, run_with_guard
 from aitest.shared.errors import DeviceError, UsageError, soft_fail
+from aitest.shared.retention import DEFAULT_KEEP_REPORTS, DEFAULT_MIN_AGE_MINUTES
 
 # ── 所有 handler 的导入 ───────────────────────────────────────
 from aitest.shared.case_utils import (
@@ -395,6 +396,16 @@ def build_parser():
     sub.add_parser("preflight-clean", help="启动预检清理：清空【本 workspace】工作区内容")
     sub.add_parser("post-clean", help="测试完成后清理：清空【本 workspace】内容并删除入口")
 
+    _pr = sub.add_parser("prune", help="机器级滚动保留：清理旧报告归档（keep-latest-N）")
+    _pr.add_argument("--keep", type=int, default=None,
+                     help=f"保留最近几个批次（缺省读 AI_UITEST_KEEP_REPORTS，再缺省 {DEFAULT_KEEP_REPORTS}）")
+    _pr.add_argument("--max-age-days", type=int, default=0, dest="max_age_days",
+                     help="超出保留位但未超过该天数的目录也保留（0=仅按份数）")
+    _pr.add_argument("--min-age-minutes", type=int, default=DEFAULT_MIN_AGE_MINUTES,
+                     dest="min_age_minutes",
+                     help="保护窗口：该时长内写入的批次不删（防误删并行分片）")
+    _pr.add_argument("--dry-run", action="store_true", dest="dry_run", help="只预览，不删除")
+
     sub.add_parser("input-next", help="信息收集：返回下一个待解决问题")
 
     p = sub.add_parser("input-seed", help="信息收集：批量预置用户已知值（收集循环前）")
@@ -441,8 +452,9 @@ def build_parser():
                    help="运行类型（写入报告行，默认读 AI_UITEST_RUN_TYPE / adhoc）")
     p.add_argument("--mis", default="", help="用户 MIS 号")
 
-    p = sub.add_parser("flow-add-case", help="追加一个 case 到 steps-input.json")
-    p.add_argument("--dir", required=True, help="用例目录名")
+    p = sub.add_parser("flow-add-case", help="追加一个 case 到当前 run 的 steps-input.json")
+    p.add_argument("--dir", default="",
+                   help="run 目录名（可省略：缺省取本 workspace 当前活跃 run，即 flow-init --dir 的值）")
     p.add_argument("--input", required=True, dest="json",
                    help="单个 case 的 JSON，或 steps-generate 产出的 steps-input-<tag>.json（自动取 cases[0]）")
     p.add_argument("--case-index", type=int, default=0, dest="case_index",
@@ -556,10 +568,10 @@ def build_parser():
     sub.add_parser("cleanup", help="异常中断后的资源清理（泳道关闭+Mock 状态清理）")
 
     p = sub.add_parser("env-prepare", help="一键环境准备")
-    p.add_argument("--env", default=None, choices=["online", "alpha", "swimline", "noop"],
-                   help="环境类型")
-    p.add_argument("--ptest", action="store_true", default=None,
-                   help="开启 ptest（仅线上环境 A 生效；其他环境会校验失败）")
+    from aitest.provisioning.validators.env_validator import ENV_TYPE_MAP
+    p.add_argument("--env", default=None,
+                   choices=sorted(set(ENV_TYPE_MAP) | set(ENV_TYPE_MAP.values())),
+                   help="环境类型：A/P/B/C/D/E 或其 env_name（online/online_ptest/swimline/alpha/urlmapping/noop）")
     p.add_argument("--account", default=None, help="登录账号")
     p.add_argument("--password", default=None, help="登录凭证")
     p.add_argument("--location", default=None, help="城市预设名")
@@ -976,7 +988,35 @@ def _start_lease_keepalive() -> None:
 #   · `console`    常驻服务控制；
 #   · `check-deps` 前置依赖体检/安装，冷启动阶段就必须可执行；
 #   · `toolchain`  连接工具链只读体检（先判断缺 adb 还是缺 hdc）。
-WORKSPACE_FREE_CMDS = ("ws-init", "console", "check-deps", "toolchain")
+WORKSPACE_FREE_CMDS = ("ws-init", "console", "check-deps", "toolchain", "prune")
+
+
+def _auto_prune_reports():
+    """flow-init（执行前）顺带清一次旧报告归档（best-effort，不影响测试结论）。"""
+    try:
+        from aitest.shared.retention import keep_from_env, prune_reports
+
+        keep = keep_from_env()
+        if keep > 0:
+            prune_reports(keep=keep, verbose=False)
+    except Exception:  # noqa: BLE001 —— 清理永远不能成为失败原因
+        pass
+
+
+def _cmd_prune(args):
+    """手动清理：`prune [--keep N] [--max-age-days N] [--dry-run]`。"""
+    from aitest.shared.retention import keep_from_env, prune_reports
+
+    keep = args.keep if args.keep is not None else keep_from_env()
+    summary = prune_reports(
+        keep=keep,
+        max_age_days=args.max_age_days,
+        min_age_minutes=args.min_age_minutes,
+        dry_run=args.dry_run,
+    )
+    if summary.get("skipped"):
+        print("  · 自动清理已关闭（keep=0）；如需清理请显式传 --keep N")
+    return 0
 
 
 def _recover_device_reuse(args, reg_result: dict) -> bool:
@@ -1121,6 +1161,8 @@ def dispatch(args):
         clean_post_test(cleanup=_transport_cleanup(_sync_platform_env()))
         print("Post-test cleanup done")
         return None
+    if cmd == "prune":
+        return _cmd_prune(args)
     if cmd == "input-next":
         return cmd_input_next(args)
     if cmd == "input-seed":
@@ -1149,6 +1191,8 @@ def dispatch(args):
 
     # ── Level 1：需要 run_dir（active_run） ──
     if cmd == "flow-init":
+        # 执行前回收旧报告归档：keep-latest-N + 保护窗口，失败不影响本轮
+        _auto_prune_reports()
         rc = _cmd_flow_init(args)
         # Open：独立运行时由引擎预置空报告行（托管运行内置跳过）
         _open_report()

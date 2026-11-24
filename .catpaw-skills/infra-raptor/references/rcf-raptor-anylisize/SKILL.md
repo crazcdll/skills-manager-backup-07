@@ -1,6 +1,6 @@
 ---
 name: rcf-raptor-anylisize
-version: "1.1.0"
+version: "1.1.1"
 description: >
   Raptor 实时查询中 RCF 指标（R 交互响应 / C 首屏加载 / F 滑动流畅度）的多维度波动分析，定位 RCF 总分或子指标分数下降的根因。
   支持两种触发方式：①用户明确说"分析"RCF/R/C/F 分数波动、劣化、下降；②用户发送 Raptor 性能大盘页面链接并提出分析诉求（自动解析 URL 参数后重新查询）。
@@ -20,9 +20,11 @@ metadata:
 
 本 skill 使用 `raptorfe` CLI（内置鉴权，无需手动传 token）。
 
+> **🌏 环境适配（境内 / 境外）**：下文默认使用 `raptorfe`（境内）。若用户提到「海外 / 境外 / overseas」或给出 `raptor.mws.keetapp.com` 链接，**本文所有 `raptorfe` 命令一律改用 `raptorfeov`**（模块、子命令、参数、时间格式完全一致），页面链接同步换成 keetapp 域名。判定规则与完整约束见父技能 `SKILL.md` 的「环境识别：境内 / 境外」章节；一次判定后全程不混用。
+>
 > **前置预检（每次激活时执行，一行兜底，避免首次执行报 command not found）：**
 > ```bash
-> command -v raptorfe >/dev/null 2>&1 || npm install -g @mtfe/raptorfe-cli@beta @dp/sso-auth-cli@latest --registry http://r.npm.sankuai.com
+> command -v raptorfe >/dev/null 2>&1 || npm install -g @mtfe/raptorfe-cli @dp/sso-auth-cli@latest --registry http://r.npm.sankuai.com
 > ```
 
 ---

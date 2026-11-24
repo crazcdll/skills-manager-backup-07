@@ -5,7 +5,7 @@ description: "学城 km/wiki/km.sankuai.com 文档官方工具，凡涉及学城
 metadata:
   skillhub.creator: "rui.zou"
   skillhub.updater: "rui.zou"
-  skillhub.version: "V51"
+  skillhub.version: "V52"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "3367"
   skillhub.high_sensitive: "true"
@@ -469,7 +469,7 @@ oa-skills citadel uploadDrawioToDocument --contentId <文档ID> --file /tmp/diag
 - **编辑复杂表格时，优先在原格式内做局部修改，不要把表格还原或重写成 JSON**（XML 路径直接改 `<tr>`/`<td>`/`<th>` 内容）
 - **`addFullTextComment` / `addDiscussionComment` / `replyDiscussionComment` 频次限制**：每次 AI 会话、每篇文档最多调用 1 次，禁止批量循环调用
 - **`deleteFullTextComment` / `deleteDiscussionComment` 高风险限制**：不可撤销，必须先展示评论内容、获得用户明确确认后再执行；单次只能删除一条，详见 [references/discussion-comment.md](references/discussion-comment.md)
-- **新建图表时，chartXml 不会自动插入文档**：`createAndInsertChart` 返回 `chartXml` 后，AI 必须额外执行 `getDocumentXml` → 插入节点 → `updateDocumentByXml` 三步
+- **新建图表后原样插入完整 `chartXml`**。用 `getDocumentXml` 读取目标 2.0 文档，将 `createAndInsertChart` 返回的整段 XML 插入目标位置，再用读取时的 `stepVersion` 调用 `updateDocumentByXml`。已有图表报 `attrs.id` 错误时，保留节点并核对原图表。[图表插入与异常处理](references/chart-insert.md)
 - **编辑图表数据时，`source-id` 无需手动传入**，命令内部自动获取；`updateChartConfig` 只改图表类型/标题，不涉及数据变更
 
 ## 复制后的编辑

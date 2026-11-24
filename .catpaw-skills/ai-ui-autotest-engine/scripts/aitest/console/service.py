@@ -7,7 +7,7 @@
   · 端口上有 home 不一致的 catpaw-console（其他安装/拷贝拉起的重复实例）→ 回收后重启；
   · 未存活 → flock 串行化，启动一个脱离父会话的常驻服务进程。
 
-home 固定为 `~/.local/share/ai-ui-autotest-engine/console/`：Skill 会被多份安装/镜像，
+home 固定为 `$STATE/console/`：Skill 会被多份安装/镜像，
 常驻服务的状态**不能**落在 SKILL_DIR 内，否则每个副本都会长出一份 `.console`，
 且常驻进程心跳会在目录被删后立刻重建（幽灵目录），并拉起多个重复实例。
 """

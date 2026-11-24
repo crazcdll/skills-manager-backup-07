@@ -31,7 +31,7 @@
       "checks": [
         {"type": "text", "text": "在线付"},
         {"type": "text_gone", "text": "加载中"},
-        {"type": "text_vision", "text": "价格明细"}
+        {"type": "text", "text": "价格明细"}
       ]
     },
     {
@@ -40,11 +40,8 @@
       "name": "核对订单摘要模块",
       "action": {"kind": "none"},
       "checks": [
-        {
-          "type": "vision",
-          "text": "顶部展示房型名称、入离日期与总价，金额与日期排版无错位",
-          "source": "mmcd"
-        }
+        {"type": "text", "text": "预付"},
+        {"type": "vision", "text": "顶部展示房型名称、入离日期与总价，金额与日期排版无错位"}
       ]
     }
   ]

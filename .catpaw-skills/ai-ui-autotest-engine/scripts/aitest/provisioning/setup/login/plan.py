@@ -12,7 +12,7 @@
   - env.type → auth_method 默认值 → env_validator.infer_auth_method
     （device_type=local 会被强制为 noop，该约束同样来自 auth_validator）
 
-组合规则（`env_type(A/B/C/D) × auth_method × 泳道配置`）集中在 `LoginPlan.derive()` 一处表达，
+组合规则（`env_type(A/P/B/C/D/E) × auth_method × 泳道配置`）集中在 `LoginPlan.derive()` 一处表达，
 规则本体仍由校验器承载。
 """
 from dataclasses import dataclass
@@ -20,7 +20,7 @@ from typing import Optional, Tuple
 
 from aitest.provisioning.setup.location import DEFAULT_LOCATION, normalize_location
 from aitest.provisioning.validators.env_validator import (
-    ENV_TYPE_MAP, infer_auth_method, validate_env_config,
+    ENV_TYPE_MAP, infer_auth_method, normalize_env_type, validate_env_config,
 )
 from aitest.provisioning.validators.auth_validator import get_allowed_auth_methods
 
@@ -48,7 +48,7 @@ class LoginPlan:
     app: str
     device_type: str
     auth: str                      # password | qahome | noop
-    env_type: str                  # A | B | C | D
+    env_type: str                  # A | P | B | C | D | E
     target_env: str                # online | alpha | swimline | none
     account: Optional[str] = None
     password: Optional[str] = None
@@ -74,7 +74,7 @@ class LoginPlan:
         env_config["app"] = app
         normalized = validate_env_config(env_config, app=app, device_type=device_type)
 
-        env_type = str(normalized.get("type", "")).upper()
+        env_type = normalize_env_type(normalized.get("type", ""))
         auth = normalized.get("auth_method") or infer_auth_method(env_type, device_type)
 
         # device_type 约束优先于 env.type 推断（如 local → 强制 noop）
@@ -105,7 +105,8 @@ class LoginPlan:
                       if isinstance(swimline_cfg, dict) and swimline_cfg.get("lane_name") else None),
             url_mappings=url_mappings,
             bundles=tuple(normalized.get("bundle_lock") or ()),
-            ptest=bool(normalized.get("ptest")),
+            # ptest 是 type=P（线上泳道）的派生事实，不是独立输入
+            ptest=env_type == "P",
         )
 
     @property
@@ -115,22 +116,21 @@ class LoginPlan:
 
 
 def _resolve_target_env(env_type: str, swimline_cfg, url_mappings) -> str:
-    """env.type + 泳道配置 → 目标环境。
+    """env.type → 登录管线目标环境。
 
     组合规则：
-      D                → none（不自动登录）
-      B + 有泳道/映射  → swimline
-      B + 两者都空     → 降级 alpha（跳过泳道配置，按 alpha 处理）
-      A                → online
+      D                → none（免登录，不自动登录）
+      B（测试泳道）    → swimline（必带 lane_name）
+      E（域名映射）    → swimline（无 lane_name，build_pipeline 分流为切 alpha + 域名映射）
+      A                → online（线上基准）
+      P                → online（线上泳道，路由由 ptest partMock 注入）
       C                → alpha
     """
     if env_type == "D":
         return TARGET_ENV_NONE
-    if env_type == "B":
-        has_swim = bool(isinstance(swimline_cfg, dict) and (swimline_cfg.get("lane_name") or "").strip()) \
-            or bool(url_mappings)
-        return TARGET_ENV_SWIMLINE if has_swim else TARGET_ENV_ALPHA
-    if env_type == "A":
+    if env_type in ("B", "E"):
+        return TARGET_ENV_SWIMLINE
+    if env_type in ("A", "P"):
         return TARGET_ENV_ONLINE
     if env_type == "C":
         return TARGET_ENV_ALPHA

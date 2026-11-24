@@ -372,3 +372,331 @@ def _find_file(file_lines: dict, name: str) -> str | None:
         if hits:
             return hits[0] if len(hits) == 1 else None
     return None
+
+
+# ═══ 行号漂移统一处理（发布锚定唯一入口）══════════════════════════════
+#
+# 本节收拢全部漂移/失锚处理逻辑，publish_results 只调用不实现：
+#
+#   resolve_publish_anchors(issues, live_diff, drift_diff=None)
+#
+# 分级链（对每条 P0/P1 逐级降档，永不输出 global）：
+#   T0  L0 精确匹配            _anchorPrecision = "exact"
+#   T1  L1 坐标迁移+验证        _anchorPrecision = "mapped"
+#       （漂移 diff 的 hunk 映射旧行号→新行号，重锚定验证通过即采用）
+#   T2  span 内首个合法行       _anchorPrecision = "near"      （偏差±几行）
+#   T3  code 首行全局唯一命中   _anchorPrecision = "approximate"
+#   T4  文件首个变更行          _anchorPrecision = "file-level"
+# P2/P3/CONFIRM 维持严格语义（invalid → 调用方全局兜底），不受本节影响。
+#
+# 设计不变量：
+#   - L1 迁移只产生候选行号，采用与否由 T0 在新 diff 上的验证收口（防假精确）
+#   - 除 T0 verified 外全部保留 _anchorOrigLine 供追溯
+#   - 单条异常只降档不中断（与首轮锚定的隔离策略一致）
+#   - 经降档链后 P0/P1 一定能给出行内锚点（含文件级），永不 global
+
+_HUNK_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
+
+
+def parse_hunk_map(diff_text: str) -> dict:
+    """解析（漂移）diff → 每个文件的「旧行号→新行号」精确映射。
+
+    实现方式：hunk 头初始化双侧游标（old_cur=s, new_cur=d），逐行推进：
+      '-'（REMOVED）只 old_cur+1；'+'（ADDED）只 new_cur+1；
+      ' '（CONTEXT）配对 old_cur→new_cur 后双侧 +1。
+    返回 {file: {"pairs": [(old, new), ...],       # CONTEXT 配对（精确锚点）
+                 "span": (old_min, old_max)}}       # hunk 覆盖的旧行区间
+    游标重建不依赖行内行号列（CONTEXT 行只显示 destination 坐标），
+    方向可靠性由 self-test 钉死（compare-diff --from 新 --to 旧）。
+    多文件归属（2026-11-24 加固）：维护「当前活跃文件」状态——
+    `--- a/src` 暂存 source，`+++ b/dst` 确认归属后才激活该文件，
+    后续 hunk/行均归属当前活跃文件，直到下一对头出现。
+    这消除了旧实现「hunk 归属最后一个识别的文件」在
+    `+++/---` 交错、rename（src≠dst）流中错归属的隐患；
+    rename 时 source/destination 两侧均建立映射（L1 消费侧
+    _find_file 二选一命中，两侧 pairs 数据相同）。
+    """
+    out = {}
+
+    def _ensure(key):
+        if key and key != "/dev/null":
+            out.setdefault(key, {"pairs": [], "span": [None, None]})
+            return key
+        return None
+
+    src_file = None   # --- a/xxx 暂存
+    cur_file = None   # 当前活跃文件（+++ 确认后）
+    cursor = None     # (old_cur, new_cur) 当前 hunk 游标
+
+    for raw in (diff_text or "").splitlines():
+        if raw.startswith("--- "):
+            sf = raw[4:].strip()
+            if sf.startswith("a/"):
+                sf = sf[2:]
+            src_file = sf
+            continue
+        if raw.startswith("+++ "):
+            df = raw[4:].strip()
+            if df.startswith("b/"):
+                df = df[2:]
+            if df == "/dev/null":
+                # 文件被删除：由 source 侧承接映射（游标仍推进）
+                df = src_file
+            cur_file = _ensure(df)
+            # rename（src≠dst 非 dev/null）：两侧都建映射共用数据
+            if (src_file and src_file != "/dev/null" and df
+                    and src_file != df):
+                _alt = _ensure(src_file)
+                if _alt and _alt != cur_file:
+                    # source 侧映射 = destination 侧同名 dict（同步推进）
+                    out[_alt] = out[cur_file]
+            continue
+        m = _HUNK_RE.match(raw)
+        if m:
+            cursor = (int(m.group(1)), int(m.group(3)))
+            continue
+        if cursor is None or cur_file is None:
+            continue
+        if not raw or len(raw) < 2 or raw.startswith(("diff ", "index ")):
+            continue
+        prefix = raw[0]
+        if prefix not in ("+", "-", " "):
+            continue
+        s, d = cursor
+        ent = out[cur_file]
+        if prefix == "-":
+            ent["span"] = [s if ent["span"][0] is None else ent["span"][0], s]
+            cursor = (s + 1, d)
+        elif prefix == "+":
+            cursor = (s, d + 1)
+        else:
+            ent["pairs"].append((s, d))
+            lo, hi = ent["span"]
+            ent["span"] = [s if lo is None else min(lo, s),
+                           s if hi is None else max(hi, s)]
+            cursor = (s + 1, d + 1)
+    return out
+
+
+def map_line_old_to_new(line, hunk_entry) -> tuple:
+    """旧行号 → 新行号。返回 (status, new_line)。
+
+    hunk_entry 为单个文件的 {"pairs": [...], "span": (lo, hi)}：
+      - line 命中某 CONTEXT 配对 → ("mapped", 新行号)   精确
+      - line 在 span 内但无配对（被 REMOVED/ADDED 改写）→ ("deleted", None)
+      - line 在 span 外（hunk 之间未改动区）→ ("same", line)
+    是否采用由调用方在重锚定验证中收口（fail-safe）。
+    """
+    if (not isinstance(line, int) or isinstance(line, bool) or line <= 0
+            or not hunk_entry):
+        return ("same", line)
+    pairs = hunk_entry.get("pairs") or []
+    for old, new in pairs:
+        if old == line:
+            return ("mapped", new)
+    lo, hi = hunk_entry.get("span") or (None, None)
+    if lo is not None and hi is not None and lo <= line <= hi:
+        return ("deleted", None)
+    # hunk 之外的未改动行：坐标仍可能被**前面 hunk 的净增删行数**整体平移。
+    # 用 line 之前最近的 CONTEXT 配对推算平移量（old_p→new_p 差值）：
+    #   line 在全部配对之前 → 无平移（same）；否则新行号 = line + (new_p - old_p)。
+    # 该结果仍只是候选——采用与否由上层 T0 重锚定验证收口（fail-safe）。
+    best = None
+    for old_p, new_p in pairs:
+        if old_p < line and (best is None or old_p > best[0]):
+            best = (old_p, new_p)
+    if best is None:
+        return ("same", line)
+    return ("mapped", line + (best[1] - best[0]))
+
+
+def migrate_issues_for_drift(issues: list, hunk_map: dict) -> None:
+    """L1 坐标迁移（原地）：把 ADDED 条目的 line 调整到新坐标系。
+
+    仅做 lineType=ADDED 迁移——REMOVED 基于 source 旧文件坐标系，
+    to 端漂移不影响其行号语义；若 from 端同时漂移，REMOVED 行期望
+    漂移 diff（from 侧）另行迁移，属扩展场景，当前不处理（保守）。
+    逐条写 _driftNote；本函数不写 _anchor（采用与否由重锚定收口）。
+    """
+    for it in issues:
+        if not isinstance(it, dict) or "_driftMigrated" in it:
+            continue
+        if (it.get("lineType") or "ADDED").upper() == "REMOVED":
+            continue
+        fp = _find_file(hunk_map, it.get("file") or "")
+        if not fp:
+            it["_driftNote"] = "漂移 hunk 中未找到该文件（行号未迁移）"
+            continue
+        status, new_line = map_line_old_to_new(it.get("line"), hunk_map[fp])
+        if status == "deleted":
+            # 问题行在漂移中被删除：不迁移行号，交给降档链（T2-T4）就近锚定
+            it["_driftNote"] = ("该问题行在 PR 更新后被删除（原行号 %s），降档就近锚定"
+                                % it.get("line"))
+            it["_driftMigrated"] = True
+            continue
+        if status == "mapped" and isinstance(new_line, int):
+            it["_driftOrigLine"] = it.get("line")
+            it["line"] = new_line
+            it["_driftMapped"] = True   # 结构化标志（精度判定用，勿以文案嗅探）
+            it["_driftNote"] = ("行号 %s → %s（L1 坐标迁移）"
+                                % (it["_driftOrigLine"], new_line))
+        else:
+            it["_driftNote"] = "该行不在漂移 hunk 内（行号不变）"
+        it["_driftMigrated"] = True
+
+
+def resolve_publish_anchors(issues: list, live_diff: str,
+                            drift_diff: str | None = None) -> list:
+    """发布锚定唯一入口（收拢漂移 + 失锚处理，供 P3 重锚定通道调用）。
+
+    流程：
+      1. drift_diff 提供时先做 L1 坐标迁移（旧快照坐标 → 当前行号系统）
+      2. T0 严格锚定（anchor_issues 精确匹配，对全部级别）
+      3. P0/P1 未锚定条目走降档链 T2→T3→T4（永不 global）
+      4. P2/P3/CONFIRM 保持 invalid/全局兜底语义不变
+    写入内部字段：_anchor/_anchorNote/_anchorOrigLine/_anchorPrecision。
+    """
+    if not issues:
+        return issues
+    for it in issues:
+        if isinstance(it, dict):
+            for k in ("_anchor", "_anchorNote", "_anchorOrigLine",
+                      "_driftNote", "_driftMigrated", "_driftMapped"):
+                it.pop(k, None)
+    # 1) L1 坐标迁移
+    if drift_diff and drift_diff.strip():
+        try:
+            migrate_issues_for_drift(issues, parse_hunk_map(drift_diff))
+        except Exception:
+            for it in issues:
+                if isinstance(it, dict):
+                    it["_driftNote"] = "L1 坐标迁移异常，跳过迁移仅重锚定"
+    # 2) T0 严格锚定
+    try:
+        anchor_issues(issues, live_diff)
+    except Exception:
+        pass  # 极端异常降档链兜底（单条 tier_fallback 有自身隔离）
+    # 3) P0/P1 降档链 + 精度标记
+    index = {}
+    try:
+        index = parse_diff_index(live_diff)
+    except Exception:
+        index = {}
+    for it in issues:
+        if not isinstance(it, dict):
+            continue
+        sev = str(it.get("severity") or "").upper()
+        mark = it.get("_anchor") or ""
+        if mark in ("verified", "relocated"):
+            if not it.get("_anchorPrecision"):
+                it["_anchorPrecision"] = "mapped" if it.get("_driftMapped") else "exact"
+            continue
+        if mark == "skipped" or sev not in ("P0", "P1") or mark == "valid":
+            # skipped=非行内级别; valid 应不存在（防御）; 其余留给下方判断
+            if mark == "skipped":
+                continue
+        if sev not in ("P0", "P1"):
+            continue  # P2/P3/CONFIRM 保持 invalid → 调用方全局兜底
+        try:
+            _tier_fallback(it, index)
+        except Exception:
+            it["_anchor"] = "relocated"
+            it["_anchorPrecision"] = "file-level"
+            it.setdefault("_anchorOrigLine", it.get("line"))
+            it["_anchorNote"] = "降档链异常，T4 文件级兜底"
+    return issues
+
+
+def _tier_fallback(it: dict, index: dict) -> None:
+    """P0/P1 降档链 T2→T3→T4（每级失败落下一级，永不弃权）。"""
+    file_ = (it.get("file") or "").strip()
+    target = _find_file(index, file_)
+    drift_note = it.pop("_driftNote", None) or ""
+    old_note = it.get("_anchorNote") or ""
+    note_tail = "；" + (drift_note or old_note) if (drift_note or old_note) else ""
+
+    if not target:
+        # nofile（文件改名后路径变化/被删）：文件级兜底（comment-add 文件级锚点）
+        it["_anchorOrigLine"] = it.get("line")
+        it["_anchor"] = "relocated"
+        it["_anchorPrecision"] = "file-level"
+        it["_anchorNote"] = "nofile: 当前 diff 无该文件，文件级兜底" + note_tail
+        return
+    buckets = index[target]
+    line_type = (it.get("lineType") or "ADDED").upper()
+    if line_type not in ("ADDED", "REMOVED"):
+        line_type = "ADDED"
+    legal = _legal_lines(buckets, line_type)
+    code = (it.get("code") or "").strip()
+    want = [_norm(x) for x in code.splitlines()] if code else []
+    usable = bool(want) and not (len(want) == 1 and len(want[0]) < _MIN_SINGLE_LINE_LEN)
+
+    # T2: 片段命中 span 内取首个合法行（对 P0/P1 放开「歧义不猜」）
+    if usable:
+        seq = buckets["REMOVED"] if line_type == "REMOVED" else buckets["NEWVIEW"]
+        spans = _find_sequence(seq, want)
+        if spans:
+            m = len(want)
+            cands = sorted({ln for ln in spans
+                            for ln in range(ln, ln + m) if ln in legal})
+            if cands:
+                cand = cands[0]
+                it["_anchorOrigLine"] = it.get("line")
+                it["line"] = cand
+                it["_anchor"] = "relocated"
+                it["_anchorPrecision"] = "near"
+                it["_anchorNote"] = ("片段命中 span 内取首个合法行 %d（span 候选 %d 个）"
+                                     % (cand, len(cands)) + note_tail)
+                return
+
+    # T3: code 首行在合法行集合中唯一命中（放宽连续性约束）
+    if usable:
+        first_norm = want[0]
+        hits = [ln for ln, n in (buckets["REMOVED"] if line_type == "REMOVED"
+                                 else buckets["NEWVIEW"])
+                if n == first_norm and ln in legal]
+        if len(hits) == 1:
+            it["_anchorOrigLine"] = it.get("line")
+            it["line"] = hits[0]
+            it["_anchor"] = "relocated"
+            it["_anchorPrecision"] = "approximate"
+            it["_anchorNote"] = ("code 首行唯一命中合法行 %d（片段未整体连续命中）"
+                                 % hits[0] + note_tail)
+            return
+
+    # T4: 文件首个变更行（最低精度，宁近勿无）
+    changed = sorted(legal)
+    if changed:
+        it["_anchorOrigLine"] = it.get("line")
+        it["line"] = changed[0]
+        it["_anchor"] = "relocated"
+        it["_anchorPrecision"] = "file-level"
+        it["_anchorNote"] = ("片段未命中，锚定文件首个 %s 行 %d"
+                             % (line_type, changed[0]) + note_tail)
+        return
+    # T5(极端): 该文件连适用 lineType 的变更行都没有 → 换 lineType 优先 ADDED
+    alt = sorted(_legal_lines(buckets, "ADDED") or _legal_lines(buckets, "REMOVED"))
+    if alt:
+        it["_anchorOrigLine"] = it.get("line")
+        it["line"] = alt[0]
+        if line_type != "ADDED" and any(ln == alt[0] for ln, _ in buckets["ADDED"]):
+            it["lineType"] = "ADDED"
+        it["_anchor"] = "relocated"
+        it["_anchorPrecision"] = "file-level"
+        it["_anchorNote"] = ("无 %s 合法行，锚定文件首个变更行 %d（已按需切换 lineType）"
+                             % (line_type, alt[0]) + note_tail)
+        return
+    # T6(最终): 文件无任何变更行（纯 CONTEXT 视图）→ 文件内首个可见行
+    view = buckets["NEWVIEW"] or buckets["REMOVED"]
+    if view:
+        it["_anchorOrigLine"] = it.get("line")
+        it["line"] = view[0][0]
+        it["_anchor"] = "relocated"
+        it["_anchorPrecision"] = "file-level"
+        it["_anchorNote"] = "文件无变更行，锚定首个可见行（最低精度）" + note_tail
+        return
+    # 理论不可达（index 有该文件必有行）；防御性保底
+    it["_anchor"] = "relocated"
+    it["_anchorPrecision"] = "file-level"
+    it["_anchorOrigLine"] = it.get("line")
+    it["_anchorNote"] = "降档链走尽（无可用行），文件级兜底" + note_tail

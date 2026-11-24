@@ -28,10 +28,12 @@ from aitest.shared.placeholders import (
     extract_placeholders,
     validate_var_spec,
 )
-from aitest.provisioning.validators.env_validator import build_env_from_intake
+from aitest.provisioning.validators.env_validator import ENV_TYPE_MAP, build_env_from_intake
 
 KIND_WHITELIST = {"ui", "api", "track"}
-ENV_TYPE_WHITELIST = {"A", "B", "C", "D"}
+# 环境类型白名单**派生**自环境类型唯一声明（env_validator._ENV_TYPE_DEFS），
+# 不在此处另维护一份：历史上写死 A/B/C/D 导致新增 P/E 后 steps-generate 直接拒收。
+ENV_TYPE_WHITELIST = frozenset(ENV_TYPE_MAP)
 
 
 def _blur_anchor(step: dict) -> str:
@@ -446,7 +448,7 @@ def cmd_steps_generate(args):
         raise PayloadError(
             f"ERROR: steps.json 不存在: {raw}\n"
             "  提示：steps.json 由 ai-app-flow 产出，落盘前先跑 "
-            "`python3 scripts/steps_cli.py check --in <steps.json> --no-upload`"
+            "`python3 scripts/steps_cli.py check --in <steps.json>`"
         )
     try:
         with open(raw, "r", encoding="utf-8") as _f:

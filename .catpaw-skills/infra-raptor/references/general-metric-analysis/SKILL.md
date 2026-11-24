@@ -4,7 +4,7 @@ display_name: 通用指标下钻分析
 description: >
   对通用类指标（移动端端到端、移动端自定义指标、Perf 指标、Web 端指标、小程序指标）进行多维度下钻分析，定位波动根因。支持两种触发方式：①用户自然语言描述要分析的指标；②用户直接发送 Raptor 页面链接并提出分析诉求。优先下钻版本号、页面等维度，逐步缩小问题范围。不处理 RCF 指标（由 rcf-raptor-anylisize 子技能处理）和稳定性指标 Crash/ANR/FOOM（由 crash-wave-analysis 子技能处理）。触发词：分析指标波动、分析网络成功率、分析耗时、分析性能、分析自定义指标、分析Perf指标、分析web指标、分析小程序指标、指标下钻、根因分析、波动分析。
 tags: 终端基础技术,Raptor,指标分析,下钻分析,性能,端到端
-version: 0.2.0
+version: 0.2.1
 created: 2026-04-28
 metadata:
   skillhub:
@@ -21,9 +21,11 @@ metadata:
 
 ## 🔧 前置依赖
 
+> **🌏 环境适配（境内 / 境外）**：下文默认使用 `raptorfe`（境内）。若用户提到「海外 / 境外 / overseas」或给出 `raptor.mws.keetapp.com` 链接，**本文所有 `raptorfe` 命令一律改用 `raptorfeov`**（模块、子命令、参数、时间格式完全一致），页面链接同步换成 keetapp 域名。判定规则与完整约束见父技能 `SKILL.md` 的「环境识别：境内 / 境外」章节；一次判定后全程不混用。
+>
 > **前置预检（每次激活时执行，一行兜底，避免首次执行报 command not found）：**
 > ```bash
-> command -v raptorfe >/dev/null 2>&1 || npm install -g @mtfe/raptorfe-cli@beta @dp/sso-auth-cli@latest --registry http://r.npm.sankuai.com
+> command -v raptorfe >/dev/null 2>&1 || npm install -g @mtfe/raptorfe-cli @dp/sso-auth-cli@latest --registry http://r.npm.sankuai.com
 > ```
 
 ---

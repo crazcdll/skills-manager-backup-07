@@ -16,6 +16,7 @@ Cookie 自动从沙箱 Chromium 浏览器登录态获取。
 
 import argparse
 import concurrent.futures
+from http.client import HTTPException
 import json
 import math
 import os
@@ -174,7 +175,7 @@ def api_get(path, cookies, timeout=15):
             data = json.loads(resp.read())
     except urllib.error.HTTPError as exc:
         raise RepoSearchError(f"API 请求失败: HTTP {exc.code}") from exc
-    except (OSError, ValueError) as exc:
+    except (HTTPException, OSError, ValueError) as exc:
         raise RepoSearchError(f"API 请求失败: {type(exc).__name__}") from exc
     if not isinstance(data, dict):
         raise RepoSearchError(f"API 响应顶层不是对象: {type(data).__name__}")
@@ -263,29 +264,35 @@ def list_repo_files(project, repo, branch, cookies, exts=None, path_prefix=None)
     return files
 
 
+def read_repo_file_lines(project, repo, ref, file_path, cookies):
+    """读取指定分支或提交的完整文件；file_path 为仓库返回的原始路径。"""
+    encoded_path = urllib.parse.quote(file_path, safe="/")
+    data = api_get(
+        f"/rest/api/1.0/projects/{project}/repos/{repo}/browse/{encoded_path}"
+        f"?at={urllib.parse.quote(ref)}&limit=5000",
+        cookies,
+        timeout=15,
+    )
+    raw_lines = data.get("lines")
+    if not isinstance(raw_lines, list):
+        raise RepoSearchError("文件内容 API 缺少合法 lines 数组")
+    if (data.get("isLastPage") is False or data.get("truncated")
+            or ("isLastPage" in data and type(data["isLastPage"]) is not bool)
+            or ("isLastPage" not in data and len(raw_lines) >= 5000)):
+        raise RepoSearchError("文件内容响应不完整，需按分页或其他完整读取方式重试")
+    if any(not isinstance(line, dict) or not isinstance(line.get("text"), str)
+           for line in raw_lines):
+        raise RepoSearchError("文件内容 API lines 含非法行数据")
+    return [line["text"] for line in raw_lines]
+
+
 def search_in_file(project, repo, branch, file_path, keyword, cookies,
                    use_regex=False, context_lines=0):
     """读取单个文件内容，返回 (路径, [hit_dict, ...])；失败抛异常。
     hit_dict: {"line": int, "text": str, "context_before": [...], "context_after": [...]}
     """
     try:
-        data = api_get(
-            f"/rest/api/1.0/projects/{project}/repos/{repo}/browse/{file_path}"
-            f"?at={urllib.parse.quote(branch)}&limit=5000",
-            cookies,
-            timeout=15,
-        )
-        raw_lines = data.get("lines")
-        if not isinstance(raw_lines, list):
-            raise RepoSearchError("文件内容 API 缺少合法 lines 数组")
-        if (data.get("isLastPage") is False or data.get("truncated")
-                or ("isLastPage" in data and type(data["isLastPage"]) is not bool)
-                or ("isLastPage" not in data and len(raw_lines) >= 5000)):
-            raise RepoSearchError("文件内容响应不完整，需按分页或其他完整读取方式重试")
-        if any(not isinstance(line, dict) or not isinstance(line.get("text"), str)
-               for line in raw_lines):
-            raise RepoSearchError("文件内容 API lines 含非法行数据")
-        lines = [line["text"] for line in raw_lines]
+        lines = read_repo_file_lines(project, repo, branch, file_path, cookies)
 
         if use_regex:
             pattern = re.compile(keyword)

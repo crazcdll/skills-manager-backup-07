@@ -8,22 +8,30 @@
 收集结果（intake）经 `env_validator.build_env_from_intake` 合成为 env 块，
 是 env 配置的**唯一输入源**（AI 不再手写 steps-input.env）。
 
-字段设计：
-  · `env_type`           —— 环境类型（A/B/C/D，封闭选项）
+字段设计（场景名唯一说法见 `env_validator.ENV_SCENARIO_LABEL`）：
+  · `env_type`           —— 环境类型（A/P/B/C/D/E，封闭选项）
+                            A=线上基准；P=线上泳道；C=测试基准；
+                            B=测试泳道；E=测试域名映射；D=免登录（认证维度）
   · `resource_mis`       —— 设备归属 / 报告 user_id（AppMock **运行域**由 `mis acquire` 从号池领取，
                             与场景 mockId 所属规则库恒定分离）；
                             能确定当前身份时自动派生（见 `shared.user_identity.current_user_mis`），否则退回必答
-  · `swim_lane_name`     —— 泳道名（仅 B 环境；不填=纯域名映射/按 alpha 处理）
-  · `swim_url_mappings`  —— 域名映射 JSON 数组（仅 B 环境；不填=不配置）
+  · `swim_lane_name`     —— 泳道名（仅测试泳道 B；必填）
+  · `swim_url_mappings`  —— 域名映射 JSON 数组（仅测试域名映射 E；必填）
+
+泳道（B）与域名映射（E）是**两种独立环境，分开使用**：依赖条件由
+`ENV_CAPABILITIES` 派生，换环境时 driver 会自动清掉不适用项。
 """
 from aitest.shared.user_identity import current_user_mis
 from aitest.provisioning.questions.registry import QuestionProvider, register_provider
 from aitest.provisioning.validators.env_validator import (
-    APP_ENV_TYPE_RULES, DEFAULT_APP, capability_depends_on,
+    APP_ENV_TYPE_RULES, DEFAULT_APP, ENV_SCENARIO_OPTIONS, capability_depends_on,
 )
 
 
 def _env_type_options(app: str) -> list:
+    """环境选择选项：默认 App 用统一场景表（含线上泳道），其他 App 按其注册表。"""
+    if app == DEFAULT_APP:
+        return [dict(item) for item in ENV_SCENARIO_OPTIONS]
     rules = APP_ENV_TYPE_RULES.get(app, {})
     return [
         {"value": code, "label": f"{code} — {rule['desc']}"}
@@ -63,23 +71,24 @@ class EnvQuestionProvider(QuestionProvider):
         return [
             {
                 "id": "env_type", "group": "env", "order": 10,
-                "prompt": "选择测试环境类型",
+                "prompt": "选择测试环境（类型即场景，ptest 已归属类型 P，不再单独提问）",
                 "input_type": "single", "required": True,
                 "options": _env_type_options(app),
+                "note": "线上基准=A；线上泳道=P；测试基准=C；测试泳道=B（泳道名）；测试域名映射=E；D=免登录（认证）",
             },
             _resource_mis_question(current_user_mis()),
             {
                 "id": "swim_lane_name", "group": "scope", "order": 30,
-                "prompt": "泳道名称（仅 B 环境；不填=纯域名映射/按 alpha 处理）",
-                "input_type": "text", "required": False,
+                "prompt": "泳道名称（仅测试泳道 B，必填）",
+                "input_type": "text", "required": True,
                 # 仅 B 适用：条件由环境能力矩阵派生，不手写
                 "depends_on": capability_depends_on("swim_lane_name"),
             },
             {
                 "id": "swim_url_mappings", "group": "scope", "order": 31,
-                "prompt": "域名映射 JSON 数组（仅 B 环境；如 "
-                          "[{\"url\":\"域名\",\"betaUrl\":\"映射地址\"}]；不填=不配置）",
-                "input_type": "text", "required": False,
+                "prompt": "域名映射 JSON 数组（仅测试域名映射 E，必填；如 "
+                          "[{\"url\":\"域名\",\"betaUrl\":\"映射地址\"}]）",
+                "input_type": "text", "required": True,
                 "depends_on": capability_depends_on("swim_url_mappings"),
             },
         ]

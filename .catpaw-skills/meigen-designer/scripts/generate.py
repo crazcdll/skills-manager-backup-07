@@ -286,7 +286,7 @@ def generate(
 def abort_task(session_id: int) -> None:
     """中止正在执行的任务。token 由脚本内部 meigen status --json 获取（FR-022）。"""
     access_token = get_access_token()
-    request("POST", "/message/abort", access_token, body={"sessionId": session_id})
+    request("POST", "/skill/stop", access_token, body={"sessionId": session_id})
     _progress("⏹️ 任务已中止")
 
 

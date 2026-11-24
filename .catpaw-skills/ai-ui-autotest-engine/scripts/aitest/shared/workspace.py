@@ -5,7 +5,7 @@
 设计要点（**无模式**：1 个 Agent 与 N 个 Agent 走完全同一条路径）：
 
   ① `ws-init` 分配一个 workspace id（uuid）并生成入口脚本
-     `~/.local/share/ai-ui-autotest-engine/run/ws/<id>/cli`
+     `$STATE/run/ws/<id>/cli`
   ② 之后**所有命令**都通过该入口执行；入口把 `AI_UITEST_TASK=<id>` 注入进程
   ③ 代码读 `AI_UITEST_TASK` 定位工作区；没有则直接报错（不回落默认值）
 

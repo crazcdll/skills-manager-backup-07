@@ -1,6 +1,6 @@
 ---
 name: crash-wave-analysis
-version: "1.0.0"
+version: "1.0.1"
 description: >
   稳定性指标（Crash / ANR / FOOM）多维度波动分析，定位问题根因。
   支持两种触发方式：①用户明确说"分析"最近 N 天 Crash/ANR/FOOM 趋势/波动；②用户发送 Raptor 页面链接并提出分析诉求（自动解析 URL 参数后重新查询）。
@@ -20,9 +20,11 @@ metadata:
 
 本 skill 使用 `raptorfe` CLI（内置鉴权，无需手动传 token）。
 
+> **🌏 环境适配（境内 / 境外）**：下文默认使用 `raptorfe`（境内）。若用户提到「海外 / 境外 / overseas」或给出 `raptor.mws.keetapp.com` 链接，**本文所有 `raptorfe` 命令一律改用 `raptorfeov`**（模块、子命令、参数、时间格式完全一致），页面链接同步换成 keetapp 域名。判定规则与完整约束见父技能 `SKILL.md` 的「环境识别：境内 / 境外」章节；一次判定后全程不混用。
+>
 > **前置预检（每次激活时执行，一行兜底，避免首次执行报 command not found）：**
 > ```bash
-> command -v raptorfe >/dev/null 2>&1 || npm install -g @mtfe/raptorfe-cli@beta @dp/sso-auth-cli@latest --registry http://r.npm.sankuai.com
+> command -v raptorfe >/dev/null 2>&1 || npm install -g @mtfe/raptorfe-cli @dp/sso-auth-cli@latest --registry http://r.npm.sankuai.com
 > ```
 
 ---

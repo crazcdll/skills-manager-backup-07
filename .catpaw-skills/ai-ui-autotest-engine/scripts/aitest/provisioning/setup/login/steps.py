@@ -262,7 +262,9 @@ class SwitchServerEnv(Provisioned):
 class ConfigureSwimline(Provisioned):
     """配置并切换泳道（复用已有规则），随后冷重启。
 
-    纯域名映射模式（无 lane_name 但有 url_mappings）走 `SwitchServerEnv(alpha)`。
+    仅用于测试泳道环境（B，必带 lane_name）。测试域名映射是独立环境 E，
+    不走本步骤：`build_pipeline` 将其分流为 SwitchServerEnv(alpha) +
+    登录后 ConfigureUrlMappings，两者不混用。
     """
 
     step = ProvisionStep(
@@ -289,10 +291,6 @@ class ConfigureSwimline(Provisioned):
             return StepOutcome(step_id=self.step.id, ok=False,
                                detail=f"泳道切换失败 ruleId={rule_id}")
         print(f"[login-swimline] 泳道已切换 ruleId={rule_id}")
-
-        if plan.url_mappings:
-            results = appmock_ensure_url_mappings(list(plan.url_mappings), mis=ctx.mis)
-            print(f"[login-swimline] 域名映射已配置 ({len(results)} 条)")
 
         restart_app_after_env_switch(label="swimline")
         return StepOutcome(step_id=self.step.id, ok=True,

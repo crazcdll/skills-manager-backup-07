@@ -100,9 +100,10 @@ class IntakeContext:
     def invalidate(self, qids) -> list:
         """级联失效：移除「已落库答案」「挂起预置值」以及对应的覆盖标记。
 
-        用于环境/依赖变更后的失效传播（如 `env_type` 由 A 切到 C 后，仅线上
-        适用的 `ptest` 必须一并清除），避免旧值残留并被 `build_env_from_intake`
-        重新带入 env。仅在有变更时落盘；返回实际移除的 id 列表（供调用方留痕）。
+        用于环境/依赖变更后的失效传播（如 `env_type` 由 B 切到 C 后，仅测试
+        泳道适用的 `swim_lane_name` 必须一并清除），避免旧值残留并被
+        `build_env_from_intake` 重新带入 env。仅在有变更时落盘；返回实际移除的
+        id 列表（供调用方留痕）。
         """
         data = self.load()
         pinned = data["pinned"]

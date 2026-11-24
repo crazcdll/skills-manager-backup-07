@@ -9,11 +9,8 @@ import sys
 import time
 
 from aitest.shared.paths import TASKS_DIR, OUTPUT_DIR
+from aitest.shared.env_view import SAFE_ENV_KEYS as _SAFE_ENV_KEYS
 from aitest.console import config
-
-# flow-context.env 允许暴露的字段（脱敏白名单，对齐报告侧 SAFE_ENV_KEYS）
-_SAFE_ENV_KEYS = ("type", "env_name", "auth_method", "ptest", "bundle_lock",
-                  "swimline")
 
 
 def _read_json(path, default=None):

@@ -66,8 +66,8 @@ ACTION_MAP = {
 # 说明：
 #   render_ready —— 同时置位步骤 page_ready（截图前等页面稳定）；
 #                   可以不带 text：Base case 只验证「页面能打开」，0 条 text 断言合法
-#   text_vision  —— 映射为 text 断言：引擎会自动追加 verify_text_visual_recheck，
-#                   语义正好是「文案命中 + 视觉复核」
+#   vision       —— 视觉断言：截图后生成 verify_visual_assertion hook，由 AI 读本次运行截图判定
+#                   （text 断言已经内建 verify_text_visual_recheck，无需额外的「文案+视觉」类型）
 CHECK_TEXT_PRESENT = ("text", "present")
 CHECK_TEXT_GONE = ("text", "gone")
 CHECK_VISUAL = ("visual", "")
@@ -81,14 +81,14 @@ class FlowJsonError(ValueError):
 
 def _check_kind(check: dict) -> tuple:
     ctype = str(check.get("type") or "").strip()
-    if ctype in ("text", "render_ready", "text_vision"):
+    if ctype in ("text", "render_ready"):
         return CHECK_TEXT_PRESENT
     if ctype == "text_gone":
         return CHECK_TEXT_GONE
     if ctype == "vision":
         return CHECK_VISUAL
     raise FlowJsonError(
-        f"未知 check.type: {ctype!r}（支持 text/render_ready/text_gone/vision/text_vision）"
+        f"未知 check.type: {ctype!r}（支持 text/render_ready/text_gone/vision）"
     )
 
 
@@ -105,7 +105,7 @@ def _build_assert(check: dict, step: dict) -> dict | None:
     assert_spec = {"kind": kind, "expect": text}
     if kind == "text":
         assert_spec["match"] = match
-    # 视觉断言：只带预期文案，其余字段由断言层解析
+    # 视觉断言只带预期文案，截图与 AI 判定由断言层完成
     return assert_spec
 
 

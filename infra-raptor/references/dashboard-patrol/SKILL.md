@@ -1,10 +1,12 @@
 ---
 name: dashboard-patrol
-version: "1.0.0"
+version: "1.1.0"
+updated: 2026-11-20
 description: >
   自定义大盘巡检：用户发送 Raptor 自定义大盘链接（raptor.mws.sankuai.com/lowcode/custom/dashboard/detail?dashboardId=xxx），
   自动读取大盘所有 Tab 页和图表配置，批量查询最近 7 天天粒度数据，逐图表分析是否存在异常波动，
-  汇总生成数据报告。若发现异常指标，自动提取该图表的指标名和筛选条件，调用 raptorfe CLI 进行多维度下钻分析，定位根因。
+  汇总生成数据报告。支持 chart context --with-data 对 raptor 数据源图表一步取数（perf/old_raptor 按契约降级），
+  若发现异常指标，自动提取该图表的指标名和筛选条件，调用 raptorfe CLI 进行多维度下钻分析，定位根因。
   触发词：巡检大盘、大盘巡检、大盘数据报告、查看大盘数据、分析大盘、大盘异常检测、自定义大盘分析。
 
 metadata:
@@ -16,10 +18,18 @@ metadata:
 
 ## 🔧 前置依赖
 
+> **🌏 环境适配（境内 / 境外）**：下文默认使用 `raptorfe`（境内）。若用户提到「海外 / 境外 / overseas」或给出 `raptor.mws.keetapp.com` 链接，**本文所有 `raptorfe` 命令一律改用 `raptorfeov`**（模块、子命令、参数、时间格式完全一致），页面链接同步换成 keetapp 域名。判定规则与完整约束见父技能 `SKILL.md` 的「环境识别：境内 / 境外」章节；一次判定后全程不混用。
+>
 > **前置预检（每次激活时执行，一行兜底，避免首次执行报 command not found）：**
 > ```bash
-> command -v raptorfe >/dev/null 2>&1 || npm install -g @mtfe/raptorfe-cli@beta @dp/sso-auth-cli@latest --registry http://r.npm.sankuai.com
+> command -v raptorfe >/dev/null 2>&1 || npm install -g @mtfe/raptorfe-cli @dp/sso-auth-cli@latest --registry http://r.npm.sankuai.com
 > ```
+>
+> **版本门禁**：`chart context` / `--with-data` 能力要求 `raptorfe --version ≥ 2.0.3`（semver 比较），低于该版本时先升级：
+> ```bash
+> npm install -g @mtfe/raptorfe-cli --registry=http://r.npm.sankuai.com
+> ```
+> 旧版本调用会报 `unknown command`。若无法升级，本文档第三步的 get-trend 直查链路（2.0.1 起可用）不受影响，可不使用 context。
 
 ---
 
@@ -104,6 +114,39 @@ start_date = end_date - timedelta(days=6)      # 往前 7 天
 ## 第三步：批量查询所有图表数据
 
 对每个 Tab 页的每个图表，逐一查询最近 7 天数据。
+
+### 3.1 图表分析上下文（chart context，≥ 2.0.3，优先）
+
+对单个图表，`chart context` 一步导出完整查询上下文（指标配置 + Tab 级筛选器 + 查询参数）；`--with-data` 时 raptor 数据源直接代查数据：
+
+```bash
+raptorfe dashboard chart context \
+  --dashboard-id <dashboardId> --tab-id <tabId> --chart-id <chartId> \
+  [--with-data] \
+  --start-time "<start_date>" --end-time "<end_date>" --agg DAY
+```
+
+输出结构：`chart`（图表配置）、`metrics[]`（每条指标含 `data`/`dataError`/`dataNote`）、`tabFilters`（Tab 级筛选器）、`query`（时间范围建议值）。
+
+**筛选合并口径（2026-11-20 实测，与 chart-context-contract 契约 54 行一致）**：`--with-data` 取数筛选 = `tabFilters.filters`（Tab 级约束）合并 `metrics[].filters`（指标级细化，**同 key 时指标级覆盖 Tab 级**），空值条目剔除。实测：Tab 级 `appVersion=12.69.403` 与指标级 `appVersion=12.69.402` 同 key 不同值，context 取数值与指标级直查精确一致（11-19 值 34.22 vs 直查 34.21978）。
+
+**数据源降级路由（2026-11-20 实测，防盲目重试）**：
+
+| 图表指标 dataSource | context --with-data 行为 | 巡检处置 |
+|---|---|---|
+| `raptor` | 代查成功，`metrics[].data` 有值（与 perf get-trend 直查逐值一致） | 直接使用，无需再直查 |
+| `perf`（稳定性指标 Crash/ANR 等） | 通用通道代查失败，`metrics[].dataError` 透出后端报错原文（指标级字段） | **不重试、不改参数硬调**：`--project-name` 也救不了（实测改报 tagName 不存在），降级走 crash 域分析链路（per crash timeseries get 等，见父技能子能力），或在报告中标注该图表走 get-trend/专用接口 |
+| `old_raptor` | 不代查，`metrics[].data` 为 null 且附 `metrics[].dataNote`（2026-11-20 实测原文："old_raptor 数据源 CLI 不代查，仅导出参数；skill 用同一套参数（metricsName/方法/筛选/时间）查询"） | 按导出的同一套参数（metricsName/方法/筛选/时间/`oldRaptorIndexConfig`）自行查询；**但 CLI 当前没有 old_raptor 数据查询命令**（`dashboard old-raptor` 组仅有 metrics/methods/tags/tag-values 元数据查询，2026-11-20 manifest 实锤）——该类图表在报告中如实标注「暂无法 CLI 代查」，给出图表对应的 Raptor 页面链接供用户自行查看，禁止对它反复重试 `--with-data`（old_raptor 数据查询命令缺失已记入 CLI 侧 backlog） |
+
+**实测注意事项（2026-11-20）**：
+
+- **时间范围必须显式指定**（`--start-time/--end-time/--agg`）：输出里的 `query.timeRange` 仅是建议值（如 `Last1h`），不显式传参会用建议口径而非巡检口径。
+- **`--with-data` 的 data 不按 groupByTags 分桶**：即使指标配置了维度对比（groupByTags），返回仍是单序列聚合值（两次实测确认）。需要维度拆分时走第六步的 dimension-analyse 下钻，不要从 context data 里抠分桶。
+- 未绑定项目的 perf 复合指标查询必传 `--project-name`（契约口径）；但稳定性类指标传了也无效（见上表）。
+
+### 3.2 通用直查链路（get-trend，所有版本可用）
+
+对 `perf`/`raptor` 数据源或无法使用 context 的场景，按指标逐条直查：
 
 **查询命令模板**：
 
@@ -357,6 +400,12 @@ raptorfe perf metric dimension-analyse \
 ```bash
 # 获取大盘完整配置（含所有 Tab 和图表）
 raptorfe dashboard get --id <dashboardId>
+
+# 导出单个图表的完整查询上下文（≥ 2.0.3；--with-data 时 raptor 数据源代查）
+# perf 稳定性指标会 dataError、old_raptor 仅参数导出，见 3.1 降级路由表
+raptorfe dashboard chart context \
+  --dashboard-id <dashboardId> --tab-id <tabId> --chart-id <chartId> \
+  [--with-data] --start-time "<YYYY-MM-DD>" --end-time "<YYYY-MM-DD>" --agg DAY
 
 # 查询指标趋势（天粒度）
 raptorfe perf metric get-trend \

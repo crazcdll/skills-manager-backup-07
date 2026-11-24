@@ -7,7 +7,17 @@
  * 依赖 Skill：sdlc-task-mapping-ingest（Friday Skillhub id=129649，run.sh CLI，方式一首选）
  *
  * 用法：
- *   node scripts/report-sdlc-mapping.js --context <workflow-context.json路径> [--dry-run] [--mode auto|cli|direct]
+ *   1) 有 workflow-context.json（workflow 内阶段上报，首选）：
+ *      node scripts/report-sdlc-mapping.js --context <workflow-context.json路径> [--dry-run] [--mode auto|cli|direct]
+ *   2) 无 workflow-context.json（独立/补报模式，CLI 直传）：
+ *      node scripts/report-sdlc-mapping.js --ones-url <ONES需求链接> \
+ *        [--mis <mis>] [--session-id <会话ID>] [--agent-type catpaw|catdesk|codex] \
+ *        [--stage-split design=2026-11-24T09:00:00+08:00~2026-11-24T11:30:00+08:00] \
+ *        [--stage design --since <起始时间> --until <结束时间>] \
+ *        [--task-name <任务名>] [--task-ext-id <自定义ID>] [--dry-run] [--mode auto|cli|direct]
+ *      - 未传 --session-id 时自动从 ~/.catpaw/projects/ide-{path_hash}/ 取最近会话目录名
+ *      - 未传 --agent-type / --session-source 时按运行环境探测（CatPaw IDE→catpaw、Desk→catdesk）
+ *      - 阶段时间支持 ISO 字符串或毫秒/秒级时间戳，均转换为毫秒左闭右开 [startTime, endTime)
  *
  * 上报通道（双通道，对应文档 km 2777569481 两种上报方式）：
  *   - cli（方式一 Skill/CLI）：经 sdlc-task-mapping-ingest run.sh --stdin 上报，默认首选
@@ -102,17 +112,44 @@ const STAGE_SPLIT_RULES = [
 
 function parseArgs() {
   const args = process.argv.slice(2);
-  const parsed = { context: null, dryRun: false, mode: 'auto' };
+  const parsed = {
+    context: null,
+    dryRun: false,
+    mode: 'auto',
+    // 无 context 直报模式入参
+    onesUrl: null,
+    mis: null,
+    sessionId: null,
+    agentType: null,
+    sessionSource: null,
+    taskName: null,
+    taskExtId: null,
+    stage: null,
+    since: null,
+    until: null,
+    stageSplits: [],
+  };
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--context' && args[i + 1]) parsed.context = args[++i];
-    if (args[i] === '--dry-run') parsed.dryRun = true;
-    if (args[i] === '--mode' && args[i + 1]) {
+    else if (args[i] === '--dry-run') parsed.dryRun = true;
+    else if (args[i] === '--mode' && args[i + 1]) {
       const m = args[++i];
       if (!['auto', 'cli', 'direct'].includes(m)) {
         throw new Error(`--mode 仅支持 auto|cli|direct，收到: ${m}`);
       }
       parsed.mode = m;
     }
+    else if (args[i] === '--ones-url' && args[i + 1]) parsed.onesUrl = args[++i];
+    else if (args[i] === '--mis' && args[i + 1]) parsed.mis = args[++i];
+    else if (args[i] === '--session-id' && args[i + 1]) parsed.sessionId = args[++i];
+    else if (args[i] === '--agent-type' && args[i + 1]) parsed.agentType = args[++i];
+    else if (args[i] === '--session-source' && args[i + 1]) parsed.sessionSource = args[++i];
+    else if (args[i] === '--task-name' && args[i + 1]) parsed.taskName = args[++i];
+    else if (args[i] === '--task-ext-id' && args[i + 1]) parsed.taskExtId = args[++i];
+    else if (args[i] === '--stage' && args[i + 1]) parsed.stage = args[++i];
+    else if (args[i] === '--since' && args[i + 1]) parsed.since = args[++i];
+    else if (args[i] === '--until' && args[i + 1]) parsed.until = args[++i];
+    else if (args[i] === '--stage-split' && args[i + 1]) parsed.stageSplits.push(args[++i]);
   }
   return parsed;
 }
@@ -188,6 +225,133 @@ function buildStageSplit(stages) {
     if (intervals.length > 0) split[rule.sdlcStage] = intervals;
   }
   return Object.keys(split).length > 0 ? split : undefined;
+}
+
+// ─── 无 context 直报模式：时间解析 / 环境与会话探测 / item 组装 ─────────────────
+
+// SDLC 指标平台支持的阶段 key
+const SDLC_STAGE_KEYS = ['requirement', 'design', 'code', 'test'];
+
+/** 解析时间：支持毫秒时间戳(13位)、秒级时间戳(10位)、ISO 字符串 */
+function parseTime(v) {
+  if (v === null || v === undefined || v === '') return NaN;
+  const s = String(v).trim();
+  if (/^\d{13}$/.test(s)) return Number(s);
+  if (/^\d{10}$/.test(s)) return Number(s) * 1000;
+  return Date.parse(s);
+}
+
+/**
+ * 从 CLI 入参组装 stageSplit（左闭右开，毫秒）
+ *   --stage-split design=2026-11-24T09:00:00+08:00~2026-11-24T11:30:00+08:00（可重复）
+ *   --stage design --since <start> --until <end>
+ */
+function buildStageSplitFromArgs(args) {
+  const split = {};
+  const push = (stage, startRaw, endRaw, origin) => {
+    if (!SDLC_STAGE_KEYS.includes(stage)) {
+      throw new Error(`阶段 key 非法: ${stage}（仅支持 ${SDLC_STAGE_KEYS.join('|')}），来源: ${origin}`);
+    }
+    const s = parseTime(startRaw);
+    const e = parseTime(endRaw);
+    if (!Number.isFinite(s) || !Number.isFinite(e)) {
+      throw new Error(`阶段时间无法解析（${origin}）: start=${startRaw} end=${endRaw}`);
+    }
+    if (e <= s) {
+      throw new Error(`阶段结束时间必须晚于开始时间（${origin}）: start=${startRaw} end=${endRaw}`);
+    }
+    if (!split[stage]) split[stage] = [];
+    split[stage].push({ startTime: s, endTime: e });
+  };
+
+  for (const raw of args.stageSplits || []) {
+    const m = String(raw).match(/^([A-Za-z]+)=(.+?)~(.+)$/);
+    if (!m) {
+      throw new Error(`--stage-split 格式应为 <stage>=<start>~<end>，收到: ${raw}`);
+    }
+    push(m[1].toLowerCase(), m[2], m[3], `--stage-split ${raw}`);
+  }
+
+  if (args.stage) {
+    if (!args.since || !args.until) {
+      throw new Error('--stage 需同时指定 --since 与 --until');
+    }
+    push(String(args.stage).toLowerCase(), args.since, args.until, '--stage/--since/--until');
+  }
+
+  return Object.keys(split).length > 0 ? split : undefined;
+}
+
+/** 判断运行环境：catpaw_desk / catpaw_ide */
+function detectSessionSource() {
+  const configContent = process.env.CATPAW_CONFIG_CONTENT;
+  if (configContent) {
+    try {
+      const config = JSON.parse(configContent);
+      if (config.source === 'CatPawDesk') return 'catpaw_desk';
+      if (config.source === 'CatPawIDE' || config.source === 'CatPawCLI_IDE') return 'catpaw_ide';
+    } catch {}
+  }
+  if (process.env.__CFBundleIdentifier === 'com.catpaw.cowork') return 'catpaw_desk';
+  if (process.env.__CFBundleIdentifier) return 'catpaw_ide';
+  if (process.env.CODEX_SANDBOX || process.env.CODEX_HOME) return 'codex';
+  return 'catpaw_ide';
+}
+
+/** CatPaw Desk：通过 catdesk session current 获取会话 ID */
+function getDeskConversationId() {
+  try {
+    const output = require('child_process').execSync('catdesk session current', {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: 5000,
+    }).trim();
+    const data = JSON.parse(output);
+    return data.conversationId || data.conversation_id || data.id || null;
+  } catch {}
+  return null;
+}
+
+/**
+ * CatPaw IDE：从 ~/.catpaw/projects/ide-{path_hash}/ 取最近修改的会话目录名作为 conversationId
+ * （与 generate-session-link.js 的兜底逻辑一致；无 context 时无法锚定，取最新会话并打印提示）
+ */
+function getIdeConversationId() {
+  try {
+    const projectsDir = path.join(os.homedir(), '.catpaw', 'projects');
+    if (!fs.existsSync(projectsDir)) return null;
+
+    const candidates = [];
+    let p = process.cwd();
+    const root = path.parse(p).root;
+    while (p && p !== root) {
+      candidates.push(p);
+      const parent = path.dirname(p);
+      if (parent === p) break;
+      p = parent;
+    }
+
+    let targetDir = null;
+    for (let i = candidates.length - 1; i >= 0; i--) {
+      const hash = candidates[i].replace(/\//g, '-').replace(/^-/, '');
+      const candidate = path.join(projectsDir, `ide-${hash}`);
+      if (fs.existsSync(candidate)) { targetDir = candidate; break; }
+    }
+    if (!targetDir) return null;
+
+    let latestId = null;
+    let latestTime = 0;
+    for (const entry of fs.readdirSync(targetDir, { withFileTypes: true })) {
+      if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
+      try {
+        const stat = fs.statSync(path.join(targetDir, entry.name));
+        if (stat.mtimeMs > latestTime) { latestTime = stat.mtimeMs; latestId = entry.name; }
+      } catch {}
+    }
+    return latestId || null;
+  } catch {
+    return null;
+  }
 }
 
 // ─── sessions 组装 ───────────────────────────────────────────────────────────
@@ -273,6 +437,77 @@ function buildTaskItem(context, dryRun) {
     if (item[k] === undefined) delete item[k];
   }
   return { item, hasSessions: sessions.length > 0 };
+}
+
+// ─── 无 context 直报模式：taskItem 组装 ────────────────────────────────────────
+
+/**
+ * 无 workflow-context.json 时，从 CLI 入参组装 taskItem（独立/补报模式）。
+ * 必填：--ones-url；会话：--session-id 或自动探测；阶段：--stage-split / --stage+--since/--until。
+ * 只组装输入的已有事实，不编造时间与会话。
+ */
+function buildStandaloneItem(args, context) {
+  const input = (context && context.input) || {};
+  const fedo = input.fedo_info || {};
+
+  const onesUrl = args.onesUrl || fedo.ones_link;
+  if (!onesUrl) {
+    return {
+      error: '未找到 workflow-context.json，且未提供 --ones-url。onesUrl 是 SDLC mapping 上报必填字段，'
+        + '请补充：--ones-url <ONES需求链接> [--mis <mis>] [--stage-split design=<start>~<end>]',
+    };
+  }
+
+  const onesId = extractOnesId(onesUrl);
+  const taskExtId = args.taskExtId || (onesId ? `ONES-${onesId}` : null);
+  if (!taskExtId) {
+    return { error: '无法从 --ones-url 推导 taskExtId（非 ONES detail 链接时请显式传 --task-ext-id）' };
+  }
+
+  // 会话：显式 --session-id > 环境探测（Desk 用 catdesk session current，IDE 取最近会话目录）
+  let sessionId = args.sessionId;
+  let source = args.sessionSource;
+  if (!sessionId) {
+    if (!source) source = detectSessionSource();
+    sessionId = source === 'catpaw_desk'
+      ? (getDeskConversationId() || getIdeConversationId())
+      : getIdeConversationId();
+    if (sessionId) console.log(`🔍 [report-sdlc-mapping] 自动探测会话: ${sessionId}（source=${source}）`);
+  }
+  if (!sessionId) {
+    return { error: '无法探测会话 ID，请显式传 --session-id <conversationId>（服务端以 (agentType, sessionId) 归集 session）' };
+  }
+  if (!source) source = detectSessionSource();
+
+  const agentType = args.agentType || resolveAgentType(source);
+
+  let stageSplit;
+  try {
+    stageSplit = buildStageSplitFromArgs(args);
+  } catch (err) {
+    return { error: `stageSplit 参数非法: ${err.message}` };
+  }
+
+  const mis = args.mis || input.mis || require('os').userInfo().username || '';
+
+  const session = { agentType, sessionId };
+  if (stageSplit) session.stageSplit = stageSplit;
+
+  const item = {
+    sdlcSourceType: SDLC_SOURCE_TYPE,
+    taskExtId,
+    onesUrl,
+    misList: mis ? [mis] : undefined,
+    creator: mis || undefined,
+    taskName: args.taskName || fedo.task_name || `需求-${onesId || taskExtId}`,
+    taskUrl: onesUrl,
+    sessionOp: 'upsert',
+    sessions: [session],
+  };
+  for (const k of Object.keys(item)) {
+    if (item[k] === undefined) delete item[k];
+  }
+  return { item, hasSessions: true, standalone: true };
 }
 
 // ─── 调用 run.sh 上报 ────────────────────────────────────────────────────────
@@ -406,22 +641,31 @@ async function main() {
   const args = parseArgs();
 
   const contextPath = findWorkflowContext(args.context);
-  if (!contextPath) {
-    console.error('❌ [report-sdlc-mapping] 未找到 workflow-context.json，SDLC mapping 上报阻断');
-    process.exit(1);
+  let context = null;
+  if (contextPath) {
+    try {
+      context = JSON.parse(fs.readFileSync(contextPath, 'utf8'));
+    } catch (err) {
+      if (!args.onesUrl) {
+        console.error(`❌ [report-sdlc-mapping] 读取 workflow-context.json 失败: ${err.message}，上报阻断`);
+        process.exit(1);
+      }
+      console.log(`⚠️ [report-sdlc-mapping] workflow-context.json 解析失败（${err.message}），改走 --ones-url 直报模式`);
+    }
   }
 
-  let context;
-  try {
-    context = JSON.parse(fs.readFileSync(contextPath, 'utf8'));
-  } catch (err) {
-    console.error(`❌ [report-sdlc-mapping] 读取 workflow-context.json 失败: ${err.message}，上报阻断`);
+  // 无 context（或显式传了 --ones-url）→ 走 CLI 直报模式
+  const standalone = !context || Boolean(args.onesUrl);
+  if (!contextPath && !args.onesUrl) {
+    console.log('⚠️ [report-sdlc-mapping] 未找到 workflow-context.json，且未提供 --ones-url，无法上报。'
+      + '直报用法：node scripts/report-sdlc-mapping.js --ones-url <ONES链接> [--mis <mis>]'
+      + ' [--session-id <会话ID>] [--stage-split design=<start>~<end>] [--dry-run]');
     process.exit(1);
   }
 
   const runShPath = findIngestRunSh();
   // 通道选择：--mode cli|direct|auto（默认 auto = CLI 首选，run.sh 不可用或 CLI 失败时自动降级接口直报）
-  const mis = (context.input && context.input.mis) || require('os').userInfo().username || '';
+  const mis = args.mis || (context && context.input && context.input.mis) || require('os').userInfo().username || '';
   let useDirect = false;
   if (args.mode === 'direct') {
     useDirect = true;
@@ -438,14 +682,21 @@ async function main() {
       + '（安装 CLI 后恢复首选：mtskills install sdlc-task-mapping-ingest）');
   }
 
-  const built = buildTaskItem(context, args.dryRun);
+  const built = standalone
+    ? buildStandaloneItem(args, context)
+    : buildTaskItem(context, args.dryRun);
   if (built.error) {
     console.log(`⚠️ [report-sdlc-mapping] ${built.error}`);
-    process.exit(0);
+    process.exit(standalone && !contextPath ? 1 : 0);
   }
   if (!built.hasSessions) {
     console.log('ℹ️ [report-sdlc-mapping] runtime.session_links 为空（尚未生成 CatPaw 会话链接），本次跳过，待下次阶段上报时补报');
     process.exit(0);
+  }
+  if (built.standalone) {
+    console.log('ℹ️ [report-sdlc-mapping] 无 workflow-context 直报模式：'
+      + `taskExtId=${built.item.taskExtId} agentType=${built.item.sessions[0].agentType}`
+      + `${built.item.sessions[0].stageSplit ? ` stageSplit=${Object.keys(built.item.sessions[0].stageSplit).join(',')}` : '（未提供阶段时间段）'}`);
   }
 
   let result;

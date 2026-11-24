@@ -10,7 +10,7 @@ workspace 无关，因此缓存必须落在用户级位置。放到 workspace �
   2. workspace 收尾 `post-clean` 会整目录删除缓存 → 下一个 workspace 需重新解析，
      自下载的 adb 甚至会被重复下载。
 
-缓存固定为 `~/.local/share/ai-ui-autotest-engine/toolchain/toolchain.json`（与凭据、设备池
+缓存固定为 `$STATE/toolchain/toolchain.json`（与凭据、设备池
 同级：均落在**机器级**目录，不被 workspace 清理影响，也不随 Skill 更新/重建丢失；
 且多份 Skill 副本共用同一份，不会各探测一遍）。
 本模块是读写该缓存的**唯一入口**，

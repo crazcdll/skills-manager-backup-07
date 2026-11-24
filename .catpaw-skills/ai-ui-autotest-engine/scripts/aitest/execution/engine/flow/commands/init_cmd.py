@@ -10,7 +10,7 @@ import os
 from aitest.shared.errors import FlowStateError, PayloadError, UsageError
 from aitest.shared.paths import SKILL_DIR, resolve_input_path
 from aitest.shared.case_utils import append_source_notes, resolve_case_path, resolve_mis
-from aitest.shared.paths import set_active_run
+from aitest.shared.paths import set_active_run, get_active_run
 from aitest.shared.json_utils import write_json_atomic, read_json
 from aitest.shared.observability.usage_reporter import report_usage
 from aitest.shared.observability.runtime_audit import append_event
@@ -19,6 +19,27 @@ from aitest.execution.engine.flow.flow_init import init_from_steps_json, validat
 from aitest.execution.engine.flow.steps_builder import build_steps_json as _build_steps_json
 from aitest.execution.engine.sop.constants import FLOW_CONTEXT_FILENAME
 from aitest.execution.engine.flow.commands.validate_cmd import _format_json_error
+
+
+def _input_missing_hint(requested, resolved, error):
+    """--input 文件不存在时给出可用文件，避免链错文件名后无法自救。"""
+    hint = (
+        f"读取文件失败: {error}\n"
+        f"  --input: {requested}\n"
+        "  提示：--input 应传 `steps-generate --tag <case_id>` 产出的文件名"
+        "（steps-input-<case_id>.json）；裸文件名会在当前 workspace 的 tmp/ 下解析。"
+    )
+    try:
+        files = sorted(
+            name
+            for name in os.listdir(os.path.dirname(resolved))
+            if name.startswith("steps-input") and name.endswith(".json")
+        )
+    except OSError:
+        files = []
+    if files:
+        hint += "\n  当前 workspace 可用输入：" + "、".join(files)
+    return hint
 
 
 def _cmd_flow_init(args):
@@ -35,7 +56,7 @@ def _cmd_flow_init(args):
         with open(raw, "r", encoding="utf-8") as f:
             raw = f.read()
     except OSError as e:
-        raise PayloadError(f"读取文件失败: {e}") from e
+        raise PayloadError(_input_missing_hint(args.json, raw, e)) from e
 
     try:
         ai_input = json.loads(raw)
@@ -78,9 +99,10 @@ def _cmd_flow_init(args):
 
 
 def _cmd_flow_add_case(args):
-    """flow-add-case --input <case.json>
+    """flow-add-case [--dir <run>] --input <case.json> [--case-index N]
 
     向已存在的 steps-input.json 中追加一个 case。
+    `--dir` 可省略：缺省取本 workspace 当前活跃 run（`flow-init --dir` 写入的值）。
     追加完成后需重新执行 flow-init 以更新 flow-context。
     """
     if not getattr(args, "json", None):
@@ -91,7 +113,7 @@ def _cmd_flow_add_case(args):
         with open(raw, "r", encoding="utf-8") as f:
             raw = f.read()
     except OSError as e:
-        raise PayloadError(f"读取文件失败: {e}") from e
+        raise PayloadError(_input_missing_hint(args.json, raw, e)) from e
     try:
         payload = json.loads(raw)
     except json.JSONDecodeError as e:
@@ -124,7 +146,12 @@ def _cmd_flow_add_case(args):
     except ValueError as e:
         raise PayloadError(f"Case {case_id} steps 校验失败: {e}") from e
 
-    run_dir = resolve_case_path(args.dir)
+    run_name = (getattr(args, "dir", "") or "").strip() or get_active_run()
+    if not run_name:
+        raise UsageError(
+            "需要 --dir（当前 workspace 没有活跃 run）：先执行 flow-init --dir <run> 创建/切换 run"
+        )
+    run_dir = resolve_case_path(run_name)
     steps_json_path = os.path.join(run_dir, "steps-input.json")
 
     if not os.path.isfile(steps_json_path):
@@ -143,7 +170,7 @@ def _cmd_flow_add_case(args):
     print(f"  Case: {new_case.get('case_name', f'Case {new_index}')}")
     print(f"  Steps: {len(steps)}")
     print(f"  Total cases in steps-input.json: {len(ai_input['cases'])}")
-    print(f"  下一步: 重新执行 flow-init --dir {args.dir} --input {steps_json_path} 以更新 flow-context")
+    print(f"  下一步: 重新执行 flow-init --dir {run_name} --input {steps_json_path} 以更新 flow-context")
 
 
 def _cmd_case_init(args):

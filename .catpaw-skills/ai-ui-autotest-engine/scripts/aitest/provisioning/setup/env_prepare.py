@@ -139,9 +139,6 @@ def cmd_env_prepare(args):
                 for b in fc_env["bundle_lock"]
                 if isinstance(b, dict) and b.get("name")
             )
-        if args.ptest is None:
-            args.ptest = bool(fc_env.get("ptest"))
-
         swimline = fc_env.get("swimline") or {}
         if not args.lane_name:
             args.lane_name = swimline.get("lane_name") if isinstance(swimline, dict) else None
@@ -215,7 +212,6 @@ def cmd_env_prepare(args):
         "auth_method": auth_method,
         "credential": credential.to_dict() if credential else None,
         "location": args.location,
-        "ptest": bool(args.ptest),
         "swimline": (
             {"lane_name": args.lane_name, "url_pattern": args.url_pattern or "/*"}
             if args.lane_name else None
@@ -242,7 +238,7 @@ def cmd_env_prepare(args):
     # 避免 ptest 全量规则命中短路、遮蔽场景 Mock（历史事故根因）。
     # 场景 Mock 为 case 级，这里取所有 case 的并集（meta.mock_union），与 ptest（环境级）正交。
     ptest_exclude_rules = []
-    if args.ptest:
+    if plan.ptest:
         scenario_mock_ids = _ctx.get("meta", {}).get("mock_union") or []
         ptest_exclude_rules = _resolve_mock_exclude_rules(scenario_mock_ids)
         print(f"[env-prepare] ptest 排除场景 Mock 路径: {ptest_exclude_rules or '无'}")

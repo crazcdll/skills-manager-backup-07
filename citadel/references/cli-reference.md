@@ -443,17 +443,19 @@ oa-skills citadel getReceivedDocs --limit 10 --offset 30
 
 ## getDiscussionComments
 
-获取文档划词评论（讨论列表）。
+获取文档划词评论（讨论列表），默认仅返回有效、未解决的评论。
 
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |---|---|---|---|---|
 | `--contentId` | string | ✅ | — | 文档 ID |
+| `--all` | boolean | — | false | 包含已解决和引用失效的评论；仍按页读取，不自动翻页 |
 | `--pageNo` | number | — | 1 | 页码（从 1 开始） |
-| `--pageSize` | number | — | 100 | 每页评论数 |
+| `--pageSize` | number | — | 100 | 每页讨论数，1–1000 |
 
 ```bash
 oa-skills citadel getDiscussionComments --contentId "2746799101"
 oa-skills citadel getDiscussionComments --contentId "2746799101" --pageNo 1 --pageSize 50
+oa-skills citadel getDiscussionComments --contentId "2746799101" --all --pageNo 2 --pageSize 50
 ```
 
 **输出**：每条评论的 commentId、创建人、引用文本、评论内容（原始 JSON doc 格式）、时间、解决状态、回复列表。

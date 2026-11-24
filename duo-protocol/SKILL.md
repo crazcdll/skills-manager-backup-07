@@ -4,8 +4,8 @@ description: 指导 AI 修改 / 生成 / 排查 DUO 页面协议的技能。覆�
 
 metadata:
   skillhub.creator: "baolilei"
-  skillhub.updater: "renrunbin"
-  skillhub.version: "V22"
+  skillhub.updater: "baolilei"
+  skillhub.version: "V26"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "1715"
   skillhub.high_sensitive: "false"
@@ -100,25 +100,30 @@ node('BottomBar', '798') {                 // nodeName + 物料ID（资产平台
 }
 ```
 
+> 🧱 **节点级声明只有 13 种**（平级、互不嵌套）：`label` / `nodeId` / `nodeType` / `materialType` / `key` / `xIf` / `xFor` / `props` / `propConfig` / `style` / `on` / `buildConfig` / `slot`。
+> 容器类物料（如 `LayoutTopBottom`）的子节点**必须写在 `slot('renderTop'|'renderContent'|'renderBottom') { }` 里**，不能直接写在 `node` 下。
+
 ### 2.4 全局变量体系（核心，字段禁止编造）
 
 | 变量 | 含义 | 示例 |
 |------|------|------|
 | `CONST` | 页面常量/跳链参数 | `CONST.goodsID`、`CONST.baseInfo.checkin` |
 | `DATA_SOURCE` | 数据源返回 | `DATA_SOURCE?.data?.priceVO?.totalPayAmount` |
-| `NODE` | 某节点 | `NODE.BookTime?.props?.checkInPeriod` |
+| `NODE` | 某节点属性（**仅入参场景**） | `NODE.GuestCard?.props?.email` |
 | `PAYLOAD` | update/submit 入参 | `PAYLOAD?.roomNum?.value` |
 | `PREV_DATA` | 上一轮数据 | `PREV_DATA.isManagedTargetRoomUpgrade` |
 | `COMMON_PARAMS` | 公共参数 | `COMMON_PARAMS.systemInfo.isMRN` |
 | `PAGE_QUERY` | 页面 query | `PAGE_QUERY.goods_id` |
-| `PROPS` | 父级传入 props | `PROPS.isChecked` |
+| `PROPS` | **自身节点**的属性（配合 `propConfig` 双向绑定） | `PROPS.isChecked` |
+
+> ⚠️ `PREV_DATA` / `PAYLOAD` / `NODE.xxx.props` **只能用于 dataSourceMap 入参**（`requestProps`）；`DATA_SOURCE` 相反，**不能用于入参**。
 
 ### 2.5 表达式（DataExpression）
 
-支持 5 种类型：`String` / `Number` / `Boolean` / `List` / `Object`（对应 `string/number/bool/array/object` 声明）。
+支持 5 种 `dataType`：`String` / `Number` / `Boolean` / `List` / `Object`（对应 `string/number/bool/array/object` 声明；`objectWithSub` 也产出 `Object`，通过 `sub` 递归定义具名子字段）。协议还支持 `constant` 和 `item` 字段，具体按协议类型和转换器能力使用。
 
 - **语法**：兼容 **Groovy 2.4.17**，禁止 JS 语法与高版本特性
-- **形式**：`props` 内用 `{{ }}` 包裹 Groovy 代码
+- **形式**：DSL 中的表达式字段使用 `{{ }}` 包裹 Groovy 代码，`props`、`xIf`、`xFor`、`key`、`condition`、`style` 和数据源字段都遵循此规则
 - **注意**：`{{ }}` 外禁止注释；`{{ }}` 内允许 Groovy 注释
 - **防空**：多用 `DATA_SOURCE?.data?.xxx ?: 兜底` 可选链
 - **常见坑**：`includes`（JS）应写 Groovy `contains`；字段须类型化声明

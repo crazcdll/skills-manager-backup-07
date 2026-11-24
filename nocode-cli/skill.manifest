@@ -1,8 +1,8 @@
 skill-manifest-version: 1
-skill-id: 40250432f5efbb675253ddb0c4fa05f5f02d277f9d63908fe7c2734ab898a81a
+skill-id: 0b5874cc294656797c0510bd6814a5aa8c980b52572497326f7d7b79b66c5856
 
 files:
-  c1d0e1831fe7622965d8acfcfd3c7efcac5d528a8969f7fe600a7a5203c25591  SKILL.md
+  41c793a96c85bd33ba026b5df4d83d1464a89aeeef3f0593ddce8482d713345c  SKILL.md
   7b359c38b8838f09aecde49ad79304f85a7a0f59db7608e4a8cc00de02b4052a  references/best-practices.md
   6bcd42e7d6d65d4745c3af23d2a47fbb420b0282f583511cb837b31f3f52ba8b  references/commands/cmd-code.md
   b2ef76abc794bad37ef68a39f573a607bf14f45849c5cb661155c1462b18c0a8  references/commands/cmd-create-send.md

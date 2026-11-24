@@ -4,8 +4,8 @@ description: 通过 NoCode CLI 操作美团 NoCode 零代码平台。当用户�
 
 metadata:
   skillhub.creator: "zhaomenghuan02"
-  skillhub.updater: "lichongmin"
-  skillhub.version: "V20"
+  skillhub.updater: "huangzhimin03"
+  skillhub.version: "V21"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "2981"
   skillhub.high_sensitive: "false"
@@ -48,22 +48,20 @@ npm view @nocode/nocode-cli version --registry=http://r.npm.sankuai.com
 ### 登录状态检查（版本检查后必须执行）
 
 从本 Skill 的 frontmatter metadata 中读取 `skillhub.skill_id` 字段作为 `<SKILL_ID>`，然后执行 `nocode status --skillId <SKILL_ID>` 检查环境和登录状态：
-- 已登录 → 继续（会显示当前登录方式：MOA / CIBA / OIDC / DIRECT）
+- 已登录 → 继续（会显示当前登录方式：MOA / OIDC / DIRECT）
 - 未登录 → `nocode status` 会根据运行环境推荐登录命令，按提示执行即可：
   - **CatDesk Cloud 环境**：推荐 `nocode login --moa --skillId <SKILL_ID>`（MOA 无感登录，无需确认）
-  - **CatClaw 环境**：推荐 `nocode login --moa --skillId <SKILL_ID>`，降级 `nocode login --mis <mis> --skillId <SKILL_ID>`（需大象 App 确认）
+  - **CatClaw 环境**：推荐 `nocode login --moa --skillId <SKILL_ID>`；MOA 不可用时按错误提示排查环境，已有 Token 时可降级 `nocode login --token <token> --skillId <SKILL_ID>`
   - **CatDesk / 其他环境**：推荐 `nocode login --sso --skillId <SKILL_ID>`（SSO OIDC 浏览器登录）
 - 如登录仍存在问题，请联系 NoCode 研发。**不推荐直接使用浏览器操作 NoCode 平台。**
 - 输出包含 `⚠️  发现新版本` → **必须停止后续操作，立即更新 `@nocode/nocode-cli` 和 `nocode-cli` Skill（ID: 2981）的版本；若未安装该 Skill，应立即安装以确保 CLI 正常使用**
-
-**获取 MIS 号**：先读 `~/.openclaw/openclaw.json` 中的 `X-User-Id`，读不到再问用户。不要猜测。
 
 **⚠️ Token 过期自动续期（执行 API 类命令时可能触发）：**
 
 执行 `create`、`send`、`deploy`、`list`、`screenshot`、`files list`、`files get` 等需要调用 API 的命令时，如果检测到 Token 过期，CLI 会根据登录方式自动续期：
 - **SSO OIDC 登录**：自动静默续期
-- **CIBA 登录**：自动重新换票
 - **MOA 登录**：需重新执行 `nocode login --moa`
+- **DIRECT 登录**：需重新执行 `nocode login --token <token>`
 
 ## 关键概念
 
@@ -147,7 +145,7 @@ npm view @nocode/nocode-cli version --registry=http://r.npm.sankuai.com
 | `nocode domain <action> <chatId>` | 域名管理 | list / create / modify / delete。前缀域名只能 `modify`，自有域名才能 `create`/`delete`。操作前必须先 `list` | ⚠️ [必读](references/commands/cmd-domain.md) |
 | `nocode permission <action> <chatId>` | 作品权限管理 | get / set / add / remove / search-user / search-org / badge。切外部公开须用户确认 | ⚠️ [必读](references/commands/cmd-permission.md) |
 | `nocode status` | 检查环境和登录状态 | 显示运行环境（CatDesk Cloud / CatClaw / CatDesk / 其他）、登录方式、版本信息。`--skillId <id>` 上报调用来源 | — |
-| `nocode login` | 登录 | `--moa`（MOA 无感）/ `--mis <mis>`（CIBA）/ `--sso`（SSO OIDC）/ `--token <token>`（手动）。`--skillId <id>` 上报调用来源 | — |
+| `nocode login` | 登录 | `--moa`（MOA 无感）/ `--sso`（SSO OIDC）/ `--token <token>`（手动）。`--skillId <id>` 上报调用来源 | — |
 | `nocode logout` | 登出 | 清除本地凭证 | — |
 | `nocode list` | 项目列表 | `--page N --size N --json` | — |
 | `nocode detail <chatId>` | 查看详情 | JSON 输出 | — |

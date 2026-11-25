@@ -179,6 +179,22 @@ const sourceCommon = {
   reader_contract: literal('fixed-source/v1'),
   files: array(ref('sourceFile'), LIMITS.sourceFiles, 1),
 };
+
+// The YAML header is part of the single-rule contract.  Platform-owned fields
+// (ruleSetId and owner) are deliberately added only when the platform renders
+// a confirmed L2 rule set; they are not accepted as local conversion input.
+const singleRuleMetadata = object({
+  ruleType: literal('Model Request'),
+  description: string(2000),
+  level: literal('L2'),
+  ruleTitle: string(200),
+  ruleVersion: string(40, 1, '^[0-9]+\\.[0-9]+\\.[0-9]+$'),
+  category: array(string(64), 20, 1, true),
+  severity: array(enumeration('P0', 'P1', 'P2', 'P3'), 4, 0, true),
+  status: array(enumeration('open', 'closed'), 2, 1, true),
+  language: array(string(64), 20, 0, true),
+  framework: array(string(64), 20, 0, true),
+});
 export const PACKAGE_JSON_SCHEMA = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   $id: 'urn:mt-code-standards:rule-local-package:v1',
@@ -217,7 +233,8 @@ export const PACKAGE_JSON_SCHEMA = {
       rule_type: literal('Model Request'),
       content: array({ oneOf: [textBlock, object({ type: literal('rule'), rule_ref: key })] }, 4096, 1),
     }),
-    rule: object({
+    rule: (() => {
+      const schema = object({
       rule_ref: key, document_ref: key, title: string(200), execution_level: enumeration('mandatory', 'recommended'),
       category_key: slug, subcategory_key: slug, rule_type: literal('Model Request'),
       tech_stacks: array(enumeration('general', 'javascript', 'typescript', 'html', 'css', 'vue', 'react', 'mrn', 'java', 'spring'), 10, 1, true),
@@ -225,7 +242,10 @@ export const PACKAGE_JSON_SCHEMA = {
       applicability_tags: array(string(200), 20, 0, true),
       body: array({ oneOf: [textBlock, exampleBlock] }, 4096, 1),
       omissions: array(object({ role: enumeration('good', 'bad'), reason: string(2000) }), 2),
-    }),
+      });
+      schema.properties.metadata = singleRuleMetadata;
+      return schema;
+    })(),
     content: object({
       schema_version: literal(CONTENT_SCHEMA), content_contract: literal(CONTENT_CONTRACT),
       documents: array(ref('document'), 50, 1), rules: array(ref('rule'), 200, 1),
@@ -324,11 +344,13 @@ export function agentsRows(markdown) {
     if (marker) { if (!fence) fence = marker[0]; else if (fence === marker[0]) fence = null; inTable = false; continue; }
     if (fence) continue;
     const row = cells(lines[i]);
-    if (row.length === 3 && row.join('|') === '名称|触发场景|路径' && cells(lines[i + 1] || '').length === 3 && cells(lines[i + 1] || '').every((c) => /^:?-{3,}:?$/u.test(c))) { inTable = true; i += 1; continue; }
-    if (!inTable || !lines[i].includes('|') || row.length !== 3) { inTable = false; continue; }
-    const reference = row[2].replace(/^`+|`+$/gu, '').replace(/^\[[^\]]*\]\(([^)]+)\)$/u, '$1');
+    const header = row.join('|');
+    if ((header === '名称|触发场景|路径' || header === '分类|规则文件|Rule UID 范围|触发场景') && cells(lines[i + 1] || '').length === row.length && cells(lines[i + 1] || '').every((c) => /^:?-{3,}:?$/u.test(c))) { inTable = row.length === 4 ? 'file' : 'topic'; i += 1; continue; }
+    const expected = inTable === 'file' ? 4 : 3;
+    if (!inTable || !lines[i].includes('|') || row.length !== expected) { inTable = false; continue; }
+    const reference = (inTable === 'file' ? row[1] : row[2]).replace(/^`+|`+$/gu, '').replace(/^\[[^\]]*\]\(([^)]+)\)$/u, '$1');
     ensure(row.every(Boolean) && reference, 'PACKAGE_INDEX_INVALID', `/AGENTS.md/${i + 1}`, '索引行需要名称、触发场景和真实引用。');
-    rows.push({ name: row[0], scene: row[1], reference, line: i + 1 });
+    rows.push({ name: row[0], scene: inTable === 'file' ? row[3] : row[1], reference, line: i + 1 });
   }
   ensure(rows.length > 0, 'PACKAGE_INDEX_INVALID', '/AGENTS.md', '缺少有效的规则集索引表格。');
   return rows;

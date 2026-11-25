@@ -6,7 +6,7 @@ description: "按用户指定的仓库名称或当前 Git 仓库，从业务研�
 metadata:
   skillhub.creator: "zhangce07"
   skillhub.updater: "zhangce07"
-  skillhub.version: "V15"
+  skillhub.version: "V17"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "150847"
   skillhub.high_sensitive: "false"
@@ -132,7 +132,7 @@ manifest 的 managed_file_releases、来源路径、Hash、大小及索引参与
 安装使用暂存和原子替换；仅 L1 与 L1+L2 双向迁移时清理原清单认领且未被修改的旧规则/索引，保留未知文件和 L3。
 本地被修改的文件、Hash 损坏、路径冲突、符号链接或不同仓库身份必须停止。无仓库请求不能覆盖一个已知 canonical 的正式包。
 相同内容可返回 not_modified，仍校验本地文件和索引；展示名或选择原因变化时原子更新清单元数据。
-规则集索引与其正文同目录。通常前端 L1 为 `.mdp/rules/company/fe/AGENTS.md`，Java L1 为 `.mdp/rules/company/java/AGENTS.md`，L2 为 `.mdp/rules/team/<fe|java>/<规则集名称>/AGENTS.md`。同一领域同时交付多套 L1 时，有索引的规则集在领域目录下按规则集名称分开存放。新版首次拉取会迁移旧清单认领且未修改的索引。缺少索引合同则仅报告警告，不能编造索引。
+规则集索引位于该规则集正文目录的根部。通常前端 L1 为 `.mdp/rules/company/fe/AGENTS.md`，Java L1 为 `.mdp/rules/company/java/AGENTS.md`，L2 为 `.mdp/rules/team/<fe|java>/<规则集名称>/AGENTS.md`。同一领域同时交付多套 L1 时，有索引的规则集在领域目录下按规则集名称分开存放。Git L1 两列索引中的“规则文件”按相对于索引的路径读取，包括子目录中的文件。首次升级会校验旧清单，然后把受管正文移到索引指定的位置。缺少索引合同则仅报告警告，不能编造索引。
 
 ## 分发上报与错误
 

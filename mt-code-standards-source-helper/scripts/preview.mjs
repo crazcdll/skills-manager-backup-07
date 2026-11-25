@@ -52,19 +52,37 @@ export function renderMarkdown(text, depth = 0) {
   closeList(); closeTable(); closeQuote(); if (marker) html += `<pre><code>${colorCode(code.join('\n'), language)}</code></pre>`;
   return html;
 }
-export function generateAgentsIndex(content, source) {
+const categoryLabel = (value) => ({ frontend: '前端', backend: 'Java', java: 'Java', engineering: '通用' }[value] || String(value || '待分类'));
+const ruleUidRange = (rules) => {
+  const ids = rules.flatMap((rule) => [rule.frontmatter?.ruleUid, rule.rule_uid, rule.local_rule_id].filter(Boolean));
+  if (!ids.length) return '待平台分配';
+  if (ids.length === 1) return String(ids[0]);
+  return `${ids[0]}~${ids.at(-1)}`;
+};
+export function generateAgentsIndex(content, source, indexEntries = []) {
   const sourceById = new Map(source.files.map((file) => [file.source_ref, file]));
-  const rows = []; const bindings = [];
+  const groups = new Map(); const fileRows = []; const bindings = [];
   const cell = (value) => String(value || '').replace(/\|/gu, '\\|').replace(/[\r\n]/gu, ' ');
+  const addGroupRow = (group, row) => { if (!groups.has(group)) groups.set(group, []); groups.get(group).push(row); };
   for (const document of content.documents || []) {
     const file = sourceById.get(document.source_ref); if (!file) continue;
     const reference = source.type === 'km' ? source.locator.url : file.source_path;
     const rules = (content.rules || []).filter((rule) => rule.document_ref === document.document_ref);
     const scenes = [...new Set(rules.flatMap((rule) => rule.stages || []))].map((stage) => ({ design: '设计方案', coding: '编写代码', cr: '代码评审' })[stage] || stage).join('、');
-    rows.push(`| ${cell(document.title)} | ${cell(document.description || scenes)} | \`${cell(reference)}\` |`);
+    if (!indexEntries.length) addGroupRow(`${categoryLabel(document.category_key)}编码规范`, `| ${cell(document.title)} | ${cell(document.description || scenes)} | \`${cell(reference)}\` |`);
+    fileRows.push(`| ${cell(categoryLabel(document.category_key))} | \`${cell(reference)}\` | ${cell(ruleUidRange(rules))} | ${cell(document.description || scenes)} |`);
     bindings.push({ reference, document_ref: document.document_ref });
   }
-  return { markdown: '# 规则集索引\n\n| 名称 | 触发场景 | 路径 |\n| --- | --- | --- |\n' + rows.join('\n') + '\n', bindings };
+  for (const entry of indexEntries) {
+    const document = content.documents.find((item) => item.document_ref === entry.document_ref);
+    if (!document) continue;
+    const file = sourceById.get(document.source_ref); if (!file) continue;
+    const reference = source.type === 'km' ? source.locator.url : file.source_path;
+    addGroupRow(entry.group, `| ${cell(entry.name)} | ${cell(entry.scene)} | \`${cell(reference)}\` |`);
+  }
+  const sections = [...groups].map(([group, rows]) => `## ${cell(group)}\n\n| 名称 | 触发场景 | 路径 |\n| --- | --- | --- |\n${rows.join('\n')}\n`).join('\n');
+  const fileSection = `## 文件级索引\n\n| 分类 | 规则文件 | Rule UID 范围 | 触发场景 |\n| --- | --- | --- | --- |\n${fileRows.join('\n')}\n`;
+  return { markdown: `# 规则集索引\n\n${sections}${fileSection}`, bindings };
 }
 export async function renderPreview({ manifest, content, agentsIndex, questions = [], validation = null, requestedRef = null }) {
   const rules = new Map((content.rules || []).map((rule) => [rule.rule_ref, rule]));
@@ -78,7 +96,7 @@ export async function renderPreview({ manifest, content, agentsIndex, questions 
     renderedRules.push(rule);
     const stackNames = { general: '通用', javascript: 'JavaScript', typescript: 'TypeScript', html: 'HTML', css: 'CSS', vue: 'Vue', react: 'React', mrn: 'MRN', java: 'Java', spring: 'Spring' };
     const stageNames = { design: '方案设计', coding: '编写代码', cr: '代码评审' };
-    ordinal += 1; return `<article class="rule" data-rule="${escape(rule.rule_ref)}"><div class="rule-top"><span>待编号 ${String(ordinal).padStart(2, '0')}</span><b>${escape({ mandatory: '强制', recommended: '推荐' }[rule.execution_level] || '执行级别待确认')}</b></div><h3>${escape(rule.title)}</h3><p class="muted">${escape((rule.tech_stacks || []).map((value) => stackNames[value] || value).join(' / '))} · ${escape((rule.stages || []).map((value) => stageNames[value] || value).join(' / '))}</p>${(rule.body || []).map(block).join('')}<div class="omissions">${(rule.omissions || []).map((item) => `<p>${item.role === 'good' ? '正例' : '反例'}省略：${escape(item.reason)}</p>`).join('')}</div></article>`;
+    ordinal += 1; const metadata = rule.metadata || {}; const metadataLine = [metadata.level, metadata.ruleVersion, ...(metadata.category || []), ...(metadata.severity || []), ...(metadata.status || []), ...(metadata.language || []), ...(metadata.framework || [])].filter(Boolean).join(' · '); return `<article class="rule" data-rule="${escape(rule.rule_ref)}"><div class="rule-top"><span>待编号 ${String(ordinal).padStart(2, '0')}</span><b>${escape({ mandatory: '强制', recommended: '推荐' }[rule.execution_level] || '执行级别待确认')}</b></div><h3>${escape(rule.title)}</h3><p class="muted">${escape((rule.tech_stacks || []).map((value) => stackNames[value] || value).join(' / '))} · ${escape((rule.stages || []).map((value) => stageNames[value] || value).join(' / '))}</p><p class="metadata">${escape(metadataLine || '单条规范元数据待补齐')}</p>${(rule.body || []).map(block).join('')}<div class="omissions">${(rule.omissions || []).map((item) => `<p>${item.role === 'good' ? '正例' : '反例'}省略：${escape(item.reason)}</p>`).join('')}</div></article>`;
   }).join('')}</section>`).join('');
   const questionHtml = questions.length ? `<section class="notice"><h2>待你确认</h2><ol>${questions.map((question) => `<li>${escape(question.message || question.explanation || question.question_ref)}</li>`).join('')}</ol></section>` : '';
   const errorHtml = validation ? `<section class="notice"><h2>还不能生成最终包</h2><p>${escape(diagnosticMessage(validation))}</p><details><summary>诊断详情</summary><p class="muted">${escape(validation.code)} · ${escape(validation.path)}</p></details></section>` : '';

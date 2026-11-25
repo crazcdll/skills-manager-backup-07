@@ -3,7 +3,7 @@ import { constants } from "node:fs";
 import { lstat, mkdir, open, readdir, readFile, rm, rename } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
-import { DEFAULT_GATEWAY, validateGatewayUrl } from "./resolve-effective-rules.mjs";
+import { DEFAULT_GATEWAY, resolveRuleAnonKey, validateGatewayUrl } from "./resolve-effective-rules.mjs";
 
 // Same allowlisted business service as the download, never a new destination.
 export const EVENT_URL = `${validateGatewayUrl(DEFAULT_GATEWAY)}/v1/public/rule-download-events`;
@@ -102,7 +102,9 @@ export const createEventQueue = ({ directory = path.join(homedir(), ".mt-code-st
           try {
             const operation = async () => {
               const response = await fetchImpl(EVENT_URL, { method: "POST", redirect: "error", signal: controller.signal,
-                headers: { "Content-Type": "application/json" }, body: JSON.stringify(item.event) });
+                // Same public gateway credential as the pull; it is not a user token.
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${resolveRuleAnonKey()}` },
+                body: JSON.stringify(item.event) });
               if (!response.ok) return false;
               const text = await response.text();
               if (text.length > 16384) return false;

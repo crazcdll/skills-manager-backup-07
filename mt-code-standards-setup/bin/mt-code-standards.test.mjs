@@ -7,7 +7,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { parseCliArgs, runCli } from "./mt-code-standards.mjs";
-import { canonicalJson, sha256Hex } from "../scripts/resolve-effective-rules.mjs";
+import { canonicalJson, DEFAULT_RULE_ANON_KEY, sha256Hex } from "../scripts/resolve-effective-rules.mjs";
 
 const cli = fileURLToPath(new URL("./mt-code-standards.mjs", import.meta.url));
 const packageInfo = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
@@ -175,7 +175,7 @@ test("default CLI pull uses the public endpoint without inheriting credentials",
       cwd: directory,
       fetchImpl: async (url, init) => {
         assert.match(url, /\/v1\/public\/rule-bundles\/resolve$/u);
-        assert.equal(init.headers.Authorization, undefined);
+        assert.equal(init.headers.Authorization, `Bearer ${DEFAULT_RULE_ANON_KEY}`);
         assert.equal(JSON.parse(init.body).repository_locator, "hfe/hotel-web");
         return {
           ok: true,

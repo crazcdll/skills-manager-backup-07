@@ -51,14 +51,19 @@ export function validateAgentsIndexes(body, releaseRefs, fail = (_, message) => 
 }
 
 // Split cells without changing their original ranges, escaped pipes or line endings.
-function cells(line) {
+function cells(line, gitSyntax) {
   const separators = [];
   let escaped = false;
   let ticks = 0;
   for (let offset = 0; offset < line.length; offset++) {
     const char = line[offset];
     if (char === '\\' && !escaped) { escaped = true; continue; }
-    if (char === '`' && !escaped) ticks = ticks ? 0 : 1;
+    if (char === '`' && !escaped) {
+      let width = 1;
+      if (gitSyntax) while (line[offset + width] === '`') width++;
+      if (!ticks || ticks === width) ticks = ticks ? 0 : width;
+      offset += width - 1;
+    }
     if (char === '|' && !escaped && !ticks) separators.push(offset);
     escaped = false;
   }
@@ -75,15 +80,90 @@ const unquote = (value) => value.replace(/^`([^`]+)`$/, '$1').replace(/^\[[^\]]*
 
 export const RULESET_INDEX_PLACEMENT = 'ruleset-root';
 const JAVA_INDEX_RENDERER = 'java-l1-relative/v1';
+const EARLIER_RELATIVE_RENDERER = 'l1-relative/v2';
+export const L1_RELATIVE_RENDERER = 'l1-relative/v3';
+export const usesRelativeL1Paths = renderer => renderer === L1_RELATIVE_RENDERER || renderer === EARLIER_RELATIVE_RENDERER;
 
 function isJavaGitIndex(entry, releaseRefs) {
   return entry.index.origin === 'git' && releaseRefs.some(ref => ref.rule_set_id === entry.rule_set_id
     && ref.release_id === entry.release_id && ref.scope_level === 'L1' && ref.standard_domain === 'backend');
 }
 
+function* indexRows(content, allowRelative, gitSyntax = false) {
+  // Receipts signed with previous renderers must replay their original line/fence rules.
+  const lines = content.split(gitSyntax ? /(?<=\n)|(?<=\r)(?!\n)/ : /(?<=\n)/);
+  let table = null;
+  let fence = '';
+  for (const [position, raw] of lines.entries()) {
+    const line = raw.replace(/[\r\n]+$/, '');
+    const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/);
+    if (fenceMatch) {
+      const marker = fenceMatch[1];
+      if (!fence) fence = marker;
+      else if (gitSyntax ? marker.startsWith(fence) && line.trim() === marker : marker[0] === fence[0]) fence = '';
+      table = null;
+      yield { raw };
+      continue;
+    }
+    if (fence) { yield { raw }; continue; }
+    const columns = cells(line, gitSyntax);
+    const header = columns.map((column) => column.value).join('|');
+    const relativeReferences = allowRelative && header === '规则文件|触发条件';
+    if (relativeReferences || header === '名称|触发场景|路径' || header === '分类|规则文件|Rule UID 范围|触发场景') {
+      const separator = cells((lines[position + 1] || '').replace(/[\r\n]+$/, ''), gitSyntax);
+      const columnsCount = columns.length;
+      table = separator.length === columnsCount && separator.every((column) => /^:?-{3,}:?$/.test(column.value))
+        ? { columns: columnsCount, referenceIndex: relativeReferences ? 0 : columnsCount === 3 ? 2 : 1, relativeReferences }
+        : null;
+      yield { raw, header: table };
+      continue;
+    }
+    if (!table) { yield { raw }; continue; }
+    if (columns.length !== table.columns) { table = null; yield { raw }; continue; }
+    if (columns.every((column) => /^:?-{3,}:?$/.test(column.value))) { yield { raw }; continue; }
+    yield { raw, position, column: columns[table.referenceIndex], relative: table.relativeReferences };
+  }
+}
+
+const relativeIndexPath = value => value.replace(/^\.\//, '');
+
+function isRelativeL1Index(entry, refs, renderer) {
+  if (entry.index.origin !== 'git' || typeof entry.index.content !== 'string'
+    || !refs.some(ref => ref.rule_set_id === entry.rule_set_id && ref.release_id === entry.release_id && ref.scope_level === 'L1')) return false;
+  for (const row of indexRows(entry.index.content, true, renderer === L1_RELATIVE_RENDERER)) if (row.header?.relativeReferences) return true;
+  return false;
+}
+
+export function relativeL1Bindings(entries, refs, renderer = L1_RELATIVE_RENDERER) {
+  const targets = new Map();
+  for (const entry of entries || []) {
+    if (!isRelativeL1Index(entry, refs, renderer)) continue;
+    const expected = new Set();
+    for (const row of indexRows(entry.index.content, true, renderer === L1_RELATIVE_RENDERER)) {
+      if (row.relative) expected.add(relativeIndexPath(unquote(row.column.value)));
+    }
+    const references = new Set();
+    for (const binding of entry.bindings) {
+      const reference = relativeIndexPath(binding.reference);
+      if (!expected.has(reference) || references.has(reference)) invalid('L1 索引路径与发布绑定不一致');
+      references.add(reference);
+      if (binding.bundle_relative_path === null) continue;
+      if (targets.has(binding.bundle_relative_path)) invalid('同一 L1 交付文件有重复索引绑定');
+      targets.set(binding.bundle_relative_path, { reference, rule_set_id: entry.rule_set_id, release_id: entry.release_id });
+    }
+    if (references.size !== expected.size) invalid('L1 索引中的规则文件缺少发布绑定');
+  }
+  return targets;
+}
+
+function currentRenderer(entries, refs, renderer = L1_RELATIVE_RENDERER) {
+  if (entries?.some(entry => isRelativeL1Index(entry, refs, renderer))) return renderer;
+  if (entries?.some(entry => isJavaGitIndex(entry, refs))) return JAVA_INDEX_RENDERER;
+  return null;
+}
+
 export function isCurrentAgentsIndexRenderer(manifest) {
-  return manifest.agents_index_renderer === JAVA_INDEX_RENDERER
-    || !manifest.agents_indexes?.some(entry => isJavaGitIndex(entry, manifest.release_refs));
+  return (manifest.agents_index_renderer ?? null) === currentRenderer(manifest.agents_indexes, manifest.release_refs);
 }
 
 function namedDomainDirectory(ref) {
@@ -136,7 +216,7 @@ export function agentsIndexDestinations(entries, releaseRefs, { indexPlacement =
   }));
 }
 
-export function renderAgentsIndexes(entries, localFiles, releaseRefs, { indexPlacement = 'flat-team', nativeJavaTables = true } = {}) {
+export function renderAgentsIndexes(entries, localFiles, releaseRefs, { indexPlacement = 'flat-team', renderer = currentRenderer(entries, releaseRefs) } = {}) {
   const destinations = agentsIndexDestinations(entries, releaseRefs, { indexPlacement });
   const files = [];
   const warnings = [];
@@ -162,47 +242,24 @@ export function renderAgentsIndexes(entries, localFiles, releaseRefs, { indexPla
     const warn = (code, message, extra) => addWarning({ ...warning(code, message, extra), rule_set_id: entry.rule_set_id });
     if (index.content === null) { warn('agents_index_unreadable', 'AGENTS.md 无法读取'); continue; }
     if (!index.content.trim()) warn('agents_index_empty', 'AGENTS.md 内容为空');
-    const nativeJava = nativeJavaTables && indexPlacement === RULESET_INDEX_PLACEMENT && isJavaGitIndex(entry, releaseRefs);
+    const nativeL1 = usesRelativeL1Paths(renderer) && indexPlacement === RULESET_INDEX_PLACEMENT && isRelativeL1Index(entry, releaseRefs, renderer);
+    const nativeJava = renderer && indexPlacement === RULESET_INDEX_PLACEMENT && isJavaGitIndex(entry, releaseRefs);
     const indexDirectory = destinations.get(entry.rule_set_id).slice(0, -'AGENTS.md'.length);
-    const lines = index.content.split(/(?<=\n)/);
-    let table = null;
     let recognized = false;
-    let fence = '';
-    const output = lines.map((raw, position) => {
-      const line = raw.replace(/[\r\n]+$/, '');
-      const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/);
-      if (fenceMatch) {
-        if (!fence) fence = fenceMatch[1][0]; else if (fenceMatch[1][0] === fence) fence = '';
-        table = null;
-        return raw;
-      }
-      if (fence) return raw;
-      const columns = cells(line);
-      const header = columns.map((column) => column.value).join('|');
-      const relativeReferences = nativeJava && header === '规则文件|触发条件';
-      if (relativeReferences || header === '名称|触发场景|路径' || header === '分类|规则文件|Rule UID 范围|触发场景') {
-        const separator = cells((lines[position + 1] || '').replace(/[\r\n]+$/, ''));
-        const columnsCount = columns.length;
-        table = separator.length === columnsCount && separator.every((column) => /^:?-{3,}:?$/.test(column.value))
-          ? { columns: columnsCount, referenceIndex: relativeReferences ? 0 : columnsCount === 3 ? 2 : 1, relativeReferences }
-          : null;
-        recognized ||= Boolean(table);
-        return raw;
-      }
-      if (!table) return raw;
-      if (columns.length !== table.columns) { table = null; return raw; }
-      if (columns.every((column) => /^:?-{3,}:?$/.test(column.value))) return raw;
-      const column = columns[table.referenceIndex];
+    const output = Array.from(indexRows(index.content, nativeL1 || nativeJava, nativeL1 && renderer === L1_RELATIVE_RENDERER), ({ raw, position, header, column, relative }) => {
+      recognized ||= Boolean(header);
+      if (!column || (nativeL1 && !relative)) return raw;
       const reference = unquote(column.value);
-      const candidates = entry.bindings.filter((binding) => binding.reference === reference);
+      const canonicalRef = nativeL1 ? relativeIndexPath(reference) : reference;
+      const candidates = entry.bindings.filter(binding => (nativeL1 ? relativeIndexPath(binding.reference) : binding.reference) === canonicalRef);
       const targets = new Set(candidates.map((binding) => localBySource.get(binding.bundle_relative_path)).filter(Boolean));
       if (!candidates.length || candidates.some((binding) => !localBySource.has(binding.bundle_relative_path)) || targets.size !== 1) {
         warn('agents_index_unmatched_reference', `引用无法唯一匹配本次下载文件：${reference}`, { path: reference, line: position + 1 });
         return raw;
       }
       const [localPath] = targets;
-      if (table.relativeReferences) {
-        if (localPath !== indexDirectory + reference) {
+      if (relative) {
+        if (localPath !== indexDirectory + canonicalRef) {
           warn('agents_index_unmatched_reference', `引用未指向索引同目录的已安装文件：${reference}`, { path: reference, line: position + 1 });
         }
         return raw;
@@ -224,13 +281,11 @@ export function renderAgentsIndexes(entries, localFiles, releaseRefs, { indexPla
   return { files, warnings };
 }
 
-export function agentsManifestFields(bundle, localFiles, { indexPlacement = 'flat-team', nativeJavaTables = true } = {}) {
+export function agentsManifestFields(bundle, localFiles, { indexPlacement = 'flat-team', renderer = currentRenderer(bundle.agents_indexes, bundle.snapshot.release_refs) } = {}) {
   if (!bundle.snapshot.agents_indexes_hash) return {};
-  const rendered = renderAgentsIndexes(bundle.agents_indexes, localFiles, bundle.snapshot.release_refs, { indexPlacement, nativeJavaTables });
-  const usesJavaRenderer = nativeJavaTables && indexPlacement === RULESET_INDEX_PLACEMENT
-    && bundle.agents_indexes.some(entry => isJavaGitIndex(entry, bundle.snapshot.release_refs));
+  const rendered = renderAgentsIndexes(bundle.agents_indexes, localFiles, bundle.snapshot.release_refs, { indexPlacement, renderer });
   return {
-    ...(usesJavaRenderer ? { agents_index_renderer: JAVA_INDEX_RENDERER } : {}),
+    ...(indexPlacement === RULESET_INDEX_PLACEMENT && renderer ? { agents_index_renderer: renderer } : {}),
     agents_index_contract: AGENTS_INDEX_CONTRACT,
     agents_indexes_hash: bundle.snapshot.agents_indexes_hash,
     agents_indexes: bundle.agents_indexes,
@@ -250,8 +305,11 @@ export function validateAgentsManifest(manifest, { indexPlacement = 'separate' }
     local_relative_path: name, source_relative_path: manifest.managed_file_sources[name],
   }));
   // Earlier clients preserved the source bytes but recorded different table diagnostics.
-  const nativeJavaTables = Object.hasOwn(manifest, 'agents_index_renderer');
-  const expected = agentsManifestFields({ snapshot: manifest, agents_indexes: manifest.agents_indexes }, localFiles, { indexPlacement, nativeJavaTables });
+  const renderer = manifest.agents_index_renderer ?? null;
+  if (renderer === JAVA_INDEX_RENDERER && !manifest.agents_indexes.some(entry => isJavaGitIndex(entry, manifest.release_refs))) return false;
+  if (renderer && renderer !== JAVA_INDEX_RENDERER && (!usesRelativeL1Paths(renderer)
+    || renderer !== currentRenderer(manifest.agents_indexes, manifest.release_refs, renderer))) return false;
+  const expected = agentsManifestFields({ snapshot: manifest, agents_indexes: manifest.agents_indexes }, localFiles, { indexPlacement, renderer });
   if (manifest.agents_index_renderer !== expected.agents_index_renderer) return false;
   return ['managed_agents_indexes', 'managed_agents_index_hashes', 'managed_agents_index_sizes', 'agents_index_warnings']
     .every((key) => canonical(expected[key]) === canonical(manifest[key]));

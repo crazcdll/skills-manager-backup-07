@@ -50,7 +50,7 @@ prepare 生成 source.json、sources/ 原件、source-receipt.json、semantic-in
 - index_entries 包含 `{group,name,scene,document_ref}`，用于生成主题分组索引；名称、场景由实际材料支持。
 - open_questions 包含 `{question_ref,message}`，有任何未解决问题都不能确认或封包。
 
-documents/rules 与机器 Schema 相同，唯块 provenance 使用 `{origin,unit_refs,reason}`，不手填 source_spans。coverage 只写 `{unit_ref,disposition,targets,reason}`，工具从固定单元补 source_ref、范围与 Hash。content 的 schema_version、content_contract、agents_index 由工具生成，不能在草稿中手填。
+documents/rules 与机器 Schema 相同，唯块 provenance 使用 `{origin,unit_refs,reason}`，不手填 source_spans。每条 rule 都要有 `metadata`，字段对应单条规范 YAML：`ruleType`、`description`、`level`、`ruleTitle`、`ruleVersion`、`category`、`severity`、`status`、`language`、`framework`。新建 L2 固定 `level: L2`；`ruleSetId` 和 `owner` 是平台导入时才补入的字段，不能在本地包中伪造。缺省 metadata 时工具只为预览生成可追溯的默认值，用户确认前仍可修改。coverage 只写 `{unit_ref,disposition,targets,reason}`，工具从固定单元补 source_ref、范围与 Hash。content 的 schema_version、content_contract、agents_index 由工具生成，不能在草稿中手填。
 
 原文块示意（替换真实单元与内容）：
 
@@ -74,7 +74,7 @@ Git 可从单个或连续单元唯一匹配精确摘录；工具计算原始字�
 
 ## 预览与确认
 
-preview 输出正文卡片、示例语言与高亮、来源标识、索引、排除决定和待确认项。超过十条规则按页展示，确认针对完整内容。HTML 不加载外部资源，用户提供内容经转义；Markdown 为本地受限展示，不是新事实来源。
+preview 输出正文卡片、单条规范元数据、示例语言与高亮、来源标识、主题索引和文件级四列表格、排除决定和待确认项。超过十条规则按页展示，确认针对完整内容。HTML 不加载外部资源，用户提供内容经转义；Markdown 为本地受限展示，不是新事实来源。
 
 待确认规则可以暂留 execution_level 为空或暂缺省略原因，preview 会显示校验问题；最终 confirm 必须通过全部校验，不能将暂缺值带入转换包。平台元信息不进入本地 content_digest；平台填写规则集名称、Owner 或适用范围后，按平台流程进行再次校验。
 

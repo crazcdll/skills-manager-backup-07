@@ -6,7 +6,7 @@ description: "按用户指定的仓库名称或当前 Git 仓库，从业务研�
 metadata:
   skillhub.creator: "zhangce07"
   skillhub.updater: "zhangce07"
-  skillhub.version: "V27"
+  skillhub.version: "V29"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "141006"
   skillhub.high_sensitive: "false"
@@ -48,6 +48,7 @@ node <skill_dir>/scripts/sync-effective-rules-with-sso.mjs \
 来源目录用于名称兜底：以 repo-root/cwd 向上找 Git 根，否则取该目录的绝对路径。不能用 output-dir 冒充仓库。
 
 public 是默认模式，不获取或发送 SSO 票据。可选 `--mis` 仅自报调用方，不影响权限；未提供时记匿名，不猜系统用户名或 Git 作者。
+public 仍会在 `Authorization` 携带平台公开 anon key：NoCode Functions 网关在执行函数前就校验 JWT，缺头会直接 401 并返回无信封的 `{"msg":...}`。该 key 只是公开的网关凭证（内置常量，可用 `RULE_ANON_KEY` 覆盖），不是用户身份，也不会提升权限；覆盖值格式不合法时直接报错且不发起请求。
 显式 direct 保持认证身份；仅返回 L1 时也不偷偷转为匿名：
 
 ```shell
@@ -139,10 +140,11 @@ manifest 的 managed_file_releases、来源路径、Hash、大小及索引参与
 - 客户端仅发送仓库地址、领域阶段、协议/缓存、pull_id、执行工具和实际发行元数据；不上传源码、diff、分支、提示词、文件列表、模型或 Token 消耗。
 - 展示名由平台名→完整仓库名→来源绝对路径确定，配套 display_name_source；目录只保存一次，不用于 L2 匹配。
 - skill_name/skill_version 从实际运行目录 SKILL.md 读取，setup 包记录 setup 名称；读取失败为 null，不固定兜底。client_type/name/version 独立记录，CLI 不冒充 Skill。
-- public 未自报身份时为 anonymous；direct 为 verified_mis；显式匿名自报标记 self_reported，不提升为可信身份。
+- public 未自报身份时为 anonymous；direct 为 verified_mis；显式匿名自报标记 self_reported，不提升为可信身份。public 携带的 anon key 只用于通过网关，不改变上述身份判定。
 - 服务端记录实际快照、Release、逐条规则 UID、总字节数、分发模式和原因。ready/not_modified 是分发结果，不代表本地安装成功。
 - 本地成功 receipt 为 mt-rule-bundle-install/v1，status=installed/not_modified；新版 Runner 将执行开始与安装终态通过独立观测接口回传；旧版本仍仅有服务端下发回执。观测上报失败不改变下载或安装结果。
 - 失败展示安全 code/message、issues 和 request_id；不要用“public_rule_bundle_unavailable”一概替代具体问题。参数错误请补齐对应字段；认证、限流与服务故障不要自动切换身份或反复重试。
+- `RULE_BUNDLE_GATEWAY_AUTH_REJECTED` 表示拒绝发生在 NoCode Functions 网关、早于规则服务：响应只有 `{"msg":...}`、没有 request_id。public 检查 `RULE_ANON_KEY` 或内置 anon key，mtcli/direct 检查登录票据；不要当成业务错误码重试。
 
 ## 执行观测与兼容
 

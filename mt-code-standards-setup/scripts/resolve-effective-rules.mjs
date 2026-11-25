@@ -26,6 +26,14 @@ export const DEFAULT_GATEWAY =
 const GATEWAY_HOSTNAME = "db0y7dgg85gphojyva.database.sankuai.com";
 const GATEWAY_PATHNAME = "/functions/v1/rule-distribution";
 const LEGACY_GATEWAY_PATHNAME = "/functions/v1/rule-observability";
+// The platform gateway validates a Supabase JWT before the Edge Function runs.
+// The anon key is a public, non-privileged credential that only passes the
+// gateway; real identity still comes from the SSO ticket on authenticated
+// routes, so sending it on public pulls never widens access.
+const RULE_ANON_KEY_ENV = "RULE_ANON_KEY";
+export const DEFAULT_RULE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNzQ2OTc5MjAwLCJleHAiOjE5MDQ3NDU2MDB9.dEh2pf5-KZyNDW3pu9tipK0COz08EkXqpbPhUKnX3Bs";
+const JWT_TOKEN_PATTERN = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u;
 const LEGACY_BUNDLE_SCHEMA = "effective-rule-bundle/v1";
 const BUNDLE_SCHEMA = "effective-rule-bundle/v2";
 const STAGED_BUNDLE_SCHEMA = "effective-rule-bundle/v3";
@@ -336,6 +344,24 @@ const friendlyServiceError = (code, message) => {
   return text(message) || "规则包服务调用失败";
 };
 
+export const resolveRuleAnonKey = (environment = process.env) => {
+  const configured = text(environment?.[RULE_ANON_KEY_ENV]);
+  if (configured && !JWT_TOKEN_PATTERN.test(configured)) {
+    fail("RULE_BUNDLE_ANON_KEY_INVALID", `${RULE_ANON_KEY_ENV} 不是平台可识别的网关 JWT；取消该环境变量可回退到内置公开 anon key`);
+  }
+  return configured || DEFAULT_RULE_ANON_KEY;
+};
+
+// The platform gateway rejects requests before the Edge Function runs and answers
+// with a bare `{"msg": ...}` body: no error envelope and no request_id.
+const gatewayAuthRejection = (status, body) => {
+  if (![401, 403].includes(status) || !isObject(body) || isObject(body.error)) return "";
+  const reason = text(body.msg) || text(body.message);
+  if (!reason) return "";
+  return `平台网关在规则服务执行前拒绝了请求（HTTP ${status}：${reason}），该响应没有 request_id。`
+    + `public 拉取请检查 ${RULE_ANON_KEY_ENV} 或内置公开 anon key；mtcli/direct 请检查登录票据后重试。`;
+};
+
 export const validateGatewayUrl = (value) => {
   let url;
   try {
@@ -531,17 +557,21 @@ const serviceRequest = async ({
       fail("RULE_BUNDLE_RESPONSE_TOO_LARGE", `${serviceLabel}响应超过 ${maxResponseBytes / 1024 / 1024} MiB 安全上限`);
     }
     assertRuleResponseBudget(result.body, { allowAgentsIndexes, serviceLabel });
+    const rejected = gatewayAuthRejection(status, result.body);
+    if (rejected) fail("RULE_BUNDLE_GATEWAY_AUTH_REJECTED", rejected);
     return { status, ok: status >= 200 && status < 300, body: result.body };
   }
+  // Authorization stays out of `request.headers`: it is the transport-level
+  // gateway credential, not part of the rule protocol headers that mtcli
+  // dry-run validation compares. Public pulls carry the anon key because the
+  // shared gateway rejects requests without a JWT before the function runs.
+  const authorization = `Bearer ${publicRequest ? resolveRuleAnonKey() : token}`;
   let response;
   try {
     response = await fetchImpl(request.url, {
       method: request.method,
       redirect: "error",
-      headers: publicRequest ? request.headers : {
-        ...request.headers,
-        "Authorization": `Bearer ${token}`,
-      },
+      headers: { ...request.headers, "Authorization": authorization },
       body: JSON.stringify(request.body),
     });
   } catch (error) {
@@ -559,6 +589,8 @@ const serviceRequest = async ({
     fail("RULE_BUNDLE_RESPONSE_NOT_JSON", `${serviceLabel}返回了非 JSON 内容`);
   }
   assertRuleResponseBudget(parsed, { allowAgentsIndexes, serviceLabel });
+  const rejected = gatewayAuthRejection(response.status, parsed);
+  if (rejected) fail("RULE_BUNDLE_GATEWAY_AUTH_REJECTED", rejected);
   return { status: response.status, ok: response.ok, body: parsed };
 };
 

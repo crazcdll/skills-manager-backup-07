@@ -363,12 +363,14 @@ def _find_file(file_lines: dict, name: str) -> str | None:
         return None
     if name in file_lines:
         return name
+    # 跳过内部元数据键（如 __renames__），只把真实文件路径当候选
+    keys = [k for k in file_lines if not k.startswith("__")]
     # 分级匹配，后缀要求目录边界；任一级多命中立即弃权。
     for matcher in (
         lambda f: f.endswith("/" + name) or name.endswith("/" + f),
         lambda f: f.split("/")[-1] == name.split("/")[-1],
     ):
-        hits = [f for f in file_lines if matcher(f)]
+        hits = [f for f in keys if matcher(f)]
         if hits:
             return hits[0] if len(hits) == 1 else None
     return None
@@ -404,8 +406,16 @@ def parse_hunk_map(diff_text: str) -> dict:
     实现方式：hunk 头初始化双侧游标（old_cur=s, new_cur=d），逐行推进：
       '-'（REMOVED）只 old_cur+1；'+'（ADDED）只 new_cur+1；
       ' '（CONTEXT）配对 old_cur→new_cur 后双侧 +1。
-    返回 {file: {"pairs": [(old, new), ...],       # CONTEXT 配对（精确锚点）
-                 "span": (old_min, old_max)}}       # hunk 覆盖的旧行区间
+    返回 {file: {"pairs": [(old, new), ...],   # CONTEXT 配对（精确锚点）
+                 "span": (del_lo, del_hi),     # 实际删除旧行区间（非 hunk 全范围）
+                 "del_lines": {old, ...},      # 实际被删除的旧行号集合
+                 "checkpoints": [(old_end, cumulative_net), ...]}}
+    # 净偏移累计制（Argus #1/#2/#3 修复，2026-11-24）：
+    #   每个 hunk 结束时记录（旧行末 boundary, 累计净增删）；
+    #   未改动旧行的新坐标 = 旧行 + 其之前全部 hunk 的累计净增删；
+    #   删除只认 del_lines（上'-'的行），不再用全文件 min/max span 误伤
+    #   hunk 间未修改区（旧 #1）；纯增删无 CONTEXT 也有偏移（旧 #2）；
+    #   末段 CONTEXT 后的增删计入 hunk 净变化（旧 #3）。
     游标重建不依赖行内行号列（CONTEXT 行只显示 destination 坐标），
     方向可靠性由 self-test 钉死（compare-diff --from 新 --to 旧）。
     多文件归属（2026-11-24 加固）：维护「当前活跃文件」状态——
@@ -420,7 +430,9 @@ def parse_hunk_map(diff_text: str) -> dict:
 
     def _ensure(key):
         if key and key != "/dev/null":
-            out.setdefault(key, {"pairs": [], "span": [None, None]})
+            out.setdefault(key, {"pairs": [], "span": [None, None],
+                                 "del_lines": set(), "checkpoints": [],
+                                 "_open": None})
             return key
         return None
 
@@ -439,8 +451,9 @@ def parse_hunk_map(diff_text: str) -> dict:
             df = raw[4:].strip()
             if df.startswith("b/"):
                 df = df[2:]
-            if df == "/dev/null":
-                # 文件被删除：由 source 侧承接映射（游标仍推进）
+            if (not df or df == "/dev/null") and src_file:
+                # 文件被删除（/dev/null 或空路径 +++ b/）：由 source 侧承接映射
+                # （游标仍推进）；Argus #4：空 destination 同样按删除处理
                 df = src_file
             cur_file = _ensure(df)
             # rename（src≠dst 非 dev/null）：两侧都建映射共用数据
@@ -450,9 +463,15 @@ def parse_hunk_map(diff_text: str) -> dict:
                 if _alt and _alt != cur_file:
                     # source 侧映射 = destination 侧同名 dict（同步推进）
                     out[_alt] = out[cur_file]
+                # Argus #5：记录 rename 目标侧→源路径，供迁移链改写 issue.file
+                if cur_file is not None:
+                    out.setdefault("__renames__", {})[cur_file] = src_file
             continue
         m = _HUNK_RE.match(raw)
         if m:
+            # 关闭上一个 hunk：落账净偏移 checkpoint
+            if cursor is not None and cur_file is not None:
+                _close_hunk(out[cur_file], cursor)
             cursor = (int(m.group(1)), int(m.group(3)))
             continue
         if cursor is None or cur_file is None:
@@ -464,18 +483,38 @@ def parse_hunk_map(diff_text: str) -> dict:
             continue
         s, d = cursor
         ent = out[cur_file]
+        if ent.get("_open") is None:
+            ent["_open"] = (s, d)   # hunk 起始游标（净偏移计算用）
         if prefix == "-":
+            ent["del_lines"].add(s)
             ent["span"] = [s if ent["span"][0] is None else ent["span"][0], s]
             cursor = (s + 1, d)
         elif prefix == "+":
             cursor = (s, d + 1)
         else:
             ent["pairs"].append((s, d))
-            lo, hi = ent["span"]
-            ent["span"] = [s if lo is None else min(lo, s),
-                           s if hi is None else max(hi, s)]
             cursor = (s + 1, d + 1)
+    # EOF 关闭最后 hunk 并清理临时字段
+    if cursor is not None and cur_file is not None:
+        _close_hunk(out[cur_file], cursor)
+    for key in list(out):
+        if key.startswith("__"):
+            continue   # 内部元数据键（__renames__ 等）非 hunk-entry，跳过清理
+        out[key].pop("_open", None)
     return out
+
+
+def _close_hunk(ent: dict, cursor: tuple) -> None:
+    """hunk 结束时落账（old 侧 boundary, 累计净增删）checkpoint。"""
+    opened = ent.pop("_open", None)
+    if not opened:
+        return
+    s0, d0 = opened
+    s_end, d_end = cursor
+    # 游标在最后消费行 +1 之后：hunk 消费 old [s0,s_end) / new [d0,d_end)
+    net = (d_end - d0) - (s_end - s0)
+    prev_net = ent["checkpoints"][-1][1] if ent["checkpoints"] else 0
+    ent["checkpoints"].append((s_end, prev_net + net))
 
 
 def map_line_old_to_new(line, hunk_entry) -> tuple:
@@ -494,20 +533,20 @@ def map_line_old_to_new(line, hunk_entry) -> tuple:
     for old, new in pairs:
         if old == line:
             return ("mapped", new)
-    lo, hi = hunk_entry.get("span") or (None, None)
-    if lo is not None and hi is not None and lo <= line <= hi:
+    # 实际删除行（带'-'的旧行）→ deleted；不再用全文件 span 区间误伤
+    if line in (hunk_entry.get("del_lines") or set()):
         return ("deleted", None)
-    # hunk 之外的未改动行：坐标仍可能被**前面 hunk 的净增删行数**整体平移。
-    # 用 line 之前最近的 CONTEXT 配对推算平移量（old_p→new_p 差值）：
-    #   line 在全部配对之前 → 无平移（same）；否则新行号 = line + (new_p - old_p)。
-    # 该结果仍只是候选——采用与否由上层 T0 重锚定验证收口（fail-safe）。
-    best = None
-    for old_p, new_p in pairs:
-        if old_p < line and (best is None or old_p > best[0]):
-            best = (old_p, new_p)
-    if best is None:
+    # 未改动行：新坐标 = 旧行 + 其之前全部 hunk 的累计净增删
+    # （净偏移累计制：纯增删/末段增删/hunk 间区域均有偏移，Argus #1/#2/#3）
+    offset = 0
+    for boundary, net in (hunk_entry.get("checkpoints") or []):
+        if line >= boundary:
+            offset = net
+        else:
+            break
+    if offset == 0:
         return ("same", line)
-    return ("mapped", line + (best[1] - best[0]))
+    return ("mapped", line + offset)
 
 
 def migrate_issues_for_drift(issues: list, hunk_map: dict) -> None:
@@ -527,6 +566,17 @@ def migrate_issues_for_drift(issues: list, hunk_map: dict) -> None:
         if not fp:
             it["_driftNote"] = "漂移 hunk 中未找到该文件（行号未迁移）"
             continue
+        # Argus #5：rename 迁移——issue.file 指向 rename 目标侧时，
+        # 锚定/评论应同步改写为漂移 hunk 实际侧的路径（ADDED 侧语义）
+        ren = (hunk_map or {}).get("__renames__") or {}
+        if it.get("file") != fp and fp not in ren:
+            pass  # 后缀匹配到同文件：不改写
+        elif it.get("file") != fp and fp in ren \
+                and ren[fp] == it.get("file"):
+            it["_driftNote"] = ("rename 迁移：%s → %s（L1 路径同步）"
+                                 % (it.get("file"), fp))
+            it["_driftOrigFile"] = it.get("file")
+            it["file"] = fp
         status, new_line = map_line_old_to_new(it.get("line"), hunk_map[fp])
         if status == "deleted":
             # 问题行在漂移中被删除：不迁移行号，交给降档链（T2-T4）就近锚定
@@ -679,8 +729,12 @@ def _tier_fallback(it: dict, index: dict) -> None:
     if alt:
         it["_anchorOrigLine"] = it.get("line")
         it["line"] = alt[0]
-        if line_type != "ADDED" and any(ln == alt[0] for ln, _ in buckets["ADDED"]):
+        # Argus #7：切换行侧必须同步 lineType（双向）——
+        # 借用另一侧的行号却保留原 lineType 会导致行内评论路由到错误行侧
+        if any(ln == alt[0] for ln, _ in buckets["ADDED"]):
             it["lineType"] = "ADDED"
+        elif any(ln == alt[0] for ln, _ in buckets["REMOVED"]):
+            it["lineType"] = "REMOVED"
         it["_anchor"] = "relocated"
         it["_anchorPrecision"] = "file-level"
         it["_anchorNote"] = ("无 %s 合法行，锚定文件首个变更行 %d（已按需切换 lineType）"

@@ -346,7 +346,16 @@ def load_issues(issues_files):
             log(f"⚠️  issue severity 非法 '{sev_raw}'，丢弃: {it.get('ruleId')}")
             continue
         it["severity"] = sev
-        key = (it.get("file", ""), it.get("line"), it.get("ruleId", ""))
+        # Argus #17（2026-11-24 draft10）：同坐标不同根因首胜去重——
+        # 旧键 (file, line, ruleId) 不含内容，两个不同根因的问题恰好
+        # 同文件+同行（ruleId 缺失或相同）时，后者被静默丢弃，违反
+        # P0/P1 零漏报承诺。键加 summary 归一化哈希：真重复（多产物
+        # 文件重复出现同一问题）summary 一致照旧去重；不同根因 summary
+        # 必不同得以保留。
+        _sum_norm = re.sub(r"\s+", " ", str(it.get("summary") or "").strip())
+        _sum_hash = hashlib.sha1(_sum_norm.encode("utf-8")).hexdigest()[:12]
+        key = (it.get("file", ""), it.get("line"), it.get("ruleId", ""),
+               _sum_hash)
         if key in seen:
             continue
         seen.add(key)
@@ -549,12 +558,17 @@ def evaluate_extan_gate(checks, note):
     return gate_ok, gate_reason, required_failed
 
 
-def derive_conclusion(counts, override="", extan_gate_ok=True, extan_gate_reason=""):
+def derive_conclusion(counts, override="", extan_gate_ok=True, extan_gate_reason="",
+                      issues_input_ok=True):
     """根据 P0/P1/P2 计数自动推导 Review 结论。
     override 非空且门禁未通过时,override 被否决(门禁优先级最高);
-    门禁通过时 override 直接生效。"""
+    门禁通过时 override 直接生效。
+    issues_input_ok=False 表示显式传入的 issues 产物全部缺失/不可解析——
+    审查尚未发生(而非"审查通过"),结论不得按通过口径发布。"""
     if not extan_gate_ok:
         return "⚠️ 核验未完成（%s）" % extan_gate_reason
+    if not issues_input_ok:
+        return "⚠️ 审查产物缺失（未检测到有效 issues 产物，不得按通过口径发布）"
     if override:
         return override
     if counts["p0"] > 0 or counts["p1"] > 0:
@@ -2050,9 +2064,12 @@ def plan_publish_anchors(args, issues):
                 it["_publishPlan"] = "inline"
                 plan["inline_ok"] += 1
                 continue
-        if _sev in ("P0", "P1") and _line_shape_ok(it):
+        if (_sev in ("P0", "P1") and _line_shape_ok(it)
+                and (it.get("file") or "").strip()):
             # 极端兜底: P0/P1 不落 global——重拉通道整体不可用/锚定 invalid
-            # 时，只要行号形状合法（int>0 + lineType 合法）就以现有最优行号
+            # 时，只要行号形状合法（int>0 + lineType 合法）+ 文件非空
+            # （Argus #16：空 file 进 inline 会主列表全文+兜底全文双重展示）
+            # 就以现有最优行号发行内；空 file 的 P0/P1 走 global 保全。
             # 发行内；invalid 且行号形状非法（如 None/0）的极端情况由
             # line_anchor 降档链保证不出现，此处仅为防御性最终闸。
             it["_publishPlan"] = "inline"
@@ -2128,6 +2145,10 @@ def _verify_late_drift(args, pr_url, code_cli_py, inline_comments):
                                       % base_note)
                 _iss_m.setdefault("_publishNote", c["_snapshotNote"])
                 _iss_m["positionStatus"] = "unconfirmed"
+                # Argus #13：警示同步评论正文（可见），不只留内部 note
+                if "⚠️ 未复核" not in (c.get("text") or ""):
+                    c["text"] = ((c.get("text") or "").rstrip() +
+                                 "\n\n⚠️ 未复核：" + c["_snapshotNote"])
                 continue
             c["_snapshot"] = "degrade"
             c["_snapshotNote"] = ("%s且 line_anchor 不可用，无法复核 `%s` L%s"
@@ -2162,6 +2183,10 @@ def _verify_late_drift(args, pr_url, code_cli_py, inline_comments):
                 c["_snapshotNote"] = "%s且当前 diff 拉取失败，按现有锚点发行内（未复核）" % base_note
                 issue.setdefault("_publishNote", c["_snapshotNote"])
                 issue["positionStatus"] = "unconfirmed"
+                # Argus #13：警示同步评论正文（可见）
+                if "⚠️ 未复核" not in (c.get("text") or ""):
+                    c["text"] = ((c.get("text") or "").rstrip() +
+                                 "\n\n⚠️ 未复核：" + c["_snapshotNote"])
                 continue
             c["_snapshot"] = "degrade"
             c["_snapshotNote"] = "%s且当前 diff 拉取失败，无法校验行号" % base_note
@@ -2196,22 +2221,43 @@ def _verify_late_drift(args, pr_url, code_cli_py, inline_comments):
                 # 验证通过）——SKILL 红线 20-③ 唯一允许的行号替换路径，
                 # 引擎受控修正，非人工改号。
                 if isinstance(planned_line, int) and planned_line != new_line:
-                    # 三种形态边界感知替换（数字后不能再跟数字，
-                    # 防 L691 误伤 L6912→L7002 的子串碰撞）：
-                    # L691→L700、行 691→行 700、第691行→第700行
+                    # Argus #10（2026-11-24）：行号引用替换加**文件作用域**——
+                    # 只处理「本文件名 + L{n}」紧邻形态（`file.java L691` /
+                    # `file.java:691` / `**文件**：`file.java` L691`），
+                    # 不再全正文裸扫 L{n}——其他文件 L691、代码字符串
+                    # "L691"、长编号 L6910 均不受影响。
                     _body = c.get("text") or ""
                     _p = str(planned_line)
                     _n = str(new_line)
-                    _body = re.sub(r"(?<!\d)L%d(?!\d)" % planned_line,
-                                   "L" + _n, _body)
-                    _body = re.sub(r"(?<!\d)行 %d(?!\d)" % planned_line,
-                                   "行 " + _n, _body)
-                    _body = re.sub(r"(?<!\d)第%d行" % planned_line,
-                                   "第" + _n + "行", _body)
+                    import re as _re
+                    _fbase = fp.rsplit("/", 1)[-1].rsplit(".", 1)[0]
+                    _fpat = _re.escape(fp.rsplit("/", 1)[-1])
+                    # 形态1: `file.java` L691 / file.java L691（文件名紧邻行号）
+                    _body = _re.sub(
+                        r"(`?%s`?)\s*L%d(?!\d)" % (_fpat, planned_line),
+                        r"\1 L" + _n, _body)
+                    # 形态2: file.java:691
+                    _body = _re.sub(
+                        r"(`?%s`?):%d(?!\d)" % (_fpat, planned_line),
+                        r"\1:" + _n, _body)
+                    # 形态3/4: 中文表述「行 691」「第691行」恢复替换
+                    # （旧实现原有形态；中文引用极少不带文件名跨文件误伤，
+                    # Argus #10 指控的是 L{n} 裸扫；数字边界防护保留）
+                    _body = _re.sub(
+                        r"(?<!\d)行 %d(?!\d)" % planned_line,
+                        "行 " + _n, _body)
+                    _body = _re.sub(
+                        "第%s行" % _re.escape(str(planned_line)),
+                        "第" + _n + "行", _body)
                     c["text"] = _body
-                if "📍 行号锚定" not in (c.get("text") or ""):
+                    # 无论是否命中形态，统一追加「审查位置 → 发送位置」
+                    # 说明，正文读者可追溯迁移前坐标（Argus #12 分裂口径）。
                     c["text"] = (c.get("text") or "") + \
-                        "\n📍 行号锚定：发送前代码更新，已迁移至新位置（精度：迁移）"
+                        "\n📍 行号锚定：发送前代码更新，审查时位置 L%s → 发送位置 L%s（精度：迁移）" % (planned_line, new_line)
+                else:
+                    if "📍 行号锚定" not in (c.get("text") or ""):
+                        c["text"] = (c.get("text") or "") + \
+                            "\n📍 行号锚定：发送前代码更新，已迁移至新位置（精度：迁移）"
                 issue.setdefault("_publishNote", "发送前漂移已迁移 L%s" % new_line)
                 if issue.get("positionStatus") != "confirmed":
                     issue["positionStatus"] = "unconfirmed"
@@ -2224,6 +2270,10 @@ def _verify_late_drift(args, pr_url, code_cli_py, inline_comments):
                                       % (base_note, issue.get("_anchorNote") or mark))
                 issue.setdefault("_publishNote", c["_snapshotNote"])
                 issue["positionStatus"] = "unconfirmed"
+                # Argus #13：警示同步评论正文（可见）；位置未复核须明示
+                if "⚠️ 未复核" not in (c.get("text") or ""):
+                    c["text"] = ((c.get("text") or "").rstrip() +
+                                 "\n\n⚠️ 未复核（行号可能偏移）：" + c["_snapshotNote"])
                 continue
             # 行号形状非法（理论不可达，防御）：落入通用降级
         if mark in ("verified", "relocated") and new_line != planned_line:
@@ -2309,14 +2359,18 @@ def _fallback_issue_text(it, sev, idx, emoji, rule_id, reason):
 def _is_inline_publishable(it):
     """行内发布判定的单一事实源。
 
-    assemble_inline_comments 的收口三条件（lineType 枚举 / 行号形状 /
-    发布计划 inline）收敛为一个函数；assemble_global_comment 据此决定
-    主列表是否展开详情——两处共用同一口径，物理上不会再分叉。
+    assemble_inline_comments 的收口四条件（文件非空 / lineType 枚举 /
+    行号形状 / 发布计划 inline）收敛为一个函数；assemble_global_comment
+    据此决定主列表是否展开详情——两处共用同一口径，物理上不会再分叉。
+    Argus #16（2026-11-24）：file 空/缺失的条目不可行内——否则主列表
+    展开全文后发送循环又全文兜底，同一问题全文展示两次。
     """
     line = it.get("line")
     line_shape_ok = isinstance(line, int) and not isinstance(line, bool) and line > 0
     line_type = (it.get("lineType") or "ADDED").upper()
-    return (line_type in ("ADDED", "REMOVED")
+    file_ok = bool((it.get("file") or "").strip())
+    return (file_ok
+            and line_type in ("ADDED", "REMOVED")
             and line_shape_ok
             and it.get("_publishPlan") == "inline")
 
@@ -2766,6 +2820,12 @@ def _position_status_of(it):
       unconfirmed 其余一切情形（invalid/kept/skipped/nofile/未参与/降级全局）
     只描述定位可靠性，不改变严重级别、计数门禁与行内策略。
     """
+    # Argus #11（2026-11-24）：本轮显式 unconfirmed 保守优先——
+    # 漂移复核/diff 拉取失败/复核异常分支写入的 issue["positionStatus"] =
+    # "unconfirmed" 是本轮快照口径的强信号，confirmed 只能来自本轮当前
+    # 快照验证（_anchor + _publishPlan），不能被残留的 verified/exact 推导覆盖。
+    if it.get("positionStatus") == "unconfirmed":
+        return "unconfirmed"
     if (it.get("_anchor") in ("verified", "relocated")
             and it.get("_publishPlan") != "global"):
         # 精度档语义：exact（内容验证）/ mapped（L1 显式配对迁移）= 已确认；
@@ -2797,6 +2857,16 @@ def _build_doc_issues(issues, extra_fields):
             "file": it.get("file", "") or "",
             "line": it.get("line", 0) or 0,
             "lineType": it.get("lineType", "") or "",
+            # Argus #12（2026-11-24）：审查快照坐标与迁移链入结构化记录——
+            # 两坐标不同即说明发生过迁移（_driftOrigLine 漂移前 /
+            # _anchorOrigLine 重锚定前），消费方可追溯口径
+            "reviewSnapshotLine": (it.get("_driftOrigLine")
+                                   or it.get("_anchorOrigLine")
+                                   or it.get("line", 0) or 0),
+            "coordinateMigration": bool(
+                (it.get("_driftOrigLine") or it.get("_anchorOrigLine"))
+                and (it.get("_driftOrigLine") or it.get("_anchorOrigLine"))
+                != (it.get("line") or 0)),
             "code": it.get("code", "") or "",
             "description": it.get("description", "") or "",
             "risk": it.get("risk", "") or "",
@@ -3636,6 +3706,10 @@ def step7_comment_to_pr(args, inline_comments, global_text):
                         if isinstance(_iss, dict):
                             _iss.setdefault("_publishNote", c["_snapshotNote"])
                             _iss["positionStatus"] = "unconfirmed"
+                        # Argus #13：警示同步评论正文（可见）
+                        if isinstance(_iss, dict) and "⚠️ 未复核" not in (c.get("text") or ""):
+                            c["text"] = ((c.get("text") or "").rstrip() +
+                                         "\n\n⚠️ 未复核：" + c["_snapshotNote"])
                     else:
                         c["_snapshot"] = "degrade"
                         c["_snapshotNote"] = f"发送前复核异常（{type(e).__name__}），降级全局"
@@ -3742,28 +3816,68 @@ def step7_comment_to_pr(args, inline_comments, global_text):
                     p0p1_sent += 1
                 log(f"  ✅ 行内评论 #{idx+1}: {file_keyword}:{line} (commentId={comment_id})")
             except CommentError as e:
+                _err_name = ""
+                _err_str = str(e)
                 inline_errors.append(f"#{idx+1} {file_keyword}:{line} - {e}")
                 log(f"  ❌ 行内评论 #{idx+1}: {e}")
-                # 发送失败不丢弃——分两种兜底口径（防重复展示）：
-                # ① 主列表已展开详情的（原 plan=inline 的 P0/P1）：
-                #    全文已在全局评论区主列表，只追加单行标注防重复；
-                # ② 未在主列表展开的：全文进兜底章节（内容不丢）
-                _fiss = comment.get("_issue")
-                _shown_in_main = (isinstance(_fiss, dict)
-                                  and _inline_severity(_fiss) in ("P0", "P1"))
-                if text and not _shown_in_main:
-                    inline_send_failures.append(
-                        (f"行内评论发送失败：`{file_keyword}` L{line}", text))
-                elif _shown_in_main:
-                    inline_send_failures.append(
-                        (f"行内评论发送失败：`{file_keyword}` L{line}",
-                         "详情见上方主列表（已完整展示，此处不重复）"))
-                # 失败分支同步 issue 结构化终态（与漂移降级分支
-                # 同口径）——否则 issue 仍按计划口径标 confirmed 行内，
-                # cr_result/学城文档与 PR 实际（全局兜底）不一致
-                if isinstance(_fiss, dict):
-                    _fiss["_publishPlan"] = "global"
-                    _fiss["_publishNote"] = f"行内评论发送失败（{str(e)[:120]}），兜底全局"
+            except (TypeError, ValueError, KeyError, AttributeError) as e:
+                # Argus #14（2026-11-24）：非 CommentError 异常不得裸逃逸——
+                # 与 CommentError 同口径兜底（保留异常类别与原始错误，全文
+                # 进有效兜底渠道，后续条目继续发送），不中断整个 7A。
+                # ⚠️ except...as e 块结束后 e 被自动 del，异常信息必须
+                # 在块内先落到局部变量，下方兜底段才能安全引用
+                _err_name = f"（{type(e).__name__}）"
+                _err_str = str(e)
+                inline_errors.append(
+                    f"#{idx+1} {file_keyword}:{line} - [{type(e).__name__}] {e}")
+                log(f"  ❌ 行内评论 #{idx+1} 发送异常（{type(e).__name__}）: {e}")
+            except Exception as e:
+                _err_name = f"（意外异常 {type(e).__name__}）"
+                _err_str = str(e)
+                inline_errors.append(
+                    f"#{idx+1} {file_keyword}:{line} - [意外异常 {type(e).__name__}] {e}")
+                log(f"  ❌ 行内评论 #{idx+1} 意外异常: {e}")
+            else:
+                continue
+            # ── 发送失败/异常统一兜底（Argus #14：三类异常同口径）──
+            # 发送失败不丢弃——分两种兜底口径（防重复展示）：
+            # ① 主列表已展开详情的（原 plan=inline 的 P0/P1）：
+            #    全文已在全局评论区主列表，只追加单行标注防重复；
+            # ② 未在主列表展开的：全文进兜底章节（内容不丢）
+            _fiss = comment.get("_issue")
+            # Argus #15（2026-11-24）：短引用「详情见上方」只有主列表
+            # 确实展开该条详情才可用——判定统一走 _is_inline_publishable
+            # 单一事实源（plan=inline + file 非空 + 行号形状 + lineType），
+            # 不再仅凭 severity 推断，避免空正文/缺 file 时悬空引用。
+            # Argus 复测补充（同日）：独立调用/FE-confirm 场景传入的
+            # global_text 可能为空（主列表不存在）——四条件满足但正文
+            # 无处可「见上方」。故短引用必须同时验证：主列表实际渲染了
+            # 该条内容（按 summary 片段 / file:line 锚点在正文中实体命中），
+            # 否则降级全文兜底（内容不丢优先于篇幅优化）。
+            _shown_in_main = (isinstance(_fiss, dict)
+                              and _is_inline_publishable(_fiss))
+            if _shown_in_main:
+                _ref_probe = (str(_fiss.get("file") or "")[:1] and True)
+                _sum_probe = str(_fiss.get("summary") or "").strip()[:24]
+                _loc_probe = '`%s:%s`' % (_fiss.get("file") or "",
+                                         _fiss.get("line") or "")
+                _shown_in_main = bool(
+                    global_text
+                    and (_sum_probe in global_text or _loc_probe in global_text))
+
+            if text and not _shown_in_main:
+                inline_send_failures.append(
+                    (f"行内评论发送失败{_err_name}：`{file_keyword}` L{line}", text))
+            elif _shown_in_main:
+                inline_send_failures.append(
+                    (f"行内评论发送失败{_err_name}：`{file_keyword}` L{line}",
+                     "详情见上方主列表（已完整展示，此处不重复）"))
+            # 失败分支同步 issue 结构化终态（与漂移降级分支
+            # 同口径）——否则 issue 仍按计划口径标 confirmed 行内，
+            # cr_result/学城文档与 PR 实际（全局兜底）不一致
+            if isinstance(_fiss, dict):
+                _fiss["_publishPlan"] = "global"
+                _fiss["_publishNote"] = f"行内评论发送失败{_err_name}（{_err_str[:120]}），兜底全局"
     else:
         log("ℹ️  无可发送的行内评论，跳过 7A")
 
@@ -4300,6 +4414,35 @@ def main(argv=None):
     issues = load_issues(args.issues_file)
     # 软门禁：issue_io 逐条校验，不阻塞发布；结果落盘供追溯，不合规条目降级处理
     issues = soft_gate_issues(args, issues)
+    # ── #18 输入完整性门禁:显式传入的 issues 产物全部缺失/不可解析时,
+    # 审查尚未发生(而非"审查通过"),结论不得按通过口径发布。
+    # 合法的空数组 [] / 空 findings 属于"审查发生且无发现",不拦。 ──
+    _issues_input_ok = True
+    if getattr(args, "issues_file", None):
+        _any_valid = False
+        for _p in args.issues_file:
+            if not _p or not os.path.isfile(_p):
+                continue
+            try:
+                with open(_p, "r", encoding="utf-8") as _f:
+                    _d = json.load(_f)
+                # 有效性口径收紧(draft9): 仅「数组全为 dict 元素」或
+                # 「step4e 封装体 dict」算有效产物。空数组 [] 合法(审查
+                # 发生且无发现);数字数组/空对象/字符串等形式合法但内容
+                # 非法的文件不算有效——load_issues 对其产出 0 条 issue,
+                # 若不拦将回退为「空产物假通过」。
+                if isinstance(_d, list):
+                    if all(isinstance(_x, dict) for _x in _d):
+                        _any_valid = True
+                elif (isinstance(_d, dict)
+                      and _d.get("schema") == "step4e-envelope/v1"):
+                    _any_valid = True
+            except Exception:
+                continue
+        if not _any_valid:
+            _issues_input_ok = False
+            log("⛔ 输入完整性门禁: 显式传入的 issues 产物全部缺失或不可解析"
+                " → 结论强制「审查产物缺失」(不得按通过口径发布)")
     # ── 外部专项审查门禁: FAILED 不再等价零发现,必选失败拦结论 ──
     extan_checks, _extan_findings, extan_note, extan_meta = load_extan_checks(args.extan_status_file)
     # runId 匹配校验: 封装体是上一轮 PR 的陈旧残留时,checks 不得被本轮门禁误读
@@ -4325,7 +4468,7 @@ def main(argv=None):
             extan_note = "step4e 封装体身份不匹配(疑似陈旧残留),按 UNKNOWN 拦截"
     extan_gate_ok, extan_gate_reason, extan_required_failed = evaluate_extan_gate(extan_checks, extan_note)
     counts = count_issues(issues)
-    conclusion = derive_conclusion(counts, args.conclusion, extan_gate_ok, extan_gate_reason)
+    conclusion = derive_conclusion(counts, args.conclusion, extan_gate_ok, extan_gate_reason, _issues_input_ok)
 
     log(f"📊 Issues: P0={counts['p0']} P1={counts['p1']} P2={counts['p2']} P3={counts['p3']} → {conclusion}")
     if not extan_gate_ok:

@@ -164,9 +164,17 @@ export function validateCanonicalDraftContent(content) {
     rejectRuleHeading(document.title, `/documents/${document.document_ref}/title`);
     for (const block of document.content) if (block.type === 'markdown') assertNoEmbeddedRuleHeadings(block.text, `/documents/${document.document_ref}/content`);
   }
+  // Confirmed legacy packages omit per-rule metadata and must retain their original bytes.
+  const metadataCount = content.rules.filter((rule) => rule.metadata !== undefined).length;
+  ensure(metadataCount === 0 || metadataCount === content.rules.length, '/rules', '同一份规则包必须完整提供单条规范元数据。');
   for (const rule of content.rules) {
     oneLine(rule.title, `/rules/${rule.rule_ref}/title`);
     rejectRuleHeading(rule.title, `/rules/${rule.rule_ref}/title`);
+    const metadata = rule.metadata;
+    if (metadata) {
+      ensure(metadata.ruleType === rule.rule_type && metadata.level === 'L2' && metadata.ruleTitle === rule.title, `/rules/${rule.rule_ref}/metadata`, '单条规范元数据必须与规则正文一致，并且新建规则集只能使用 L2。');
+      ensure(metadata.description.trim() && metadata.category.length > 0, `/rules/${rule.rule_ref}/metadata`, '单条规范元数据必须包含描述和所属分类。');
+    }
     for (const block of rule.body) {
       if (block.type === 'markdown') assertNoEmbeddedRuleHeadings(block.text, `/rules/${rule.rule_ref}/body`);
       else if (block.caption) assertNoEmbeddedRuleHeadings(block.caption, `/rules/${rule.rule_ref}/caption`);
@@ -294,7 +302,28 @@ export function renderCanonicalDocuments(content, descriptor, { ruleSet, selecte
       for (const item of rule.body) body.push(item.type === 'markdown' ? item.text : `${item.caption ? `${item.caption}\n\n` : ''}${exampleMarkdown(item)}`);
     }
     const yamlScalar = (value) => JSON.stringify(value).replace(/[\u007f-\u009f\u2028\u2029]/gu, (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`);
-    const frontmatter = ['---', `ruleType: ${yamlScalar(document.rule_type)}`, `description: ${yamlScalar(document.description)}`, 'level: L2', `ruleSetId: ${yamlScalar(ruleSet.rule_set_id)}`, `owner: ${yamlScalar(descriptor.owner_mis)}`, '---'].join('\n');
+    const yamlArray = (values) => `[${values.map(yamlScalar).join(', ')}]`;
+    const documentRules = content.rules.filter((rule) => rule.document_ref === document.document_ref && selected.has(bound.ruleBindings.get(rule.rule_ref).rule_uid));
+    const metadata = documentRules[0].metadata;
+    const unique = (field) => [...new Set(documentRules.flatMap((rule) => rule.metadata[field]))];
+    const frontmatter = [
+      '---',
+      `ruleType: ${yamlScalar(document.rule_type)}`,
+      `description: ${yamlScalar(document.description)}`,
+      'level: L2',
+      `ruleSetId: ${yamlScalar(ruleSet.rule_set_id)}`,
+      `owner: ${yamlScalar(descriptor.owner_mis)}`,
+      ...(metadata ? [
+        `ruleTitle: ${yamlScalar(document.title)}`,
+        `ruleVersion: ${yamlScalar(metadata.ruleVersion)}`,
+        `category: ${yamlArray(unique('category'))}`,
+        `severity: ${yamlArray(unique('severity'))}`,
+        `status: ${yamlArray(unique('status'))}`,
+        `language: ${yamlArray(unique('language'))}`,
+        `framework: ${yamlArray(unique('framework'))}`,
+      ] : []),
+      '---',
+    ].join('\n');
     const quote = (text) => text.split(/\r\n|\r|\n/u).map((line) => `> ${line}`).join('\n');
     const context = `**规则集说明**\n\n${quote(descriptor.rule_set_context.description)}\n\n**适用范围**\n\n${quote(descriptor.rule_set_context.applicability_scope)}`;
     files.set(bound.documentBindings.get(document.document_ref).source_path, `${frontmatter}\n\n# ${document.title}\n\n${context}\n\n${body.join('\n\n')}\n`);

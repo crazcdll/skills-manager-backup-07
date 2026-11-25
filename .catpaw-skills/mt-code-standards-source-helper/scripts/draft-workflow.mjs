@@ -5,6 +5,22 @@ import { generateAgentsIndex } from './preview.mjs';
 import { validateCanonicalDraftContent } from './canonical-content.mjs';
 const fail = (path, message) => { throw new PackageContractError('DRAFT_INVALID', path, message); };
 const keys = (object, allowed, path) => { if (!object || typeof object !== 'object' || Array.isArray(object) || Object.keys(object).some((key) => !allowed.includes(key))) fail(path, '草稿含不支持的字段或结构。'); };
+const languageNames = Object.freeze({ general: 'General', javascript: 'JavaScript', typescript: 'TypeScript', html: 'HTML', css: 'CSS', java: 'Java', spring: 'Java' });
+const frameworkNames = Object.freeze({ vue: 'Vue', react: 'React', mrn: 'MRN' });
+function defaultRuleMetadata(rule, document) {
+  return {
+    ruleType: 'Model Request',
+    description: document.description || rule.title,
+    level: 'L2',
+    ruleTitle: rule.title,
+    ruleVersion: '0.0.1',
+    category: [rule.category_key],
+    severity: [],
+    status: ['open'],
+    language: [...new Set((rule.tech_stacks || []).map((value) => languageNames[value] || value))],
+    framework: [...new Set((rule.tech_stacks || []).filter((value) => frameworkNames[value]).map((value) => frameworkNames[value]))],
+  };
+}
 export function emptyDraft(source, units) {
   return { schema_version: 'source-helper-draft/v1', content: { documents: [], rules: [], coverage: units.map((unit) => ({ unit_ref: unit.unit_ref, disposition: 'excluded', targets: [], reason: '尚未整理，不能作为最终排除决定。' })), resolutions: [] }, index_entries: [], open_questions: [{ question_ref: 'prepare_content', message: '请先根据固定单元整理规范、索引与处理决定，再生成最终包。' }] };
 }
@@ -53,22 +69,23 @@ export async function materializeDraft({ request, source, files, draft }) {
       : refs.map((ref) => units.get(ref).evidence_span);
     return { ...block, provenance: { origin: block.provenance.origin, source_spans: spans, reason: block.provenance.reason || '' } };
   };
+  const byDocument = new Map(content.documents.map((document) => [document.document_ref, document]));
   for (const document of content.documents) document.content = await Promise.all((document.content || []).map((block) => block.type === 'rule' ? block : convertBlock(block)));
-  for (const rule of content.rules) rule.body = await Promise.all((rule.body || []).map(convertBlock));
+  for (const rule of content.rules) {
+    const document = byDocument.get(rule.document_ref);
+    if (!document) fail(`/content/rules/${rule.rule_ref}/document_ref`, '规则引用了不存在的规范文档。');
+    if (rule.metadata === undefined) rule.metadata = defaultRuleMetadata(rule, document);
+    else keys(rule.metadata, ['ruleType', 'description', 'level', 'ruleTitle', 'ruleVersion', 'category', 'severity', 'status', 'language', 'framework'], `/content/rules/${rule.rule_ref}/metadata`);
+    rule.body = await Promise.all((rule.body || []).map(convertBlock));
+  }
   content.coverage = content.coverage.map((item) => { keys(item, ['unit_ref', 'disposition', 'targets', 'reason'], '/coverage'); const unit = units.get(item.unit_ref); if (!unit) fail('/coverage/unit_ref', '覆盖记录不属于固定读取器结果。'); return { source_ref: unit.source_ref, unit_ref: unit.unit_ref, byte_start: unit.byte_start, byte_end: unit.byte_end, disposition: item.disposition, targets: item.targets, reason: item.reason || '' }; });
   content.schema_version = CONTENT_SCHEMA; content.content_contract = CONTENT_CONTRACT;
-  let generated = generateAgentsIndex(content, source);
-  if (draft.index_entries.length) {
-    const byDoc = new Map(content.documents.map((doc) => [doc.document_ref, doc])); const bySource = new Map(source.files.map((file) => [file.source_ref, file])); const groups = new Map();
-    const cell = (value) => String(value || '').replace(/\|/gu, '\\|').replace(/[\r\n]/gu, ' ');
-    for (const row of draft.index_entries) {
-      keys(row, ['group', 'name', 'scene', 'document_ref'], '/index_entries'); if (![row.group, row.name, row.scene].every((x) => typeof x === 'string' && x.trim())) fail('/index_entries', '索引分组、名称和触发场景不能留空。');
-      const doc = byDoc.get(row.document_ref); if (!doc) fail('/index_entries', '索引引用了不存在的文档。'); const file = bySource.get(doc.source_ref); if (!file) fail('/index_entries', '索引文档缺少来源。');
-      const reference = source.type === 'km' ? source.locator.url : file.source_path;
-      if (!groups.has(row.group)) groups.set(row.group, []); groups.get(row.group).push(`| ${cell(row.name)} | ${cell(row.scene)} | \`${cell(reference)}\` |`);
-    }
-    generated.markdown = '# 规则集索引\n\n' + [...groups].map(([group, rows]) => `## ${cell(group)}\n\n| 名称 | 触发场景 | 路径 |\n| --- | --- | --- |\n${rows.join('\n')}\n`).join('\n');
+  const byDoc = byDocument;
+  for (const row of draft.index_entries) {
+    keys(row, ['group', 'name', 'scene', 'document_ref'], '/index_entries'); if (![row.group, row.name, row.scene].every((x) => typeof x === 'string' && x.trim())) fail('/index_entries', '索引分组、名称和触发场景不能留空。');
+    if (!byDoc.has(row.document_ref)) fail('/index_entries', '索引引用了不存在的文档。');
   }
+  const generated = generateAgentsIndex(content, source, draft.index_entries);
   content.agents_index = { schema_version: 'rule-set-agents-index/v1', path: 'AGENTS.md', bindings: generated.bindings };
   const payload = new Map(files); payload.set('content.json', utf8(canonical(content))); payload.set('AGENTS.md', utf8(generated.markdown));
   const manifest = { schema_version: CONVERSION_SCHEMA, operation: 'normalize_source', source, render_contract: RENDER_CONTRACT, converter: { name: 'mt-code-standards-source-helper', version: '0.2.0' }, counts: { sources: source.files.length, documents: content.documents.length, rules: content.rules.length, excluded_units: content.coverage.filter((unit) => unit.disposition === 'excluded').length }, files: [], content_digest: '' };

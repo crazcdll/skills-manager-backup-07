@@ -15,6 +15,7 @@ import {
   RuleBundleError,
   canonicalRepositoryKey,
   detectRepositoryDomain,
+  DEFAULT_RULE_ANON_KEY,
   readLocalGitMis,
   sha256Hex,
   syncEffectiveRuleBundle,
@@ -233,7 +234,7 @@ test("accepts every supported locator and preserves query/hash suffixes", () => 
   for (const locator of locators) assert.equal(validateRepositoryLocator(locator), locator);
 });
 
-test("public pull uses the anonymous repository route without an Authorization header", async () => {
+test("public pull sends the gateway anon key on the anonymous repository route", async () => {
   const root = await createRepository();
   let request;
   const receipt = await syncEffectiveRuleBundle({
@@ -246,7 +247,7 @@ test("public pull uses the anonymous repository route without an Authorization h
     },
   });
   assert.match(request.url, /\/v1\/public\/effective-rule-bundles\/resolve$/u);
-  assert.equal(request.init.headers.Authorization, undefined);
+  assert.equal(request.init.headers.Authorization, `Bearer ${DEFAULT_RULE_ANON_KEY}`);
   assert.equal(receipt.status, "installed");
   await assert.rejects(
     syncEffectiveRuleBundle({
@@ -257,6 +258,55 @@ test("public pull uses the anonymous repository route without an Authorization h
       fetchImpl: async () => response(bundleBody()),
     }),
     (error) => error.code === "RULE_BUNDLE_BOOTSTRAP_CONFLICT",
+  );
+});
+
+test("public pull prefers RULE_ANON_KEY and rejects a malformed override before network access", async () => {
+  const root = await createRepository();
+  const previous = process.env.RULE_ANON_KEY;
+  try {
+    let authorization = "";
+    process.env.RULE_ANON_KEY = "custom.anon.key";
+    await syncEffectiveRuleBundle({
+      publicPull: true,
+      repositoryLocator: "hfe/hotel-web",
+      repoRoot: root,
+      fetchImpl: async (_url, init) => {
+        authorization = init.headers.Authorization;
+        return response(bundleBody());
+      },
+    });
+    assert.equal(authorization, "Bearer custom.anon.key");
+
+    process.env.RULE_ANON_KEY = "not-a-jwt";
+    await assert.rejects(
+      syncEffectiveRuleBundle({
+        publicPull: true,
+        repositoryLocator: "hfe/hotel-web",
+        repoRoot: root,
+        fetchImpl: async () => { assert.fail("network"); },
+      }),
+      (error) => error.code === "RULE_BUNDLE_ANON_KEY_INVALID" && error.message.includes("RULE_ANON_KEY"),
+    );
+  } finally {
+    if (previous === undefined) delete process.env.RULE_ANON_KEY;
+    else process.env.RULE_ANON_KEY = previous;
+  }
+});
+
+test("gateway JWT rejection is reported as a gateway failure instead of a rule service error", async () => {
+  const root = await createRepository();
+  await assert.rejects(
+    syncEffectiveRuleBundle({
+      publicPull: true,
+      repositoryLocator: "hfe/hotel-web",
+      repoRoot: root,
+      fetchImpl: async () => response({ msg: "Error: Missing authorization header" }, 401),
+    }),
+    (error) => error.code === "RULE_BUNDLE_GATEWAY_AUTH_REJECTED"
+      && error.message.includes("平台网关")
+      && error.message.includes("RULE_ANON_KEY")
+      && error.message.includes("Missing authorization header"),
   );
 });
 
@@ -1410,7 +1460,7 @@ test("bootstraps published frontend L1 only after the server proves an exact rep
     repoRoot: root,
     bootstrap: true, mis: "aicr-agent",
     fetchImpl: async (url, init) => {
-      assert.equal(init.headers.Authorization, undefined);
+      assert.equal(init.headers.Authorization, `Bearer ${DEFAULT_RULE_ANON_KEY}`);
       calls.push({ url, body: JSON.parse(init.body) });
       if (url.endsWith("/v1/effective-rule-bundles/resolve")) {
         return response({ error: { code: "repository_not_registered" } }, 404);

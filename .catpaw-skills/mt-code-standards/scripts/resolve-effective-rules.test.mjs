@@ -2890,3 +2890,156 @@ test('Java L1 keeps the native relative index and verifies legacy receipts befor
     assert.equal((await pull(true)).status, 'not_modified');
   }
 });
+
+const relativeL1Body = (bootstrap, {
+  references = ['java/同名.md', 'database/同名.md', '工具%2F例.md'],
+  domain = 'backend', otherSet, wireNames = ['同名.md', '同名--8a4f.md', '工具%2F例.md'],
+} = {}) => {
+  const id = domain === 'frontend' ? 'frontend-l1' : 'java-l1';
+  const refs = [{ rule_set_id: id, release_id: id + '@2026', scope_level: 'L1' }];
+  if (otherSet) refs.push({ rule_set_id: otherSet, release_id: otherSet + '@2026', scope_level: 'L1' });
+  const files = references.map((reference, i) => ({
+    relative_path: 'l1/' + (otherSet && i === 1 ? otherSet : id) + '/' + wireNames[i],
+    content: '# ' + reference + '\r\n',
+  }));
+  const content = '\uFEFF# 源码索引\r\n\r\n| 规则文件 | 触发条件 |\r\n| --- | --- |\r\n' +
+    references.map((reference, i) => '| ' + (i === 0 ? '`./' + reference + '`' : i === 1 ? '[规则](' + reference + ')' : reference) + ' | 修改时 |').join('\r\n');
+  const body = (bootstrap ? bootstrapBody : bundleBody)({ refs, files, domain });
+  return withAgents(body, [agentsEntry(body, { ruleSetId: id, content, bindings: references.map((reference, i) => ({
+    reference, document_id: id + ':rules/' + reference, source_path: 'rules/' + reference,
+    bundle_relative_path: files[i].relative_path,
+  })) })]);
+};
+
+test('formal and public bootstrap install nested native paths and preserve a byte-exact index across cache hits and v1 upgrades', async () => {
+  for (const bootstrap of [false, true]) {
+    const root = await createRepository();
+    const body = relativeL1Body(bootstrap);
+    const pull = (cached = false) => syncEffectiveRuleBundle({ ...layoutOptions(root, { bootstrap, domain: 'backend' }),
+      fetchImpl: async (url, init) => {
+        if (bootstrap && url.endsWith('/v1/effective-rule-bundles/resolve')) return response({ error: { code: 'repository_not_registered' } }, 404);
+        assert.equal(JSON.parse(init.body).known_snapshot_id, cached ? body.snapshot.snapshot_id : undefined);
+        return response(cached ? { ...body, status: 'not_modified', files: [] } : body);
+      },
+    });
+    const rules = path.join(root, '.mdp/rules');
+    const directory = 'company/java/';
+    const entry = body.agents_indexes[0];
+    const index = path.join(rules, directory, 'AGENTS.md');
+    assert.deepEqual((await pull()).agents_index_warnings, []);
+    for (const binding of entry.bindings) {
+      assert.equal(await readFile(path.join(rules, directory, binding.reference), 'utf8'), '# ' + binding.reference + '\r\n');
+    }
+    assert.equal(await readFile(index, 'utf8'), entry.index.content);
+    assert.equal((await pull(true)).status, 'not_modified');
+
+    const old = await indexManifest(root, bootstrap);
+    const manifestPath = path.join(rules, bootstrap ? '.mt-l1-bootstrap.json' : '.mt-effective-rule-bundle.json');
+    old.agents_index_renderer = 'l1-relative/v2';
+    await writeFile(manifestPath, JSON.stringify(old));
+    assert.deepEqual((await pull()).agents_index_warnings, []);
+    assert.equal((await pull(true)).status, 'not_modified');
+
+    old.agents_index_renderer = 'java-l1-relative/v1';
+    const oldWarnings = [];
+    const previousFiles = [];
+    for (const [i, binding] of entry.bindings.entries()) {
+      const managed = directory + binding.reference;
+      const flat = directory + path.basename(binding.bundle_relative_path);
+      previousFiles.push(flat);
+      if (flat === managed) continue;
+      await rename(path.join(rules, managed), path.join(rules, flat));
+      for (const key of ['managed_file_hashes', 'managed_file_sizes', 'managed_file_releases', 'managed_file_sources']) {
+        old[key][flat] = old[key][managed];
+        delete old[key][managed];
+      }
+      const reference = (i === 0 ? './' : '') + binding.reference;
+      const message = i === 0 ? '引用无法唯一匹配本次下载文件：' : '引用未指向索引同目录的已安装文件：';
+      oldWarnings.push({ code: 'agents_index_unmatched_reference', message: message + reference, path: reference,
+        line: 5 + i, rule_set_id: entry.rule_set_id });
+    }
+    old.managed_files = previousFiles.sort();
+    old.agents_index_warnings = oldWarnings;
+    await writeFile(path.join(rules, bootstrap ? '.mt-l1-bootstrap.json' : '.mt-effective-rule-bundle.json'), JSON.stringify(old));
+    assert.deepEqual((await pull()).agents_index_warnings, []);
+    for (const binding of entry.bindings.slice(0, 2)) {
+      assert.equal(await readFile(path.join(rules, directory, binding.reference), 'utf8'), '# ' + binding.reference + '\r\n');
+      await assert.rejects(access(path.join(rules, directory, path.basename(binding.bundle_relative_path))), { code: 'ENOENT' });
+    }
+    assert.equal(await readFile(index, 'utf8'), entry.index.content);
+    assert.equal((await pull(true)).status, 'not_modified');
+  }
+});
+
+test('native Git L1 reserves verified targets and rejects unsafe, conflicting, or foreign paths before changing installed files', async () => {
+  const root = await createRepository();
+  const valid = relativeL1Body(false, { domain: 'frontend' });
+  await installBody(root, valid);
+  const manifest = path.join(root, '.mdp/rules/.mt-effective-rule-bundle.json');
+  const original = await readFile(manifest);
+  for (const references of [
+    ['../escape.md'], ['/abs.md'], ['AGENTS.md'], ['目录/../outside.md'],
+    ['file.md', 'file.md/child.md'], ['java/X.md', 'Java/Y.md'], ['sub/A.md', 'sub/a.md'],
+  ]) {
+    await assert.rejects(installBody(root, relativeL1Body(false, { domain: 'frontend', references })),
+      { code: /RULE_BUNDLE_(FILE_(PATH_INVALID|DUPLICATE)|AGENTS_INDEX_INVALID)/ });
+    assert.deepEqual(await readFile(manifest), original);
+  }
+  await assert.rejects(installBody(root, relativeL1Body(false, { domain: 'frontend', otherSet: 'frontend-other' })),
+    { code: 'RULE_BUNDLE_AGENTS_INDEX_INVALID' });
+  assert.deepEqual(await readFile(manifest), original);
+});
+
+test('native L1 Markdown keeps CR, CRLF and LF while ignoring fenced examples and inline-code pipes', async () => {
+  const root = await createRepository();
+  const rulesRoot = path.join(root, '.mdp/rules');
+  for (const newline of ['\r', '\r\n', '\n']) {
+    const reference = 'java/真实.md';
+    const body = relativeL1Body(false, { references: [reference], wireNames: ['real--abcd.md'] });
+    const entry = body.agents_indexes[0];
+    const header = '| 规则文件 | 触发条件 |';
+    const divider = '| --- | --- |';
+    const fake = '| 不应安装.md | 示例 |';
+    const content = [
+      '\uFEFF# 索引', '````md', '```', header, divider, fake,
+      '```` 这行仍在围栏中', header, divider, fake, '~~~~', header, divider, fake, '`````',
+      '', header, divider, '| `./' + reference + '` | 修改 ``a` | b`` 或 c \\| d |',
+    ].join(newline);
+    entry.index.content = content;
+    entry.index.content_hash = 'sha256:' + sha256Hex(content);
+    withAgents(body, [entry]);
+    const pull = cached => syncEffectiveRuleBundle({ ...layoutOptions(root, { domain: 'backend' }),
+      fetchImpl: async (_, init) => {
+        assert.equal(JSON.parse(init.body).known_snapshot_id, cached ? body.snapshot.snapshot_id : undefined);
+        return response(cached ? { ...body, status: 'not_modified', files: [] } : body);
+      },
+    });
+    // A prior iteration may send its existing snapshot id with the next request.
+    await installBody(root, body, { domain: 'backend' });
+    const installed = await indexManifest(root);
+    assert.equal(installed.agents_index_renderer, 'l1-relative/v3');
+    assert.deepEqual(installed.agents_index_warnings, []);
+    assert.deepEqual(installed.managed_files, ['company/java/' + reference]);
+    assert.deepEqual(await readFile(path.join(rulesRoot, 'company/java/AGENTS.md')), Buffer.from(content));
+    assert.equal(await readFile(path.join(rulesRoot, 'company/java', reference), 'utf8'), '# ' + reference + '\r\n');
+    assert.equal((await pull(true)).status, 'not_modified');
+    if (newline !== '\r') continue;
+
+    // The old Java renderer saw one CR-only line and installed the flat wire name.
+    const managed = installed.managed_files[0];
+    const flat = 'company/java/real--abcd.md';
+    await rename(path.join(rulesRoot, managed), path.join(rulesRoot, flat));
+    for (const key of ['managed_file_hashes', 'managed_file_sizes', 'managed_file_releases', 'managed_file_sources']) {
+      installed[key][flat] = installed[key][managed];
+      delete installed[key][managed];
+    }
+    installed.managed_files = [flat];
+    installed.agents_index_renderer = 'java-l1-relative/v1';
+    installed.agents_index_warnings = [{ code: 'agents_index_table_missing',
+      message: '未识别到规则索引表格，Java 原生索引应包含“规则文件”和“触发条件”两列', rule_set_id: entry.rule_set_id }];
+    await writeFile(path.join(rulesRoot, '.mt-effective-rule-bundle.json'), JSON.stringify(installed));
+    assert.deepEqual((await pull(false)).agents_index_warnings, []);
+    await assert.rejects(access(path.join(rulesRoot, flat)), { code: 'ENOENT' });
+    assert.equal((await pull(true)).status, 'not_modified');
+  }
+});

@@ -739,6 +739,105 @@
               }
             }
           }
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "ruleType",
+            "description",
+            "level",
+            "ruleTitle",
+            "ruleVersion",
+            "category",
+            "severity",
+            "status",
+            "language",
+            "framework"
+          ],
+          "properties": {
+            "ruleType": {
+              "const": "Model Request"
+            },
+            "description": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2000
+            },
+            "level": {
+              "const": "L2"
+            },
+            "ruleTitle": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "ruleVersion": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40,
+              "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+            },
+            "category": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 20,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "uniqueItems": true
+            },
+            "severity": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 4,
+              "items": {
+                "enum": [
+                  "P0",
+                  "P1",
+                  "P2",
+                  "P3"
+                ]
+              },
+              "uniqueItems": true
+            },
+            "status": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 2,
+              "items": {
+                "enum": [
+                  "open",
+                  "closed"
+                ]
+              },
+              "uniqueItems": true
+            },
+            "language": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 20,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "uniqueItems": true
+            },
+            "framework": {
+              "type": "array",
+              "minItems": 0,
+              "maxItems": 20,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "uniqueItems": true
+            }
+          }
         }
       }
     },

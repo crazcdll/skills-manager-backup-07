@@ -4,7 +4,7 @@ import { mkdtemp, writeFile, readFile, mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { canonical, utf8, sha256, validatePackage, validateRuleSetIntent, PackageContractError, LIMITS } from './package-contract.mjs';
+import { canonical, utf8, sha256, validatePackage, validateRuleSetIntent, PackageContractError, LIMITS, agentsRows } from './package-contract.mjs';
 import { minimalPackage } from './fixtures/minimal-package.mjs';
 import { encodeStoreZip, decodeStoreZip } from './store-zip.mjs';
 import { buildSourceUnits, parseHistoryTree, renderHistoryNode, verifyReaderEvidence } from './source-units.mjs';
@@ -67,7 +67,7 @@ test('history JSON mapper retains raw ranges and marks unsupported components', 
 test('materialized draft has one canonical body, generated evidence and topic index', async () => {
   const packageFiles=await minimalPackage();const manifest=JSON.parse(new TextDecoder().decode(packageFiles.get('manifest.json')));const source=manifest.source;const files=new Map(source.files.map((file)=>[file.package_path,packageFiles.get(file.package_path)]));
   const draft=await readyDraft(source,files);const material=await materializeDraft({request:{standard_domain:'backend',rule_set:manifest.rule_set},source,files,draft});
-  assert.equal(material.validation,null);assert.ok(material.agentsIndex.includes('## 异常处理'));assert.equal(material.content.rules[0].body[0].provenance.origin,'source_extract');
+  assert.equal(material.validation,null);assert.ok(material.agentsIndex.includes('## 异常处理'));assert.ok(material.agentsIndex.includes('## 文件级索引'));assert.ok(material.agentsIndex.includes('Rule UID 范围'));assert.equal(material.content.rules[0].metadata.level,'L2');assert.equal(material.content.rules[0].metadata.ruleTitle,'保留异常链');assert.equal(material.content.rules[0].body[0].provenance.origin,'source_extract');
   const preview=await renderPreview(material);assert.ok(preview.html.includes('待编号 01'));assert.ok(preview.html.includes("connect-src 'none'"));
   await verifyReaderEvidence(await validateConversion(material.payload,{requireConfirmation:false}),material.payload);
   const manifestWithPlatformFields = JSON.parse(new TextDecoder().decode(material.payload.get('manifest.json')));
@@ -76,6 +76,11 @@ test('materialized draft has one canonical body, generated evidence and topic in
   await assert.rejects(validateConversion(forgedConversion, { requireConfirmation: false }), (error) => error.code === 'CONVERSION_PLATFORM_FIELD');
   material.content.coverage[0].unit_ref='forged_unit';
   await assert.rejects(verifyReaderEvidence({manifest,content:material.content},material.payload),/单元/);
+});
+
+test('AGENTS parser accepts the platform four-column file index', () => {
+  const rows = agentsRows('# 规则集索引\n\n## 文件级索引\n\n| 分类 | 规则文件 | Rule UID 范围 | 触发场景 |\n| --- | --- | --- | --- |\n| Java | `L2-rules.md` | 待平台分配 | 集合使用 |\n');
+  assert.deepEqual(rows, [{ name: 'Java', scene: '集合使用', reference: 'L2-rules.md', line: 7 }]);
 });
 
 test('HTML escapes source markup, hides credential URL query, and never loads remote images', async () => {

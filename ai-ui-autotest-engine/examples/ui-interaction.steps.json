@@ -1,0 +1,52 @@
+{
+  "caseId": "flow-01-dialog-open-verify-close",
+  "title": "房型详情弹窗：开 → 看 → 关",
+  "priority": "P0",
+  "executionType": "deterministic",
+  "env": {
+    "scheme": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-orderfill-duo&mrn_component=main&goods_id=1172344601&checkinDate={checkinDate}&checkoutDate={checkoutDate}&biz_type=1&room_num=1",
+    "type": "A",
+    "vars": {
+      "checkinDate": {"date": 4, "format": "%Y-%m-%d", "desc": "入住日期（今天 +4 天）"},
+      "checkoutDate": {"date": 5, "format": "%Y-%m-%d", "desc": "离店日期（今天 +5 天）"}
+    }
+  },
+  "steps": [
+    {
+      "kind": "ui",
+      "id": "open-landing",
+      "name": "进入填写订单页",
+      "action": {
+        "kind": "open-url",
+        "text": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-orderfill-duo&mrn_component=main&goods_id=1172344601&checkinDate={checkinDate}&checkoutDate={checkoutDate}&biz_type=1&room_num=1"
+      },
+      "wait": {"type": "page_ready"},
+      "checks": [{"type": "render_ready", "text": "房型详情"}]
+    },
+    {
+      "kind": "ui",
+      "id": "open-room-detail",
+      "name": "打开房型详情弹窗",
+      "action": {"kind": "tap-text", "text": "房型详情"},
+      "wait": {"type": "page_ready"},
+      "checks": [{"type": "render_ready", "text": "房型设施详情"}]
+    },
+    {
+      "kind": "ui",
+      "id": "verify-room-detail",
+      "name": "查看弹窗内容",
+      "action": {"kind": "none"},
+      "checks": [
+        {"type": "text", "text": "房型设施详情"},
+        {"type": "text", "text": "床型"}
+      ]
+    },
+    {
+      "kind": "ui",
+      "id": "close-room-detail",
+      "name": "关闭房型详情弹窗",
+      "action": {"kind": "back"},
+      "checks": [{"type": "text_gone", "text": "房型设施详情"}]
+    }
+  ]
+}

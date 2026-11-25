@@ -81,6 +81,7 @@ def create_fullday(
     dry_run: bool = False,
     skip_constraints: bool = False,
     poll_timeout: int = 120,
+    is_overseas: bool = False,
 ) -> str:
     """全日房全链路创建（直接调 factory 层，无 goods 中间层）。"""
     mod = _get_mod()
@@ -174,19 +175,14 @@ def create_fullday(
         room_id=room_id,
         swimlane=swimlane,
         goods_type=1,
+        is_overseas=is_overseas,
     )
 
     return goods_id
 
 
-def add_subparser(subparsers: argparse._SubParsersAction) -> None:
-    """向主解析器注册 fullday 子命令。"""
-    p = subparsers.add_parser(
-        "fullday",
-        help="全日房端到端上单（路径A/B/C/D infra → batchCreateGoods → 上线）",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        description=__doc__,
-    )
+def _add_arguments(p: argparse.ArgumentParser) -> None:
+    """注册 fullday 系列子命令的通用参数（fullday / agent-fullday 共用，勿复制）。"""
 
     # ── 基础实体 ID（决定走哪条路径）──────────────────────────────────────
     p.add_argument("--partner-id", default="", help="供应商ID（有则走路径B/D，否则路径A/C）")
@@ -239,6 +235,16 @@ def add_subparser(subparsers: argparse._SubParsersAction) -> None:
     p.add_argument("--skip-constraints", action="store_true",
                    help="跳过本地约束校验（谨慎使用）")
 
+
+def add_subparser(subparsers: argparse._SubParsersAction) -> None:
+    """向主解析器注册 fullday 子命令。"""
+    p = subparsers.add_parser(
+        "fullday",
+        help="全日房端到端上单（路径A/B/C/D infra → batchCreateGoods → 上线）",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=__doc__,
+    )
+    _add_arguments(p)
     p.set_defaults(func=_run)
 
 
@@ -446,6 +452,7 @@ def _run(args: argparse.Namespace) -> None:
         dry_run=args.dry_run,
         skip_constraints=args.skip_constraints,
         poll_timeout=args.poll_timeout,
+        is_overseas=args.overseas,
     )
 
     if args.dry_run:

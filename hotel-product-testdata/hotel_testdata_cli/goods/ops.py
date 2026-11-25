@@ -297,12 +297,15 @@ def post_create_ops(
     room_id: int,
     swimlane: str = "",
     goods_type: int = 1,
+    is_overseas: bool = False,
 ) -> None:
     """
     商品创建后置操作：
       Step 6：恢复上线（batchOnlineSwitch status=2）
       Step 7：缓存刷新
     上线失败含"90天库存"时自动补库存后重试。
+
+    is_overseas=True 时缓存刷新走境外路径（工具1031 isOversea）。
     """
     if not goods_id:
         print("\n⚠️ 未获取到 goodsId，跳过上线和缓存刷新。")
@@ -334,7 +337,7 @@ def post_create_ops(
     def _do_cache_refresh(gid: str):
         print("\n── Step 7: 缓存刷新（operationType=1）───────────────────────")
         try:
-            ops.call(operation_type=1, product_id=int(gid))
+            ops.call(operation_type=1, product_id=int(gid), is_oversea=is_overseas)
             print("  ✅ 缓存刷新成功")
         except Exception as e:
             print(f"  ⚠️ 缓存刷新失败（可手动触发）: {e}")

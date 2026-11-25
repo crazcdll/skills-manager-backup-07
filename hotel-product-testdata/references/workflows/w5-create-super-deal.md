@@ -662,3 +662,25 @@ python3 factory/super-deal-promo/create-super-deal-promo.py \
   - ⏰ **联系人工排查**：把 ME 上单系统链接发给用户手动确认 SPU 上线状态：`https://me.hotel.test.sankuai.com/ebooking/merchant/spu/gift-list?partnerId=<partnerId>&poiId=<poiId>`
 - `edit_spu(partner_id, spu_model)`（`MeResourceFacade#editSpu`）与 `update_spu_status(partner_id, spu_id, poi_id, status)`（`MeResourceFacade#updateSpuStatus`）已加入 `interface/super-deal/interface.py`：前者用于针对同一 spuId 编辑重提触发重新入库（见上），后者仅用于基本信息模块已正常入库后的显式上/下线切换，两者不可互相替代
 
+---
+
+## 构造完成后数据维护（主动询问）
+
+超团构造成功（`status=1` 上架 + 缓存刷新完成，拿到 `spuId` + `poiId`）后，**主动用 AskQuestion 询问用户**："是否将本次构造的超团数据加入数据维护（Watson）？"
+
+- 用户确认 → 执行以下命令，**只替换 `productId`（填 spuId）、`poiId` 和 `misId`，`operator` 为当前操作人（MIS_ID），其他参数严禁修改**（超团与全日房/钟点房的差异：`idType=1`，且多一个 `maintainType=1`；`misId` 与 `operator` 一样填当前操作人工号）：
+
+```bash
+mt-qa-tool du-thrift invoke com.sankuai.qatool.productmanage \
+  com.meituan.nibqa.tdm.api.service.DataMaintainService \
+  saveMaintainDataForWatson \
+  --body '{"productId":"<spuId>","bizLine":"20","poiId":"<poiId>","bizCode":"nib.hotel.booking.prepay","idType":1,"ignoreBcDiff":false,"maintainRule":"97","maintainType":1,"misId":"<MIS_ID>"}' \
+  --operator <MIS_ID> --timeout 30000
+```
+
+- `poiId` 取值：非通兑超团用创建时传入的 `--poi-id`；通兑超团取 `--shop-ids` 中任一关联门店 ID
+- **商促通兑超团不绑定门店（无 poiId 可填），不触发默认询问**；用户主动要求时再向用户确认用哪个 poiId
+- 境内/境外超团均触发本步骤
+- 用户拒绝 → 跳过，正常收尾（执行记录 update 时把维护结果写入 `--detail`）
+- 维护命令调用失败 → 不回滚超团，报 WARN 提示用户人工处理
+

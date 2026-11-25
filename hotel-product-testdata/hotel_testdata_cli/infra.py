@@ -732,6 +732,7 @@ def _ensure_testdata_cli() -> bool:
 
 def query_data_pool(
     is_overseas: bool = False,
+    entity_type: Optional[int] = None,
     dry_run: bool = False,
 ) -> dict:
     """
@@ -739,6 +740,10 @@ def query_data_pool(
 
     第一阶段：--mis-id <MIS> --occupier <MIS>，只查自己历史存入的数据；
     第二阶段：--mis-id <MIS>（不带 --occupier），查全量可用数据（count=0 时触发）。
+
+    entity_type  - 可选，按实体类型过滤（对应数据池 tag 117）：
+                   1=第三方渠道（代理），2=单体酒店（通兑超团）；
+                   None=不过滤（默认，与历史行为一致）。
 
     返回第一条符合条件的记录::
 
@@ -756,6 +761,12 @@ def query_data_pool(
 
     inland_tag = "境外供应商" if is_overseas else "境内供应商"
     tags_str = f"107={inland_tag}"
+
+    # 实体类型 tag（117）：代理（entity_type=1，第三方渠道）等场景叠加过滤
+    _ENTITY_TYPE_TAG_LABELS = {1: "第三方渠道", 2: "单体酒店"}
+    if entity_type is not None:
+        label = _ENTITY_TYPE_TAG_LABELS.get(entity_type, str(entity_type))
+        tags_str += f",117={label}"
 
     def _build_cmd(with_occupier: bool) -> list:
         cmd = [
@@ -813,7 +824,8 @@ def query_data_pool(
             "platform_contract_id": item.get("contractId", ""),
         }
 
-    print(f"\n🔍 [数据池] 查询供应商（{inland_tag}）...")
+    print(f"\n🔍 [数据池] 查询供应商（{inland_tag}"
+          f"{f'+实体类型{entity_type}' if entity_type is not None else ''}）...")
 
     if dry_run:
         print(f"   $ {' '.join(_build_cmd(with_occupier=True))}")

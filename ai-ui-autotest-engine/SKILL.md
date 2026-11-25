@@ -1,12 +1,12 @@
 ---
 name: ai-ui-autotest-engine
-version: 6.5.0
-description: 移动端 UI 自动化测试。以 Flow 输入驱动，执行环境准备、步骤走查、证据归档与完整性报告。当前实现覆盖 Android 与 HarmonyOS 两个平台（sandbox 云模拟器 + local 本地真机）。
+version: 6.6.0
+description: 移动端 UI 自动化测试。以 steps.json（业务用例）输入驱动，执行环境准备、步骤走查、证据归档与完整性报告。当前实现覆盖 Android 与 HarmonyOS 两个平台（sandbox 云模拟器 + local 本地真机）。
 
 metadata:
   skillhub.creator: "wangshicheng05"
   skillhub.updater: "wangshicheng05"
-  skillhub.version: "V188"
+  skillhub.version: "V209"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "93069"
   skillhub.high_sensitive: "false"
@@ -14,23 +14,24 @@ metadata:
 
 # AI UI Autotest Engine
 
-> **目录（作用域分层）**：所有状态都在**机器级目录** `$STATE` = `~/.local/share/ai-ui-autotest-engine/`（跨安装 / 跨项目唯一，可用 `AI_UITEST_STATE_HOME` 覆盖）：`run/`（运行态：`tasks/<ws>/{config,inputs,tmp,runs/<run>}/` + 入口 `ws/<ws>/cli`）、`reports/`（历史报告 `<batch>/<run>/`）、`console/`（统一控制台服务，全机唯一、常驻）、`credentials/`（AppMock SSO 凭据）、`toolchain/`（adb/hdc 路径缓存）、`cache/artifacts/<platform>/<form>/<pkg>/`（制品缓存，引擎永不自动清理）、`device-pool/`（预热台账等本机辅助文件；设备租约在服务端，不落本地）。**Skill 目录内不产生任何运行态**（多副本 / 自动更新都不会丢进度、缓存、登录与报告）。
+> **目录（作用域分层）**：所有状态都在**机器顶层根下的 `$STATE`** = `$AI_UITEST_HOME/engine/`（缺省 `~/.local/share/ai-ui-autotest/engine/`，跨安装 / 跨项目唯一；`AI_UITEST_HOME` 改顶层根、`AI_UITEST_STATE_HOME` 直接改 `$STATE`）：`run/`（运行态：`tasks/<ws>/{config,inputs,tmp,runs/<run>}/` + 入口 `ws/<ws>/cli`）、`reports/`（历史报告 `<batch>/<run>/`，执行前按 keep-latest-N 清理，默认留 5 个批次）、`console/`（统一控制台服务，全机唯一、常驻）、`credentials/`（AppMock SSO 凭据）、`toolchain/`（adb/hdc 路径缓存）、`cache/artifacts/<platform>/<form>/<pkg>/`（制品缓存，引擎永不自动清理）、`device-pool/`（预热台账等本机辅助文件；设备租约在服务端，不落本地）。同一顶层根下并列的 `cases/`（用例资产）与 `orchestration/`（编排产物）**归编排层所有，引擎不读也不写**。**Skill 目录内不产生任何运行态**（多副本 / 自动更新都不会丢进度、缓存、登录与报告）。
 > **随包分发的依赖清单**：`references/toolchain/manifest.json`（adb 离线包：按平台声明包名、大小与解压白名单）与 `references/deps/manifest.json`（Python 包版本区间 + 静态资源大小/更新时间）。两者都由 `check-deps` 统一安装/校验。依赖清单带 `updated_at`：安装成功后写进机器级 `$STATE/deps/state.json`，下次比对不一致（依赖集合被 Skill 升级改过）才重装 Python 包并复核资源大小；一致则只做 import/大小复核 —— 不算 sha256、也不比较文件 mtime。adb 离线包按「版本目录 + 大小」判定是否可用，解压出的 adb 需能执行 `adb version` 才算成功。
-> **workspace 入口（每轮测试第一步）**：`python3 -B scripts/cli.py ws-init` 分配 workspace 并生成入口 `$STATE/run/ws/<ws>/cli`（**绝对路径**）；**之后所有命令都必须通过该入口执行**（写作 `<入口> <命令>`），入口把 `AI_UITEST_TASK=<ws>` 注入进程以定位工作区。未经入口执行 → 直接报错，**无默认兜底**（避免静默落到共享目录）。入口与 `cli.py` 均已带 `python3 -B` + `PYTHONDONTWRITEBYTECODE=1`（源树零字节码，不做 pyc 缓存）；手工执行其它 python 入口（如 `scripts/dev/*.py`）同样加 `-B`。
+> **workspace 入口（每轮测试第一步）**：`python3 -B scripts/cli.py ws-init` 分配 workspace 并生成入口 `$STATE/run/ws/<ws>/cli`（**绝对路径**）；**之后所有命令都必须通过该入口执行**（写作 `<入口> <命令>`），入口把 `AI_UITEST_TASK=<ws>` 注入进程以定位工作区。未经入口执行 → 直接报错，**无默认兜底**（避免静默落到共享目录）。入口与 `cli.py` 均已带 `python3 -B` + `PYTHONDONTWRITEBYTECODE=1`（源树零字节码，不做 pyc 缓存）；手工执行其它 python 入口（如 `scripts/aitest/dev/*.py`）同样加 `-B`。
 > `--input` 支持**裸文件名**（按本 workspace 的 `$STATE/run/tasks/<ws>/tmp/` 解析）
 > **统一传输端口**：每个 workspace 首个命令分配唯一 `transport-port.json` / `flow-context.meta.transport_port`，所有平台统一持有；当前只有 Android ADB 适配器把它映射为 `IMEITUAN_CLOUD_ADB_PORT`，HarmonyOS（hdc）/ iOS（WDA）暂不使用。
 
 ## 一、执行原则
 
 1. **严格遵循 Skill 流程**：AI 必须严格按 SKILL.md 定义的阶段和子步骤顺序执行，不得跳过、合并或重排流程。
-2. **禁止运行期改写已声明步骤**：steps 只依据 Flow 原文；页面不符走 hook 消歧并记 `needs_review`/finding，不得回改 cases/steps 或重跑 `steps-generate`/`flow-init` 掩盖。
+2. **禁止运行期改写已声明步骤**：steps 只依据 `steps.json`；页面不符走 hook 消歧并记 `needs_review`/finding，不得回改 `steps.json` 或重跑 `steps-generate`/`flow-init` 掩盖。
 3. 测试结果必须可追溯。环境、登录、落地页、步骤、视觉扫描、动态 Mock 和报告都写入运行事件与证据清单。失败记录真实结果，不伪造成功。
 4. 一次运行串行控制一台设备。`device create` 从**设备池**领取设备（复用空闲实例；**池满直接失败 `POOL_EXHAUSTED`，不会新建，也不要立即重试**）并登记本 run 的 owner 租约（服务端 `device_registry` 单表权威，无本地副本）；租约 owner 恒为 `<run>#<workspace>`，每条设备命令都会刷新心跳并校验归属——**租约被其他 workspace 持有时直接失败（`DEVICE_LEASE_LOST`）**，禁止继续操作该设备（否则两个分片会同时 tap/滚动，结论不可信）。收尾先 `device disconnect` 回收本 run 的 imeituan 会话（legacy 会话自动移入 `~/.imeituan/sessions/.stale/`，不删除），再 `device release` 归还租约（**不销毁实例**，留给池复用；release 后进入 120s 复用冷却，避免上一轮 session 未清理完就复用；`SESSION_CLEANUP_PENDING` 等单设备会话错误自动隔离旧 sandbox 并换机重试一次；`ADB_SERVER_COORDINATION_*` 仅 Android 调用 `device contract --repair-android-runtime` 修复本 workspace 独立 ADB 台账后重试一次，禁止换机）。每个 run 还会先 `mis acquire` 从**虚拟 mis 池**领取一个 AppMock 工作域（`mock_domain`，私有优先 → 公共兜底），所有 AppMock（规则 / 录制 / 环境 / 泳道）都以它为准，收尾 `mis release` 归还；它记录在 workspace 级 `intake.mock_domain`，与设备 / 报告归属的 `resource_mis` **恒定分离**。收尾阶段由 SOP 引擎自动处理，AI 只需执行 `flow-next` 返回的指令即可。共享设备（云模拟器）历次占用会在 `/data/local/tmp` 残留安装/传输中间产物（清数据不覆盖该目录），需要时可执行 `device clean-tmp`：只删白名单后缀的产物、**保留本 Skill 自己的设备侧缓存目录与临时文件**，不递归、不删目录。安装制品统一**先查 Skill 制品缓存**（`$STATE/cache/artifacts/`，唯一入口 `shared/artifact_cache.py`）：命中即免下载，未命中才下载一次，多个子 Agent 并行也只会下载一次。
 5. 环境不可用时快速失败并收尾，不重试、不换数据对照、不深挖日志。
 6. **先预置、后提问（硬门禁）**：用户已明确提供的值先经 `input-seed --answers` **一次性预置**（引擎按与作答同一套白名单 / 依赖校验入库，已预置的题不再下发）；剩余项才走 `input-next` → AskQuestion（原样传 `options`，每次只 1 题）→ `input-answer`（只提交刚下发的题 ID，禁止合并 / 跳答 / 未下发直接作答）；循环见 §二「阶段 0」。
 7. **禁止复用历史产物**：每轮测试的判定依据必须全部来自**本次运行**的实时产物（`$STATE/run/`、`$STATE/reports/<batch>/<run>/`），不得引用历史 `$STATE/reports/` 下的截图、报告或日志作为判定依据。
-8. **CASES 文件强制约定**：先 `cases-create --tag <tag>` 创建空文件，AI 再写入内容；写完 `wc -c` 确认非空后再 `steps-generate`。禁止用编辑器直接新建该文件。
+8. **`steps.json` 是唯一真源**：用例只由 `ai-app-flow` 产出 `steps.json`（业务模型），引擎只接受 `<入口> steps-generate --steps <steps.json> --tag <tag>` 生成的 `steps-input`；**禁止**手写或编辑引擎内部 CASES / `steps-input.json`（生成产物只读，要改就改 `steps.json` 重跑）。
 9. **统一控制台（跨会话共享；链接须转达用户）**：`ws-init` 与 `ai-auto-ui-test` 的环境准备会自动**幂等启动** Web 控制台并打印访问链接（多设备实时画面 + 结构化动态日志）——**务必把该链接原样转达给用户**便于实时分析。服务**常驻、跨会话共享**：已启动则直接复用（其他会话据此跳过，**不要重启**）；`down` 一般不需要。控制台对测试执行**零侵入**（服务未启动时埋点不启用、零开销；启动后仅非阻塞落盘）。
+10. **线上支付可整体执行、但必然支付失败（属预期）**：平台下发的线上账号未实名/未绑卡，允许走完下单 → 收银台 → 支付，以下单接口、支付参数与未支付订单号为断言对象（`unpaid_expected` 即通过并记录 `orderId`，`paid` 属意外成功须立即取消/退款并记录，`unknown` 判失败），退款失败必须在报告与结论中显式列为风险并提示用户手动退款，且该账号禁止绑卡、改价、代付等真实资金操作。
 
 ## 二、运行模型
 
@@ -43,13 +44,12 @@ python3 -B scripts/cli.py ws-init
 # ② 之后所有命令都通过 <入口> 执行（<入口> = $STATE/run/ws/<ws>/cli，绝对路径）
 <入口> check-deps          # 唯一的安装入口：缺什么装什么（pip/npm/解压内置 adb 离线包）
 <入口> toolchain           # 只读体检：adb/hdc 从哪来、版本、内置离线包是否完好
-<入口> flow-create --name <Flow名>     # 多 Flow 场景：每个 Flow 执行一次
-# AI 写入完整 Flow 内容
 
 # ③ 预置已知值：先看问题目录，再把「用户已明确提供」的值一次性 seed
-#    用户没给的不写（留给 ④ 逐题问）；派生键（device_type/platform/app/auth_method）不写
-#    bundle_lock：题面已前置 Flow「可测性环境」表里的声明值
-#    场景 AppMock 不在此采集：case 级配置，flow-init 读各 Flow「可测性环境」表自动派生
+#    用户没给的不写（留给 ④ 逐题问）；派生键（device_type/platform/app/auth_method/credential）不写
+#    credential 默认不问：线上由平台下发、测试环境用号池；要换号才 seed credential（需带 country_code）
+#    bundle_lock：题面已前置 steps.json「可测性环境」声明里的值
+#    场景 AppMock 不在此采集：case 级配置（env.mock_ids），无需作答
 <入口> input-schema                    # 问题目录：字段 id / 选项 / 依赖 / 派生键
 <入口> input-seed --answers '{"env_type":"A","resource_mis":"<mis>","device_combo":"sandbox-android-meituan",...}'
 
@@ -59,16 +59,15 @@ python3 -B scripts/cli.py ws-init
 <入口> input-next                     # 返回 question + progress + next 指针
 <入口> input-answer --id <当前下发的ID> --value <值>
 
-# 收集完成后初始化流程（多 Flow 只执行一次，所属 Flow 合入一个 cases 数组）
-<入口> flow-convert --tag {tag}
-<入口> cases-create --tag {tag}        # 先建空 CASES，AI 写入（wc -c 确认非空）
-<入口> steps-generate --input 'cases-{tag}.json' --tag {tag}
-<入口> flow-init --dir <run-name> --input 'steps-input-{tag}.json' --flow-name <Flow名>
+# 收集完成后：steps.json → steps-input.json → 初始化流程
+# steps.json 由 ai-app-flow 产出（一个用例一个文件），落盘前先过 steps_cli check
+<入口> steps-generate --steps <steps.json 绝对路径> --tag {tag}
+<入口> flow-init --dir <run-name> --input 'steps-input-{tag}.json' --flow-name <Flow名> [--run-type regression]
 <入口> flow-next                       # 阶段 1 入口
 ```
 
 > **workspace 入口是硬门禁**：`ws-init` 是阶段 0 第一步，它输出的 `<入口>` 是整轮测试唯一的命令入口；漏用入口会被引擎直接拒绝（报“未指定 workspace”）。
-> **预置优先（避免重复提问）**：先 `input-schema` 看字段与选项，把用户请求里**已明确给出**的值（设备组合 / 环境 / MIS / 账号密码 / ptest / 锁包等）用 `input-seed` 一次性入库；`input-seed` 返回 `remaining`（仍需问的题）与 `rejected`（非法 / 不适用的值），随后只需对 `remaining` 跑逐题循环。已给过的值绝不再问。`resource_mis` 能由当前身份（`HOTEL_UI_MIS` / 缓存 SSO 身份 / `git config user.email`）自动派生，此时会以 `source=derived` 出现、**不会下发提问**；只有当这些来源都拿不到时才是必答题，需指定其他 MIS 时仍可用 `input-seed` 覆盖。**场景 AppMock 不入采集**：它是 case 级配置 —— `flow-init` 直接读每个 case 的 Flow「可测性环境」AppMock 行派生到该 case 的 `mock_ids`，无需作答。
+> **预置优先（避免重复提问）**：先 `input-schema` 看字段与选项，把用户请求里**已明确给出**的值（设备组合 / 环境类型（A/P/B/C/D/E）/ MIS / 凭证（`credential`）/ 锁包等）用 `input-seed` 一次性入库；`input-seed` 返回 `remaining`（仍需问的题）与 `rejected`（非法 / 不适用的值），随后只需对 `remaining` 跑逐题循环。已给过的值绝不再问。`resource_mis` 能由当前身份（`HOTEL_UI_MIS` / 缓存 SSO 身份 / `git config user.email`）自动派生，此时会以 `source=derived` 出现、**不会下发提问**；只有当这些来源都拿不到时才是必答题，需指定其他 MIS 时仍可用 `input-seed` 覆盖。**场景 AppMock 不入采集**：它是 case 级配置（steps.json `env.mock_ids`），`steps-generate` 直接透传到该 case 的 `mock_ids`，无需作答。
 > **强指针**：`input-next` 输出 `progress` + `next` 指针（`ask` 带可直接执行的 `cmd`），逐条照抄直到 `done`；结果落 workspace 级 `intake.json`。**`flow-init` 是阶段 0/1 分界线**：它只做协议载入与 run 目录创建；其后的 B0（`mis acquire`）、B1（`device create/setup`）、B2（`env-prepare` 登录）均由 `flow-next`/`flow-advance` 逐条驱动，AI 按返回值执行，**不会在 flow-init 内自动执行**。
 
 ### 阶段 1：引擎驱动
@@ -81,157 +80,158 @@ AI 不再手动决定下一步，按 `flow-next` 返回的命令执行，确认�
 - **条件不满足的阶段由 `flow-next` 自动跳过**（如无场景 Mock 时跳过 `B0_mock_preflight` / `T0_mock_restore`），输出只陈述「已跳过」；此时**不要**再调 `flow-advance`，否则会对已跳过的阶段重复推进，误伤下一阶段（无 `completion_check` 的阶段会被直接标完成）
 - 截图自动生成（统一归档于每个 Case 的 `frames/`），按 `[REVIEW]` 指示读图确认
 - 步骤失败时按引擎输出 hooks 优先修复，确认无法修复再用 `skip-case` 跳过；禁止以"时间成本"等理由跳过低成本修复
+- **落地步骤失败属另一类结论**：`role=landing` 的首步 `open-url` 没把页面打开（商品下架 / 环境 URL 失效 / 登录态失效）时，后续断言已无意义 → 先按 hooks 重试/修复；确认入口不可达后把终态写成 `override-step-result --fail`（必须带 `--assert-verdict` 判定内建视觉断言），引擎会**自动**把 case 记 blocked 并进入报告阶段，**无需手工 `skip-case`**，更**禁止** `flow-fail`（会误判为用例业务失败并中断整批）
 - 环境不可恢复时 `flow-fail --cleanup` 终止
 
-## 三、Flow 转换
+## 三、用例输入：steps.json → 引擎
 
 ### 流程
 
-1. `flow-convert --tag <tag>` → 解析元数据，输出 `metadata-<TAG>.json`
-   - 报告会显式列出「🌐 可测性环境（须映射到 CASES.env）」（覆盖范围 / 环境 / AppMock / 泳道 / 域名映射 / 锁包），即 env 声明清单
-2. `cases-create --tag <tag>` → 创建空 CASES 文件占位（强制约定，写内容前必须先执行）
-3. AI 写入 steps 内容（含 device/env/cases/steps），写完 `wc -c` 确认非空
-   - **env 声明**：把 Flow「可测性环境」表映射进 `env` —— `环境` 行须与 `env_type` 一致；泳道/域名映射 → 对应 env 字段。**`AppMock` 不写进 env**：它是 **case 级**配置，`flow-init` 自动读每个 Flow 的 AppMock 行派生到该 case 的 `mock_ids`（声明即启用、未声明即不启用）
-   - 场景 Mock 生命周期由 SOP 自动驱动：`B0_mock_preflight`（快照 union + 同 case 冲突检测 + 清场）→ 每 case `C1_mock_apply`（差量开关，保证任一时刻 AppMock 开启的场景规则 = 当前 case 集合）→ `T0_mock_restore`（恢复 union 到执行前状态）
-4. `steps-generate --input 'cases-<tag>.json' --tag <tag>` → 输出 `steps-input-<TAG>.json`
-5. `flow-init` → 载入引擎
+用例的唯一真源是 **`steps.json`**（业务模型：用户看到什么、做了什么、期望什么）。
+写它的是 `ai-app-flow`，读它的是本引擎，中间没有任何手写环节：
 
-### steps-input.json 结构
+```bash
+# ① 产出（ai-app-flow）：<case-dir>/steps.json
+#    Schema：ai-app-flow/scripts/steps/model.py
+#    模板：ai-app-flow/references/templates/steps-json-template.json
+
+# ② 自检：结构校验 + 文本级 lint + 渲染只读视图（md 不参与执行）
+python3 <ai-app-flow>/scripts/steps_cli.py check --in steps.json
+
+# ③ 生成引擎步骤：业务模型 → CASES 映射 + sid 编号 + blur 注入 + intake 合成 device/env + 两级校验
+#    （同时把业务真源 steps.json 与刚生成的 steps-input 冻结进 workspace `inputs/<tag>/`，
+#     之后报告阶段只读这份副本，不再回读上游 .docs / .orchestration 目录）
+<入口> steps-generate --steps <steps.json 绝对路径> --tag {tag}
+
+# ④ 载入引擎
+<入口> flow-init --dir <run-name> --input 'steps-input-{tag}.json' --flow-name <Flow名> [--run-type regression]
+```
+
+> **一个 run 可承载多个 Case（=一条报告行）**：`flow-init`（首个）→ `flow-add-case --dir <run> --input 'steps-input-<tag>.json'`（其余，可带 `--case-index`；`--dir` 可省略，缺省沿用当前活跃 run）→ 重跑 `flow-init` 重建上下文（**沿用同一批次/报告行**，不会另起空行）→ 每 Case 一次 `gen-report` Append → `flow-finalize` Close。`--flow-name` 优先级最高，多 Case 批次必须显式传，否则行标题退化为首个 `steps.json` 的 title。
+> **运行类型**：输入声明 `runType=regression`（或 `【运行类型】...回归`）时，`flow-init` 必须追加 `--run-type regression`（或先 `export AI_UITEST_RUN_TYPE=regression`）；报告行 `run_type` 据此入库，工作台可按类型筛选。未声明时不传，默认 `adhoc`。
+> `steps-input-<tag>.json` 是**生成产物**：只读，不回写、不手改。要改用例就改 `steps.json` 再跑 ③。
+> 编排层的用例快照（`shard.cases[].steps_path`）直接用绝对路径传给 ③，无需先拷进 workspace。
+
+### steps.json 结构
 
 ```json
 {
-  "batch_name": "{批次名称}",
-  "device": { "type": "sandbox", "platform": "android", "app": "meituan", "auto_install": false },
-  // env 由引擎从 intake 合成，无需 AI 手写
-  "cases": [{
-    "case_id": "{case标识}", "case_name": "{case描述}",
-    "landing_scheme": "imeituan://...mrn_biz={biz}&mrn_entry={entry}&mrn_component={component}",
-    "params": {"<占位符名>": "<真实值>"},  // 键=占位符名（不带宽括号）；日期 {T+N:format} 自动解析，无需写入
-    "steps": [
-      {"sid":"S1","kind":"ui","desc":"开：点击目标","action":"tap-text","action_arg":"目标","step-type":"interaction","page_ready":true,"asserts":[
-        {"kind":"text","match":"present","expect":"就绪文案"}
-      ]},
-      {"sid":"S2","kind":"ui","desc":"向右滚动到目标","action":"scroll-until","action_arg":"目标","direction":"right","step-type":"interaction","asserts":[
-        {"kind":"text","match":"present","expect":"就绪文案"}
-      ]},
-      {"sid":"S3","kind":"ui","desc":"看：断言内容","action":"assert-text","step-type":"assert","asserts":[
-        {"kind":"text","match":"present","expect":"预期1"},
-        {"kind":"text","match":"present","expect":"预期2"}
-      ]},
-      {"sid":"S4","kind":"ui","desc":"关：关闭","action":"back","step-type":"interaction","asserts":[
-        {"kind":"text","match":"gone","expect":"原文案"}
-      ]},
-      {"sid":"S5","kind":"ui","desc":"操作：点击锚点邻近的无文案图标","action":"tap","action_anchor":"邻近文案","step-type":"interaction","asserts":[
-        {"kind":"visual","expect":"AI 读截图确认预期效果呈现"}
-      ]},
-      {"sid":"A1","kind":"api","desc":"接口验证","api_assert":{
-        "path":"/path/to/api",
-        "expected_fields":[
-          {"source":"request","field":"字段名","expected":"预期值"},
-          {"source":"response","field":"字段名","expected":"预期值"}
+  "caseId": "EC-100234",
+  "title": "预付房型下单：选房 → 优惠明细 → 提交订单",
+  "priority": "P0",
+  "executionType": "deterministic",
+  "env": {
+    "scheme": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=order-submit&goods_id={goods_id}&checkinDate={checkinDate}",
+    "type": "A",
+    "mock_ids": [],
+    "vars": {
+      "goods_id": {"value": "12345678", "desc": "EC 用例提供的测试商品 ID"},
+      "checkinDate": {"date": 4, "format": "%Y-%m-%d", "desc": "入住日期（今天 +4 天）"}
+    }
+  },
+  "steps": [
+    {
+      "kind": "ui",
+      "id": "open-landing",
+      "name": "进入填写订单页",
+      "action": {"kind": "open-url", "text": "<与 env.scheme 完全一致>"},
+      "wait": {"type": "page_ready"},
+      "checks": [{"type": "render_ready", "text": "填写订单"}]
+    },
+    {
+      "kind": "ui",
+      "id": "open-coupon",
+      "name": "展开优惠明细弹层",
+      "action": {"kind": "tap-text", "text": "优惠明细"},
+      "checks": [{"type": "text", "text": "优惠合计"}]
+    },
+    {
+      "kind": "ui",
+      "id": "verify-coupon",
+      "name": "核对优惠明细内容",
+      "action": {"kind": "none"},
+      "checks": [
+        {"type": "text", "text": "优惠明细"},
+        {"type": "vision", "text": "底部弹层展示优惠条目与合计金额，背景出现半透明遮罩"}
+      ]
+    },
+    {
+      "kind": "api",
+      "id": "api-submit",
+      "name": "校验提交订单接口",
+      "api": {
+        "method": "POST",
+        "path": "/api/hotel/order/submit",
+        "expectedFields": [
+          {"source": "request", "field": "goodsId", "expected": "{goods_id}"},
+          {"source": "response", "field": "orderId"}
         ]
-      }},
-      {"sid":"T1","kind":"track","desc":"埋点验证","track_assert":{"match":"事件名"}},
-      {"sid":"T2","kind":"track","desc":"埋点参数校验","track_assert":{"match":"事件名","expected_fields":{"page_type":"全日房","button_name":"房型详情"}}}
-    ]
-  }]
+      }
+    },
+    {
+      "kind": "track",
+      "id": "track-submit",
+      "name": "校验提交订单埋点",
+      "track": {"match": "hotel_order_submit", "expectedFields": {"page_type": "全日房"}}
+    }
+  ]
 }
 ```
-`landing_scheme` 必须完整，日期占位符 `{T+N}` 执行时替换。支持 `{T+N:format}` 语法指定格式（如 `{T+4:%Y%m%d}` 输出 yyyyMMdd，`{T+4:%Y-%m-%d}` 输出 YYYY-MM-DD），不指定 format 时默认 `%Y-%m-%d`。`flow-init` 自动追加 debug 浮窗关闭参数，无需手动填写。UI / API / Track 步骤执行后均自动截图（命名 `case_NN_{sid}.png`），统一归档到当前 Case 的 `frames/` 目录。API/Track 步骤匹配成功后自动 PASS；**埋点 `match` 用 `val_cid`/`nm`（分类级标识）命中多条时转 PENDING**，生成 `verify_track_fields` hook（携带候选清单），需 AI 按 `nm`/`val_lab` 语义选定后用 `assert-fields --picked <序号>` 消歧；配了 `expected_fields` 也生成该 hook。`val_bid`（精确事件 ID）命中永不歧义。响应取值用 `response-search`。
 
-**顶层字段**：
-
-| 字段 | 说明 |
-|---|---|
-| `batch_name` | 批次名称，报告中展示 |
-| `device` | 设备配置（可选，缺省走 sandbox-android-meituan 默认值，见下） |
-| `env` | 环境配置。**收集字段**（type/auth_method/account/password/bundle_lock/ptest/swimline/url_mappings）由引擎从 intake 合成。**场景 Mock 不在 env**：为 case 级（`cases[].mock_ids`），由 flow-init 从各 Flow「可测性环境」表派生 |
-| `cases` | Case 数组，一个 Flow 文件 = 一个 Case。**多 Flow 场景**：将所有 Flow 的 Case 合并到同一个数组，`flow-init` 只执行一次 |
-| `cases[].params` | AI 手动填充的**非日期**占位符映射。`{name: value}`，value 取值：`null`（需用户提供）、具体值字符串（从「测试数据参考」填入）。**日期参数不写在 params**：必须直接写进 `landing_scheme` / steps 的 `{T+N:format}` / `{T-N:format}`，由 `flow-init` 按批次日期基线解析；`"__date__"` 已废弃，出现即校验失败 |
-| `cases[].mock_ids` | **可选**：该 Case 的场景 AppMock 规则 ID 列表（case 级）。缺省时由 `flow-init` 从该 Case 的 Flow「可测性环境」AppMock 行自动派生；显式填写则优先生效 |
-
-**`device` 块字段**（可选，缺省时全部走默认值）：
-
-| 字段 | 可选值 | 默认值 | 说明 |
-|---|---|---|---|
-| `type` | `sandbox` / `local` / `cloud_device` | `sandbox` | 云模拟器（从设备池领取：复用空闲实例；池满直接报 `POOL_EXHAUSTED`，不会新建）；本地真机（跳过创建/销毁）；云真机（待完善） |
-| `platform` | `android` / `harmony` | `android` | 决定底层工具：Android 用 imeituan-cli，Harmony 用 hdc |
-| `app` | `meituan` / `dianping` | `meituan` | `dianping` 暂不支持 |
-| `auto_install` | `true` / `false` | `false` | 仅 `local` 生效：版本不符时自动卸载重装。`sandbox` 恒为 `true` |
-
-`type`/`platform`/`app` 组合必须为 sandbox-android-meituan / local-harmony-meituan / local-android-meituan 之一，`flow-init` 硬校验。`local` 只允许 `auth_method=noop`。
-
-**Kind 字段白名单与互斥校验**（flow-init 自动校验，混合字段会直接报错）：
-
-| kind | 必需字段 | 禁止字段 | 说明 |
-|---|---|---|---|
-| `ui` | `action` | — | UI 交互与断言步骤 |
-| `api` | `api_assert`（含 `path` + 可选 `expected_fields`） | `action` / `step-type` / `screenshot` / `asserts` | 接口字段验证（从录制数据匹配，逐字段断言） |
-| `track` | `track_assert`（含 `match` + 可选 `expected_fields`） | `action` / `step-type` / `screenshot` | 埋点事件验证；`match` 取值与多候选消歧见上文说明 |
-
-**`api_assert` 语义规范**：
-
-| 字段 | 必填 | 语义 |
+| 字段 | 必填 | 说明 |
 |---|---|---|
-| `path` | ✅ | Flow 原文路径，不补 `https://`；**后缀段匹配**（至少末尾一段一致即命中） |
-| `expected_fields` | ❌ | **缺省 = 不校验字段**（匹配成功即自动 PASS）；配了才有字段级判定 |
-| `[].source` | ❌ | `request` / `response` / `meta`（仅展示）；状态码固定写 `{"source":"meta","field":"http_code","expected":"200"}` |
-| `[].field` | ✅ | **生成期可写语义名**（如「价格字段」）；真实路径 `response.<点号路径>` 由 `assert-fields` 解析后回写 |
-| `[].expected` | ❌ | 允许直接引用 Flow 原文（含自然语言） |
+| `caseId` / `title` | ✅ | 用例标识与名称（报告与平台引用） |
+| `priority` / `executionType` | — | `P0~P3` / `deterministic`·`data-dependent`·`manual-review` |
+| `env.scheme` | ✅ | 落地深链，**唯一事实源**（`imeituan://` 开头） |
+| `env.vars` | — | `{value}` / `{ask, desc}` / `{date, format}` 三选一；steps 里出现的 `{xxx}` 必须在此声明 |
+| `env.type`·`swimline`·`url_mappings`·`bundle_lock`·`testability`·`mock_ids` | — | 与引擎 / AppMock 同一套字段名（snake_case），同形状直传；`swimline` 内部为 `{lane_name, url_pattern}`，`bundle_lock` 内部为 `{name, version?}`（省略 `version` = 仅声明目标不锁包）；未声明的字段直接报错；`testability` 即 Pillow action 列表，`flow-init` 前置强校验 |
+| `steps[].kind` | ✅ | `ui` / `api` / `track`；三者字段互斥（`ui` 只带 action/wait/checks，`api` 只带 `api`，`track` 只带 `track`） |
+| `steps[].id` / `name` | ✅ | `id` 是稳定 slug（平台引用用）；执行序由引擎按数组下发，与 id 无关 |
+| `steps[].action` | ui ✅ | `{kind, text?, value?}`：`open-url`/`tap-text`/`input-text`/`scroll-until` 必须给 `text`，`scroll-bottom`/`back`/`none` 不接受；`value` 仅 `input-text` 必填（要输入的文本，`text` 是锚点） |
+| `steps[].wait` | — | `page_ready` / `text`（配 `text`）/ 省略 |
+| `steps[].checks` | ui ✅ | ≥1 条：`render_ready`·`text`·`text_gone`·`vision`（`vision` 截图后由 AI 读本次运行截图判定） |
+| `steps[].api` | api ✅ | `path`（必填，**后缀段匹配**）、`method`（缺省 GET）、`expectedFields[]`（`source`=request/response，`field` 可写语义名，`expected` 可选） |
+| `steps[].track` | track ✅ | `match`（必填，空匹配会轮询到超时）、`expectedFields`（`{字段: 期望值}`） |
 
-### Action 选择映射表
+### 映射（引擎侧 `flow_json`，只做机械翻译）
 
-AI 根据以下映射表选择 Flow 操作描述 → action + asserts。推定步骤按下方「模糊推定」规则走 `kind: "visual"`。
+| steps.json | 引擎 |
+|---|---|
+| `action.kind` | 同名 action；`none` → `assert-text`（纯断言、无副作用）；`scroll-bottom` → `scroll-edge` |
+| `wait.type=page_ready` 或任一 `checks[].type=render_ready` | 步骤 `page_ready`（截图前等页面稳定） |
+| `checks[].type=text` / `render_ready` | 文本断言 present（附带元素目录 vs 渲染一致性复核） |
+| `checks[].type=text_gone` | 文本断言 gone |
+| `checks[].type=vision` | 视觉断言：本步截图后生成 `verify_visual_assertion` hook，AI 读**本次运行截图**判定 |
+| `env.vars` | case `vars`（占位符替换 + 执行前提问） |
+| `env.type` / `swimline` / `url_mappings` / `bundle_lock` / `testability` | case `env`（同名字段直接带入；与 intake 合成时场景声明优先） |
+| `env.mock_ids` | case `mock_ids`（case 级，`B0_mock_preflight` 做同 case 冲突检测） |
 
-| Flow 描述关键词 | action | page_ready | asserts | 附加参数 |
-|---|---|---|---|---|
-| 进入页面 / 打开 Scheme / 跳转 | `open-url` | `false` | `[{"kind":"text","match":"present","expect":"就绪文案"}]` | |
-| 点击有文案按钮（打开新页面） | `tap-text` | `true` | `[{"kind":"text","match":"present","expect":"轻量就绪标志"}]` | |
-| 点击有文案按钮（当前页操作） | `tap-text` | `false` | `[{"kind":"text","match":"present","expect":"新内容"}]` | |
-| 点击无文案图标 | `tap`（配 `action_anchor`=图标所在行文案） | `false` | `[{"kind":"visual","expect":"预期效果呈现"}]` | 引擎取**锚点行唯一可点击目标**自动点击（标待复核）；多 / 无可点击目标 → 走视觉通道消歧（读图 + 断言）；`find-icon --anchor` 可复核坐标 |
-| 关闭弹窗 / 返回 | `back` | `false` | `[{"kind":"text","match":"gone","expect":"原文案"}]` | |
-| 滚动到「xxx」 | `scroll-until` | `false` | `[{"kind":"text","match":"present","expect":"目标"}]` | `--direction`（可选，默认自动推断） |
-| 滚动到底部 | `scroll-edge` | `false` | `[{"kind":"text","match":"present","expect":"底部标志"}]` | `--direction down` |
-| 向右/左滚动到「xxx」 | `scroll-until` | `false` | `[{"kind":"text","match":"present","expect":"目标"}]` | `--direction right/left` |
-| 快速滚动到 xxx 区域边界 | `scroll-edge` | `false` | `[{"kind":"visual","expect":"边界内容"}]` | `--direction up/down/left/right` |
+生成期由引擎补齐、AI **不要写**的东西：
+- `steps[0]` 缺失时按 `env.scheme` 注入落地步骤；首步在装载层补 `role=landing` + `page_ready` + 一条内建落地校验（运行期截图自证）；sid 编号 S/A/T；`input-text` 后自动补 `blur-input`（锚点同名）；`device` 缺省由 intake 合成。
 
-> **方向统一约定**：所有 `--direction` 参数均采用 **用户语义**（想看的目标方向）：
-> - `down` = 想看下方 → 引擎自动翻译为物理上滑（内容上移）
-> - `up` = 想看上方 → 引擎自动翻译为物理下滑（内容下移）
-> - `right` = 想看右侧 → 引擎自动翻译为物理左滑
-> - `left` = 想看左侧 → 引擎自动翻译为物理右滑
-> AI / SOP 只需表达「想看哪个方向」，物理手势由引擎内部处理。
+### 写步骤的口径
 
-| 输入「xxx」 | `input-text`（配 `action_anchor`） | `false` | `[{"kind":"text","match":"present","expect":"回显文案"}]` | |
-| 断言出现 / 校验包含 | `assert-text` | `false` | `[{"kind":"text","match":"present","expect":"..."}]` | |
-| 断言消失 | `assert-text` | `false` | `[{"kind":"text","match":"gone","expect":"..."}]` | |
-
-**`page_ready` 布尔字段**：导航到新页面的操作设为 `true`（引擎会等待页面稳定后再截图）。
-
-**「开 → 看 → 关」拆分**：交互步骤（`step-type=interaction`，含 `tap-text`/`back`）的 `asserts` 只用页面标题等**轻量标志**，禁止放深层内容；Flow 声明的**全部**预期字段一律拆到独立的 `assert-text`（`step-type=assert`）步骤。弹窗类按「开（`tap-text` + `page_ready:true`）→ 看（`assert-text`）→ 关（`back`）」三段拆。
-
-### 注意事项
-
-- **`landing_scheme` 禁止重复**：不要为第一步写 `open-url`，引擎已通过 scheme 自动跳转
-- **action_arg 文案口径**：`tap-text` / `scroll-until` 优先精确匹配；当页面文案与 action_arg 存在**唯一子串/重叠关系**时（如页面「已优惠¥175」vs action_arg「已优惠」），引擎运行期**唯一子串兜底**直接命中，并记录 `action_hit`（verdict=semantic）→ 该步标记 `needs_review`、evidence 记录 `text_mismatch`，**不额外产生 hook**；多形态候选不兜底，仍转 `resolve_text_not_found`（tap）/ `SUBSTRING_AMBIGUOUS`（scroll）hook 交 AI 消歧。
-- **input-text 的锚点语义**：`action_anchor` 只是「输入框附近的锚点」或一句语义描述，引擎会在锚点所在**同一视觉行**内自行定位 `role=input` 目标；定位不到（行内无输入框 / 需先点击展开 / 是选择器）转专用 hook `resolve_input_box`，由 AI 用**截图 + 锚点行成员（含宽度）**推断坐标后以坐标形态重跑（输入动作禁止用坐标点击替代）。
-- **场景 Mock 是 case 级（`cases[].mock_ids`）**：Flow「可测性环境」AppMock 行 → 该 case 的 mockId 集合，`flow-init` 自动派生，无需写入 env / 不需作答。AppMock 对同一请求「命中即短路」，因此同一 case 内**不允许**两个 mockId 命中同一接口（`B0_mock_preflight` fail-fast）；跳 case 由 `C1_mock_apply` 差量开关隔离，绝不共存。
-- **自检**：按 `references/review-rules.md` 逐条审校 steps（R-STR → R-ACT → R-AST → R-SEM → R-PAR → R-CFL），**P0 全部通过后再执行 steps-generate**
+- **落地页由首步 `open-url` 表达（唯一事实源）**：`steps[0]` 必须是 `open-url` 且 `action.text` 与 `env.scheme` 完全一致；漏写时引擎会用 `env.scheme` 自动注入，写了两份不一致的 URL 直接报错。首步落地步恒为 PENDING，必须完成 `verify_landing_page`（AI 读**本次运行截图**判定「是否真的进入目标页」，非登录页/报错页/白屏兜底页）后才能推进；判 fail 时引擎自动把 case 记 blocked 并进入报告阶段。纯 api/track 用例不注入落地步。
+- **操作文案口径**：`tap-text` / `scroll-until` 优先精确匹配；页面文案与 `action.text` 存在**唯一子串/重叠关系**时（页面「已优惠¥175」vs `action.text`「已优惠」），运行期唯一子串兜底直接命中并记 `action_hit`（verdict=semantic）→ 该步标记 `needs_review`、evidence 记 `text_mismatch`，不额外产生 hook；多形态候选不兜底，转 `resolve_text_not_found`（tap）/ `SUBSTRING_AMBIGUOUS`（scroll）hook 交 AI 消歧。
+- **input-text 的锚点语义**：`action.text` 只是「输入框附近的锚点」或一句语义描述，引擎在锚点所在**同一视觉行**内自行定位 `role=input` 目标；定位不到（行内无输入框 / 需先点击展开 / 是选择器）转专用 hook `resolve_input_box`，由 AI 用截图 + 锚点行成员（含宽度）推断坐标后以坐标形态重跑（输入动作禁止用坐标点击替代）。
+- **「开 → 看 → 关」拆分**：交互步骤（`tap-text` / `back` / `scroll-until`）的 `checks` 只放页面标题等**轻量标志**，用例声明的全部预期内容拆到独立步骤（`action.kind=none` + 多条 `checks`）。弹窗类按「开（`tap-text` + 等待就绪）→ 看（`none` + 内容断言）→ 关（`back` + `text_gone`）」三段拆。
+- **场景 Mock 是 case 级（`env.mock_ids`）**：Mock 对同一请求「命中即短路」，同一 case 内不允许两个 mockId 命中同一接口（`B0_mock_preflight` fail-fast）；跳 case 由 `C1_mock_apply` 差量开关隔离，绝不共存。
+- **自检**：`steps_cli check` 必须通过（结构 + 文本级 lint：禁时长 / 坐标 / 像素 / 凭证 / 方位词），再按 `references/review-rules.md` 逐条审校（R-STR → R-ACT → R-AST → R-SEM → R-PAR → R-CFL），**P0 全通过后**才执行 ③。
 
 ### 模糊推定
 
-Flow 含 `pending`/`待审校`/`以实际为准` 时：操作推定最合理文案（上下文优先→美团常识回退），标注 `"inferred": true`，asserts 全走 `kind: "visual"`。推定不违反 R-SEM-001。
+Flow 含 `pending`/`待审校`/`以实际为准` 时：操作推定最合理文案（上下文优先→美团常识回退），标注 `"inferred": true`，能用文案描述的写 `{"type": "text"}`，只剩形态/排版无法用单一文案表达的写 `{"type": "vision"}`。推定不违反 R-SEM-001。
 
 ## 四、命令一览
 
 `step` 命令的 `--help` 会列出每个 action 子命令及其必填参数（缺失会直接报错并给出标准用法）。本节只做命令分类导航，不重复列参数。**阶段 1 中 AI 不应手动构造命令，直接执行 `flow-next` 返回的指令即可。**
 
-- **Flow 转换与审校**：`flow-convert`（轻量模式：解析 Flow .md 元数据，供 AI 写步骤参考） `cases-create`（创建空 CASES 文件，写内容前必须先执行） `steps-generate`（接收 AI 编写的 CASES JSON，完成 sid 编号/校验/占位符替换，输出 steps-input.json）
+- **用例输入与审校**：`steps-generate`（`steps.json` → `steps-input.json`：业务模型→CASES 映射、sid 编号、blur 注入、intake 合成 device/env、占位符登记、两级校验）`validate`（dry-run 校验已生成的 steps-input）
 - **交互与断言**：`screenshot`（`--out` 为纯文件名时归档到当前 Case 的 `frames/`；为路径时按原路径） `open-url` `tap-text` `tap` `scroll-until` `scroll-edge` `input-text` `blur-input` `assert-multi` `swipe` `dismiss-recce`（`assert-text` 合并至 `step assert-text`）
 - **元素定位**：`find-text --text <文案>` `find-icon --anchor <邻近文案>` `find-input --anchor <邻近文案>` `probe-status` `inspect-tree`
-- **Flow 引擎驱动**：`step` `log-record` `override-step-result` `assert-fields`（API/Track 字段判定；埋点多候选用 `--picked <序号>` 消歧） `response-search`（API 响应按需视图：`--skeleton` 结构总览 / `--query` 关键字定位 / `--path` 精确取值） `flow-init` `flow-status`（`--sid <SID>` 查单步精简详情）`flow-case-status` `flow-next` `flow-advance` `hook-info`（`--hook-id <ID> [--sid <SID>]` 按需查询单个 hook 的完整操作指引）`ack` `skip-case` `flow-fail` `flow-finalize` `gen-report`
+- **Flow 引擎驱动**：`step` `log-record` `override-step-result` `assert-fields`（API/Track 字段判定；埋点多候选用 `--picked <序号>` 消歧） `response-search`（API 响应按需视图：`--skeleton` 结构总览 / `--query` 关键字定位 / `--path` 精确取值） `flow-init` `flow-add-case`（把另一个 case 追加进同一 run：`--dir <run>`（**可省略**，缺省沿用当前活跃 run）+ `--input`，可直接传 `steps-input-<tag>.json`，取 `cases[--case-index]`；追加后重跑 `flow-init` 会沿用同一批次与报告行）`flow-status`（`--sid <SID>` 查单步精简详情）`flow-case-status` `flow-next` `flow-advance` `hook-info`（`--hook-id <ID> [--sid <SID>]` 按需查询单个 hook 的完整操作指引）`ack` `skip-case` `case-post-scan`（Case 收尾补扫：无失败/待判定项自动跳过、零设备成本；有则**先快速回顶**（纯手势不截图，`--no-reset-top` 可关闭）、再自上而下补看 ≤5 屏截图并列出待复核项，帧序即页面顺序，AI 一次性读图后改判）`flow-fail` `flow-finalize` `gen-report`（生成当前 Case 报告并**立即追加**到平台报告；每 Case 一次）
 - **异常终止**：`report-error`（异常终止收尾前调用，上报 AI 分析结论和解决方案）
-- **workspace / 环境与设备**：`ws-init`（分配 workspace + 生成入口） `check-deps`（缺什么装什么） `toolchain`（adb/hdc 来源与内置离线包体检，只读） `preflight-clean` `post-clean` `device disconnect`（收尾回收本 run 会话，legacy 自动隔离到 `sessions/.stale/`） `install-app` `force-stop` `launch` `set-location` `mock`（含 `mock effective`：聚合 ptest + 场景 Mock 的生效集并判定是否仍被 ptest 全量规则遮蔽） `mock-preflight`（场景 Mock 预检：快照 union + 冲突检测 + 清场） `mock-apply --case-index <i>`（把场景 Mock 收敛到指定 case） `mock-restore`（恢复 union 到执行前状态） `mis`（虚拟 mis 池：`mis acquire` 领虚拟 mis / `mis status` 查看 / `mis release` 释放 / `mis release-stale --hours N`） `input-schema` `input-seed` `input-next` `input-answer` `input-status` `env-prepare` `validate` `case-init`
+- **workspace / 环境与设备**：`ws-init`（分配 workspace + 生成入口） `check-deps`（缺什么装什么） `toolchain`（adb/hdc 来源与内置离线包体检，只读） `prune`（清理旧报告归档，keep-latest-N） `preflight-clean` `post-clean` `device disconnect`（收尾回收本 run 会话，legacy 自动隔离到 `sessions/.stale/`） `install-app` `force-stop` `launch` `set-location` `mock`（含 `mock effective`：聚合 ptest + 场景 Mock 的生效集并判定是否仍被 ptest 全量规则遮蔽） `mock-preflight`（场景 Mock 预检：快照 union + 冲突检测 + 清场） `mock-apply --case-index <i>`（把场景 Mock 收敛到指定 case） `mock-restore`（恢复 union 到执行前状态） `mis`（虚拟 mis 池：`mis acquire` 领虚拟 mis / `mis status` 查看 / `mis release` 释放 / `mis release-stale --hours N`） `input-schema` `input-seed` `input-next` `input-answer` `input-status` `env-prepare` `validate` `case-init`
 
 以下是 `--help` 之外仍需要说明的行为语义（不属于参数，`--help` 不会体现）：
 - `back` 是 Flow action，单独执行用 `step back`。
@@ -258,11 +258,11 @@ Flow 含 `pending`/`待审校`/`以实际为准` 时：操作推定最合理文�
 
 3. **本地真机安装/信任弹窗**：`local` 未安装 App 时自动补装（鸿蒙约 2-3 分钟），`important_notices` **原样转述给用户**。鸿蒙首次启动被"企业应用未受信任"拦截时，`device setup` 会暂停并携带 `guidance`：引导用户手动信任后重试，不要判为不可恢复。
 
-4. **测试数据变更**：先用 Flow 原始参数完成首次落地验证，确认链路健康后再切换用户指定数据。
+4. **测试数据变更**：先用 steps.json 原始参数完成首次落地验证，确认链路健康后再切换用户指定数据。
 
 5. **感知通道适用范围**：文本断言与元素定位走探针链。视图树由 App 端按页面注入 dump 能力，业务容器页（MRN / Recce / Mach / 动态布局）可用；首页（MainActivity）未注入，`inspect-tree` 必然超时，须改用截图或 Activity 焦点判断。
 
-6. **元素定位按目标选命令**：有文案用 `find-text --text <文案>`（直接返回坐标）；**无文案图标（箭头、图标按钮）声明步骤用 Flow action `tap` + `action_anchor`（锚点行唯一可点击目标 → 引擎自动点击；多/无 → 走视觉通道消歧）**；`find-icon --anchor <邻近文案>` 用于复核与坐标兜底（返回**锚点祖先链 + 该行候选**，结合周边文案判断点哪个 `clickable`，其 `tap` 字段即坐标）；输入框用 `find-input --anchor <邻近文案>`（同上，按 `role=input` 过滤）。`tap --action-x/--action-y` 坐标必须来自以上命令或截图取证。`inspect_tree.json` **禁止自行写脚本解析**（直读顶层字段全为空，会得「页面无节点」假象）。
+6. **元素定位按目标选命令**：有文案用 `find-text --text <文案>`（直接返回坐标）；**无文案图标（箭头、图标按钮）在 steps.json 里用 `action.kind=tap` + `action_anchor`（锚点行唯一可点击目标 → 引擎自动点击；多/无 → 走视觉通道消歧）**；`find-icon --anchor <邻近文案>` 用于复核与坐标兜底（返回**锚点祖先链 + 该行候选**，结合周边文案判断点哪个 `clickable`，其 `tap` 字段即坐标）；输入框用 `find-input --anchor <邻近文案>`（同上，按 `role=input` 过滤）。`tap --action-x/--action-y` 坐标必须来自以上命令或截图取证。`inspect_tree.json` **禁止自行写脚本解析**（直读顶层字段全为空，会得「页面无节点」假象）。
 
 7. **WebView（H5）页面元素定位**：WebView DOM 由 Chromium 绘制，不向 Android View 树注册子节点，`inspect-tree` 采不到其内部节点（正常现象）。**但 H5 已被统一目标模型覆盖**：webview 探针经 CDP 导出 DOM 节点（`dump_nodes`），`get_current_nodes` 会把 native 与各渲染层的节点合并去重（H5 节点在目录/候选中标注 `(webview)`），因此 **目录（sidecar）、候选清单、邻域查询、`find-icon`/`find-input` 都能看到 H5 元素**；`find-text` 走探针链（native 未命中回退 DOM，命中标注 `[webview]`）。前提是 App 已开启 WebView 调试开关，未开启时探针不可用并自动退化为纯 native（此时才需要 `find-text` + 截图目测）。排查首选 `probe-status` 确认探针链与目标页面。
 
@@ -270,7 +270,9 @@ Flow 含 `pending`/`待审校`/`以实际为准` 时：操作推定最合理文�
 
 ## 六、产物
 
-`flow-finalize` 将本 workspace 归档到 `$STATE/reports/<batch>/<run>/run/`，随后 `post-clean` **删除本 workspace 与其入口**。同一编排的多个分片共享 `<batch>`、各自独立 `<run>`；`<run>` 重试落 `-r2/-r3`，不覆盖上一轮。目录内保留 `meta.json`（批次/run/状态的稳定索引）、`report.json`（批次报告）、`case_NN/report.json` + `frames/`（Case 报告与截图 S3 URL）和 `run/`（全部原始执行产物，含 inspect_tree / dumps 等过程信息）供数据分析。归档与报告统一脱敏，运行态原值不外泄。批量报告必须包含全部声明的 Case，缺失则 `run_status: incomplete`。
+报告按 **Open → Append → Close** 增量写入同一行：Open（编排层预置；独立运行由 `flow-init` 预置）只写行级元信息与空 `cases`，**托管运行时引擎不得重复 Open**；每个 Case 的 `C5_report`（`gen-report`）只追加**这一个** Case（平台按 `case_id` 幂等合并并重算汇总）；`flow-finalize` 只做 Close（补传失败 Case + 回写 `cases[0].run_status` 与行级 `duration`）。单次请求体积恒等于一个 Case，与批次大小无关，**禁止改回一次性全量上传**（多 Case 必 413）。`flow-finalize` 将本 workspace 归档到 `$STATE/reports/<batch>/<run>/run/`，随后 `post-clean` **删除本 workspace 与其入口**。同一编排的多个分片默认各自独立（各自 `<batch>`/`<run>`/报告行）；仅当编排层显式注入 `AI_UITEST_BATCH_ID`（共享批次目录）与 `AI_UITEST_REPORT_ID`（共享报告行，引擎据此跳过 Open）时，各分片才 Append 到同一行——此时 Open 与最终 Close（行级 `run_status` / `duration`）必须归编排层统一执行，分片只 Append。`<run>` 重试落 `-r2/-r3`，不覆盖上一轮。目录内保留 `meta.json`（批次/run/状态的稳定索引）、`report.json`（批次报告）、`report-upload.json`（增量上报台账）、`case_NN/report.json` + `frames/`（Case 报告与截图 S3 URL）、`case_NN/inputs/`（**输入原文**：业务真源 `steps.json` + 执行输入 `steps-input.json`，与 `frames/` 同级，报告包自包含）和 `run/`（全部原始执行产物，含 inspect_tree / dumps 等过程信息）供数据分析。归档与报告统一脱敏，运行态原值不外泄。批量报告必须包含全部声明的 Case，缺失则 `run_status: incomplete`。报告归档在**执行前**（`flow-init`）自动滚动清理：保留最近 `AI_UITEST_KEEP_REPORTS` 个批次（缺省 5，0=关闭），60 分钟内写入的批次受保护不删；也可 `python3 scripts/cli.py prune [--keep N] [--dry-run]` 手动预览/清理。
+
+**补测 / 重测（只重跑报告内部分 Case）**：注入 `AI_UITEST_REPORT_ID` + `AI_UITEST_BATCH_ID`（复用原报告行，引擎跳过 Open、按 `case_id` 覆盖目标 Case，行级汇总由平台重算），并额外 `export AI_UITEST_PARTIAL_RERUN=1` —— 此时 `flow-finalize` **不回写报告级 `duration`**（保留首轮全量口径），也不会把未重跑的 Case 置为缺失。注意报告行 `run_status` 的语义是「本轮声明的 Case 是否全部产出报告」，不是通过率（全部 Case blocked 也可能是 `complete`），补测失败与否以 Case 状态和调用方 verdict 为准。
 
 Case 报告的 `steps` 是已声明步骤结论，`findings` 是独立判定，`notes` 是无判定备注。任何 fail 都会使 Case 状态为 failed，不存在"有失败但显示全绿"的情况。
 

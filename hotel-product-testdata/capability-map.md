@@ -26,7 +26,8 @@ sources_of_truth:
     - SKILL.md（场景路由表）
     - references/workflows/w1-create-fullday.md ～ w9-create-palletize-package.md
   leaf_capability:
-    - "hotel_testdata_cli/factory/<域>/<脚本>.py --show-schema（全部 factory 脚本均支持）"
+    - "hotel_testdata_cli/factory/<域>/<脚本>.py --show-schema（近线价工具除外，使用子命令 --help）"
+    - "hotel_testdata_cli/factory/ops/nearline-price-cache.py <子命令> --help（近线价参数契约）"
     - "hotel_testdata_cli/factory/<域>/schema.json（参数约束）"
     - "testdata-cli query-testdata list-tags --query-tab 1 --biz-line 20（数据池标签全集）"
   contract_docs:
@@ -38,6 +39,7 @@ safe_probes:            # 仅允许无写入探测，不得为判断能力真伪
   - "factory/<域>/<脚本>.py --help"
   - "factory/<域>/<脚本>.py --show-schema"
   - "factory/<域>/<脚本>.py --dry-run（仅创建类脚本，输出约束校验，不落库）"
+  - "factory/ops/nearline-price-cache.py <子命令> --dry-run（仅 URL 预览，无网络调用）"
 
 verification_contract:
   minimum: dry_run    # 创建类操作先 --dry-run 确认「[约束校验] ✅ 通过」再正式执行；查询/审核类直接执行后回读
@@ -79,6 +81,7 @@ verification_contract:
 |---------|------------|---------|---------|------|
 | 营销报名-生意助手/全域通（一口价/折扣/混合） | W6 | mode（1新建报名/2已有产品）、configKey（notUpscale/upscaleFixed/upscaleDiscount/upscaleFixedDiscountMixed） | 报名结果（异步，大象推送） | 工具1037 |
 | 缓存刷新（商品/SPU/门店/货盘级） | W6 | --op 1，product-id/spu-id/poi-id/rp-id 之一 | 刷新结果 | 工具1031 |
+| 近线价相关价格预测缓存同步（门店 / 商品维度）/ 查询（单门店日历 / 连住） | W6 | sync：poiId；sync-goods：单 goodsId+dates(变更日期集合，startDate形态暂不可用、已禁用)；query：poiId+checkIn/checkOut；query-multi：单 poiId+startDay/endDay | 同步响应 / 价格预测缓存内容 | hotel-goodsquery 后门 HTTP 接口；内置官方换票+OCTO查 IP（需 Agent 凭据及 MOA 登录态；缺失则停止，或显式用 mtdev 查测试节点后传 --node-ip）；--swimlane 严格匹配、不回退主干；--dry-run 无网络；参数见 --help（无 --show-schema）。2026-11-02 实测：商品同步 SUCCESS 但目标字段未更新、带起日404，已禁用（传 --start-date 网络前报错，含 dry-run），待研发确认上线并响应/缓存回读验证通过后开放；multi 为单 POI 连住，非多门店，单 POI查询成功；均值近线价另有 V2 路由，不混为一谈，详见 W6 |
 | BD 改价审核（通过/驳回） | W6 | --op 2，audit-status（2驳回/3通过） | 审核结果 | — |
 | 商家改价审核（通过/驳回） | W6 | --op 3，audit-status | 审核结果 | 默认通过 |
 | 商品上线/下线（batchOnlineSwitch） | W6 | partnerId+poiId+goodsIds+status（2上线/3下线） | 上下线结果 | 可批量传多个 goodsId |
@@ -150,6 +153,10 @@ verification_contract:
 | 直连通兑超团 / 直连商品做通兑 | 超团构造-境内通兑直连超团 | W5 |
 | 工具1037 | 营销报名 | W6 |
 | 工具1031 | 缓存刷新/改价审核 | W6 |
+| 近线价 / nearline / 到手价均值缓存 / poiSimplePrice / goodsprice sync | 近线价门店同步/单门店查询（sync / query） | W6 |
+| syncGoodsPriceByGoodsIds / 按商品同步近线价 | 近线价相关商品同步（sync-goods，不传 --start-date） | W6 |
+| 指定起日同步 / sync-goods --start-date | 暂不可用、已禁用；待研发确认目标环境上线并实测回读通过后开放，禁止绕过 | W6 |
+| multiPoiSimplePrice / 单门店连住查价 / 多晚查价 | 单门店连住价格预测查询（query-multi，非多门店） | W6 |
 | batchOnlineSwitch / 发布上线 / 恢复上线 | 商品上线/下线 | W6 |
 | 库存不足上线失败 | 商品上线失败（缺库存）修复 | W7（联动 W1/W2） |
 | batchUpdateInventory / 补库存 / 设置库存余量 / 修改房态 | 开房/关房/设置库存余量 | W7 |

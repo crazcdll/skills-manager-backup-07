@@ -185,6 +185,26 @@ python3 factory/inventory/update-inventory.py --partner-id <partnerId> --poi-id 
 
 ---
 
+## Step 6：构造完成后数据维护（主动询问）
+
+商品构造成功（上线 + 缓存刷新完成，拿到 `goodsId` + `poiId`）后，**主动用 AskQuestion 询问用户**："是否将本次构造的数据加入数据维护（Watson）？"
+
+- 用户确认 → 执行以下命令，**只替换 `productId`（填 goodsId）、`poiId` 和 `misId`，`operator` 为当前操作人（MIS_ID），其他参数严禁修改**（`misId` 与 `operator` 一样填当前操作人工号）：
+
+```bash
+mt-qa-tool du-thrift invoke com.sankuai.qatool.productmanage \
+  com.meituan.nibqa.tdm.api.service.DataMaintainService \
+  saveMaintainDataForWatson \
+  --body '{"productId":<goodsId>,"bizLine":20,"poiId":"<poiId>","bizCode":"nib.hotel.booking.prepay","idType":2,"ignoreBcDiff":false,"maintainRule":97,"extendRule":1,"misId":"<MIS_ID>"}' \
+  --operator <MIS_ID> --timeout 30000
+```
+
+- 用户拒绝 → 跳过，正常收尾（执行记录 update 时把维护结果写入 `--detail`）
+- 钟点房仅支持境内，天然满足触发条件，无需额外判断
+- 维护命令调用失败 → 不回滚商品，报 WARN 提示用户人工处理
+
+---
+
 ## 与全日房的关键差异
 
 | 项目 | 全日房 | 钟点房 |

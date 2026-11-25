@@ -19,7 +19,7 @@ import {
 import { isIP } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { AGENTS_INDEX_CONTRACT, RULESET_INDEX_PLACEMENT, isCurrentAgentsIndexRenderer, validateAgentsIndexes, renderAgentsIndexes, agentsManifestFields, validateAgentsManifest, agentsIndexDestinations } from "./agents-index.mjs";
+import { AGENTS_INDEX_CONTRACT, L1_RELATIVE_RENDERER, RULESET_INDEX_PLACEMENT, relativeL1Bindings, usesRelativeL1Paths, isCurrentAgentsIndexRenderer, validateAgentsIndexes, renderAgentsIndexes, agentsManifestFields, validateAgentsManifest, agentsIndexDestinations } from "./agents-index.mjs";
 
 export const DEFAULT_GATEWAY =
   "https://db0y7dgg85gphojyva.database.sankuai.com/functions/v1/rule-distribution";
@@ -1107,16 +1107,18 @@ const suffixFileName = (fileName, sourcePath, attempt = 0) => {
   return `${stem}--${sha256Hex(`${sourcePath}\0${attempt}`).slice(0, 16)}${extension}`;
 };
 
-const isLayoutManagedPath = (value, l1Layout = FLAT_L1_LAYOUT) => {
+const isLayoutManagedPath = (value, l1Layout = FLAT_L1_LAYOUT, relativeL1 = false) => {
   const pathValue = normalizeRelativePath(value, true);
   const parts = pathValue.split("/");
+  if (relativeL1 && l1Layout === FLAT_L1_LAYOUT && parts[0] === "company" && parts.length >= 3) return ["fe", "java"].includes(parts[1]);
   if (parts[0] === "company" && isDomainFlatLayout(l1Layout) && parts.length === 3) return ["fe", "java"].includes(parts[1]);
   if (parts[0] === "company" && l1Layout === PREVIOUS_FLAT_L1_LAYOUT) return false;
   return parts.length === 4 && ["company", "team"].includes(parts[0])
     && ["fe", "java"].includes(parts[1]) && normalizeLocalRuleSetName(parts[2]) === parts[2];
 };
 
-const localFilesForBundle = (bundle, { indexPlacement = RULESET_INDEX_PLACEMENT, l1Layout = FLAT_L1_LAYOUT } = {}) => {
+const localFilesForBundle = (bundle, { indexPlacement = RULESET_INDEX_PLACEMENT, l1Layout = FLAT_L1_LAYOUT, relativeRenderer = L1_RELATIVE_RENDERER } = {}) => {
+  const relativeL1 = usesRelativeL1Paths(relativeRenderer);
   const layout = bundle.snapshot.resolver_version === LAYOUT_BUNDLE_SCHEMA;
   const versionTwo = bundle.snapshot.resolver_version !== LEGACY_BUNDLE_SCHEMA;
   const directoryOwners = new Map();
@@ -1128,6 +1130,11 @@ const localFilesForBundle = (bundle, { indexPlacement = RULESET_INDEX_PLACEMENT,
     directoryOwners.set(key, ref.rule_set_id);
   }
   const reservedIndexPaths = agentsIndexDestinations(bundle.agents_indexes, refs, { indexPlacement });
+  // Wire names can carry disambiguating hash suffixes. A native L1 index names
+  // source files relative to its own directory and must survive installation byte for byte.
+  const bound = layout && relativeL1 && indexPlacement === RULESET_INDEX_PLACEMENT
+    ? relativeL1Bindings(bundle.agents_indexes, refs, relativeRenderer) : new Map();
+  const pinnedSources = new Set();
   const candidates = bundle.files.map((file) => {
     const sourcePath = normalizeRelativePath(file.relative_path, versionTwo);
     const parts = sourcePath.split("/");
@@ -1146,9 +1153,20 @@ const localFilesForBundle = (bundle, { indexPlacement = RULESET_INDEX_PLACEMENT,
         directory = path.posix.dirname(reservedIndexPaths.get(owner.rule_set_id));
       } else directory = isDomainFlatLayout(l1Layout) ? `company/${domain}` : `company/${domain}/${owner.local_rule_set_name}`;
     } else directory = scope === "l1" ? "company" : `team/${inferredRuleSetId}`;
-    const candidate = `${directory}/${fileName}`;
+    let name = fileName;
+    const binding = bound.get(sourcePath);
+    if (binding) {
+      if (scope !== "l1" || owner.rule_set_id !== binding.rule_set_id || owner.release_id !== binding.release_id) {
+        fail("RULE_BUNDLE_AGENTS_INDEX_INVALID", "L1 索引引用的文件不属于同一发布版本");
+      }
+      name = normalizeRelativePath(binding.reference);
+      if (name !== binding.reference) fail("RULE_BUNDLE_FILE_PATH_INVALID", "L1 索引引用含有多余空白");
+      pinnedSources.add(sourcePath);
+    }
+    const candidate = `${directory}/${name}`;
     return { ...file, source_relative_path: sourcePath, local_relative_path: candidate };
   });
+  if (pinnedSources.size !== bound.size) fail("RULE_BUNDLE_AGENTS_INDEX_INVALID", "L1 索引绑定了本次下载以外的文件");
   if (indexPlacement !== "separate") for (const entry of bundle.agents_indexes || []) {
     const ref = refs.find(item => item.rule_set_id === entry.rule_set_id && item.release_id === entry.release_id);
     if (ref?.scope_level !== "L2") continue;
@@ -1164,14 +1182,30 @@ const localFilesForBundle = (bundle, { indexPlacement = RULESET_INDEX_PLACEMENT,
     }
   }
   const occupied = new Set([...reservedIndexPaths.values()].map(pathKey));
+  const directories = new Map();
+  for (const file of candidates) {
+    if (!pinnedSources.has(file.source_relative_path)) continue;
+    const parts = file.local_relative_path.split("/");
+    const key = pathKey(file.local_relative_path);
+    if (occupied.has(key) || directories.has(key)) fail("RULE_BUNDLE_FILE_DUPLICATE", "L1 索引文件路径重复或与目录冲突");
+    occupied.add(key);
+    for (let i = 1; i < parts.length; i++) {
+      const directory = parts.slice(0, i).join("/");
+      const key = pathKey(directory);
+      if (occupied.has(key) || (directories.has(key) && directories.get(key) !== directory)) {
+        fail("RULE_BUNDLE_FILE_DUPLICATE", "L1 索引目录与文件冲突或存在大小写和 Unicode 重名");
+      }
+      directories.set(key, directory);
+    }
+  }
   return candidates.map((file) => {
     let localPath = file.local_relative_path;
     let attempt = 0;
-    while (occupied.has(pathKey(localPath))) {
+    while (!pinnedSources.has(file.source_relative_path) && (occupied.has(pathKey(localPath)) || directories.has(pathKey(localPath)))) {
       const parts = localPath.split("/");
       localPath = [...parts.slice(0, -1), suffixFileName(parts.at(-1), file.source_relative_path, attempt++)].join("/");
     }
-    if (!(layout ? isLayoutManagedPath(localPath, l1Layout) : isFlatManagedPath(localPath, versionTwo))) fail("RULE_BUNDLE_FILE_PATH_INVALID", `规则本地路径非法：${localPath}`);
+    if (!(layout ? isLayoutManagedPath(localPath, l1Layout, relativeL1) : isFlatManagedPath(localPath, versionTwo))) fail("RULE_BUNDLE_FILE_PATH_INVALID", `规则本地路径非法：${localPath}`);
     occupied.add(pathKey(localPath));
     return { ...file, local_relative_path: localPath };
   }).sort((left, right) => binaryPathOrder(left.local_relative_path, right.local_relative_path));
@@ -1234,7 +1268,7 @@ const validateLocalManifestStructure = (manifest) => {
   for (const managedPath of [...uniquePaths].sort(pathOrder)) {
     if (typeof managedPath !== "string") return false;
     if (!flat && !managedPath.startsWith(`${manifest.standard_domain}/`)) return false;
-    if (flat && !(layout ? isLayoutManagedPath(managedPath, manifestL1Layout(manifest)) : isFlatManagedPath(managedPath, bundleSchema))) return false;
+    if (flat && !(layout ? isLayoutManagedPath(managedPath, manifestL1Layout(manifest), usesRelativeL1Paths(manifest.agents_index_renderer)) : isFlatManagedPath(managedPath, bundleSchema))) return false;
     const sourcePath = manifestSourcePath(manifest, managedPath);
     if (flat && !Object.hasOwn(manifest.managed_file_sources, managedPath)) return false;
     const fileHash = manifest.managed_file_hashes[managedPath];
@@ -1261,7 +1295,7 @@ const validateLocalManifestStructure = (manifest) => {
   if (layout || indexPlacement === "flat-team") {
     if (layout && Object.keys(manifest.managed_file_releases).length !== uniquePaths.size) return false;
     const derived = localFilesForBundle({ snapshot: { resolver_version: bundleSchema, release_refs: releaseRefs },
-      files: projection, agents_indexes: manifest.agents_indexes }, { indexPlacement, l1Layout: manifestL1Layout(manifest) });
+      files: projection, agents_indexes: manifest.agents_indexes }, { indexPlacement, l1Layout: manifestL1Layout(manifest), relativeRenderer: manifest.agents_index_renderer ?? null });
     if (canonicalJson(Object.fromEntries(derived.map(file => [file.local_relative_path, file.source_relative_path])))
       !== canonicalJson(manifest.managed_file_sources)) return false;
   }
@@ -1350,7 +1384,7 @@ const validateBootstrapManifestStructure = (manifest) => {
     || Object.keys(manifest.managed_file_sources).length !== uniquePaths.size) return false;
   const projection = [];
   for (const managedPath of [...uniquePaths].sort(binaryPathOrder)) {
-    if (typeof managedPath !== "string" || !(layout ? isLayoutManagedPath(managedPath, manifestL1Layout(manifest)) : isFlatManagedPath(managedPath, BUNDLE_SCHEMA))
+    if (typeof managedPath !== "string" || !(layout ? isLayoutManagedPath(managedPath, manifestL1Layout(manifest), usesRelativeL1Paths(manifest.agents_index_renderer)) : isFlatManagedPath(managedPath, BUNDLE_SCHEMA))
       || !managedPath.startsWith("company/")
       || !Object.hasOwn(manifest.managed_file_sources, managedPath)) return false;
     const sourcePath = normalizeRelativePath(manifest.managed_file_sources[managedPath], true);
@@ -1369,7 +1403,7 @@ const validateBootstrapManifestStructure = (manifest) => {
   if (releaseRefs.some((release) => release.scope_level !== "L1" || (layout && release.standard_domain !== manifest.standard_domain))) return false;
   if (layout) {
     if (Object.keys(manifest.managed_file_releases).length !== uniquePaths.size) return false;
-    const derived = localFilesForBundle({ snapshot: { resolver_version: LAYOUT_BUNDLE_SCHEMA, release_refs: releaseRefs }, files: projection, agents_indexes: manifest.agents_indexes }, { indexPlacement: manifestIndexPlacement(manifest), l1Layout: manifestL1Layout(manifest) });
+    const derived = localFilesForBundle({ snapshot: { resolver_version: LAYOUT_BUNDLE_SCHEMA, release_refs: releaseRefs }, files: projection, agents_indexes: manifest.agents_indexes }, { indexPlacement: manifestIndexPlacement(manifest), l1Layout: manifestL1Layout(manifest), relativeRenderer: manifest.agents_index_renderer ?? null });
     if (derived.some((file) => !uniquePaths.has(file.local_relative_path) || manifest.managed_file_sources[file.local_relative_path] !== file.relative_path)) return false;
   }
   const indexCapable = manifest.schema_version === LAYOUT_BOOTSTRAP_LOCAL_MANIFEST_SCHEMA

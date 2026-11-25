@@ -39,7 +39,7 @@ mtcli 固定生产服务定义/环境，先核验 dry-run，再调用 `bundles r
 CLI 记录 client_type=cli、实际 npm name/version，skill_name/version 为 null；Skill 读取实际发行 SKILL.md，setup 和非 setup 名称分别记录，未知值为 null。平台展示名→完整仓库名→来源绝对路径兜底，配套名称来源，不重复上报路径。
 服务端记录实际分发模式、原因、快照、Release、规则 UID、字节数及时间；匿名/自报/认证身份明确区分。服务器 ready/not_modified 不代表本地安装成功，本地结果目前不回传。
 
-前端 L1 索引和正文一起安装在 `.mdp/rules/company/fe/`，索引文件为 `AGENTS.md`。Java L1 对应 `company/java/`，上游两列索引中的文件名相对同目录解析，索引和规则文件均保留 Git 原文。L2 在 `team/<fe|java>/<规则集名称>/` 中保存本规则集的索引和正文。同一领域一次交付多套 L1 时，有索引的规则集在领域目录下按规则集名称分开存放。
+前端 L1 索引和正文一起安装在 `.mdp/rules/company/fe/`，索引文件为 `AGENTS.md`。Java L1 对应 `company/java/`，Git 两列索引以 `AGENTS.md` 所在目录为基准。比如 `java/依赖.md` 与 `database/依赖.md` 会安装到各自子目录，索引和正文均保留 Git 原文。L2 在 `team/<fe|java>/<规则集名称>/` 中保存本规则集的索引和正文。同一领域一次交付多套 L1 时，有索引的规则集在领域目录下按规则集名称分开存放。
 
 升级后首次拉取会核对旧清单并迁移受管索引，清理空的旧目录。已编辑的受管索引或新位置已有的自建文件会阻止覆盖。`project/` 继续用于项目自管 L3。
 生效包 manifest v8、L1 manifest v5 在旧内容 Hash 之外绑定 resolution 上下文，兼容读取旧清单；内包继续校验 effective-rule-bundle/v4 或 l1-bootstrap-bundle/v3 和 scope-domain-ruleset/v1。

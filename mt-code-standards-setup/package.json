@@ -1,6 +1,6 @@
 {
   "name": "@nibfe/mt-coding-standards",
-  "version": "2.0.1-beta.3",
+  "version": "2.0.2",
   "description": "业务研发平台编码规范独立拉取 CLI",
   "type": "module",
   "bin": {

@@ -1,0 +1,49 @@
+{
+  "caseId": "flow-06-env-scope",
+  "title": "环境声明：泳道 / 域名映射 / 锁包 / 场景 Mock / 三类变量",
+  "priority": "P1",
+  "executionType": "deterministic",
+  "env": {
+    "scheme": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-orderfill-duo&mrn_component=main&goods_id={goods_id}&checkinDate={checkinDate}&checkoutDate={checkoutDate}",
+    "type": "B",
+    "swimline": {
+      "lane_name": "hotel_orderfill_1024",
+      "url_pattern": "/*"
+    },
+    "url_mappings": [
+      {"url": "https://i.meituan.com", "betaUrl": "https://i-beta.meituan.com"}
+    ],
+    "bundle_lock": [{"name": "@meishi/hotel-orderfill-duo", "version": "1.0.0"}],
+    "mock_ids": ["1787473576797"],
+    "preconditions": "依赖泳道内 1024 版本；场景 Mock 只作用于本 case",
+    "vars": {
+      "goods_id": {"value": "1172344601", "desc": "测试商品 ID"},
+      "guestName": {"ask": true, "desc": "入住人姓名"},
+      "checkinDate": {"date": 4, "format": "%Y-%m-%d", "desc": "入住日期（今天 +4 天）"},
+      "checkoutDate": {"date": 5, "format": "%Y-%m-%d", "desc": "离店日期（今天 +5 天）"}
+    }
+  },
+  "steps": [
+    {
+      "kind": "ui",
+      "id": "open-landing",
+      "name": "进入填写订单页（泳道 + 锁包 + 场景 Mock 生效）",
+      "action": {
+        "kind": "open-url",
+        "text": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-orderfill-duo&mrn_component=main&goods_id={goods_id}&checkinDate={checkinDate}&checkoutDate={checkoutDate}"
+      },
+      "wait": {"type": "page_ready"},
+      "checks": [{"type": "render_ready", "text": "填写订单"}]
+    },
+    {
+      "kind": "ui",
+      "id": "verify-mocked-price",
+      "name": "核对 Mock 返回的价格",
+      "action": {"kind": "none"},
+      "checks": [
+        {"type": "text", "text": "在线付"},
+        {"type": "text_gone", "text": "价格获取失败"}
+      ]
+    }
+  ]
+}

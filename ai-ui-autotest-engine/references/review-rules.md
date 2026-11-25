@@ -1,4 +1,4 @@
-# AI 审校规则（flow-convert 输出后必做）
+# AI 审校规则（steps.json 校验通过、steps-generate 之前必做）
 
 **审校顺序**：R-STR → R-ACT → R-AST → R-SEM → R-PAR → R-CFL。P0 不修流程必败，P1 大概率执行异常。
 
@@ -27,7 +27,7 @@
 - **R-ACT-003 [P0] 视觉断言目标完整**：`kind: "visual"` 必须有 expect；有硬性验收点（位数/数值/状态）必须用 targets 逐项列出
 - **R-ACT-004 [P1] 开看关拆分**：弹窗类拆三段，「看」独立为 step-type=assert
 - **R-ACT-005 [P2] wait 条件合理**：页面稳定等待统一用 `page_ready: true`
-- **R-ACT-006 [P0] action_arg 用页面完整节点文案**：`tap-text` / `scroll-until` 优先精确匹配，禁止写复合文案的子串（页面是「已优惠¥219」就应写完整文案）
+- **R-ACT-006 [P0] action_arg 用页面完整节点文案**：`tap-text` / `scroll-until` 优先精确匹配，禁止写复合文案的子串（应写页面节点的完整文案）
   - 页面文案与 action_arg 存在**唯一子串/重叠关系**时：引擎运行期**唯一子串兜底**直接命中，并记录 `action_hit`（verdict=semantic）→ 该步标记 `needs_review`、evidence 记录 `text_mismatch`，**不额外落 hook**（tap 为单向包含，scroll 为双向重叠）
   - 页面存在**多种**包含形态时：不兜底，转 `resolve_text_not_found`（tap）/ `SUBSTRING_AMBIGUOUS`（scroll）hook 由 AI 消歧
   - Flow 原文就是子串时：建议改用完整文案并标 `"inferred": true`
@@ -56,17 +56,18 @@
 ## R-PAR 参数完整性
 
 - **R-PAR-001 [P0] 运行时参数补填**：tap/input-text 必须配 action_anchor
-- **R-PAR-002 [P0] 占位符完整**：Flow 的 {xxx} 在 steps-input 中全部用到
-- **R-PAR-003 [P1] 日期用 {T+N:format}**：日期参数必须直接写在 `landing_scheme` / steps 中，如 `{T+10:%Y-%m-%d}`（不指定 format 时默认 `%Y-%m-%d`）；**禁止**写成 `{checkinDate}` 由用户回答，也**禁止** `params.*="__date__"`。日期偏移来自 Flow「测试数据参考」或 schemes 的 `relative_date`，由 `flow-init` 按批次日期基线解析
-- **R-PAR-004 [P0] device 对齐**：把 `flow-convert` 的默认 device（type/platform/app）修正为信息收集（`input-next` 循环）的实际结果（env 的收集字段由引擎从 intake 合成，无需手写）
-- **R-PAR-005 [P0] 真实值覆盖**：凭证登录（线上 A）的 account/password、以及各场景**非日期** params，从 Flow「测试数据参考」提取真实值，经 `input-answer` 持久化到 `intake.json`；日期参数不走 params（见 R-PAR-003）；验证码登录（alpha/泳道 B/C）的测试手机号由引擎按 workspace 确定性自动生成（`test_account`，不提问），无需从 Flow 提取（如需指定号码，用 `input-seed test_account` 覆盖）
+- **R-PAR-002 [P0] 占位符完整**：用例原文的 {xxx} 在 steps-input 中全部用到
+- **R-PAR-003 [P1] 日期用 vars.date**：日期统一在 `env.vars` 声明 `{"checkinDate": {"date": 4, "format": "%Y-%m-%d"}}`，由 `flow-init` 按批次日期基线（`AI_UITEST_DATE_BASE`）解析；偏移来自用例「测试数据参考」或 schemes 的 `relative_date`
+- **R-PAR-004 [P0] device 对齐**：把步骤模型声明的 device（type/platform/app）修正为信息收集（`input-next` 循环）的实际结果（env 的收集字段由引擎从 intake 合成，无需手写）
+- **R-PAR-005 [P0] 真实值覆盖**：凭证登录（线上 A）的真实账号密码统一收敛在 `credential`（`{account, password, country_code}`），由平台下发、无需从原文提取；业务参数的真实值优先写进 `env.vars` 的 `value`（或 `ask` 由执行前收集），日期参数用 `date`（见 R-PAR-003）；验证码登录（alpha/泳道 B/C）的测试手机号由引擎按 workspace 确定性自动生成（`credential` 默认不走提问，如需指定号码，用 `input-seed credential={"account":"<号>"}` 覆盖）
 - **R-PAR-006 [P0] 匹配标识必填**：`api_assert.path` 与 `track_assert.match` 为空会被 flow-init 硬拒（空 path 匹配任意请求、空 match 必然匹配不到）
 - **R-PAR-007 [P1] 埋点匹配标识选择**：`track_assert.match` 优先用 `val_bid`（事件 ID，精确且唯一，命中即 PASS）。Flow 只给组件级 cid（如 `c_hotel_xxx`）时，同一 cid 下会同时存在 PV / MV / MC 等多个事件，引擎会转 PENDING 交 AI 用 `assert-fields --picked` 消歧；建议补 `expected_fields` 锁定事件类型（如 `{"nm":"PV"}`）以减少歧义、提升确定性
 
 ## R-CFL 冲突检测
 
-- **R-CFL-001 [P0] landing_scheme 不重复**：首步不得是 open-url 等于 landing_scheme（C2 已自动跳转），发现即删该步骤
+- **R-CFL-001 [P0] 首步必须是落地 open-url**：`steps[0]` 的 `action.kind=open-url` 且 `action.text` 与 `env.scheme` 完全一致（漏写由 `flow_json.py` 自动注入；两处 URL 不一致直接报错）。装载层会给首步自动补齐 `role: "landing"` / `page_ready` / 内建视觉断言（`落地页正常打开`）；落地步的视觉断言必须由 AI 读图给出判定（`verify_landing_page` hook，`override-step-result --assert-verdict` 一次写全）；判 fail 时引擎自动记 blocked 并进入报告阶段，不得 `flow-fail`。用例中途不得再次 open-url 同一 scheme（会造成二次跳转、覆盖证据）
 - **R-CFL-002 [P0] tap 不用坐标**：`tap` 必须用 `action_anchor` 锚点文案（无文案图标），`input-text` 必须用 `action_anchor`（输入框标签）；声明步骤禁止写坐标（坐标仅由 hook 兜底回写）
+- **R-CFL-003 [P1] 落地后的首个 UI 断言必须能区分目标页**：落地步只确认「目标页被打开」（内建视觉断言，判据是页面标题 / 核心模块 / 非登录页与非兜底页），不承担业务内容校验；紧随其后的第一个 UI 步骤的断言必须是**该页面特有文案**（页面标题 / 房型名 / 价格区标题等），禁止只用 App 通用文案（如「美团」「首页」）或底部 Tab 文案——否则落地到了同类页面或错误页面时仍会被误判为通过
 
 ---
 

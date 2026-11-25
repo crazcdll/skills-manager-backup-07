@@ -84,7 +84,12 @@ def run_path_c(
     if not partner_id:
         # use_pool=True 时先查数据池
         if use_pool:
-            pool = query_data_pool(is_overseas=is_overseas, dry_run=dry_run)
+            pool = query_data_pool(
+                is_overseas=is_overseas,
+                # entity_type>0 时（如代理=1第三方渠道）叠加 117 标签，只复用同实体类型供应商
+                entity_type=entity_type if entity_type else None,
+                dry_run=dry_run,
+            )
             if pool.get("partner_id"):
                 # ── 数据池命中：直接复用 ──────────────────────────────────────
                 partner_id           = pool["partner_id"]

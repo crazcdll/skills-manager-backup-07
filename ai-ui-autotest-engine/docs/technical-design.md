@@ -5,7 +5,7 @@
 
 ## 一、Skill 是什么
 
-ai-ui-autotest-engine 是一个 AI 驱动的移动端 UI 自动化测试 Skill。它通过 CatPaw Agent 读取人工编写的测试 Flow（Markdown），自动完成云真机设备创建、App 安装登录、页面操作走查、截图断言、证据归档和测试报告生成的全流程。
+ai-ui-autotest-engine 是一个 AI 驱动的移动端 UI 自动化测试 Skill。它通过 CatPaw Agent 读取结构化的 `steps.json`（业务模型，由上游转化 Skill / 平台产出），自动完成云真机设备创建、App 安装登录、页面操作走查、截图断言、证据归档和测试报告生成的全流程。
 
 整个系统的核心思想是**人机协作**：Python 引擎负责"机械性"工作（设备管理、SOP 推进、截图、视图树采集、步骤状态跟踪），AI 负责"智能性"工作（理解 Flow 语义、生成测试用例、视觉判断截图、处理异常决策）。
 
@@ -77,20 +77,23 @@ ai-ui-autotest-engine/
 ├── docs/                       # 技术文档
 │   ├── technical-design.md     # 本文档
 │   └── duo-mock-guide.md       # DUO 协议 Mock 指南
-├── examples/                   # Flow 文件示例（按 assertion/data-test/element-location/interaction/login/mock/report/scroll/sop-flow 分类）
+├── examples/                   # 用例示例（steps.json 真源：交互 / 断言 / 滚动 / 输入 / 接口埋点 / 环境声明）
 ├── references/                 # 静态资源
 │   ├── apk_sources.json        # 可测性 APK 版本配置
 │   ├── ADBKeyboard.apk         # ADB 键盘输入法
-│   └── review-rules.md         # Flow → steps 审校规则
-├── scripts/                    # 全部 Python 脚本
-│   ├── cli.py                  # CLI 唯一入口（参数注册 + 分发 + workspace 门禁）
+│   └── review-rules.md         # steps.json 审校规则
+├── scripts/                    # 只承担 sys.path 根 + 进程入口 shim
+│   ├── cli.py                  # 唯一进程入口（thin shim：把 scripts/ 放进 sys.path 后调 aitest.cli.main）
+│   └── aitest/                 # 唯一命名空间包（顶层只有这一个名字，不会 shadow stdlib）
+│   ├── cli.py                  # CLI 实现（参数注册 + 分发 + workspace 门禁）
 │   ├── cli_utils.py            # 上下文解析 / 时间线记录 / 统一错误边界
 │   ├── shared/                 # 跨层纯工具（errors / exit_codes / json_utils / case_utils / context）
 │   │   ├── paths.py            #   作用域分层路径（workspace / run / 设备池 / 凭据）
 │   │   ├── workspace.py        #   workspace 分配 + 入口脚本生成 + 命令渲染
 │   │   ├── intake.py           #   信息收集结果读写（intake.json）
+│   │   ├── popup/              #   弹窗场景词表（纯数据；执行器在 devices/popup.py）
 │   │   └── observability/      #   审计时间线 / 异常上报
-│   ├── platform/               # L0 平台接入（对平台 REST 的唯一出口）
+│   ├── integrations/           # L0 平台接入（对平台 REST 的唯一出口；原 platform/）
 │   │   ├── sandbox_api.py  auth.py  ssl_helper.py
 │   │   ├── resource_client.py  #   虚拟 mis 池客户端（/mis-pool/*，经 yooz-server）
 │   │   └── appmock/            #   AppMock 子系统（规则/录制/泳道/环境/ptest）
@@ -107,18 +110,23 @@ ai-ui-autotest-engine/
 
 **Skill 目录内不产生任何运行态**——运行态与产物全部在机器级目录（见下）。
 
-**机器级目录（不在 Skill 内）**：`$STATE` = `~/.local/share/ai-ui-autotest-engine/`
+**机器顶层目录（不在 Skill 内）**：根 = `$AI_UITEST_HOME`（缺省 `~/.local/share/ai-ui-autotest/`），
+其中引擎运行态 `$STATE` = `$AI_UITEST_HOME/engine/`（`AI_UITEST_STATE_HOME` 可直接改写）。
+同根下并列的 `cases/`（用例资产，编排层所有）与 `orchestration/`（编排产物，编排层所有）引擎不读也不写。
 
 ```
-~/.local/share/ai-ui-autotest-engine/
-├── run/                       # ★运行态：tasks/<ws>/（工作区）+ ws/<ws>/cli（入口）
-├── reports/                   # ★报告归档：<batch>/<run>/（meta.json / report.json / case_NN / run）
-├── device-pool/               # ★预热台账等本机辅助文件（设备租约在服务端，不落本地）
-├── console/                   # ★统一控制台服务状态（全机唯一、常驻）
-├── credentials/               # ★AppMock SSO 凭据（同一用户同一张票）
-├── toolchain/                 # ★adb/hdc 路径缓存（机器级事实）
-├── cache/artifacts/           # ★L1 制品缓存（安装包；引擎永不自动清理）
-└── npm/                       # 受管的 imeituan CLI 安装位置
+$AI_UITEST_HOME/
+├── cases/                     # 用例资产：local/（人工维护）+ platform/（平台审核通过用例镜像）
+├── orchestration/             # 编排产物：<task_id>/{manifest.json,cases/,shards/}
+└── engine/                    # ★$STATE：运行态根
+    ├── run/                   # ★运行态：tasks/<ws>/（工作区）+ ws/<ws>/cli（入口）
+    ├── reports/               # ★报告归档：<batch>/<run>/（meta.json / report.json / case_NN / run）
+    ├── device-pool/           # ★预热台账等本机辅助文件（设备租约在服务端，不落本地）
+    ├── console/               # ★统一控制台服务状态（全机唯一、常驻）
+    ├── credentials/           # ★AppMock SSO 凭据（同一用户同一张票）
+    ├── toolchain/             # ★adb/hdc 路径缓存（机器级事实）
+    ├── cache/artifacts/       # ★L1 制品缓存（安装包；引擎永不自动清理）
+    └── npm/                   # 受管的 imeituan CLI 安装位置
 ```
 
 > 上述目录**必须**放在 Skill 之外：Skill 会被多份安装/镜像（`~/.catpaw/skills`、
@@ -132,7 +140,7 @@ ai-ui-autotest-engine/
 ## 四、核心模块详解
 
 > ⚠️ 本节模块名以**重构前布局**为参照（`environment/` / `device_platform/` / `infra/` / `mock/` / `report/` / `core/sop/` / `screen_state/`）。
-> 当前布局为 `provisioning/` / `devices/` / `platform/` / `execution/` / `reporting/` / `shared/`（对照关系见 `scripts/stages/login-architecture.md`）；
+> 当前布局为 `aitest/provisioning/` / `aitest/devices/` / `aitest/integrations/` / `aitest/execution/` / `aitest/reporting/` / `aitest/shared/`（对照关系见 `scripts/aitest/stages/login-architecture.md`）；
 > 涉及**登录流程**的模块名已按重构后更新（见 4.4/4.5/4.6 与附录），其余章节待随下一次文档刷新统一收口。
 
 ### 4.1 CLI 入口 — `cli.py`
@@ -157,7 +165,7 @@ ai-ui-autotest-engine/
 
 `onboarding.py` 声明 `OnboardingProfile`（按 device_type 分发的设备接入策略，回答“是否需要 acquire/版本检查/安装”等能力位组合），通过 `_DEVICE_TYPE_PROFILE_REGISTRY` 查表分发，与 `device_platform/registry.py` 的三张注册表同构但独立维护（前者管“怎么接入”，后者管“怎么交互/获取/识别 App”）。`core/sop/stages.py`/`stage_orchestrator.py` 通过 `create_onboarding_profile(device_type).needs_device_acquire()` 等能力位方法判断阶段取舍，不再直接比较 `device_type == "local"` 字符串。
 
-`case_utils.py` 是 Batch 内 Case 切换与 UI 扫描命令的共享工具函数（如 `resolve_case_path`/`resolve_mis`/`resolve_mock_domain`），`json_utils.py` 提供原子写入 JSON 的通用封装，二者均为无业务状态的纯工具模块。
+`case_utils.py` 是 Batch 内 Case 切换与 UI 扫描命令的共享工具函数（如 `resolve_case_path`/`resolve_mis`/`resolve_runtime_domain`），`json_utils.py` 提供原子写入 JSON 的通用封装，二者均为无业务状态的纯工具模块。
 
 #### Hook 子系统（`core/sop/`）—— 交互异常场景的统一扩展点
 
@@ -213,11 +221,11 @@ ai-ui-autotest-engine/
 
 `login_strategy.py` 根据环境类型选择登录策略这一职责已重构为**数据 + 分层**（`provisioning/setup/login/`）：`plan.py`（L1 登录意图；含 auth_method 与环境类型）→ `registry.py::ENV_STEPS`（L2 环境前置步骤序列）→ `actions/`（L3 认证动作构造，`create_auth_action(plan.auth_method)`）→ `probes/`（L4 登录态判定，按 platform 注册）。
 
-`env_validator.py` 在 flow-init 时校验环境配置的完整性（认证维度：环境类型 A-D、账号密码、MIS、ptest 开关）；问题的声明与收集见 `provisioning/questions/`。
+`env_validator.py` 在 flow-init 时校验环境配置的完整性（认证维度：环境类型 A/P/B/C/D/E、账号密码、MIS；ptest 为 `type=P` 的派生事实）；问题的声明与收集见 `provisioning/questions/`。
 
 `env_validator.py` 另维护**环境能力矩阵** `ENV_CAPABILITIES`（env_type → 该环境支持的可选能力，唯一事实来源）：采集层据此派生 `depends_on`（问不问）、校验层据此做组合校验（能不能生效），两层共用一张表，避免口径漂移。
 
-`mock/ptest_mock.py` 管理 ptest partMock 生命周期：ptest 不是环境类型，而是**线上环境(A)专属**的开关 `env.ptest`（partMock 注入 isPtest 等参数），由 `env-prepare` 在登录前独立开启，与登录方式解耦，但**适用环境受限**——仅线上(A)可选（`env_validator.ENV_CAPABILITIES` 为唯一事实来源，采集/校验/执行三层据此统一门控）。生命周期**启用/停用对称**：`enable_ptest_mock` 建规则 + 开 + push `htptest=1`，`disable_ptest_mock` 关规则 + 清 mockId + push `htptest=0`（`reset-env`/收尾统一走后者单一入口）。为避免 AppMock「命中即短路」导致 ptest 的全量 partMock 规则遮蔽场景响应型 Mock，ptest 规则按**场景 Mock 的 URI 规则**生成负向前瞻排除（`build_ptest_rule`），并在 `mock effective` 中给出「生效集 + 是否仍被遮蔽」的视图（`mock list` 只列自有规则，看不到跨分组的场景 Mock）。
+`mock/ptest_mock.py` 管理 ptest partMock 生命周期：ptest 不是独立开关，而是**环境类型 P（线上泳道）**的固有行为——`type=P` 即 `env.ptest=true`（partMock 注入 isPtest 等参数），由 `env-prepare` 在登录前开启，与登录方式解耦。**适用环境由类型决定**（`ENV_TYPE_AXES` / `ENV_CAPABILITIES` 为唯一事实来源，采集/校验/执行三层据此统一门控）；旧写法（A + ptest=true）不再接受。生命周期**启用/停用对称**：`enable_ptest_mock` 建规则 + 开 + push `htptest=1`，`disable_ptest_mock` 关规则 + 清 mockId + push `htptest=0`（`reset-env`/收尾统一走后者单一入口）。为避免 AppMock「命中即短路」导致 ptest 的全量 partMock 规则遮蔽场景响应型 Mock，ptest 规则按**场景 Mock 的 URI 规则**生成负向前瞻排除（`build_ptest_rule`），并在 `mock effective` 中给出「生效集 + 是否仍被遮蔽」的视图（`mock list` 只列自有规则，看不到跨分组的场景 Mock）。为避免 AppMock「命中即短路」导致 ptest 的全量 partMock 规则遮蔽场景响应型 Mock，ptest 规则按**场景 Mock 的 URI 规则**生成负向前瞻排除（`build_ptest_rule`），并在 `mock effective` 中给出「生效集 + 是否仍被遮蔽」的视图（`mock list` 只列自有规则，看不到跨分组的场景 Mock）。
 
 `device_validator.py` 与 `env_validator.py` 职责对称且正交，校验设备维度（device_type × platform × app 组合是否已经过业务验证允许选择）。`SUPPORTED_DEVICE_COMBINATIONS` 与 `device_platform/registry.py` 三张底层注册表是“业务白名单”与“能力声明”的关系（非同一份数据的重复拷贝），两者都在 flow-init 阶段完成硬校验，报错时机提前到设备创建之前，避免非法组合跑到 device create 才失败、浪费设备资源。
 
@@ -254,21 +262,25 @@ ai-ui-autotest-engine/
 
 AppMock 是美团客户端测试的核心基础设施，本 Skill 对其进行了全功能封装：
 
-`appmock_core.py` 实现核心 HTTP 调用（经 yooz-server 代理），所有 Mock 操作走统一的请求层。`appmock_rules.py` 封装规则 CRUD 和字段级补丁（patch-field），支持 DUO 协议的 nodeDataMap 精准修改。`appmock_record.py` 拉取接口录制数据并做噪音过滤（排除 lx0 埋点、CDN 等非业务域名）。`appmock_swimlane.py` 管理泳道代理。`appmock_session.py` 管理 SSO Cookie 和域名映射。`appmock_device.py` 管理设备端 Mock SDK 开关。`appmock_ops.py` 承载被 CLI 层与业务层共同复用的编排操作（可测性 Scheme 推送、环境重置、ptest mockId 持久化），使 `appmock_env_cli.py`、`ptest_mock.py`、`env_prepare.py`、`provisioning/setup/login/actions/password.py` 无需反向依赖 CLI 模块，从根源上避免 `appmock_cli ↔ appmock_env_cli` 的模块级循环依赖。`appmock_env_cli.py` 从 `appmock_cli.py` 拆出，专注泳道管理、域名映射、MRN 锁包等环境配置类子命令；`appmock_cli.py` 本身保留规则 CRUD、录制和 CLI 分发入口。`execution/engine/flow/lifecycle/mock_lifecycle.py` 负责场景 Mock 生命周期（B0 预检：union 快照 + 冲突检测 + 清场 → C1 逐 Case 差量开关 → T0 恢复 union 到执行前状态）。
+`integrations/appmock/` 封装 AppMock 全功能：`client.py` 统一 HTTP 请求层（yooz-server 代理）；`rules.py` 规则 CRUD + 字段级补丁（`patch-field`，支持 nodeDataMap）；`record.py` 录制拉取与噪音过滤（排除 lx0 埋点、CDN 等非业务域名）；`swimlane.py` 泳道代理；`session.py` SSO Cookie 与域名映射；`device.py` 设备端 Mock SDK 开关；`ops.py` CLI 与业务层共用的编排操作（Scheme 推送、环境重置、ptest mockId 持久化）；`env_cli.py` 泳道 / 域名映射 / MRN 锁包等环境类子命令；`cli.py` 规则 CRUD、录制与 CLI 分发；`ownership.py` 执行期写保护（可写集合 = 运行域内规则，母本 id 一律拒绝）。`execution/engine/flow/lifecycle/mock_lifecycle.py` 负责场景 Mock 生命周期：B0 物化（存储→运行域副本 + 冲突检测 + 清场）→ C1 逐 Case 差量开关副本 → T0 运行域 stop-all + 母本漂移巡检。
 
 ### 4.7 报告子系统 — `report/`
 
-`data_collector.py` 从 Case workspace 的 `steps.jsonl` 读取原始执行事实。`model.py` 将同 SID 的多条记录归一化为 conclusion/executions 模型：记录来源为 `step / followup / retry / effect_verified / fallback / log`（`retry`：重试步骤如 `S2b` 写入父 SID `S2` 的记录；`fallback`：归属型兜底操作 `step --for-sid <SID>`，进父步骤证据但不主导结论；`log`：无判定备注）。`conclusion` 按 `followup > retry > effect_verified > 其它（时序最新；`fallback` 不主导）` 优先级选取终态记录，`executions` 包含全部执行记录供 `coalesce_evidence` 取值（取第一个非空值），`attempts` 为带判定且非结论的记录，`attempts_unjudged` 为**执行过但无判定**的非结论记录（如 PENDING 后被重跑覆盖的那次 —— 不并入 attempts，但保证「该步执行过两次」可追溯）。报告构建按职责拆为纯函数模块：`steps.py`（步骤级投影）/ `timeline.py`（时间线）/ `case_report.py`（单 Case）/ `run_report.py`（批次）/ `timefmt.py`（时间工具），文件读取统一走 `data_collector.py`。基于 conclusion 投影 Case 与 Batch 报告，`coalesce_evidence(executions, field, default)` 从所有 executions 中按优先级提取证据字段。`finalizer.py` 负责最终归档和落盘。`transport.py` 负责截图上传 S3（扫描 `frames/`）、平台入库，并构建列表页读模型 `run_index` 注入 payload（见下）。`schema.py` 定义报告数据结构；`core/util/records.py` 定义 `StepRecord` 单一写入契约（所有写入端统一构造，截图以 `screenshots` 数组承载）。步骤截图由 `report/steps._canonical_screenshots` 统一裁决：结论记录的截图置顶并标 `is_conclusion`，其余执行记录按执行时序追加（url 去重），`step.screenshot` 与 `evidence.screenshot` 同取 `canonical[0]`。
+`data_collector.py` 从 Case workspace 的 `steps.jsonl` 读取原始执行事实。`model.py` 将同 SID 的多条记录归一化为 conclusion/executions 模型：记录来源为 `step / followup / retry / effect_verified / fallback / log`（`retry`：重试步骤如 `S2b` 写入父 SID `S2` 的记录；`fallback`：归属型兜底操作 `step --for-sid <SID>`，进父步骤证据但不主导结论；`log`：无判定备注）。`conclusion` 按 `followup > retry > effect_verified > 其它（时序最新；`fallback` 不主导）` 优先级选取终态记录，`executions` 包含全部执行记录供 `coalesce_evidence` 取值（取第一个非空值），`attempts` 为带判定且非结论的记录，`attempts_unjudged` 为**执行过但无判定**的非结论记录（如 PENDING 后被重跑覆盖的那次 —— 不并入 attempts，但保证「该步执行过两次」可追溯）。报告构建按职责拆为纯函数模块：`steps.py`（步骤级投影）/ `timeline.py`（时间线）/ `case_report.py`（单 Case）/ `run_report.py`（批次）/ `timefmt.py`（时间工具）/ `inputs.py`（输入制品化），文件读取统一走 `data_collector.py`。基于 conclusion 投影 Case 与 Batch 报告，`coalesce_evidence(executions, field, default)` 从所有 executions 中按优先级提取证据字段。`finalizer.py` 负责最终归档和落盘。`transport.py` 负责截图上传 S3（扫描 `frames/`）、平台报告写入（Open → Append × N → Close），并构建列表页读模型 `run_index` 注入 payload（见下）。`schema.py` 定义报告数据结构；`core/util/records.py` 定义 `StepRecord` 单一写入契约（所有写入端统一构造，截图以 `screenshots` 数组承载）。步骤截图由 `report/steps._canonical_screenshots` 统一裁决：结论记录的截图置顶并标 `is_conclusion`，其余执行记录按执行时序追加（url 去重），`step.screenshot` 与 `evidence.screenshot` 同取 `canonical[0]`。
 
 **自动截图命名的唯一键 = 张级分配序号**（`records.alloc_shot_seq`，每次分配即自增并持久化到 `<case>/.shot_seq`，与 `steps.jsonl` 正交）：声明步骤按 `case_NN_<sid>.png`（sid 唯一），非步骤级截图（`diag_*` / `auto_*` / `fallback_*`）统一走 `records.auto_shot_name`，避免固定名或秒级时间戳互相覆盖 —— 覆盖会让报告引用的证据与语义不符。**注意不能用「记录级」序号（`steps.jsonl` 行数 + 1）**：截图是张级资产，同一条记录追加前可能连拍多张（同一 open-url 重试、一次步骤内多次诊断图），记录级序号会给它们同一个值 → 同名覆盖。
 
 统计口径的核心不变量：携带判定（ok 非空）的记录一律进入统计——唯一例外是**归属型兜底**（`_src=fallback`）：它已绑定父步骤、只作执行证据，不落 findings、也不主导该步结论（结论权在断言与 AI override）。只有**未绑定已声明 SID** 的判定记录才归入 findings；findings 中存在 fail 时 Case 不得判为 completed。
 
-**平台入库 payload 契约**（`transport.insert_report` → DataMonitor `/test-report/insert` → 报告平台）：顶层为运行级标量（`id`/`title`/`device`/`platform`/`app`/`timestamp`/`duration`/`total_cases`/`total_steps`/`success_steps`/`failed_steps`/`ec_case_id`/`user_id`），外加 `cases`（jsonb，承载全部详情：`steps`/`timeline`/`raw_records`/`findings`/`notes`/`summary`）。运行级元信息 `env_config` / `run_status` / `run_index` 由 transport **注入到每个 case**，报告平台统一从 `cases[0]` 读取。
+**输入制品化（`inputs[]`）：业务真源与执行输入都进报告**。`steps-generate` 在生成 steps-input 的同时，把业务真源 `steps.json` 与刚生成的 `steps-input.json` **复制进 workspace** `inputs/<tag>/` 并写 `manifest.json`（`source_path` / `size_bytes` / `case_ids`）—— 上游 `ai-app-flow/.docs/` 与编排层 `.orchestration/` 都按 keep-latest-N 滚动清理，过了初始化再按原路径读取随时 404，因此冻结时机只能是这一步（`shared/input_freeze.py`）。报告阶段 `reporting/inputs.py::materialize_inputs` 只读冻结副本，把文件复制进报告包 `case_NN/inputs/`（与 `frames/` 同级，报告包自包含），并投影成 case 的 `inputs[]`：每项含 `kind`（`steps_json` / `steps_input`）、`artifact_path`（报告包相对路径）、`source_path`（上游来源）、`size_bytes` 与**内联正文 `content`**。正文内联是为了跨机可读（平台/他人打开报告即可看，不依赖对象存储）；`artifact_path` 供本机审计。读取口径为纯读，不做外部路径回读，也不设降级链。
 
-其中 **`run_index` 是列表页读模型**：把列表渲染所需的全部标量（步骤 `pass/warn/fail/pending`、`api`/`track` 维度、`run_status`、`env_name`/`ptest`/锁包数、步骤级 `needs_review`）汇总成一个小对象。列表页以 PostgREST 的 jsonb 路径投影 `cases->0->run_index` 单字段读取，**不再整包拉取 `cases`**（详情数据单行可达数十 KB → 列表传输量由 ~40KB/行降到 <1KB/行，且免去本地 `JSON.parse` + 重算）。详情页仍按需读取完整 `cases`；历史行无 `run_index` 时列表退化为 DB 标量列 + `cases->0->{run_status,env_config}` 投影。
+**平台报告写入契约（Open → Append × N → Close，单次 payload 恒等于 1 个 Case）**：`flow-init` 调 `/test-report/insert` 预置空行（行级标量 `id`/`title`/`device`/`platform`/`app`/`timestamp`/`user_id`，`cases: []`；编排层托管时由 CLI 预置，引擎跳过）；每个 Case 收口时 `gen-report` 调 `/test-report/append` **只提交这一个 Case**（DB 函数按 `case_id` 幂等合并、行锁防并发，并按 `Σ run_index_own` 重算 `cases[0].run_index` 与汇总列）；`flow-finalize` 只做 Close（补传未成功的 Case + 重发首个 Case 写回 `cases[0].run_status` + `/test-report/update` 回写 `duration` 等行级列 —— append 不写行级列）。`cases`（jsonb）仍承载全部详情（`steps`/`timeline`/`raw_records`/`findings`/`notes`/`inputs`/`summary`），运行级元信息 `env_config` / `run_status` / `run_index_own` 由 transport **注入到每个 case**，报告平台统一从 `cases[0]` 读取。`report-upload.json` 记录已 append 的 `case_id` 与 opened/closed 状态，用于幂等与收尾补传。
 
-`env_config` 走 `SAFE_ENV_KEYS` 脱敏白名单：`type`/`env_name`/`auth_method`/`ptest`/`bundle_lock`/**`swimline`**。`swimline` 是 B 泳道环境排查刚需且非敏感，平台详情页有对应渲染分支。
+其中 `cases[].notes` 有两条职责：执行期由 `log-record --note`（无判定）写入的过程备注，以及 **输入原文快照** —— `case-init` 把本次执行的输入 JSON 原文（优先 `steps-input.raw.json`，即占位符未替换的原始产物；缺失时回落到解析后的 `steps-input.json`）以 `source: "steps_input"` 写进 `steps.jsonl`，报告层原样带入 `notes`，供平台详情页展示「这份用例当时长什么样」。引擎不再内嵌或解析任何 md 原文。
+
+而 **`run_index` 是列表页读模型**：把列表渲染所需的全部标量（步骤 `pass/warn/fail/pending`、`api`/`track` 维度、`run_status`、`env_name`/`ptest`/锁包数、步骤级 `needs_review`）汇总成一个小对象。列表页以 PostgREST 的 jsonb 路径投影 `cases->0->run_index` 单字段读取，**不再整包拉取 `cases`**（详情数据单行可达数十 KB → 列表传输量由 ~40KB/行降到 <1KB/行，且免去本地 `JSON.parse` + 重算）。详情页仍按需读取完整 `cases`；历史行无 `run_index` 时列表退化为 DB 标量列 + `cases->0->{run_status,env_config}` 投影。
+
+`env_config` 走 `SAFE_ENV_KEYS` 脱敏白名单（唯一事实来源：`shared/env_view.py`，报告与 Console 发现层共用）：`type`/`env_name`/`auth_method`/`ptest`/`bundle_lock`/**`swimline`**/**`url_mappings`**。`swimline`（B 测试泳道）与 `url_mappings`（E 测试域名映射）都是环境排查刚需且非敏感，平台详情页各有对应渲染分支；`ptest` 是 `type=P` 的派生值，只读展示。
 
 ### 4.8 基础设施 — `infra/`
 
@@ -288,17 +300,38 @@ AppMock 是美团客户端测试的核心基础设施，本 Skill 对其进行�
 
 ### Batch 头部（B0-B2）— 执行一次
 
-`B0_mis_acquire` 是批次第一步：**领取虚拟 mis**（`mis acquire`，从虚拟 mis 池取一个 AppMock 工作域，写入 workspace 级 `intake.mock_domain`），后续所有 AppMock（规则/录制/环境/泳道）都以它为准；与设备/报告归属的 `resource_mis` 恒定分离。
+AppMock 域模型：`steps.json` 的 `env.mock_ids` 指向**规则库**里的场景规则（mockId 全局唯一，执行期只读，引擎按 id 直取，无需声明域）；`B0_mis_acquire` 从虚拟 mis 池领取的**运行域**（`intake.mock_domain`，`meta.mock_runtime_domain` 回写用于报告）是设备端 AppMock（规则/录制/环境/泳道）的唯一 userDomain，收尾 `mis release` 归还。运行域与设备/报告归属的 `resource_mis` 恒定分离。
 
-`B0_mock_preflight` 是场景 Mock 预检（`mock-preflight`）：快照所有 Case 声明的 mockId 并集（response + 启用态）到 run 级基线，并把它们全部置 OFF 进入确定初始态；同一 Case 内出现同接口两个 mockId → fail-fast。无场景 Mock 时该阶段自动跳过。
+`B0_mis_acquire` 先领运行域（私有优先 → 公共兜底 → 池空 fail-fast，并清掉该域残留的录制会话与已开启规则）。`B0_mock_preflight` 是场景 Mock 预检（`mock-preflight`）：按 mockId 批量直取规则母本（`rules/batch-get`，服务端解析归属规则库），在**运行域**以 `[ai-run] {mockId} {rule}` 为幂等键创建/刷新副本，落 `mock-map.json`（规则库→运行映射），再做同 case 同接口冲突检测（fail-fast），最后 `stop-all` 把运行域清成确定初始态。`C1_mock_apply` 按映射差量开关**副本**，`T0_mock_restore` 只做运行域 `stop-all`（域用完即归还，不恢复历史状态）。无场景 Mock 时预检/清场阶段自动跳过。
+
+执行期可写集合 = 运行域内实际存在的规则（`integrations/appmock/ownership.py::require_runtime_rule`）：`mock on/off/update/patch-field/upsert` 先过闸，规则库 mockId 直接拒绝；`appmock_update` 同时下发 `userDomain` 由服务端兜底。
 
 `B1_device` 是设备获取，执行 device create（异步创建云模拟器） + device setup（注册 session、安装可测性 APK、收敛首启弹窗链（隐私协议/通知/定位）、配置 ADB Keyboard）。
 
-`B2_login` 是环境登录，执行 env-prepare 一键完成 set-mis → reset-env（**不再 blanket stop-all**；场景 Mock 交由 Case 级生命周期）→ ptest mock（可选）→ 登录 → 泳道/域名映射切换 → MRN 锁包。凭证登录需 AI 读截图确认结果。
+`B2_login` 是环境登录，执行 env-prepare 一键完成 set-mis → reset-env（**不再 blanket stop-all**；场景 Mock 交由 Case 级生命周期）→ ptest mock（仅 `type=P`）→ **可测性配置整表下发** → 登录 → 泳道/域名映射切换 → MRN 锁包。`env.testability` 含 `signin` 时，登录态由场景配置保证，本地登录编排短路。凭证登录需 AI 读截图确认结果。
+
+#### 可测性配置前置校验
+
+`env.testability` 是 Pillow 可测性 action 列表。引擎在**创建设备之前**（`flow-init` → `steps_builder._normalize_case_env`）与**下发之前**（`env-prepare` → `push_testability_scheme`）各校验一次，模块为 `provisioning/validators/testability_validator.py`（唯一校验事实来源）。
+
+- 规则来源：`testability-actions` Skill 的 `actions.json`（type / info 字段 / 取值含义）与 `block2-scheme.md`（组合与顺序）。
+- error（阻断）：缺必填字段、取值越界、单例重复且内容冲突、`host` 无 `env`、`scheme` 混入（落地必须走 `steps[0] open-url`）、`htptest=1` 落在非线上环境。
+- warning（放行）：未注册 type（协议会持续新增）、单例重复且内容相同、`signin` 晚于环境切换。
+- **不做静默过滤**：任何非法项直接终止，避免「部分 config 生效」造成假绿。
+
+| 类别 | 代表 action | 关键规则 |
+|---|---|---|
+| 登录 | `signin` / `signout` / `kdbsignin` / `klsignin` | `signin` 必填 `account`，非 SSO（`loginType!=1`）必填 `password`；`countryCode` 必须是数字串 |
+| 网络 | `env` / `host` / `mock` / `htptest` | `host` 必须与 `env` 同时出现；`mock` 地址必须是 `http(s)://` 或 Lyrebird 模板；`htptest=1` 仅线上（A 基准 / P 线上泳道） |
+| 跳转 | `scheme` | 禁止出现在 `env.testability`（落地由 `steps[0] open-url` 负责，避免二次跳转） |
+| 锁包 | `mrnbundle` / `machbundle` / `reccebundle` / `picassobundle` / `lockmsc` / `mmp_package` | 包名+版本必填（recce 允许空版本表示最新）；`lockmsc.version` 与 `appId+buildId` 互斥 |
+| 灰度 / 开关 | `horn` / `hornreset` / `abtest` / `language` / `mrnenv` / `setPikeEnv` / `immessage` / `delay` | `horn.valueActualType` 只能是 int/boolean/string/array/json；`abtest.strategy` 为 a-z 或 s_a-s_z；整数取值按 action 区间校验 |
+| 观测 / 上报 | `reportresult` / `testability_report` / `trafficReport` / `getPublish` / `sendPublish` | 开关只接受 0/1；`sendPublish.value` 必须是合法 JSON |
+| 定位 / 存储 | `testability_location` / `knbstorage` / `cipstorage` / `set_cookie` | 开启定位需 `cityName` 或合法经纬度；`cipstorage.type/level/user` 有枚举/区间 |
 
 ### Case 循环体（C0-C5）— 每个 Case 重复
 
-C0 切换到目标 Case。C1 收敛场景 Mock 到本 Case（`mock-apply`：差量开关 + body 回基线，保证任一时刻 AppMock 开启的场景规则 = 当前 Case 集合，同接口跳 Case 绝不共存）。C2 启动接口录制。C3 通过 Scheme 跳转到目标落地页，AI 读截图确认（如 Recce 浮层遮挡可手动调 dismiss-recce）。C4 是统一多步走查，引擎按 steps 顺序逐步执行 step 命令，通过 `kind` 字段区分步骤类型：`ui`（UI 交互，动作 → 截图 → 断言，tap-text 遇 Recce 遮挡会自动处理）、`api`（接口字段验证，从录制数据中匹配并断言）、`track`（埋点字段验证，从录制数据中匹配并断言）。三种步骤的结果统一写入 steps.jsonl，不再需要独立的批量断言阶段。C5 生成 Case 报告。
+C0 切换到目标 Case。C1 收敛场景 Mock 到本 Case（`mock-apply`：按 `mock-map` 把存储→运行副本差量开关，先刷新 body 再切 ON，保证任一时刻 AppMock 开启的场景规则 = 当前 Case 集合，同接口跳 Case 绝不共存）。C2 启动接口录制。随后 C4 统一多步走查：`steps[0]` 固定为显式 `open-url`（与 `env.scheme` 一致），装载层自动补齐 `role=landing` + `page_ready` + 内建视觉断言（`落地页正常打开`）：落地步执行后为 PENDING，必须完成 `verify_landing_page`（AI 读图确认真的进入目标页）才能推进；判 fail 时引擎自动把 case 记 blocked 并进入报告阶段——旧版独立 C3 落地阶段的 `needs_visual_check` / `requires_ack` 语义以此形式保留，不再有独立阶段。C4 按 steps 顺序逐步执行 step 命令，通过 `kind` 字段区分步骤类型：`ui`（UI 交互，动作 → 截图 → 断言，tap-text 遇 Recce 遮挡会自动处理）、`api`（接口字段验证，从录制数据中匹配并断言）、`track`（埋点字段验证，从录制数据中匹配并断言）。三种步骤的结果统一写入 steps.jsonl，不再需要独立的批量断言阶段。C5 生成 Case 报告。
 
 ### Batch 尾部（T0-T2）— 执行一次
 
@@ -306,13 +339,15 @@ T0 把场景 Mock 并集恢复到执行前状态（response + 启用态）。T2 
 
 ### 阶段推进机制
 
-AI 通过 `flow-next` 获取当前应执行的命令，执行后再 `flow-next` 获取下一步。阶段间通过 `flow-advance` 推进。需要人工确认的节点（登录截图、落地页截图）通过 `ack --key <key>` 写入证据后才能继续。失败策略有四种：abort（终止流程）、skip_to_next_case（跳到下一个 Case）、log_and_continue（记录后继续）、best_effort（尽力执行）。
+AI 通过 `flow-next` 获取当前应执行的命令，执行后再 `flow-next` 获取下一步。阶段间通过 `flow-advance` 推进。需要人工确认的节点（登录截图）通过 `ack --key <key>` 写入证据后才能继续；落地页确认已步骤化，走「内建视觉断言 → 必填 hook → override 写判定」通道（落地语义唯一实现：`scripts/shared/landing.py`）。失败策略有四种：abort（终止流程）、skip_to_next_case（跳到下一个 Case）、log_and_continue（记录后继续）、best_effort（尽力执行）。
 
 ## 六、数据流
 
 ### 输入
 
-Flow 文件（Markdown）→ AI 理解并生成 → steps-input.json（结构化测试用例）→ flow-init 校验并展开 → flow-context.json（运行时状态）。
+Flow 数据（`steps.json`）→ AI 理解并生成 → steps-input.json（结构化测试用例）→ flow-init 校验并展开 → flow-context.json（运行时状态）。
+
+引擎不读取任何 md 输入：`steps.json` 是唯一真源，md 只在人工提供需求/用例素材时可能作为输入，既不进入引擎，也不参与解析。
 
 ### 运行时
 
@@ -322,7 +357,7 @@ steps.jsonl 是不可变的执行事实流，每个 Case workspace 一个，记�
 
 ### 输出
 
-每次运行归档到 `$STATE/reports/<batch>/<run>/`，包含 meta.json（目录索引）、report.json（聚合报告）、各 Case 的 report.json 和 frames/（截图 S3 URL），以及 run/（完整原始执行产物备份，含 inspect_tree / dumps 等过程信息）。报告同时入库到平台，可通过 URL 在线查看；平台列表页通过 jsonb 路径投影 `cases->0->run_index` 读取运行级汇总（见 4.7），避免整包拉取 `cases`。
+每次运行归档到 `$STATE/reports/<batch>/<run>/`，包含 meta.json（目录索引）、report.json（聚合报告）、各 Case 的 report.json、frames/（截图 S3 URL）与 inputs/（输入原文：steps.json / steps-input.json），以及 run/（完整原始执行产物备份，含 inspect_tree / dumps 等过程信息）。报告同时入库到平台，可通过 URL 在线查看；平台列表页通过 jsonb 路径投影 `cases->0->run_index` 读取运行级汇总（见 4.7），避免整包拉取 `cases`。
 
 ## 七、设备管理架构
 
@@ -352,15 +387,15 @@ PlatformOps（怎么操作设备）、DeviceLifecycle（怎么获取/安装设�
 | Android 本地真机 | 通过 ADB 连接，`LocalDeviceLifecycle` 自动探测并校验唯一在线设备 |
 | HarmonyOS 本地真机 | 通过 HDC 连接，同一套 `LocalDeviceLifecycle` 按 platform 分发探测，接入方式与 Android 对齐 |
 | Native/MRN/H5 页面测试 | 基于 Native 视图树（Android View / HarmonyOS ArkUI）的精确元素定位 |
-| 四种环境类型 | 线上(A)、泳道(B)、alpha(C)、免登录(D)；ptest 为线上专属开关（`env.ptest`，仅 A 可选） |
-| 凭证登录 + 验证码登录 + 免登录 | A 凭证，B/C QAHome 验证码，D 免登录 |
+| 六种环境类型 | 线上基准(A)、线上泳道(P)、测试泳道(B)、测试基准(C)、测试域名映射(E)、免登录(D)；ptest 归属于 `type=P`（`env.ptest` 为派生值） |
+| 凭证登录 + 验证码登录 + 免登录 | A/P 凭证，B/C/E QAHome 验证码，D 免登录 |
 | AppMock 全功能 | 规则 CRUD、录制、泳道、域名映射、MRN 锁包 |
 | DUO 协议 Mock | nodeDataMap 组件级字段精准修改 |
 | 埋点验证 | lx0 录制数据解析 + 事件匹配 + 字段提取（extracted_fields），AI 分析判定 |
 | 接口验证 | 业务接口录制数据匹配 + 字段提取（query/request/meta/headers）+ 响应浅骨架文件 + `response-search` 按需检索；字段判定经 `fa.field_results` 并入步骤 evidence（`api_assert.<真实路径>`），真实路径回写声明 |
 | UI 质量扫描 | 占位符/乱码、入口缺失、区域遮挡检测 |
 | 多 Case 批量执行 | 一个 Flow 拆分多个 Case，循环执行 |
-| Mock 基线快照与回滚 | Case 间/Batch 级精确回滚 |
+| Mock 运行域租约与规则物化 | 每 run 独占一个虚拟 mis（号池），规则库母本物化后按 case 差量开关副本 |
 | 报告入库 | 自动上传平台，可在线查看 |
 | 审计追溯 | run-manifest + events + evidence 完整记录 |
 | UI 质量扫描 | 占位符/乱码、入口缺失、区域遮挡检测 |
@@ -378,7 +413,7 @@ PlatformOps（怎么操作设备）、DeviceLifecycle（怎么获取/安装设�
 
 ### 一次测试执行的最小路径
 
-> 作用域分层：全部状态在**机器级** `$STATE` = `~/.local/share/ai-ui-autotest-engine/`（跨安装 / 跨项目唯一）：`run/tasks/<ws>/{config,inputs,tmp,runs/<run>}/`（workspace / run 级）、入口脚本 `run/ws/<ws>/cli`、报告归档 `reports/<batch>/<run>/`；以及 `device-pool/`（设备池）、`console/`（控制台服务）、`credentials/`（凭据）、`toolchain/`（adb/hdc 缓存）、`cache/artifacts/`（L1 制品缓存）。Flow 文件、CASES、steps-input 均落在当前 workspace 下。
+> 作用域分层：全部状态在**机器级** `$STATE` = `$AI_UITEST_HOME/engine/`（跨安装 / 跨项目唯一）：`run/tasks/<ws>/{config,inputs,tmp,runs/<run>}/`（workspace / run 级）、入口脚本 `run/ws/<ws>/cli`、报告归档 `reports/<batch>/<run>/`；以及 `device-pool/`（设备池）、`console/`（控制台服务）、`credentials/`（凭据）、`toolchain/`（adb/hdc 缓存）、`cache/artifacts/`（L1 制品缓存）。Flow 文件、CASES、steps-input 均落在当前 workspace 下。
 
 ```
 # 0. 分配 workspace + 生成入口（整轮测试只执行一次）
@@ -388,26 +423,17 @@ python3 scripts/cli.py ws-init
 # 1. 依赖检测
 <入口> check-deps
 
-# 2. 创建 Flow 占位（多 Flow 场景每个 Flow 执行一次）
-#    文件落在 $STATE/run/tasks/<ws>/inputs/flows/，随后 AI 写入完整 Flow 内容
-<入口> flow-create --name <Flow名>
-
-# 3. 信息收集：循环 input-next → AskQuestion → input-answer，直到 done
+# 2. 信息收集：循环 input-next → AskQuestion → input-answer，直到 done
 #    问题由声明式 provider 产出（设备/环境/认证/可选配置/占位符），按 depends_on 条件自动展开
 #    一步一题：每次只把 input-next 下发的这 1 题交给 AskQuestion；可随时 `input-status` 总览
 <入口> input-next
 <入口> input-answer --id <当前下发的题ID> --value <值>
 
-# 4. 解析 Flow 元数据（供 AI 写步骤参考）
-<入口> flow-convert --tag {tag}
+# 4. steps.json → steps-input（业务模型→CASES 映射、sid 编号、blur 注入、intake 合成 device/env、两级校验）
+#    steps.json 由 ai-app-flow 产出；中间不存在手写 CASES 环节
+<入口> steps-generate --steps <steps.json 绝对路径> --tag {tag}
 
-# 5. CASES 文件（强制约定）：先创建空文件 → AI 写入 → 落盘校验 → 生成 steps-input
-<入口> cases-create --tag {tag}
-#    AI 写入完整 CASES（device/env/cases/steps）到 $STATE/run/tasks/<ws>/tmp/cases-{tag}.json
-#    wc -c 确认非空后：
-<入口> steps-generate --input 'cases-{tag}.json' --tag {tag}
-
-# 6. 初始化 flow-context（占位符在此解析，并固化 steps-input 为唯一事实来源）
+# 5. 初始化 flow-context（占位符在此解析，并固化 steps-input 为唯一事实来源）
 <入口> flow-init --dir <run-name> --input 'steps-input-{tag}.json' --flow-name <Flow名>
 
 # 7. 进入引擎驱动，按 flow-next 返回的命令逐步执行
@@ -477,6 +503,6 @@ environment/
 > `actions/` + `registry.py::ENV_STEPS` + `probes/`）；上图中 `strategies/` 与 `login_*.py`
 > 的拆分建议已被该实现取代，仅 `rules/`（认证规则）仍待此演进。
 
-`env_validator.py` 保留规则与校验（`validate_env_config`、`get_env_summary`、`infer_auth_method`），`APP_ENV_TYPE_RULES` 注册表改为从 `rules/` 目录自动发现。`auth_validator.py` 保留规则与校验（`validate_auth_config`），`AUTH_METHOD_RULES` 注册表改为从 `auth_rules/` 目录自动发现。登录策略部分**已落地**（`provisioning/setup/login/`：`registry.py::ENV_STEPS` + `actions/` + `probes/`，不再有 `login_strategy.py` / `strategies/` 目录）。
+`env_validator.py` 保留规则与校验（`validate_env_config`、`get_env_summary`、`infer_auth_method`），`APP_ENV_TYPE_RULES` 注册表改为从 `rules/` 目录自动发现。`auth_validator.py` 只保留认证方式规则与凭证校验（`AUTH_METHOD_RULES` / `validate_credential`）；**账号来源**收敛在 `provisioning/credentials.py`（`Credential` + provider 表：线上平台下发 / 测试号池 / 无身份），以 `env.credential` 单字段流转。登录策略部分**已落地**（`provisioning/setup/login/`：`registry.py::ENV_STEPS` + `actions/` + `probes/`，不再有 `login_strategy.py` / `strategies/` 目录）。
 
 **拆分原则**：不提前拆分，等第二个 App 确实出现时再重构，避免过度设计。

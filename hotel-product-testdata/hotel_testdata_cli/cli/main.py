@@ -8,7 +8,8 @@ hotel-testdata CLI 主入口
 可用子命令：
   fullday         境内全日房端到端上单（自动构造基础实体 → batchCreateGoods → 上线 → 存数据池）
   hourly          钟点房端到端上单（仅境内；自动构造基础实体 → batchCreateGoods → 上线 → 存数据池）
-  oversea-fullday 境外全日房端到端上单
+  agent-fullday   代理商品端到端上单（第三方渠道供应商 entityType=1；境内/境外，复用 fullday 流程）
+  oversea-fullday 境外全日房端到端上单（overseas+partnerType=3，复用 fullday 流程；境外多人价格参数需按需 --set）
 
 路径说明（基础实体构造阶段，fullday/hourly 自动推断）：
   路径A  什么 ID 都没有
@@ -102,6 +103,9 @@ def _build_parser() -> argparse.ArgumentParser:
     # ── 注册子命令 ─────────────────────────────────────────────────────────
     from hotel_testdata_cli.cli.commands.fullday import add_subparser as _add_fullday
     _add_fullday(subparsers)
+
+    from hotel_testdata_cli.cli.commands.agent_fullday import add_subparser as _add_agent_fullday
+    _add_agent_fullday(subparsers)
 
     from hotel_testdata_cli.cli.commands.hourly import add_subparser as _add_hourly
     _add_hourly(subparsers)

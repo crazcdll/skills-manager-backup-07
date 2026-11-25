@@ -1,0 +1,50 @@
+{
+  "caseId": "flow-05-input",
+  "title": "文本输入：锚点定位 + 变量注入（失焦由引擎自动补）",
+  "priority": "P1",
+  "executionType": "deterministic",
+  "env": {
+    "scheme": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-orderfill-duo&mrn_component=main&goods_id=1172344601&checkinDate={checkinDate}&checkoutDate={checkoutDate}&biz_type=1&room_num=1",
+    "type": "A",
+    "vars": {
+      "checkinDate": {"date": 4, "format": "%Y-%m-%d", "desc": "入住日期（今天 +4 天）"},
+      "checkoutDate": {"date": 5, "format": "%Y-%m-%d", "desc": "离店日期（今天 +5 天）"},
+      "guestName": {"ask": true, "desc": "入住人姓名（执行前向用户收集）"}
+    }
+  },
+  "steps": [
+    {
+      "kind": "ui",
+      "id": "open-landing",
+      "name": "进入填写订单页",
+      "action": {
+        "kind": "open-url",
+        "text": "imeituan://www.meituan.com/mrn?mrn_biz=hotel&mrn_entry=hotelchannel-orderfill-duo&mrn_component=main&goods_id=1172344601&checkinDate={checkinDate}&checkoutDate={checkoutDate}&biz_type=1&room_num=1"
+      },
+      "wait": {"type": "page_ready"},
+      "checks": [{"type": "render_ready", "text": "填写订单"}]
+    },
+    {
+      "kind": "ui",
+      "id": "open-guest-form",
+      "name": "打开入住人填写区",
+      "action": {"kind": "tap-text", "text": "添加入住人"},
+      "wait": {"type": "page_ready"},
+      "checks": [{"type": "render_ready", "text": "入住人姓名"}]
+    },
+    {
+      "kind": "ui",
+      "id": "input-guest-name",
+      "name": "填写入住人姓名",
+      "action": {"kind": "input-text", "text": "入住人姓名", "value": "{guestName}"},
+      "checks": [{"type": "text", "text": "{guestName}"}]
+    },
+    {
+      "kind": "ui",
+      "id": "confirm-guest",
+      "name": "确认入住人",
+      "action": {"kind": "tap-text", "text": "确认"},
+      "checks": [{"type": "text", "text": "{guestName}"}]
+    }
+  ]
+}

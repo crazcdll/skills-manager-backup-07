@@ -1,4 +1,4 @@
-import { CONTENT_SCHEMA, CONTENT_CONTRACT, RENDER_CONTRACT, canonical, manifestDigest, PackageContractError, utf8, decodeUtf8, sha256 } from './package-contract.mjs';
+import { CONTENT_SCHEMA, CONTENT_CONTRACT, RENDER_CONTRACT, canonical, manifestDigest, PackageContractError, utf8, decodeUtf8, sha256, validateRuleMetadata } from './package-contract.mjs';
 import { CONVERSION_SCHEMA, validateConversion } from './conversion-contract.mjs';
 import { buildSourceUnits, parseHistoryTree, renderHistoryNode, verifyReaderEvidence } from './source-units.mjs';
 import { generateAgentsIndex } from './preview.mjs';
@@ -14,9 +14,7 @@ function defaultRuleMetadata(rule, document) {
     level: 'L2',
     ruleTitle: rule.title,
     ruleVersion: '0.0.1',
-    category: [rule.category_key],
     severity: [],
-    status: ['open'],
     language: [...new Set((rule.tech_stacks || []).map((value) => languageNames[value] || value))],
     framework: [...new Set((rule.tech_stacks || []).filter((value) => frameworkNames[value]).map((value) => frameworkNames[value]))],
   };
@@ -75,14 +73,23 @@ export async function materializeDraft({ request, source, files, draft }) {
     const document = byDocument.get(rule.document_ref);
     if (!document) fail(`/content/rules/${rule.rule_ref}/document_ref`, '规则引用了不存在的规范文档。');
     if (rule.metadata === undefined) rule.metadata = defaultRuleMetadata(rule, document);
-    else keys(rule.metadata, ['ruleType', 'description', 'level', 'ruleTitle', 'ruleVersion', 'category', 'severity', 'status', 'language', 'framework'], `/content/rules/${rule.rule_ref}/metadata`);
+    else {
+      const path = `/content/rules/${rule.rule_ref}/metadata`;
+      keys(rule.metadata, ['ruleType', 'description', 'level', 'ruleTitle', 'ruleVersion', 'severity', 'language', 'framework', 'category', 'status'], path);
+      if (Object.hasOwn(rule.metadata, 'category') || Object.hasOwn(rule.metadata, 'status')) {
+        validateRuleMetadata(rule.metadata, path);
+        delete rule.metadata.category;
+        delete rule.metadata.status;
+      }
+    }
     rule.body = await Promise.all((rule.body || []).map(convertBlock));
   }
   content.coverage = content.coverage.map((item) => { keys(item, ['unit_ref', 'disposition', 'targets', 'reason'], '/coverage'); const unit = units.get(item.unit_ref); if (!unit) fail('/coverage/unit_ref', '覆盖记录不属于固定读取器结果。'); return { source_ref: unit.source_ref, unit_ref: unit.unit_ref, byte_start: unit.byte_start, byte_end: unit.byte_end, disposition: item.disposition, targets: item.targets, reason: item.reason || '' }; });
   content.schema_version = CONTENT_SCHEMA; content.content_contract = CONTENT_CONTRACT;
   const byDoc = byDocument;
   for (const row of draft.index_entries) {
-    keys(row, ['group', 'name', 'scene', 'document_ref'], '/index_entries'); if (![row.group, row.name, row.scene].every((x) => typeof x === 'string' && x.trim())) fail('/index_entries', '索引分组、名称和触发场景不能留空。');
+    keys(row, ['group', 'name', 'scene', 'document_ref'], '/index_entries');
+    if (typeof row.scene !== 'string' || !row.scene.trim()) fail('/index_entries', '请补充读取此文件的触发条件。');
     if (!byDoc.has(row.document_ref)) fail('/index_entries', '索引引用了不存在的文档。');
   }
   const generated = generateAgentsIndex(content, source, draft.index_entries);

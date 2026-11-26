@@ -230,6 +230,10 @@ def cmd_pr_info(args, cookies):
     for k in ("file_num", "additions", "deletions", "commit_num"):
         if data.get(k) is not None:
             result[k] = data.get(k)
+    # ONES 工作项关联原样透出（PR 关联 issues 列表；解析归 get_pr_diff.extract_ones_info，
+    # 此处不做任何归一，归一单一职责在后端 CrResultParser）
+    if isinstance(data.get("issues"), list) and data["issues"]:
+        result["issues"] = data["issues"]
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 

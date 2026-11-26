@@ -16,6 +16,25 @@ const local = [{ source_relative_path: 'l1/rules/db.md', local_relative_path: 'c
 
 const fourColumnTable = (reference) => `**数据库**\r\n\r\n| 分类 | 规则文件 | Rule UID 范围 | 触发场景 |\r\n|---|---|---|---|\r\n| DB | \`${reference}\` | java-l1-compact:DB-04.N004~N010 | SQL、建表、索引 |\r\n`;
 
+test('L2 two-column rows never borrow unbound, ambiguous, filtered or foreign files', () => {
+  const content = '| 规则文件 | 触发条件 |\n| --- | --- |\n| `source/db.md` | 变更表 |\n';
+  const ref = { rule_set_id: 'test-l2', release_id: 'r1', scope_level: 'L2', standard_domain: 'frontend', local_rule_set_name: '数据库' };
+  const first = { reference: 'source/db.md', document_id: 'db', source_path: 'db.md', bundle_relative_path: 'l2/source/001.md' };
+  const foreign = { ...first, document_id: 'other', bundle_relative_path: 'l2/other/002.md' };
+  const localFiles = [
+    { source_relative_path: first.bundle_relative_path, local_relative_path: 'team/fe/数据库/001.md' },
+    { source_relative_path: foreign.bundle_relative_path, local_relative_path: 'team/fe/其他库/002.md' },
+  ];
+  for (const bindings of [[], [{ ...first, bundle_relative_path: null }], [first, foreign], [foreign]]) {
+    const item = { ...entry(content, bindings), rule_set_id: ref.rule_set_id, release_id: ref.release_id };
+    const result = renderAgentsIndexes([item], localFiles, [ref], { indexPlacement: 'ruleset-root' });
+    assert.equal(result.files[0].content, content);
+    assert.equal(result.warnings.length, 1);
+    assert.equal(result.warnings[0].code, 'agents_index_unmatched_reference');
+    assert.equal(result.warnings[0].line, 3);
+  }
+});
+
 test('rewrites only table path cells using actual flattened names and preserves CRLF and prose', () => {
   const raw = 'rules/db.md 原文\r\n' + table('rules/db.md') + '\r\n```markdown\r\n' + table('rules/db.md') + '```\r\n';
   const rendered = renderAgentsIndexes([entry(raw)], local, refs);

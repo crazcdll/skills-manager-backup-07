@@ -42,6 +42,8 @@ CLI 记录 client_type=cli、实际 npm name/version，skill_name/version 为 nu
 
 前端 L1 索引和正文一起安装在 `.mdp/rules/company/fe/`，索引文件为 `AGENTS.md`。Java L1 对应 `company/java/`，Git 两列索引以 `AGENTS.md` 所在目录为基准。比如 `java/依赖.md` 与 `database/依赖.md` 会安装到各自子目录，索引和正文均保留 Git 原文。L2 在 `team/<fe|java>/<规则集名称>/` 中保存本规则集的索引和正文。同一领域一次交付多套 L1 时，有索引的规则集在领域目录下按规则集名称分开存放。
 
+L2 的「规则文件 / 触发条件」索引按发布绑定把第一列映射到已安装文件，路径相对于同一规则集的 `AGENTS.md`。例如来源路径 `rules/ASYNC.md` 对应的正式文件名为 `001-ASYNC.md` 时，在安装索引中显示后者，触发条件保留原文。未绑定或本次未下载的文件会保留原文并给出告警。
+
 升级后首次拉取会核对旧清单并迁移受管索引，清理空的旧目录。已编辑的受管索引或新位置已有的自建文件会阻止覆盖。`project/` 继续用于项目自管 L3。
 生效包 manifest v8、L1 manifest v5 在旧内容 Hash 之外绑定 resolution 上下文，兼容读取旧清单；内包继续校验 effective-rule-bundle/v4 或 l1-bootstrap-bundle/v3 和 scope-domain-ruleset/v1。
 模式切换时原子替换规则和索引，仅移除旧清单认领且未修改的文件；保护未知文件、人工修改、L3 和不同仓库身份。无仓库请求不能清理已有其他 canonical 的正式规则。索引沿用规则集 AGENTS.md 合同，缓存同样核对索引 Hash。

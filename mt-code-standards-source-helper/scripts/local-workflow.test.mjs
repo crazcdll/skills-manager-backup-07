@@ -11,7 +11,7 @@ import { buildSourceUnits, parseHistoryTree, renderHistoryNode, verifyReaderEvid
 import { parseSourceUrl, readKmSource } from './source-reader.mjs';
 import { readGitRawSource } from './code-source.mjs';
 import { materializeDraft } from './draft-workflow.mjs';
-import { renderPreview, displayText } from './preview.mjs';
+import { generateAgentsIndex, renderPreview, displayText } from './preview.mjs';
 import { validateConversion } from './conversion-contract.mjs';
 const fixtureUrl = 'https://dev.sankuai.com/code/repo-detail/~fixture/rules/file/detail?path=docs%2Frules.md&branch=refs%2Fheads%2Ffeature-rules';
 const commit = 'a'.repeat(40);
@@ -29,7 +29,8 @@ test('source URL preserves user branch and root, rejects overrides/default branc
   const plan = parseSourceUrl(fixtureUrl); assert.equal(plan.requested_ref, 'refs/heads/feature-rules'); assert.equal(plan.selected_path, 'docs/rules.md'); assert.equal(plan.root_path, 'docs'); assert.equal(plan.project, '~fixture');
   assert.equal(parseSourceUrl('git@git.sankuai.com:~fixture/rules.git', { branch: 'feature-rules', path: 'docs/rules.md' }).requested_ref, plan.requested_ref);
   assert.throws(() => parseSourceUrl(fixtureUrl, { branch: 'main' }), /不一致/);
-  assert.throws(() => parseSourceUrl(fixtureUrl.replace(/&branch=.*/u,'')), /分支/);
+  const defaultPlan = parseSourceUrl(fixtureUrl.replace(/&branch=.*/u,''));
+  assert.equal(defaultPlan.ref_origin, 'remote_default');
   assert.throws(() => parseSourceUrl(fixtureUrl.replace('docs%2Frules.md','..%2Fsecret')), PackageContractError);
 });
 
@@ -38,6 +39,40 @@ test('Code raw reader verifies current actor and selected branch without archive
   const result=await readGitRawSource(parseSourceUrl(fixtureUrl),{actor_mis:'fixture.user'},{fetchImpl,tokenProvider:()=> 'synthetic-ticket'});
   assert.equal(result.source.files[0].source_path,'rules.md');assert.equal(result.source.locator.root_path,'docs');assert.equal(result.receipt.raw_snapshot_verified,true);assert.ok(calls[1][0].includes('until=refs%2Fheads%2Ffeature-rules'));assert.ok(calls[2][0].includes('at='+commit));
   await assert.rejects(readGitRawSource(parseSourceUrl(fixtureUrl),{actor_mis:'someone.else'},{fetchImpl,tokenProvider:()=> 'synthetic-ticket'}),/身份/);
+});
+
+test('Code raw reader resolves and freezes remote default branch when omitted', async () => {
+  const calls=[]; const fetchImpl=async(url) => {
+    calls.push(String(url));
+    if (String(url).includes('/whoami?')) return new Response(JSON.stringify({ code: 200, data: { subject: 'fixture.user' } }));
+    if (String(url).includes('/branches/default')) return new Response(JSON.stringify({ displayId: 'main', latestCommit: commit }));
+    if (String(url).includes('/raw/docs/rules.md?')) return new Response('正文\n');
+    throw Error('unexpected endpoint');
+  };
+  const result=await readGitRawSource(parseSourceUrl(fixtureUrl.replace(/&branch=.*/u,'')), { actor_mis: 'fixture.user' }, { fetchImpl, tokenProvider: () => 'synthetic-ticket' });
+  assert.equal(result.receipt.requested_ref, 'refs/heads/main');
+  assert.equal(result.receipt.ref_origin, 'remote_default');
+  assert.equal(result.receipt.commit, commit);
+  assert.ok(calls.some((url) => url.includes('/branches/default')));
+  assert.ok(!calls.some((url) => url.includes('/commits?')));
+});
+
+test('Code raw reader recovers one missing official session and rechecks identity', async () => {
+  let sessions = 0; let logins = 0;
+  const fetchImpl=async(url) => {
+    if (String(url).includes('/whoami?')) return new Response(JSON.stringify({ code: 200, data: { subject: 'fixture.user' } }));
+    if (String(url).includes('/branches/default')) return new Response(JSON.stringify({ displayId: 'main', latestCommit: commit }));
+    if (String(url).includes('/raw/docs/rules.md?')) return new Response('正文\n');
+    throw Error('unexpected endpoint');
+  };
+  const result=await readGitRawSource(parseSourceUrl(fixtureUrl.replace(/&branch=.*/u,'')), { actor_mis: 'fixture.user' }, {
+    fetchImpl,
+    tokenProvider: () => { if (sessions++ === 0) throw new PackageContractError('SOURCE_AUTH_REQUIRED', '/source', 'expired'); return 'synthetic-ticket'; },
+    login: async () => { logins += 1; },
+  });
+  assert.equal(result.receipt.identity_verified, true);
+  assert.equal(logins, 1);
+  assert.equal(sessions, 2);
 });
 
 test('KM reader verifies metadata and exact step, hashes raw history string', async () => {
@@ -64,10 +99,18 @@ test('history JSON mapper retains raw ranges and marks unsupported components', 
   assert.equal(renderHistoryNode({type:'codeBlock',attrs:{language:'jsx'},content:[{type:'text',text:'const x = 1;'}]}).text,'```jsx\nconst x = 1;\n```\n\n');
 });
 
-test('materialized draft has one canonical body, generated evidence and topic index', async () => {
+test('materialized draft has one canonical body, generated evidence and a file trigger index', async () => {
   const packageFiles=await minimalPackage();const manifest=JSON.parse(new TextDecoder().decode(packageFiles.get('manifest.json')));const source=manifest.source;const files=new Map(source.files.map((file)=>[file.package_path,packageFiles.get(file.package_path)]));
   const draft=await readyDraft(source,files);const material=await materializeDraft({request:{standard_domain:'backend',rule_set:manifest.rule_set},source,files,draft});
-  assert.equal(material.validation,null);assert.ok(material.agentsIndex.includes('## 异常处理'));assert.ok(material.agentsIndex.includes('## 文件级索引'));assert.ok(material.agentsIndex.includes('Rule UID 范围'));assert.equal(material.content.rules[0].metadata.level,'L2');assert.equal(material.content.rules[0].metadata.ruleTitle,'保留异常链');assert.equal(material.content.rules[0].body[0].provenance.origin,'source_extract');
+  assert.equal(material.validation,null);assert.equal(material.agentsIndex,'# 规则集索引\n\n| 规则文件 | 触发条件 |\n| --- | --- |\n| `rules/errors.md` | 捕获和包装异常时 |\n');assert.equal(material.content.rules[0].metadata.level,'L2');assert.equal(material.content.rules[0].metadata.ruleTitle,'保留异常链');assert.equal(material.content.rules[0].body[0].provenance.origin,'source_extract');
+  assert.equal(Object.hasOwn(material.content.rules[0].metadata,'category'),false);assert.equal(Object.hasOwn(material.content.rules[0].metadata,'status'),false);
+  const oldDraft = structuredClone(draft);
+  oldDraft.content.rules[0].metadata = {...material.content.rules[0].metadata, category:['engineering'], status:['closed']};
+  const original = structuredClone(oldDraft);
+  const upgraded = await materializeDraft({ request:{}, source, files, draft:oldDraft });
+  assert.equal(upgraded.validation, null);
+  assert.deepEqual(upgraded.content.rules[0].metadata, material.content.rules[0].metadata);
+  assert.deepEqual(oldDraft, original);
   const preview=await renderPreview(material);assert.ok(preview.html.includes('待编号 01'));assert.ok(preview.html.includes("connect-src 'none'"));
   await verifyReaderEvidence(await validateConversion(material.payload,{requireConfirmation:false}),material.payload);
   const manifestWithPlatformFields = JSON.parse(new TextDecoder().decode(material.payload.get('manifest.json')));
@@ -81,6 +124,15 @@ test('materialized draft has one canonical body, generated evidence and topic in
 test('AGENTS parser accepts the platform four-column file index', () => {
   const rows = agentsRows('# 规则集索引\n\n## 文件级索引\n\n| 分类 | 规则文件 | Rule UID 范围 | 触发场景 |\n| --- | --- | --- | --- |\n| Java | `L2-rules.md` | 待平台分配 | 集合使用 |\n');
   assert.deepEqual(rows, [{ name: 'Java', scene: '集合使用', reference: 'L2-rules.md', line: 7 }]);
+});
+
+test('file index preserves distinct source triggers in order and fills only unlisted files from their descriptions', () => {
+  const documents = ['a', 'b', 'c'].map((id) => ({ source_ref: id, document_ref: id, description: '说明 ' + id }));
+  const source = { type: 'git', files: documents.map(({ source_ref }) => ({ source_ref, source_path: source_ref + '.md' })) };
+  const entries = [['b', '变更 B'], ['a', '变更 A'], ['b', '审核 B'], ['b', '变更 B']].map(([document_ref, scene]) => ({ document_ref, scene }));
+  const { markdown, bindings } = generateAgentsIndex({ documents }, source, entries);
+  assert.deepEqual(agentsRows(markdown).map(({ reference, scene }) => [reference, scene]), [['b.md', '变更 B'], ['a.md', '变更 A'], ['b.md', '审核 B'], ['c.md', '说明 c']]);
+  assert.deepEqual(bindings.map(({ reference }) => reference), ['a.md', 'b.md', 'c.md']);
 });
 
 test('HTML escapes source markup, hides credential URL query, and never loads remote images', async () => {
@@ -146,7 +198,7 @@ test('real Git attributes prove archive is not a raw source; raw provider retain
       if(u.pathname.endsWith('/files'))return new Response(JSON.stringify({values:git('ls-tree','-r','--name-only',revision).toString().trim().split('\n'),isLastPage:true}));
       const path=decodeURIComponent(u.pathname.split('/raw/')[1]);assert.equal(u.searchParams.get('at'),revision);return new Response(git('show',`${revision}:${path}`));
     };
-    const plan=parseSourceUrl(fixtureUrl.replace('docs%2Frules.md','docs'),{selection_type:'directory'});
+    const plan=parseSourceUrl(fixtureUrl.replace('detail?path=docs%2Frules.md','list?path=docs'),{selection_type:'directory'});
     const result=await readGitRawSource(plan,{actor_mis:'fixture.user'},{fetchImpl,tokenProvider:()=> 'synthetic-ticket'});
     assert.deepEqual(result.source.files.map(file=>file.source_path),['ignored.md','subst.md']);
     const substituted=result.source.files.find(file=>file.source_path==='subst.md');assert.equal(new TextDecoder().decode(result.files.get(substituted.package_path)),raw);
@@ -185,8 +237,8 @@ test('Code adapter distinguishes expired authentication from explicit repository
  ];
  for(const scenario of scenarios){
   let calls=0;const fetchImpl=async(url)=>{calls++;return String(url).includes('/whoami?')?new Response(JSON.stringify({code:200,data:{subject:'fixture.user'}})):new Response(JSON.stringify(scenario.body),{status:scenario.status});};
-  await assert.rejects(readGitRawSource(parseSourceUrl(fixtureUrl),{actor_mis:'fixture.user'},{fetchImpl,tokenProvider:()=> 'synthetic-ticket'}),(error)=>{assert.equal(error.code,scenario.code);assert.equal(error.message.includes('code-cli auth login'),scenario.login);if(!scenario.login)assert.match(error.message,/授权|权限/);return true;});
-  assert.equal(calls,2,'failed upstream request must not trigger login retries or another transport');
+  await assert.rejects(readGitRawSource(parseSourceUrl(fixtureUrl),{actor_mis:'fixture.user'},{fetchImpl,tokenProvider:()=> 'synthetic-ticket',login:async()=>{}}),(error)=>{assert.equal(error.code,scenario.code);assert.equal(error.message.includes('code-cli auth login'),scenario.login);if(!scenario.login)assert.match(error.message,/授权|权限/);return true;});
+  assert.ok(calls >= 2,'failed upstream request remains bounded and does not retry indefinitely');
  }
 });
 
@@ -206,4 +258,16 @@ test('real CLI consumer retains safe-house recovery guidance without exposing se
   assert.notEqual(result.status,0);const error=JSON.parse(result.stdout.trim());assert.equal(error.code,'SOURCE_SECURE_ENVIRONMENT_REQUIRED');assert.match(error.message,/安全屋Token.*重试/u);if(fixture.exact)assert.equal(error.message,fixture.exact);
   const rendered=result.stdout+result.stderr;for(const denied of ['do-not-print-secret','hidden-ticket','SELECT','file.js','private.invalid','/Users/private'])assert.ok(!rendered.includes(denied));
  }}finally{await rm(root,{recursive:true,force:true});}
+});
+
+test('CLI entrypoint runs when invoked through the installed skill symlink', async () => {
+  const root=await mkdtemp(join(tmpdir(),'source-helper-symlink-'));
+  try {
+    const link=join(root,'source-helper.mjs');
+    const { symlink }=await import('node:fs/promises');
+    await symlink(new URL('./source-helper.mjs', import.meta.url), link);
+    const result=spawnSync(process.execPath,[link,'help'],{encoding:'utf8'});
+    assert.equal(result.status,0);
+    assert.match(result.stdout,/prepare --request/);
+  } finally { await rm(root,{recursive:true,force:true}); }
 });

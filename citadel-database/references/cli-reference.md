@@ -25,6 +25,7 @@
   - [deleteTable](#deletetable)
   - [recoveryTable](#recoverytable)
   - [renameTable](#renametable)
+  - [updateTableDescription](#updatetabledescription)
   - [sortTable](#sorttable)
   - [copyTable](#copytable-1)
     - [使用场景](#使用场景)
@@ -311,7 +312,7 @@ oa-skills citadel-database copyTable \
 oa-skills citadel-database listTables --contentId "2750138424"
 ```
 
-**输出**：表格列表（表格标题、表格 ID）。
+**输出**：表格列表（表格标题、表格 ID、表级描述）；加 `--raw` 获取 JSON，每项含 `description`（XTable 富文本节点数组 JSON 字符串，完整返回不截断；未设置、清空或无该表读权限时为 `""`）。读取经 DataAPI。
 
 ## getTableMeta
 
@@ -325,7 +326,7 @@ oa-skills citadel-database listTables --contentId "2750138424"
 oa-skills citadel-database getTableMeta --tableId "2750248577"
 ```
 
-**输出**：默认展示列信息列表（列名、列 ID、列类型、列配置）；加 `--raw` 获取 JSON，其中还包含服务端返回的 `stepVersion`、`formulaStepAppliedTSO`、`formulaStepPendingTSO`。
+**输出**：默认展示表格标题、表级描述与列信息列表（列名、列 ID、列类型、列配置）；加 `--raw` 获取 JSON，标题仍使用历史字段 `tableTitle`，其中还包含 `description`（表级描述，取当前值）及服务端返回的 `stepVersion`、`formulaStepAppliedTSO`、`formulaStepPendingTSO`。标题优先读取服务端新增的 `title`（包括空串），缺失时回退到历史 `tableName`，两者均缺失时为 `""`。标题与描述取当前值，不随读取坐标回退。
 
 检查公式是否计算完成时，使用下方 `checkFormulaCalculation`，无需解析这些内部字段。
 
@@ -634,6 +635,43 @@ oa-skills citadel-database renameTable \
 ```
 
 **输出**：成功状态、表格 ID、新标题。
+
+## updateTableDescription
+
+设置、修改或清空数据表描述（整体替换）。调用学城原生接口 `POST /api/xtable/description`，使用学城认证；只支持数据表。
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|---|---|---|---|---|
+| `--tableId` | string | ✅ | — | 表格 ID |
+| `--description` | string | 二选一 | — | XTable 富文本节点数组 JSON 字符串；`""` 或 `"[]"` 表示清空 |
+| `--descriptionFile` | string | 二选一 | — | UTF-8 JSON 文件路径，内容为节点数组；空文件或 `[]` 表示清空 |
+
+**格式**：描述是节点数组，不是 Markdown。节点类型与必填字段：
+
+| `type` | 必填字段 |
+|---|---|
+| `text`、`paragraph` | `value`（字符串） |
+| `link` | `value`、`link`（字符串） |
+| `mention` | `value`（字符串）、`empId`（数字） |
+
+其他字段（如 `marks`、`openType`）原样保存；其他节点类型（含 `image`）被拒绝。CLI 先校验输入是 JSON 数组，再压缩为紧凑 JSON 提交，长度按紧凑结果计算，上限 10000 个字符（含 JSON 结构与转义）；不会把 Markdown 或纯文本自动转为富文本。`--description` 必须显式提供值，缺值时报错，不会清空描述。
+
+**权限与范围**：需要该表的编辑权限（模板内的表需要模板编辑权限）；只读开关开启时拒绝。最后一次成功提交生效，不做并发冲突检测。
+
+```bash
+# 设置描述
+oa-skills citadel-database updateTableDescription \
+  --tableId "2750248577" \
+  --description '[{"type":"text","value":"记录业务说明"},{"type":"link","value":"规范","link":"https://km.sankuai.com/xxx"}]'
+
+# 从文件读取（可格式化换行，提交前自动压缩）
+oa-skills citadel-database updateTableDescription --tableId "2750248577" --descriptionFile desc.json
+
+# 清空描述
+oa-skills citadel-database updateTableDescription --tableId "2750248577" --description "[]"
+```
+
+**输出**：成功状态、表格 ID；`--raw` 输出 `{ success, status, data }`。原生接口 `status` 为 0 才视为成功，否则命令以非零退出码报错。
 
 ## sortTable
 

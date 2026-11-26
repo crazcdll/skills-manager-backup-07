@@ -1,9 +1,9 @@
 skill-manifest-version: 1
-skill-id: b24786e49abca42ca65a162e5bacb2b442ef6545ed8219f590065d7fcd655ef1
+skill-id: 6faee08ed1314db2d1f87823015bafb442bd3cb436d61700750dca1d462f2c16
 
 files:
   de0527093bcbe08b6554428586c8fa241c511c96359d6633f2e3770b76c2d479  .skillignore
-  ae2ddcaefb419ed1485f5deb8e6c64e640c1ef399efd35f664233ea7087dfba2  SKILL.md
+  36c48784b3c6c8a585db1fde7edfd28b5b9b84a7806280165f8addb8444e3da7  SKILL.md
   8310a6fe872d2c95231037508b2ff2140677bc910b570b06cd7832fad5f018a7  external-analyzer-operations.md
   339be0df9b4be7b0bbeccd2dc76568c25fad7455d9f0b8f17b72eca8435dc298  references/checklists/coding-standards-checklist.md
   9d620048729f1d651e82c21c77b37359ba1c739046ae286174c2fe1a31ec2c7a  references/checklists/coe-rules.md
@@ -62,7 +62,8 @@ files:
   7fe7c8b736b53c7211e3ce80a68162887ad567fbf98765111c6b1ccc4fa9cc9c  references/rule-reference-resolution.md
   aecf6c7ef0a83e86a358de52e4314cc0b0c646664888281c9580cc4f1c9e0456  references/signal-routing-table.md
   eb9d3ce9610a9e318ec2a726c1612575db413cfbd6085dc99ce886fe9d6f5cda  references/step4-review-guide.md
-  96a1d8da1576a467b517b5864883dcfec1055969de3f62e75fb808eac85fad46  scripts/code_cli.py
+  24ab571cc1de5fd7467788548be9c16b5a886314198040b47da594ed36e6507c  scripts/cleanup_run.py
+  7ee9cf9ecb8aae8e7d1bca6a68e7876957ab97f2e5c0c2e34973f3d49ea89be3  scripts/code_cli.py
   23e4f6c22463b8cf787956ee0c7bea3ee0f749f2a850ebfbf0df12b9450692ed  scripts/collect_custom_rules.py
   6e4de01d6a9d07a96eca2f721bb6164a60fa8521cae3e8593105850aa7337dc2  scripts/comment_dedup.py
   f7531bde17a04981555431c913b2567d274d3e2f696d2579775abddd8b872b49  scripts/cr_comment.py
@@ -73,10 +74,10 @@ files:
   277cd8f62da5cdbaafa1cc3e68de442ac4b9352628c2582301881438f849246c  scripts/fetch-rule-bundle.sh
   c64405ac3c6f2ac5b7bc6779ebe56e00a82513811f0bf8af9aee6f02402fa92f  scripts/fetch_rule_bundle.py
   58525805599fa493e7bd904f5440b3a2b851e30da64af7c6d39a22d39b4d4fd4  scripts/get_org_info.py
-  14fbbcbc5f6441777e5b2a2cded364dc81460aecec0f4a856fbf65016a614b67  scripts/get_pr_diff.py
+  3a6168b28f20a09e14c3a9bbb8a561d823a044b738b8be45c97017c8d09acb8e  scripts/get_pr_diff.py
   66ea9573289204471e0c288d026ccd0cf4639f317357bddd4ccb54eb7740fc59  scripts/issue_io.py
   a39bce072f58dba6d39771e96287f61e4fc790bd6c7cf6592ece7b87312f30fe  scripts/line_anchor.py
-  f61c8b208c083c3729ab1ae4a7428c2ca0966d10c621ea5b05ef0f98221ff501  scripts/publish_results.py
+  e506fa9d2677e4a0e0df2b385de0ad7023438a35940440ff2390f7d8ee44b168  scripts/publish_results.py
   82e15d0d3721d18ead812b567f9c096b9aed2808d616ed792a92e9c98118d984  scripts/repo_search.py
   07be1f05facd1dc0df846c0a90d666bf487072d06048cd2ba67087083c69741f  scripts/repo_search_json.py
   2769b341e2565995011dcf82a75fee4949ca9c48da764c795855ba2c0f029831  scripts/rule_id.py

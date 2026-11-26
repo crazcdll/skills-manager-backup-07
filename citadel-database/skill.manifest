@@ -1,10 +1,10 @@
 skill-manifest-version: 1
-skill-id: 89966b95972efd8736638cfbbf9afe0f7df90bda2f4ae6c6487588d4ad2c4ceb
+skill-id: 6760d538d417b2e95a1906d91eb07b16b4d05176afee423a09037ea873333cad
 
 files:
-  4a545f442a235e3870c8198eb9959207a72bbd061fb17f8e8935d034df1f29b5  SKILL.md
+  8fa722425bae360db9ee63b42ebc416ae696e5e9a404a12ad54427674a74c087  SKILL.md
   9fd09410dacab733d212aacdb3b56cbc0cb370b5b704976ae5d5512445ede2f2  references/advanced-permission.md
-  319c15607aa2aed1323ef9f2c41ab5f842d464f6a0f6bb751e36d21a4856331c  references/cli-reference.md
+  a77c3e6521de2fcb4a37110ae1e0e2cdf9a19fe74a8752e5e5d3c7b5fdb72403  references/cli-reference.md
   b42811b577acead7001d73ea11868520f0858322bef2e304c0d78942dcda0373  references/data-format.md
   e09bc5428c865a02b8d2269c10b151ffcda0a37e05fbb7ccf46fcb30865ebd65  references/permission-management.md
   57584c1683637c00506addbde1ea24f8ad7caca1be3d7205e37a5758d684854a  references/view-management.md

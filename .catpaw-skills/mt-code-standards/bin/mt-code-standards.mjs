@@ -49,7 +49,8 @@ pull 选项：
   --json                     输出机器可读 JSON
   --help                     显示帮助
 
-正式 public 拉取不发送用户身份；正式 direct 使用用户 CIBA 票据；mtcli 使用官方 SSO 登录。
+正式 public 拉取不发送用户身份，仅携带公开 anon key 通过 NoCode 网关（可用 RULE_ANON_KEY 覆盖）；
+正式 direct 使用用户 CIBA 票据；mtcli 使用官方 SSO 登录。
 未登记、无仓库地址或没有可用 L2 时，一次请求直接返回 L1；阶段必须明确。
 `;
 

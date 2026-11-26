@@ -1,6 +1,6 @@
 # 本地工作流与草稿格式
 
-Node.js 24；无需模型 API Key 或第三方 ZIP/Markdown 依赖。Git 读取使用官方 @ee/code-cli 的本人会话并在线 whoami 核验，再读取固定 commit 的 raw 原件；学城使用官方 oa-skills CLI。Git 会话失效时运行 `code-cli auth login --browser` 完成本人登录，不通过其他产品缓存或 SSH archive 降级。工具缺失时提示用户按其环境安装/登录，不猜测凭据。
+Node.js 24；无需模型 API Key 或第三方 ZIP/Markdown 依赖。Git 读取使用官方 @ee/code-cli 的本人会话并在线 whoami 核验；分支缺省时通过代码平台默认分支接口获得分支名和完整 commit，再读取固定 commit 的 raw 原件。学城使用官方 oa-skills CLI。Git 会话缺失或明确失效时工具最多自动调用一次官方 `code-cli auth login --browser`，不通过其他产品缓存或 SSH archive 降级；权限拒绝、网络失败、身份不匹配不重复登录。工具缺失时提示用户按其环境安装/登录，不猜测凭据。
 
 ## 命令
 
@@ -33,7 +33,7 @@ node <skill>/scripts/source-helper.mjs validate --package <包路径.zip>
 }
 ```
 
-本请求只描述来源读取范围。source_url 支持 dev.sankuai.com 文件/目录地址，以及带 path/branch 的 git/code.sankuai.com 仓库地址。SSH clone URL 和无查询参数的仓库地址也可输入，但必须另填 path 和 branch；显式值不能与链接中的值冲突。branch 可显式单独传入 request，但不能与用户意图冲突；缺少分支会报错，工具不猜默认分支。目录选择使用 selection_type=directory，仅该目录内文件；AGENTS.md/agents.md 在所选根目录作为索引分离。
+本请求只描述来源读取范围。source_url 支持 dev.sankuai.com 文件/目录地址，以及带 path/branch 的 git/code.sankuai.com 仓库地址。文件详情链接和目录列表链接自动推断 `selection_type`；显式值只能与链接类型一致，或用 `path` 将目录范围收窄到其中一个文件。SSH clone URL 和无查询参数的仓库地址仍需另填 path；显式值不能与链接中的值冲突。branch 可显式单独传入 request；缺少分支时 prepare 读取远端默认分支并冻结，不再要求用户手填。目录选择仅该目录内文件；AGENTS.md/agents.md 在所选根目录作为索引分离。
 
 规则集 name、展示名称、描述、Owner、治理域和适用范围不属于本地转换输入。预览和转换包不会生成这些平台字段，平台导入时由用户填写。
 
@@ -47,10 +47,12 @@ prepare 生成 source.json、sources/ 原件、source-receipt.json、semantic-in
 
 - schema_version 固定 `source-helper-draft/v1`。
 - content 仅包含 documents、rules、coverage、resolutions。
-- index_entries 包含 `{group,name,scene,document_ref}`，用于生成主题分组索引；名称、场景由实际材料支持。
+- index_entries 包含 `{document_ref,scene}`。scene 说明哪些任务或变更需要读取该文件，优先沿用来源索引中的完整触发条件。旧草稿可保留 group、name，但不会将它们输出为索引列。没有专门条目的文档使用有材料依据的文档说明；说明未能体现触发条件时，补充条目后再确认。
 - open_questions 包含 `{question_ref,message}`，有任何未解决问题都不能确认或封包。
 
-documents/rules 与机器 Schema 相同，唯块 provenance 使用 `{origin,unit_refs,reason}`，不手填 source_spans。每条 rule 都要有 `metadata`，字段对应单条规范 YAML：`ruleType`、`description`、`level`、`ruleTitle`、`ruleVersion`、`category`、`severity`、`status`、`language`、`framework`。新建 L2 固定 `level: L2`；`ruleSetId` 和 `owner` 是平台导入时才补入的字段，不能在本地包中伪造。缺省 metadata 时工具只为预览生成可追溯的默认值，用户确认前仍可修改。coverage 只写 `{unit_ref,disposition,targets,reason}`，工具从固定单元补 source_ref、范围与 Hash。content 的 schema_version、content_contract、agents_index 由工具生成，不能在草稿中手填。
+documents/rules 与机器 Schema 相同，唯块 provenance 使用 `{origin,unit_refs,reason}`，不手填 source_spans。每条 rule 都要有 `metadata`，字段对应单条规范 YAML：`ruleType`、`description`、`level`、`ruleTitle`、`ruleVersion`、`severity`、`language`、`framework`。新建 L2 固定 `level: L2`；`ruleSetId` 和 `owner` 是平台导入时才补入的字段，不能在本地包中伪造。缺省 metadata 时工具只为预览生成可追溯的默认值，用户确认前仍可修改。coverage 只写 `{unit_ref,disposition,targets,reason}`，工具从固定单元补 source_ref、范围与 Hash。content 的 schema_version、content_contract、agents_index 由工具生成，不能在草稿中手填。
+
+旧草稿中成对的 `metadata.category` 和 `metadata.status` 会在重新生成预览时校验并从新输出中去掉，不改动草稿和来源快照。新预览需重新确认。已确认的旧包仍可原样校验和渲染，保留原字段、顺序及哈希，无需迁移。
 
 原文块示意（替换真实单元与内容）：
 
@@ -74,7 +76,11 @@ Git 可从单个或连续单元唯一匹配精确摘录；工具计算原始字�
 
 ## 预览与确认
 
-preview 输出正文卡片、单条规范元数据、示例语言与高亮、来源标识、主题索引和文件级四列表格、排除决定和待确认项。超过十条规则按页展示，确认针对完整内容。HTML 不加载外部资源，用户提供内容经转义；Markdown 为本地受限展示，不是新事实来源。
+短字段逐行显示；正文已提供的同一描述只展示一次。若旧草稿把原文编号单列为首个摘录，预览从冻结 Git 标题核实编号与标题后将其还原到标题行。来源中用 `severity: [强制/建议]` 描述执行级别时只按执行级别解读，不推导 P0–P3。页面统一说明原文摘取，AI 补充和用户修改在对应正文或代码块上单独标识。
+
+同侧相邻代码块放在同一个推荐/错误写法模块中，各自保留语言、说明和代码；中间有正文或切换正反例时按原顺序分组。预览分组不会改变草稿、证据范围或转换包的代码块。
+
+preview 输出正文卡片、单条规范元数据、示例语言与高亮、来源标识、「规则文件 / 触发条件」两列文件索引、排除决定和待确认项。该索引原样写入转换包 AGENTS.md；已确认的旧三列、四列索引仍可读取。超过十条规则按页展示，确认针对完整内容。HTML 不加载外部资源，用户提供内容经转义；Markdown 为本地受限展示，不是新事实来源。
 
 待确认规则可以暂留 execution_level 为空或暂缺省略原因，preview 会显示校验问题；最终 confirm 必须通过全部校验，不能将暂缺值带入转换包。平台元信息不进入本地 content_digest；平台填写规则集名称、Owner 或适用范围后，按平台流程进行再次校验。
 

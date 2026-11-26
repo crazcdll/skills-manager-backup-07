@@ -1,9 +1,9 @@
 skill-manifest-version: 1
-skill-id: 93471d398c63de7d0596fd0a8cce1e944095e98b68b86223057eec2d9a4f0565
+skill-id: b501e5691e6d7e8d8ce1e32b7e8fdd04b3702f1f2ef8e0f5d1adb63d1e45b4cc
 
 files:
   3ad9a2a07f937cc68a3d824b6a7cee1205e3287677208722498f5c8fd2eec4ce  .skillignore
-  064b6e68e1e1ca9d1b44c2c1c8e217ba0d5dd5dfcc9976bdb0ae92079b19e411  SKILL.md
+  84db7d39ae86fe128e59fc262f658eabd7cf4655d3da6f4e39dac80738460359  SKILL.md
   27e07e2de1687cb55093abf4bd582e62c9c0d52acb4d98b8f6fc3bfcb71dd4c4  evals/evals.json
   4855b8d22430409f50219c8330ecb6d47866a07c07253b8ad7f81606d3e6b2c9  references/block-types.md
   bc3c6fe71e0b1371f69932f0e15d99c1da320661d6af8f3460806678bf0c1451  references/config-options.md

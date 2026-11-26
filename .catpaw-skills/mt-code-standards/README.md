@@ -17,6 +17,7 @@ mt-code-standards pull --domain backend --stage cr --json
 ```
 
 默认 public，一次请求返回领域/阶段匹配的 L1 和可获取的生效 L2。未登记、无 Git、没有 origin 或无可用 L2 时直接返回 L1，无需 bootstrap 参数和第二次请求。匿名保留 active 仓库现有 L2 公开分发策略；认证无可读关联时仅 L1。
+public 请求在 `Authorization` 携带平台公开 anon key（内置常量，可用 `RULE_ANON_KEY` 覆盖）：NoCode Functions 网关在执行函数前校验 JWT，缺头直接 401。它只用于过网关，不代表用户身份；格式非法时直接报错且不发起请求。
 阶段必须为 design/coding/cr。领域可从可读登记配置获取，否则需明确 frontend/backend；不扫描源码推断。显式错误地址/领域报具体错误；仓库地址支持完整 namespace/repository 和可归一化线上 MCode Git 地址，不接受裸名。
 自动发现的 GitHub 等非 MCode origin 按身份不明处理，使用来源目录兜底取 L1，不访问 origin 主机；显式传入非法或不受支持地址仍报错。
 `--repo-root` 或 cwd 为来源目录；能找到 Git 根则以 Git 根定位，无地址时用来源绝对路径作显示名称。`--output-dir` 只决定安装基目录，不参与名称兜底。
@@ -32,7 +33,7 @@ mt-code-standards pull --domain frontend --stage coding --transport mtcli --json
 direct 使用官方用户票据，保持当前身份；public 不取票、不继承环境票据。public 的可选 --mis 仅自报标识，不作为权限事实。CLI 的执行 Agent 可通过 --execution-agent 明确，或环境识别；未知独立 CLI 记 cli。
 mtcli 固定生产服务定义/环境，先核验 dry-run，再调用 `bundles resolve-unified`；部署前必须登记 assets/mtcli-service.json 的新方法和 Schema。不支持时明确停止，不自动切回 direct。
 新请求 `rule-bundle-resolve/v1` 调用 `/v1/public/rule-bundles/resolve` 或 `/v1/rule-bundles/resolve`，只支持 rule-distribution 网关。旧 --bootstrap 仅作为 scope=l1 别名，保持所选认证方式。旧服务需升级，不降级重试旧入口。
-认证失败、停用、L1缺失、损坏的订阅和服务失败均报具体 code/message/字段问题/request_id，不伪装无 L2 成功。
+认证失败、停用、L1缺失、损坏的订阅和服务失败均报具体 code/message/字段问题/request_id，不伪装无 L2 成功。网关在执行函数前拒绝时返回 `RULE_BUNDLE_GATEWAY_AUTH_REJECTED`，提示检查 anon key 或登录票据，不伪造 request_id。
 
 ## 上报和安装
 
@@ -40,6 +41,8 @@ CLI 记录 client_type=cli、实际 npm name/version，skill_name/version 为 nu
 服务端记录实际分发模式、原因、快照、Release、规则 UID、字节数及时间；匿名/自报/认证身份明确区分。服务器 ready/not_modified 不代表本地安装成功，本地结果目前不回传。
 
 前端 L1 索引和正文一起安装在 `.mdp/rules/company/fe/`，索引文件为 `AGENTS.md`。Java L1 对应 `company/java/`，Git 两列索引以 `AGENTS.md` 所在目录为基准。比如 `java/依赖.md` 与 `database/依赖.md` 会安装到各自子目录，索引和正文均保留 Git 原文。L2 在 `team/<fe|java>/<规则集名称>/` 中保存本规则集的索引和正文。同一领域一次交付多套 L1 时，有索引的规则集在领域目录下按规则集名称分开存放。
+
+L2 的「规则文件 / 触发条件」索引按发布绑定把第一列映射到已安装文件，路径相对于同一规则集的 `AGENTS.md`。例如来源路径 `rules/ASYNC.md` 对应的正式文件名为 `001-ASYNC.md` 时，在安装索引中显示后者，触发条件保留原文。未绑定或本次未下载的文件会保留原文并给出告警。
 
 升级后首次拉取会核对旧清单并迁移受管索引，清理空的旧目录。已编辑的受管索引或新位置已有的自建文件会阻止覆盖。`project/` 继续用于项目自管 L3。
 生效包 manifest v8、L1 manifest v5 在旧内容 Hash 之外绑定 resolution 上下文，兼容读取旧清单；内包继续校验 effective-rule-bundle/v4 或 l1-bootstrap-bundle/v3 和 scope-domain-ruleset/v1。
@@ -72,24 +75,20 @@ Friday 上维护两个既有条目，均复用本仓库的同一套源码，不�
 - `mt-code-standards-setup`：Setup Skill ID 为 `141006`，通过固定脚本生成一次性临时包；脚本只修改
   `SKILL.md` 的顶层名称和 `agents/openai.yaml` 的默认调用令牌，运行期 Schema、npm 包名和 CLI 命令保持 canonical 值。
 
-两个 Friday 版本均与 npm 版本相互独立。发布 canonical Skill 时必须单独切换到 Node.js 24，再从仓库根目录执行 `mtskills push --intro auto`，不要再次创建同名条目：
+两个 Friday 版本均与 npm 版本相互独立。一次 `npm run pub` 依次更新两个既有条目，不要再次创建同名条目：canonical Skill 从仓库根目录直接推送，Setup Skill 从一次性临时包推送。
+
+`pub` 会自己切换到 Node.js 24：当前 Node 不是 24 时，按 `nvm`（`$NVM_DIR` 或 `~/.nvm`）、`fnm`、`n`、Homebrew `node@24` 依次查找已安装的 Node.js 24，并用该版本重新执行本命令，同时把它的 `bin` 放到 `PATH` 首位，让后续 `npm` / `mtskills` 也落在同一套全局目录里；等价于先手动 `nvm use 24`。找不到 Node.js 24 时正式发布直接报错并提示手动切换，dry-run 仍可跑。
+
+可先 dry-run：只校验根目录 `SKILL.md` 的 canonical 身份，并在系统临时目录生成和删除 Setup 包，不安装工具、不联网、也不调用 `mtskills`：
 
 ```shell
-nvm use 24
-mtskills push --intro auto
+npm run pub -- --dry-run
+npm run pub
 ```
 
-发布 Setup Skill 前先用 dry-run 核对目标 ID、文件数和内容 Hash。dry-run 只在系统临时目录生成并删除包，不安装工具、不联网，也不调用 `mtskills`：
+正式发布先跑一次仓库校验，再从公司 npm 源全局更新 `@mtfe/mtskills`（只更新一次），然后推送 canonical Skill，最后生成并推送 Setup 临时包；任一步失败即停止，不会继续后续发布。更新全局发布工具是该命令的明确副作用；脚本不会发布 npm、提交或推送 Git。临时包在成功或失败后都会删除。发布完成后仍须分别从 Friday 回读 ID `150847` 与 `141006` 的实际版本和文件内容；源码提交或命令调用成功不能替代线上回读。
 
-```shell
-nvm use 24
-npm run ps -- --dry-run
-npm run ps
-```
-
-`ps` 是 `skill:publish:setup` 的别名，长命令仍然保留；例如 `npm run skill:publish:setup -- --dry-run` 与上述预览命令等价。
-
-正式 Setup 发布命令会先运行仓库校验，再从公司 npm 源全局更新 `@mtfe/mtskills`，最后在临时包目录固定执行 `mtskills push --intro auto`。更新全局发布工具是该命令的明确副作用；脚本不会发布 npm、提交或推送 Git，也不会安装全局 Skill。临时包在成功或失败后都会删除。发布完成后仍须从 Friday 回读 ID `141006` 的实际版本和文件内容；源码提交或命令调用成功不能替代线上回读。本轮加入发布脚本本身不表示已实际发布。
+只发布 Setup Skill 时仍可单独执行 `npm run skill:publish:setup -- --dry-run` / `npm run skill:publish:setup`，该入口自带校验与工具安装。
 
 npm、Friday、CatX 和 mtcli 是独立发布单元；按 [接入说明](references/mtcli-integration.md) 分别回读和验收，本仓库提交不会自动完成任一线上发布。
 

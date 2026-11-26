@@ -1,10 +1,10 @@
 skill-manifest-version: 1
-skill-id: f63a7df04dd4d8cb5259195b8efcad5fe88f7b46940431e330355ffc543f5700
+skill-id: d205c4f830c93875cc814865b4db17f209496b8a8a216c754629f6ffe91d27a8
 
 files:
   bd71c8694aa7b1459d913c0569d80f3cd927272697283e6e3cd1cddad91c0561  AGENTS.md
-  5477b4a080183ba12dbb8ff1ef516248c1a8f6e8650178005edb6c371c8ebb7f  README.md
-  2845b4e2d5a2693a3ca5479051648510e4d8e96d253975ec55642e95f16c8d43  SKILL.md
+  aedf728f921d67a58e43eed859f0242f05634fe9fb54605f4fa45ca404b7d4e8  README.md
+  8db4a29725aa751103262970ceb219d57b538a3641cf0e39041fe05f66e8a2c0  SKILL.md
   54e338e3bf7c01faac79914d95a1a98f9e516bb6912d4d40eea6f74aaf1db394  agents/openai.yaml
   218dcffc419a8e843ed8e2f0f7c401f8925fde748fa06158ec2a82f9c85efc7f  assets/mtcli-service.json
   925d2ea62946069cd272395e020def2ac0074cb9218aa70ceb0a5cdab63e5603  bin/mt-code-standards.mjs
@@ -12,8 +12,8 @@ files:
   4544072163448631aa616cfaf9b6e53dbce65ce4282f1b2872a80fcf294f9625  package.json
   8397c80e0636045f04cf91002499b86a91d4e790e6c8831809d97901bc7b2103  references/mtcli-integration.md
   a7d5289c1b3603ea457c5b585b632d58fcea1dee8cca286b8e26640215a6caf1  references/sso-platforms.md
-  d49e3886bfdc071b1aa0e642682958e048dc7858b2523d2070ad03a5a837eb39  scripts/agents-index.mjs
-  29fba5d9c3f87a1317e6f653846d8c46f617e099453b7fcc65050650be3da8db  scripts/agents-index.test.mjs
+  e5b67936a4d10436ef3064107e2a24e6bce91e2b5e6922e6c9ce0127717c5cc8  scripts/agents-index.mjs
+  945f8f62ea8573f8539b1427a6ce769d83c5e192fa07dfa5182bda17afe75bfc  scripts/agents-index.test.mjs
   9bf5d1c34e5a7bfe0b9c772340e15a79f84888f019f9f1fb016341e0c4341038  scripts/download-observation.mjs
   6997919cae9de832f1fc20600cdcf78690dd7691bfdebac60668c5f33fc15efd  scripts/fixtures/agents-index-runner.json
   5913f607eb4c60d62204b0bd91142e5e5d971ef031dd9d3e8538aaff45387b08  scripts/mtcli-transport.mjs
@@ -21,6 +21,6 @@ files:
   ecc40c26d626b25ff45f1ec145cf8bc27318a47258a58177a1310741f6edabb5  scripts/portable-user-auth.mjs
   823e2e2f80dec6b2e9459e00d73ed6726d8e2b72a3f9be7749f43d0e1c682cba  scripts/portable-user-auth.test.mjs
   ad89ae42ecb387a6e0a3feef15cf900d215e69aaebe9fc50cecc8a39f0a4c10a  scripts/resolve-effective-rules.mjs
-  cf4b23ac28ac272d37b0ef6977f2ed3092cfca0d5eb31c2ba9956bd5d598281b  scripts/resolve-effective-rules.test.mjs
+  9bb81a34add44ca31b80a13d3b260c61a426c73ddcfc5a75ea8f1be1700cf79c  scripts/resolve-effective-rules.test.mjs
   8816d43aa4783d53dd47a7b8c23eba380c32d0b64a59f053dfcc658ff72a94f4  scripts/sync-effective-rules-with-sso.mjs
   4fcc98b8dab2ce7105cea0dacf243ceb5a0d0bd4bbcb8e599be033c9ce7fce19  scripts/sync-effective-rules-with-sso.test.mjs

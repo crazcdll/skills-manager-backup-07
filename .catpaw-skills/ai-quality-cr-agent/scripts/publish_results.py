@@ -1356,6 +1356,8 @@ def backfill_cr_mode(args, path=CR_MODE_INFO_PATH):
         args.reviewed_line_changes = f"+{info['reviewedAddedLines']} -{info['reviewedRemovedLines']}"
         fixes.append(f"reviewed_line_changes: 从 mode_info reviewedAddedLines/removed 回填（覆盖口径）")
     args._pr_scale = {k: info.get(k) for k in ("prFileNum", "prAdditions", "prDeletions")}
+    # 5.5) ONES 工作项四字段（get_pr_diff 采集写入 mode_info；无关联 PR 时无键，不回填）
+    args._ones_info = {k: info.get(k) for k in ("onesId", "onesType", "onesUrl", "onesName")}
 
     return fixes
 
@@ -2974,6 +2976,12 @@ def _build_overview_data(args):
         "base_commit": getattr(args, "base_commit", None),
         "target_commit": getattr(args, "target_commit", None),
         "commit_count": getattr(args, "commit_count", None),
+        # ONES 工作项关联（PR 关联 issues[0]，后端 CrResultParser 解析归一落 cr_task；
+        # None 序列化为 null，后端 id 无效不更新四列，PR 补关联后下次 CR 自动回填)
+        "ones_id": (getattr(args, "_ones_info", None) or {}).get("onesId"),
+        "ones_type": (getattr(args, "_ones_info", None) or {}).get("onesType"),
+        "ones_url": (getattr(args, "_ones_info", None) or {}).get("onesUrl"),
+        "ones_name": (getattr(args, "_ones_info", None) or {}).get("onesName"),
         "skill_version": f"ai-quality-cr-agent {SKILL_VERSION}",
     }
     return overview

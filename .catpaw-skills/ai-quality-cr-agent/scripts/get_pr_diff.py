@@ -83,6 +83,38 @@ def short(h):
     return (h or "")[:8]
 
 
+def extract_ones_info(pr_info):
+    """从 code_cli pr-info 结果提取 ONES 工作项四字段（取关联 issues[0]）。
+
+    防御式兜底，永不抛异常：issues 空/非数组、首元素非 dict → 返回 {}。
+    与后端 CrResultParser 归一规则幂等双保险（trim/type 大写），但不做 int 强转
+    与长度截断——归一单一职责在后端（parsePositiveLong/normalizeOnesText）。
+    字段名与 platform issues 元素对齐：id/type/link/name（注意是 link 不是 url）。
+    """
+    if not isinstance(pr_info, dict):
+        return {}
+    issues = pr_info.get("issues")
+    if not isinstance(issues, list) or not issues:
+        return {}
+    first = issues[0]
+    if not isinstance(first, dict):
+        return {}
+    info = {}
+    ones_id = first.get("id")
+    if ones_id is not None:
+        info["onesId"] = ones_id  # 数字或字符串数字均原样传，后端 parsePositiveLong 兼容
+    ones_type = first.get("type")
+    if isinstance(ones_type, str) and ones_type.strip():
+        info["onesType"] = ones_type.strip().upper()
+    ones_link = first.get("link")
+    if isinstance(ones_link, str) and ones_link.strip():
+        info["onesUrl"] = ones_link.strip()
+    ones_name = first.get("name")
+    if isinstance(ones_name, str) and ones_name.strip():
+        info["onesName"] = ones_name.strip()
+    return info
+
+
 def pr_identity(url):
     match = re.fullmatch(r"/code/repo-detail/([^/]+)/([^/]+)/pr/(\d+)(?:/.*)?", urlsplit(url).path)
     if not match:
@@ -92,6 +124,7 @@ def pr_identity(url):
 
 def write_mode_info(path, cr_mode, base_commit, target_commit, file_count, commit_count, identity=None, failed_files=None,
                       added_lines=None, removed_lines=None, pr_file_num=None, pr_additions=None, pr_deletions=None,
+                      ones_info=None,
                       snapshot_to_hash=None, snapshot_from_hash=None, diff_path=None, diff_sha256=None,
                       run_id=None, snapshot_status="pending", snapshot_error=None, compare_from_hash=None,
                       compare_to_hash=None, omitted_files=None):
@@ -132,6 +165,7 @@ def write_mode_info(path, cr_mode, base_commit, target_commit, file_count, commi
         "prAdditions": pr_additions,
         "prDeletions": pr_deletions,
         **(identity or {}),
+        **(ones_info or {}),
     }
     try:
         with open(path, "w") as f:
@@ -537,6 +571,7 @@ def main():
     pr_file_num = None
     pr_additions = None
     pr_deletions = None
+    ones_info = None
     if isinstance(pr_info, dict):
         try:
             pr_file_num = int(pr_info["file_num"])
@@ -544,6 +579,8 @@ def main():
             pr_deletions = int(pr_info["deletions"])
         except (KeyError, TypeError, ValueError):
             print("⚠️ pr-info 缺少 file_num/additions/deletions，平台权威口径三字段回退 Agent 传参口径", file=sys.stderr)
+        # ONES 工作项关联（首次采集即入库；无关联 PR 返回 {}，mode_info 不写 ones 键）
+        ones_info = extract_ones_info(pr_info) or None
 
     # Step 3: 写模式信息（失败文件列表一并写入，供产出物标注覆盖缺口；
     # 双口径：reviewed*（成功拉取的 diff 行数统计）+ pr*（平台权威值））
@@ -561,6 +598,7 @@ def main():
         pr_file_num=pr_file_num,
         pr_additions=pr_additions,
         pr_deletions=pr_deletions,
+        ones_info=ones_info,
         diff_sha256=diff_sha256,
         snapshot_status="sampled-consistent",
         **binding,

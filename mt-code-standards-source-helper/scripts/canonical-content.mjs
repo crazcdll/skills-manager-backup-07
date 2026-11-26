@@ -173,7 +173,7 @@ export function validateCanonicalDraftContent(content) {
     const metadata = rule.metadata;
     if (metadata) {
       ensure(metadata.ruleType === rule.rule_type && metadata.level === 'L2' && metadata.ruleTitle === rule.title, `/rules/${rule.rule_ref}/metadata`, '单条规范元数据必须与规则正文一致，并且新建规则集只能使用 L2。');
-      ensure(metadata.description.trim() && metadata.category.length > 0, `/rules/${rule.rule_ref}/metadata`, '单条规范元数据必须包含描述和所属分类。');
+      ensure(metadata.description.trim(), `/rules/${rule.rule_ref}/metadata`, '单条规范元数据必须包含描述。');
     }
     for (const block of rule.body) {
       if (block.type === 'markdown') assertNoEmbeddedRuleHeadings(block.text, `/rules/${rule.rule_ref}/body`);
@@ -305,7 +305,8 @@ export function renderCanonicalDocuments(content, descriptor, { ruleSet, selecte
     const yamlArray = (values) => `[${values.map(yamlScalar).join(', ')}]`;
     const documentRules = content.rules.filter((rule) => rule.document_ref === document.document_ref && selected.has(bound.ruleBindings.get(rule.rule_ref).rule_uid));
     const metadata = documentRules[0].metadata;
-    const unique = (field) => [...new Set(documentRules.flatMap((rule) => rule.metadata[field]))];
+    const unique = (field) => [...new Set(documentRules.flatMap((rule) => rule.metadata[field] ?? []))];
+    const legacyFields = documentRules.some((rule) => rule.metadata && Object.hasOwn(rule.metadata, 'category'));
     const frontmatter = [
       '---',
       `ruleType: ${yamlScalar(document.rule_type)}`,
@@ -316,9 +317,9 @@ export function renderCanonicalDocuments(content, descriptor, { ruleSet, selecte
       ...(metadata ? [
         `ruleTitle: ${yamlScalar(document.title)}`,
         `ruleVersion: ${yamlScalar(metadata.ruleVersion)}`,
-        `category: ${yamlArray(unique('category'))}`,
+        ...(legacyFields ? [`category: ${yamlArray(unique('category'))}`] : []),
         `severity: ${yamlArray(unique('severity'))}`,
-        `status: ${yamlArray(unique('status'))}`,
+        ...(legacyFields ? [`status: ${yamlArray(unique('status'))}`] : []),
         `language: ${yamlArray(unique('language'))}`,
         `framework: ${yamlArray(unique('framework'))}`,
       ] : []),

@@ -35,7 +35,7 @@ async function locked(root, task) {
   try { return await task(); } finally { await rm(lock, { recursive: true }); }
 }
 const output = (value) => process.stdout.write(JSON.stringify(value) + '\n');
-function requestShape(request) {
+function requestShape(request, options) {
   const legacy = request?.schema_version === 'source-helper-request/v1';
   const fields = ['schema_version', 'source_url', 'selection_type', 'path', 'branch', 'step_version', 'actor_mis', ...(legacy ? ['standard_domain', 'rule_set'] : [])];
   if (!request || !['source-helper-request/v1', 'source-helper-request/v2'].includes(request.schema_version) || Object.keys(request).some((field) => !fields.includes(field))) fail('REQUEST_INVALID', '/request', '请求只需要来源地址及来源读取范围；规则集名称、展示名称、Owner、治理域和适用范围由平台填写。');
@@ -43,18 +43,27 @@ function requestShape(request) {
     if (!['frontend', 'backend'].includes(request.standard_domain)) fail('REQUEST_INVALID', '/standard_domain', '旧版请求的治理域无效；新请求不需要填写治理域。');
     validateRuleSetIntent(request.rule_set);
   }
-  parseSourceUrl(request.source_url, request);
+  parseSourceUrl(request.source_url, request, options);
   return request;
 }
 const requestScope = (request) => Object.fromEntries(['source_url', 'selection_type', 'path', 'branch', 'step_version', 'actor_mis'].map((key) => [key, request[key] ?? null]));
+const frozenGitRef = (receipt) => ({ requested_ref: receipt.requested_ref, ref_origin: receipt.ref_origin, commit: receipt.commit });
+async function checkGitReceipt(state, request, source, receipt) {
+  if (source.type !== 'git') return;
+  const plan = parseSourceUrl(request.source_url, request, { frozen: true });
+  if (state.schema_version === 'source-helper-workspace/v1' && !state.git_ref && plan.requested_ref) return; // Legacy previews used only the explicit request ref.
+  if (!state.git_ref || !receipt.requested_ref || state.receipt_digest !== await canonicalHash(receipt) || canonical(state.git_ref) !== canonical(frozenGitRef(receipt)) || receipt.commit !== source.revision.commit || receipt.ref_origin !== plan.ref_origin || (plan.requested_ref && plan.requested_ref !== receipt.requested_ref)) fail('SOURCE_SNAPSHOT_CHANGED', '/source/receipt', '冻结的 Git 分支或提交回执已变化，请重新读取到新的工作目录。');
+}
 async function loadMaterial(root, draftName = 'draft.json') {
-  const state = await readJson(root, 'state.json', LIMITS.manifestBytes); const request = requestShape(await readJson(root, 'request.json', LIMITS.manifestBytes)); const source = await readJson(root, 'source.json', LIMITS.manifestBytes);
+  const state = await readJson(root, 'state.json', LIMITS.manifestBytes); const request = requestShape(await readJson(root, 'request.json', LIMITS.manifestBytes), { frozen: true }); const source = await readJson(root, 'source.json', LIMITS.manifestBytes);
   if (state.source_request_digest !== await canonicalHash(requestScope(request))) fail('SOURCE_REQUEST_CHANGED', '/request', '来源地址、分支、路径或读取身份已变化，请读取到新的工作目录，不会混入旧快照。');
   const files = new Map(); for (const file of source.files) { const bytes = await readBounded(await safeFile(root, file.package_path), LIMITS.sourceFileBytes); if (await sha256(bytes) !== file.sha256 || bytes.length !== file.byte_size) fail('SOURCE_SNAPSHOT_CHANGED', '/source', '本地来源快照已变化，请重新读取到新的工作目录并确认。'); files.set(file.package_path, bytes); }
   if (await canonicalHash(source) !== state.source_digest) fail('SOURCE_SNAPSHOT_CHANGED', '/source', '来源身份或版本记录已变化，请重新读取。');
   const draft = await readJson(root, draftName);
   const material = await materializeDraft({ request, source, files, draft });
   const receipt = await readJson(root, 'source-receipt.json', LIMITS.manifestBytes);
+  await checkGitReceipt(state, request, source, receipt);
+  if (state.git_ref) { material.requestedRef = state.git_ref.requested_ref; material.refOrigin = state.git_ref.ref_origin; }
   if (source.type === 'git' && (receipt.transport !== 'official-code-raw' || receipt.identity_verified !== true || receipt.raw_snapshot_verified !== true || receipt.commit !== source.revision.commit)) {
     material.validation = { code: 'SOURCE_REPRESENTATION_UNVERIFIED', path: '/source', message: '尚未通过本人 Code 会话核验固定提交的 raw 原件。SSH 归档可能受仓库属性影响；请完成官方登录后重新读取，当前仅供草稿预览。' };
   }
@@ -76,7 +85,7 @@ export async function main(argv = process.argv.slice(2), { readSourceImpl = read
   const { command, options } = args(argv.length ? argv : ['help']);
   const requireOption = (name) => { if (!options[name]) fail('ARGUMENT_REQUIRED', '/arguments', `缺少参数 ${name}。`); return options[name]; };
   if (command === 'help') return output({ commands: ['plan --source <URL> [--selection-type file|directory] [--branch <branch>]', 'prepare --request <request.json> --workspace <new-directory> [--resume]', 'preview --workspace <directory> [--draft <draft.json>]', 'confirm --workspace <directory> --preview-digest <sha256> --user-confirmed', 'package --workspace <directory> --output <new.zip>', 'validate --package <zip>', 'status --workspace <directory>'], note: '确认参数只能在用户明确确认当前预览后使用。工具不会调用模型、上传或发布。' });
-  if (command === 'plan') return output({ status: 'scope_ready', plan: parseSourceUrl(requireOption('--source'), { selection_type: options['--selection-type'] || 'file', path: options['--path'] || null, branch: options['--branch'] || null }), next: '向用户说明并确认读取范围，再 prepare。' });
+  if (command === 'plan') return output({ status: 'scope_ready', plan: parseSourceUrl(requireOption('--source'), { selection_type: options['--selection-type'], path: options['--path'] || null, branch: options['--branch'] || null }), next: '范围与用户要求一致即可 prepare；未指定分支时将冻结远端默认分支及提交。' });
   if (command === 'validate') {
     const files = decodeStoreZip(await readBounded(resolve(requireOption('--package')), LIMITS.zipBytes)); const result = await verifyReaderEvidence(await validateConversion(files), files);
     validateCanonicalDraftContent(result.content);
@@ -88,10 +97,13 @@ export async function main(argv = process.argv.slice(2), { readSourceImpl = read
       await lstat(root);
       if (!options['--resume']) fail('WORKSPACE_EXISTS', '/workspace', '目录已存在；使用 status/preview 继续，或选择新的目录，不会覆盖旧材料。');
       root = await realpath(root); const state = await readJson(root, 'state.json', LIMITS.manifestBytes);
-      const frozenRequest = requestShape(await readJson(root, 'request.json', LIMITS.manifestBytes));
-      const requested = options['--request'] ? requestShape(parseStrictJson(await readBounded(resolve(options['--request']), LIMITS.manifestBytes), '/request', LIMITS.manifestBytes)) : frozenRequest;
+      const frozenRequest = requestShape(await readJson(root, 'request.json', LIMITS.manifestBytes), { frozen: true });
+      const requested = options['--request'] ? requestShape(parseStrictJson(await readBounded(resolve(options['--request']), LIMITS.manifestBytes), '/request', LIMITS.manifestBytes), { frozen: true }) : frozenRequest;
       if (await canonicalHash(requested) !== state.request_digest || await canonicalHash(frozenRequest) !== state.request_digest || await canonicalHash(requestScope(requested)) !== state.source_request_digest) fail('RESUME_REQUEST_CHANGED', '/request', '恢复请求或本地 request.json 已变化。来源变化请使用新目录；仅修改规范意向时请重新生成预览。');
-      return output({ status: state.status, workspace: root, next: '继续已冻结来源；需要读取新版本时请使用新的工作目录。' });
+      const frozenSource = await readJson(root, 'source.json', LIMITS.manifestBytes);
+      if (await canonicalHash(frozenSource) !== state.source_digest) fail('SOURCE_SNAPSHOT_CHANGED', '/source', '来源身份或版本记录已变化，请重新读取。');
+      await checkGitReceipt(state, frozenRequest, frozenSource, await readJson(root, 'source-receipt.json', LIMITS.manifestBytes));
+      return output({ status: state.status, workspace: root, ...(state.git_ref && { git_ref: state.git_ref }), next: '继续已冻结来源；需要读取新版本时请使用新的工作目录。' });
     } catch (error) { if (error.code !== 'ENOENT') throw error; }
     const requestPath = resolve(requireOption('--request')); const request = requestShape(parseStrictJson(await readBounded(requestPath, LIMITS.manifestBytes), '/request', LIMITS.manifestBytes));
     const loaded = await readSourceImpl(request);
@@ -103,8 +115,9 @@ export async function main(argv = process.argv.slice(2), { readSourceImpl = read
       if (loaded.originalIndex) await atomic(root, 'original-AGENTS.md', loaded.originalIndex);
       await atomic(root, 'semantic-input.json', utf8(canonical({ schema_version: 'source-helper-input/v1', source: loaded.source, units: loaded.units, warnings: loaded.warnings })));
       await atomic(root, 'draft.json', utf8(canonical(emptyDraft(loaded.source, loaded.units))));
-      await atomic(root, 'state.json', utf8(canonical({ schema_version: 'source-helper-workspace/v1', status: 'sources_ready', source_digest: await canonicalHash(loaded.source), request_digest: await canonicalHash(request), source_request_digest: await canonicalHash(requestScope(request)), content_digest: null, preview_digest: null })));
-      return output({ status: 'sources_ready', workspace: root, files: loaded.source.files.length, units: loaded.units.length, warnings: loaded.warnings, next: '阅读 semantic-input.json，整理 draft.json，再生成预览；尚未确认。' });
+      const gitState = loaded.source.type === 'git' ? { git_ref: frozenGitRef(loaded.receipt), receipt_digest: await canonicalHash(loaded.receipt) } : {};
+      await atomic(root, 'state.json', utf8(canonical({ schema_version: loaded.source.type === 'git' ? 'source-helper-workspace/v2' : 'source-helper-workspace/v1', status: 'sources_ready', source_digest: await canonicalHash(loaded.source), request_digest: await canonicalHash(request), source_request_digest: await canonicalHash(requestScope(request)), ...gitState, content_digest: null, preview_digest: null })));
+      return output({ status: 'sources_ready', workspace: root, ...(gitState.git_ref && { git_ref: gitState.git_ref }), files: loaded.source.files.length, units: loaded.units.length, warnings: loaded.warnings, next: '阅读 semantic-input.json，整理 draft.json，再生成预览；尚未确认。' });
     });
   }
   root = await realpath(root);
@@ -142,6 +155,6 @@ export async function main(argv = process.argv.slice(2), { readSourceImpl = read
     }
   });
 }
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(await realpath(process.argv[1]).catch(() => '')).href) {
   main().catch((error) => { const known = error instanceof PackageContractError; output({ status: 'failed', code: known ? error.code : 'LOCAL_OPERATION_FAILED', path: known ? displayText(error.path).slice(0,240) : '', message: known ? displayText(error.message) : '本地操作失败，请检查目录权限、文件是否存在和运行环境；未输出来源正文或认证日志。' }); process.exitCode = 1; });
 }

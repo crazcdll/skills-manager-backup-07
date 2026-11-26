@@ -73,7 +73,7 @@ test("broken queue cannot replace a successful or failed operation", async () =>
 test("queue 404/503 retries with original event id, strips tampered fields and accepts duplicate ACK", async t => {
   const directory = await temp(t); let clock = Date.now(); let status = 404; const sent = [];
   const q = createEventQueue({ directory, now: () => clock, fetchImpl: async (url, init) => {
-    assert.equal(url, EVENT_URL); assert.equal(init.headers.Authorization, undefined);
+    assert.equal(url, EVENT_URL); assert.match(init.headers.Authorization, /^Bearer [A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u);
     const e = JSON.parse(init.body); sent.push(e); return status === 200 ? ack(e, "duplicate") : new Response("", { status });
   } });
   await q.enqueue(input); await q.flush(); assert.equal(sent.length, 1);

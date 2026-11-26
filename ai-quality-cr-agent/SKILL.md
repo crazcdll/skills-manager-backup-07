@@ -9,7 +9,7 @@ skill-dependencies:
 metadata:
   skillhub.creator: "mengmuzi"
   skillhub.updater: "mengmuzi"
-  skillhub.version: "V136"
+  skillhub.version: "V138"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "72066"
   skillhub.high_sensitive: "false"
@@ -1684,7 +1684,7 @@ PY
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-**Step 9 确认所有预期发布步骤成功且没有待重试步骤后,才执行中间文件清理。任一步失败时保留全部输入、范围快照和发布上下文,便于同一 runId 重试(⚠️ 含 $CR_RUN_DIR 整目录,失败重试轮禁止执行最后的 rm -rf "$CR_RUN_DIR")。成功轮清理规则:**
+**Step 9 确认所有预期发布步骤成功且没有待重试步骤后,才执行中间文件清理。任一步失败时保留全部输入、范围快照和发布上下文,便于同一 runId 重试(⚠️ 含 $CR_RUN_DIR 整目录,失败重试轮禁止执行最后的安全清理脚本)。成功轮清理规则:**
 
 ```bash
 # 清理本次 CR 产生的所有中间文件(/tmp 下,机器重启也会自动清)
@@ -1714,8 +1714,9 @@ rm -f /tmp/cr_review_{prId}.md \
       "$CR_DIFF_FILE" \
       "$CR_MODE_INFO_FILE" \
       /tmp/cr_repo_files_*.txt
-# 2I 的 rule_bundle 与 3C 来源 C 产物均在 $CR_RUN_DIR 下,一并清理
-rm -rf "$CR_RUN_DIR"
+# 2I 的 rule_bundle 与 3C 来源 C 产物均在 $CR_RUN_DIR 下,通过带路径白名单校验的清理脚本一并清理
+# (防御逻辑:仅允许 /tmp/aicr_<prId>_<6位mktemp随机> 形态,不匹配则拒绝执行,避免误删)
+python3 "$SKILL_DIR/scripts/cleanup_run.py" "$CR_RUN_DIR"
 ```
 
 > 清理失败不影响 CR 结果,静默跳过即可。

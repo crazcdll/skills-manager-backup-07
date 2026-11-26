@@ -6,7 +6,7 @@ import path from "node:path";
 import os from "node:os";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
-import { canonicalJson, sha256Hex, assertRuleResponseBudget, prepareUnifiedSyncRequest, syncUnifiedRuleBundle, syncEffectiveRuleBundle } from "./resolve-effective-rules.mjs";
+import { canonicalJson, sha256Hex, DEFAULT_RULE_ANON_KEY, assertRuleResponseBudget, prepareUnifiedSyncRequest, syncUnifiedRuleBundle, syncEffectiveRuleBundle } from "./resolve-effective-rules.mjs";
 import { readSkillMetadata, syncWithOfficialSso } from "./sync-effective-rules-with-sso.mjs";
 import { buildSetupSkillPackage } from "./publish-setup-skill.mjs";
 const repository = {
@@ -175,7 +175,7 @@ test("explicit malformed repository does not silently become a directory pull", 
 test("a directory pulls L1 with one anonymous request and unknown metadata stays null", async () => {
   const root = await rootDir(); let calls = 0;
   const result = await pull(root, { fetchImpl: server(bootstrapBody({ stage: "coding" }), (request, url, init) => {
-    calls++; assert.match(url, /\/v1\/public\/rule-bundles\/resolve$/u); assert.equal(init.headers.Authorization, undefined);
+    calls++; assert.match(url, /\/v1\/public\/rule-bundles\/resolve$/u); assert.equal(init.headers.Authorization, `Bearer ${DEFAULT_RULE_ANON_KEY}`);
     assert.equal(request.repository_locator, null); assert.equal(request.execution.skill_name, null);
     assert.equal(request.execution.skill_version, null); assert.equal(request.execution.client_name, null);
     assert.equal(request.target.display_name, root); assert.equal(request.scope, "effective"); assert.equal(request.declared_actor, undefined);

@@ -183,18 +183,26 @@ const sourceCommon = {
 // The YAML header is part of the single-rule contract.  Platform-owned fields
 // (ruleSetId and owner) are deliberately added only when the platform renders
 // a confirmed L2 rule set; they are not accepted as local conversion input.
-const singleRuleMetadata = object({
+const currentRuleMetadata = object({
   ruleType: literal('Model Request'),
   description: string(2000),
   level: literal('L2'),
   ruleTitle: string(200),
   ruleVersion: string(40, 1, '^[0-9]+\\.[0-9]+\\.[0-9]+$'),
-  category: array(string(64), 20, 1, true),
   severity: array(enumeration('P0', 'P1', 'P2', 'P3'), 4, 0, true),
-  status: array(enumeration('open', 'closed'), 2, 1, true),
   language: array(string(64), 20, 0, true),
   framework: array(string(64), 20, 0, true),
 });
+// v1 packages already confirmed with this pair retain the original value constraints.
+const singleRuleMetadata = {
+  ...currentRuleMetadata,
+  properties: {
+    ...currentRuleMetadata.properties,
+    category: array(string(64), 20, 1, true),
+    status: array(enumeration('open', 'closed'), 2, 1, true),
+  },
+  dependentRequired: { category: ['status'], status: ['category'] },
+};
 export const PACKAGE_JSON_SCHEMA = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   $id: 'urn:mt-code-standards:rule-local-package:v1',
@@ -284,6 +292,9 @@ function schemaErrors(value, schema, path) {
   if (!types[schema.type]) { add(`字段类型必须为 ${schema.type}。`); return errors; }
   if (schema.type === 'object') {
     for (const key of schema.required || []) if (!Object.hasOwn(value, key)) add('缺少必填字段。', pointer(path, key));
+    for (const [field, required] of Object.entries(schema.dependentRequired || {})) {
+      if (Object.hasOwn(value, field)) for (const key of required) if (!Object.hasOwn(value, key)) add('缺少配套字段。', pointer(path, key));
+    }
     for (const key of Object.keys(value)) {
       if (!Object.hasOwn(schema.properties, key)) add('包含未定义字段。', pointer(path, key));
       else errors.push(...schemaErrors(value[key], schema.properties[key], pointer(path, key)));
@@ -307,6 +318,7 @@ function validateAgainstSchema(value, schema, path) {
 }
 export const validateManifest = (value) => validateAgainstSchema(value, PACKAGE_JSON_SCHEMA.$defs.manifest, '/manifest');
 export const validateContent = (value) => validateAgainstSchema(value, PACKAGE_JSON_SCHEMA.$defs.content, '/content');
+export const validateRuleMetadata = (value, path) => validateAgainstSchema(value, singleRuleMetadata, path);
 export const validateConfirmation = (value) => validateAgainstSchema(value, PACKAGE_JSON_SCHEMA.$defs.confirmation, '/confirmation');
 export function validateRuleSetIntent(value) {
   assertJson(value);
@@ -345,12 +357,12 @@ export function agentsRows(markdown) {
     if (fence) continue;
     const row = cells(lines[i]);
     const header = row.join('|');
-    if ((header === '名称|触发场景|路径' || header === '分类|规则文件|Rule UID 范围|触发场景') && cells(lines[i + 1] || '').length === row.length && cells(lines[i + 1] || '').every((c) => /^:?-{3,}:?$/u.test(c))) { inTable = row.length === 4 ? 'file' : 'topic'; i += 1; continue; }
-    const expected = inTable === 'file' ? 4 : 3;
-    if (!inTable || !lines[i].includes('|') || row.length !== expected) { inTable = false; continue; }
-    const reference = (inTable === 'file' ? row[1] : row[2]).replace(/^`+|`+$/gu, '').replace(/^\[[^\]]*\]\(([^)]+)\)$/u, '$1');
-    ensure(row.every(Boolean) && reference, 'PACKAGE_INDEX_INVALID', `/AGENTS.md/${i + 1}`, '索引行需要名称、触发场景和真实引用。');
-    rows.push({ name: row[0], scene: inTable === 'file' ? row[3] : row[1], reference, line: i + 1 });
+    if ((header === '规则文件|触发条件' || header === '名称|触发场景|路径' || header === '分类|规则文件|Rule UID 范围|触发场景') && cells(lines[i + 1] || '').length === row.length && cells(lines[i + 1] || '').every((c) => /^:?-{3,}:?$/u.test(c))) { inTable = row.length; i += 1; continue; }
+    if (!inTable || !lines[i].includes('|') || row.length !== inTable) { inTable = false; continue; }
+    const fileCell = row[inTable === 2 ? 0 : inTable === 3 ? 2 : 1];
+    const reference = fileCell.replace(/^`+|`+$/gu, '').replace(/^\[[^\]]*\]\(([^)]+)\)$/u, '$1').replaceAll('\\|', '|');
+    ensure(row.every(Boolean) && reference, 'PACKAGE_INDEX_INVALID', `/AGENTS.md/${i + 1}`, '索引行需要完整的触发条件和真实文件引用。');
+    rows.push({ name: inTable === 2 ? reference : row[0], scene: row[inTable === 4 ? 3 : 1], reference, line: i + 1 });
   }
   ensure(rows.length > 0, 'PACKAGE_INDEX_INVALID', '/AGENTS.md', '缺少有效的规则集索引表格。');
   return rows;

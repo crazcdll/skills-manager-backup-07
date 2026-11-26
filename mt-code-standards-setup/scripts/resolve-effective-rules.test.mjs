@@ -2157,6 +2157,49 @@ const indexManifest = (root, bootstrap = false) => readFile(path.join(root, '.md
 const legacyIndexPath = (root) => path.join(root, '.mdp/rules/agents-index/frontend-l1/AGENTS.md');
 const indexPath = (root) => path.join(root, '.mdp/rules/company/fe/AGENTS.md');
 
+test('L2 two-column index installs reachable paths, preserves triggers and safely upgrades an old receipt', async () => {
+  const root = await createRepository();
+  const directory = path.join(root, '.mdp/rules/team/fe/酒店交易');
+  const index = path.join(directory, 'AGENTS.md');
+  const ref = { ...releaseRefs[1], local_rule_set_name: '酒店交易' };
+  const files = [
+    { relative_path: 'l2/team-fe-l2/001-ASYNC.md', content: '# 原规则 A' },
+    { relative_path: 'l2/team-fe-l2/002-DB.md', content: '# 原规则 B' },
+  ];
+  const references = ['rules/ASYNC.md', 'https://km.sankuai.com/collabpage/2345'];
+  const content = '| 规则文件 | 触发条件 |\r\n| --- | --- |\r\n| `./rules/ASYNC.md` | 异步请求 |\r\n| [B](https://km.sankuai.com/page/2345) | 数据访问 |\r\n';
+  const body = bundleBody({ files, refs: [ref] });
+  withAgents(body, [agentsEntry(body, { ruleSetId: ref.rule_set_id, content, bindings: references.map((reference, i) => ({
+    reference, document_id: 'doc' + i, source_path: 'rules/' + i + '.md', bundle_relative_path: files[i].relative_path,
+  })) })]);
+  const pull = cached => syncEffectiveRuleBundle({ ...layoutOptions(root), fetchImpl: async (_, init) => {
+    assert.equal(JSON.parse(init.body).known_snapshot_id, cached ? body.snapshot.snapshot_id : undefined);
+    return response(cached ? { ...body, status: 'not_modified', files: [] } : body);
+  } });
+  const output = content.replace('./rules/ASYNC.md', '001-ASYNC.md').replace('https://km.sankuai.com/page/2345', '002-DB.md');
+  assert.deepEqual((await pull(false)).agents_index_warnings, []);
+  assert.equal(await readFile(index, 'utf8'), output);
+  assert.equal(await readFile(path.join(directory, '001-ASYNC.md'), 'utf8'), files[0].content);
+  assert.equal(await readFile(path.join(directory, '002-DB.md'), 'utf8'), files[1].content);
+  assert.equal((await pull(true)).status, 'not_modified');
+
+  // The previous CLI left the source bytes unchanged and reported a missing table.
+  const old = await indexManifest(root);
+  assert.equal(old.agents_index_renderer, 'ruleset-relative/v1');
+  delete old.agents_index_renderer;
+  const [indexRelativePath] = old.managed_agents_indexes;
+  old.managed_agents_index_hashes[indexRelativePath] = sha256Hex(content);
+  old.managed_agents_index_sizes[indexRelativePath] = Buffer.byteLength(content);
+  old.agents_index_warnings = [{ code: 'agents_index_table_missing', message: '未识别到四列表格（兼容旧三列表格）', rule_set_id: ref.rule_set_id }];
+  await writeFile(path.join(root, '.mdp/rules/.mt-effective-rule-bundle.json'), JSON.stringify(old));
+  await writeFile(index, content + '本地修改');
+  await assert.rejects(pull(false), { code: 'RULE_BUNDLE_LOCAL_MANAGED_FILE_CHANGED' });
+  await writeFile(index, content);
+  assert.deepEqual((await pull(false)).agents_index_warnings, []);
+  assert.equal(await readFile(index, 'utf8'), output);
+  assert.equal((await pull(true)).status, 'not_modified');
+});
+
 test('installs index beside rules with independent manifest and caches verified not_modified snapshots', async () => {
   const root = await createRepository();
   await writeFile(path.join(root, 'AGENTS.md'), '# User instructions\n');

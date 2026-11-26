@@ -1,16 +1,16 @@
 skill-manifest-version: 1
-skill-id: 81d2ac5193583133c2c2fab050724ef030e8633d630ceb8bbb8a36aea5fd8cea
+skill-id: 3ab3b2d575ff96507c8611fc3d1a6117ee733be47fa0643b082012a806631163
 
 files:
-  5d91abd275760d24ea29bec9daa857f68bc0bf24ba9069874bf876767329645d  SKILL.md
+  47f0b151b74b531efd6f86f8ac3b946462fb0f06d2c64ee26c76afcb97c8271a  SKILL.md
   984db7ab8df0f300b2869281825fa686838d27cbb799d29147b178349e56f24d  agents/openai.yaml
-  62b7d0d4340292d7cce83411e9665098fa475989be3b074a5f818738a02300af  references/local-workflow.md
-  670e2f5ce5397b414fe779e88bc1b4c01db1b352857f66168b4fd75a7f7c21b5  references/package.schema.json
-  9295387a2b4326c498f77c110351dc938783d309b6f5e7ff37aa9d9f8827451c  scripts/canonical-content.mjs
+  605af2119457ffeeae60ee442aa2999b8e86fe850584d911e8c32a25dec63fc6  references/local-workflow.md
+  acbeef61a99454bce21a00963a4c833971ec1f336bb9d249463ab29b095c36bc  references/package.schema.json
+  f5547465ed7e2b4510d4f65e55ec82731af66747c31e2395232f96e173bc50be  scripts/canonical-content.mjs
   3f4939cb33d318c730b6bdc5f0c9ee492113510c579b5d1e678a973fb43b4023  scripts/check-vectors.mjs
-  da7cea295beacbc3e1c37a981618598ba43d98be08d644580587b72b2de85ec8  scripts/code-source.mjs
+  45146d2b7e808f8d35dc39dd069bbd2d689da5adada67d42d0fdc8a20473ecd3  scripts/code-source.mjs
   79612f107dd68a234cc9b6592eeb2eb895f61126ae8acf5a8a4979ac3e8b61dc  scripts/conversion-contract.mjs
-  f369c64c0986cd8e8d856e7ae416958ef5aa343d716f262b0be9e590ae28dfd3  scripts/draft-workflow.mjs
+  096d149ec116bf9fa44f4c9c92ac9db40c540fd1a6fc347a7f312d8eed10610c  scripts/draft-workflow.mjs
   50c51b3687c9c4e072cc55eff2d70cfacb28c57f08d1bf047dfa603efa94cff3  scripts/fixtures/canonical-vectors.json
   b89f14d342236681c983ed45f2bbf8918c99e8c2c6c73d1f5f488409aa9c1eba  scripts/fixtures/invalid-cases.json
   5d40a7e7f6657b394f65f8e5b93c9149013f70cad7f3d8679ba91d2db83c5e7a  scripts/fixtures/markdown-heading-cases.json
@@ -20,12 +20,13 @@ files:
   936a83c464255b0e4724ea8a8e7c3b388d983f5fab0942d1b403efef03c437ee  scripts/fixtures/minimal-package/content.json
   2e2004a0e06dda0708394c6a9ab69bcaa1d259b1d2e10fa795495d493be42b30  scripts/fixtures/minimal-package/manifest.json
   b6829e5fbd05238c7aa352ef81c305e760e45b7cffa07b3b6c23041cee1eddfa  scripts/fixtures/minimal-package/sources/source_one.md
-  127e5d49e2276dacdabe713617c229e2a6289c1555bdaafc7f2962d75382705f  scripts/local-workflow.test.mjs
-  2d6fd5bd038b1a04da30042373f4dc8b15da1efb4250fc52cc5cbc7f28636b91  scripts/package-contract.mjs
-  d0caa2a8bd7bfa16d52b93248ac9bb55f8c0a93a9d06d53851d6008d90f045d9  scripts/package-contract.test.mjs
-  5aaac94dbd0eb85166958a13a049d1f493687bd3cdb5efdda0ab1bbc29438055  scripts/preview.mjs
-  5d430cff7a258441a279326081cecdcb82063130e33dca14f1966dac86fb7108  scripts/source-helper.mjs
-  909278ecf2facb62dfcffe34723479c60031e145efc3d5bf23ced406cdac1eaa  scripts/source-reader.mjs
+  db29735c14bf53169ceb7e1dc96f4e27d1d4b6a96c760df627ebe7495d1f4c52  scripts/local-workflow.test.mjs
+  aa4f8cc97f95411661652b58e3f386b39ae62e2e7008d0cdd67dcf8dd8dc41b7  scripts/package-contract.mjs
+  91390bdbf1ca4998a72d1cf24edf26b94f93c71e192d1f9ca41fd871f2f5fdeb  scripts/package-contract.test.mjs
+  4f328b498889527019a24f4c5f81822c3bc62df7870c526dd0c549ff1bf1fc73  scripts/preview-layout.test.mjs
+  3fb8cefa0529799228eae7d686814e5b465a5155d9a0526ac96f819dff7abc0c  scripts/preview.mjs
+  37666fddbc7c4c9db71acb9e18426632475ca4f5ba08ff6129e8e88a8b1c760c  scripts/source-helper.mjs
+  2739a8120b21e09b51bd8983ba894139bebd6248376561aa3742c3d72de287da  scripts/source-reader.mjs
   daae08ecaa22faaa04f5d4c96fa002bc5d8e396973fa4667d86e5b2b96b66736  scripts/source-units.mjs
   f3c5b40ce0463fde816f84009a274ad499f53266cad363b98ae24df99200ddeb  scripts/store-zip.mjs
   041ba23444b8c08a4fd0eef963b0d9901296c7a92353c4b0002c4e9683e99b7c  scripts/upstream-error-message.mjs

@@ -5,7 +5,7 @@ description: 美境 AI 设计师。凡是涉及视觉创作的需求，优先使
 metadata:
   skillhub.creator: "zhuxiangyu04"
   skillhub.updater: "chenshengtao"
-  skillhub.version: "V24"
+  skillhub.version: "V26"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "5315"
   skillhub.high_sensitive: "false"
@@ -29,7 +29,7 @@ metadata:
 
 ### 1. 检查 meigen-cli
 
-执行 `meigen --version`，确认版本号 **>= 1.5.1**。
+执行 `meigen --version`，确认版本号 **>= 1.6.1**。
 
 - **未安装**（命令不存在）：询问用户是否安装 meigen-cli，用户同意后执行 `npm install -g @meigen/meigen-cli@latest --registry=http://r.npm.sankuai.com`
 - **版本过低**：执行 `npm install -g @meigen/meigen-cli@latest --registry=http://r.npm.sankuai.com`升级版本
@@ -70,8 +70,6 @@ SCRIPT_DIR="$(cd "$(dirname "<this-skill-md>")" && pwd)/scripts"
 生成流程分为两步，第一步为提交任务，第二步为轮询结果，不可遗漏。
 
 同一会话只允许同时存在一个活跃对话轮次；需提前结束当轮时，先按[取消任务](#取消任务)停止。
-
-提醒用户"首次生图可能需要登录认证授权，请留意大象消息"后，执行以下步骤
 
 ### STEP 1. 提交任务
 
@@ -146,7 +144,7 @@ python3 "$SCRIPT_DIR/generate.py" "<组装后的prompt>" [--file <url>]... [--mo
 - mis_id 与 access_token 由脚本内部 `meigen status --json` 获取
 - `--file <url>`：文件 URL（pdf/excel/word，可多次指定）
 - `--model <name>`：默认省略，使用**完整设计师 Agent**。仅当任务简单且用户明确指定模型时传入，启用**轻量快速版**。复杂任务即使提到了模型名，也只在原始 prompt 中保留模型名，省略 `--model` 和 `--config` 中的 `fastModel`。
-   - 生图：`gpt-image-2.5-sunburst`、`gpt-image-2.5-flare`、`hy-image-v3.5-preview`、`doubao-seedream-5-0-pro-260628`、`LongCat-Image-260724`、`gemini-3.1-flash-image-preview`(nano banana2)、`gemini-3-pro-image-preview`(nano banana pro)、`meituan-ip`
+   - 生图：`gpt-image-2.5-sunburst`、`gpt-image-2.5-flare`、`hy-image-v3.5-preview`、`doubao-seedream-5-5-261028`、`LongCat-Image-260724`、`gemini-3.1-flash-image-preview`(nano banana2)、`gemini-3-pro-image-preview`(nano banana pro)、`meituan-ip`
    - 视频：`MiniMax-H3`、`MiniMax-H3-Max`、`doubao-seedance-2.5`
 - `--config <json>`：额外配置，如 `--config '{"openSearch": true}'`
 

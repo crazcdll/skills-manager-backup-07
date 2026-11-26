@@ -4,8 +4,8 @@ description: "学城多维表格操作工具。支持:文档/表格创建与管�
 
 metadata:
   skillhub.creator: "zhangshufei02"
-  skillhub.updater: "zhangshufei02"
-  skillhub.version: "V28"
+  skillhub.updater: "stephen.xu"
+  skillhub.version: "V29"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "3859"
   skillhub.high_sensitive: "true"
@@ -146,14 +146,15 @@ node -e "const cp=require('child_process'); const probe=process.platform==='win3
 | 复制整个多维表格文档         | `createDatabase --contentTitle <标题> --sourceContentId <原文档ID> [--keepData true]` |
 | 在现有文档中创建新数据表     | `createTable --contentId <id> [--tableTitle "任务表"] --columnMeta '[{"columnName":"任务名","columnType":1}]'` |
 | 复制数据表到多维文档/学城文档 | `copyTable --sourceTableId <源ID> --targetParentId <目标ID> [--targetType <3\|4>]` <br/>💡 目标是学城文档时需额外执行 `updateDocumentByMd` 插入 `:::xtable` |
-| 查看文档下有哪些表格         | `listTables --contentId <id>`                 |
-| 查询表格的列结构（columnId） | `getTableMeta --tableId <id>`                          |
+| 查看文档下有哪些表格         | `listTables --contentId <id>`；输出含各数据表的表级描述（富文本节点数组 JSON，未设置为空），可据此判断表的用途 |
+| 查询表格的列结构（columnId） | `getTableMeta --tableId <id>`；输出含表级描述                          |
 | 查询公式计算状态 / 等待变更后的公式结果 | `checkFormulaCalculation --tableId <id> [--stepVersion <写入版本>]`；返回完成状态，完成后再查询公式值 |
 | 查询表格中的数据             | `queryTableData --tableId <id> [--columnIds <列ID>] [--filter <条件>] [--sort <排序>] --max-pages 10` <br/>💡 默认加 `--max-pages 10` 预览前 10 页，需全量时再去掉 <br/>💡 按视图查询时可传 `--viewId <id>`（仅在**未传** `--columnIds`/`--filter`/`--sort` 时生效，直接使用视图的列/筛选/排序配置） |
 | 向表格中添加新数据           | `addData --tableId <id> --columnIds <列ID> --data '[...]'` |
 | 更新表格中的数据             | `updateData --tableId <id> --rowIds <行ID> --data '[...]'` |
 | 删除表格中的数据             | `deleteData --tableId <id> --rowIds "123456,123457"` |
 | 重命名数据表                 | `renameTable --tableId <id> --title "新表格名称"`    |
+| 设置 / 修改 / 清空数据表描述  | `updateTableDescription --tableId <id> --description '[{"type":"text","value":"说明"}]'`，或 `--descriptionFile desc.json`；清空传 `--description "[]"` <br/>💡 描述是 XTable 富文本节点数组 JSON（整体替换），节点只支持 `text`、`paragraph`、`link`（需 `link`）、`mention`（需 `empId`）；**不支持 Markdown 或纯文本，需先转成节点数组**；紧凑 JSON 不超过 10000 字符；需要表格编辑权限，仅数据表 |
 | 数据表排序                   | `sortTable --tableId <id> --to 2`                    |
 | 为数据表新增列               | `addTableColumns --tableId <id> --columnMetas '[{"columnName":"名称", "columnType": 1}]'`，也可用 `--columnMetasFile columns.json` 读取列定义数组 <br/>⚠️ 单选(3)/多选(5)列使用自定义选项时必须提供 `columnConfig.options`；引用选项时传 `columnConfig.refConfig`，不传 options，例如：`{"columnName":"状态","columnType":3,"columnConfig":{"options":["选项1","选项2"]}}` <br/>各列类型 columnConfig 字段详见下方**列类型速查** |
 | **新增公式列** 🧮          | `addTableColumns --tableId <id> --columnMetas '[{"columnName":"总价","columnType":9,"columnConfig":{"formula":"[#列ID1] * [#列ID2]","formulaFormat":2,"formatter":"0,0.00"}}]'` <br/>💡 `columnType:9` 为公式列，必须在 `columnConfig.formula` 中提供公式表达式；字段引用格式为 `[#列ID]`（需先用 `getTableMeta` 获取列ID，**不支持 `[列名]` 格式**）；**`formulaFormat` 控制结果类型：2=数字、7=日期、8=货币；结果为文本/字符串时不传此字段**；公式只能使用 `{baseDir}/references/data-format.md` 「完整函数表」中列出的函数 |

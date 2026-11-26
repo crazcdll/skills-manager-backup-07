@@ -749,9 +749,7 @@
             "level",
             "ruleTitle",
             "ruleVersion",
-            "category",
             "severity",
-            "status",
             "language",
             "framework"
           ],
@@ -778,17 +776,6 @@
               "maxLength": 40,
               "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
             },
-            "category": {
-              "type": "array",
-              "minItems": 1,
-              "maxItems": 20,
-              "items": {
-                "type": "string",
-                "minLength": 1,
-                "maxLength": 64
-              },
-              "uniqueItems": true
-            },
             "severity": {
               "type": "array",
               "minItems": 0,
@@ -799,18 +786,6 @@
                   "P1",
                   "P2",
                   "P3"
-                ]
-              },
-              "uniqueItems": true
-            },
-            "status": {
-              "type": "array",
-              "minItems": 1,
-              "maxItems": 2,
-              "items": {
-                "enum": [
-                  "open",
-                  "closed"
                 ]
               },
               "uniqueItems": true
@@ -836,7 +811,38 @@
                 "maxLength": 64
               },
               "uniqueItems": true
+            },
+            "category": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 20,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 64
+              },
+              "uniqueItems": true
+            },
+            "status": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 2,
+              "items": {
+                "enum": [
+                  "open",
+                  "closed"
+                ]
+              },
+              "uniqueItems": true
             }
+          },
+          "dependentRequired": {
+            "category": [
+              "status"
+            ],
+            "status": [
+              "category"
+            ]
           }
         }
       }

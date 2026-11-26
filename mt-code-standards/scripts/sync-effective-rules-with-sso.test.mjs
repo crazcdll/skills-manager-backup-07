@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { RuleBundleError, canonicalJson, sha256Hex } from "./resolve-effective-rules.mjs";
+import { DEFAULT_RULE_ANON_KEY, RuleBundleError, canonicalJson, sha256Hex } from "./resolve-effective-rules.mjs";
 import {
   detectAuthAgent,
   detectExecutionAgent,
@@ -100,7 +100,7 @@ test("standalone CLI keeps an injected user token first and records cli", async 
   assert.equal(JSON.stringify(receipt).includes("injected-cli-token"), false);
 });
 
-test("default public transport bypasses inherited SSO and uses the anonymous repository route", async () => {
+test("default public transport bypasses inherited SSO and carries the gateway anon key", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "setup-public-transport-"));
   let url = "";
   const receipt = await syncWithOfficialSso({
@@ -113,7 +113,7 @@ test("default public transport bypasses inherited SSO and uses the anonymous rep
     execute: async () => { throw new Error("public transport must not authenticate"); },
     fetchImpl: async (requestUrl, init) => {
       url = requestUrl;
-      assert.equal(init.headers.Authorization, undefined);
+      assert.equal(init.headers.Authorization, `Bearer ${DEFAULT_RULE_ANON_KEY}`);
       return response(bundle());
     },
   });
@@ -172,7 +172,7 @@ test("runner argv defaults flow through sync with the default public receipt rea
     environment: { RULE_OBSERVABILITY_USER_TOKEN: "ignored", SSO_USER_ID: "ignored" },
     execute: async () => { throw new Error("default public transport must not authenticate"); },
     fetchImpl: async (_url, init) => {
-      assert.equal(init.headers.Authorization, undefined);
+      assert.equal(init.headers.Authorization, `Bearer ${DEFAULT_RULE_ANON_KEY}`);
       return response(bundle());
     },
   });

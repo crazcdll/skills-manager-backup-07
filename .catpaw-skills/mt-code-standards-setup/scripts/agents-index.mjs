@@ -82,7 +82,9 @@ export const RULESET_INDEX_PLACEMENT = 'ruleset-root';
 const JAVA_INDEX_RENDERER = 'java-l1-relative/v1';
 const EARLIER_RELATIVE_RENDERER = 'l1-relative/v2';
 export const L1_RELATIVE_RENDERER = 'l1-relative/v3';
-export const usesRelativeL1Paths = renderer => renderer === L1_RELATIVE_RENDERER || renderer === EARLIER_RELATIVE_RENDERER;
+const L2_RELATIVE_RENDERER = 'ruleset-relative/v1';
+const usesGitSyntax = renderer => renderer === L1_RELATIVE_RENDERER || renderer === L2_RELATIVE_RENDERER;
+export const usesRelativeL1Paths = renderer => usesGitSyntax(renderer) || renderer === EARLIER_RELATIVE_RENDERER;
 
 function isJavaGitIndex(entry, releaseRefs) {
   return entry.index.origin === 'git' && releaseRefs.some(ref => ref.rule_set_id === entry.rule_set_id
@@ -126,11 +128,15 @@ function* indexRows(content, allowRelative, gitSyntax = false) {
 }
 
 const relativeIndexPath = value => value.replace(/^\.\//, '');
+const l2ReferenceKey = value => {
+  const km = value.match(/^https:\/\/km\.sankuai\.com\/(?:page|collabpage|md)\/([1-9][0-9]*)(?:\.md)?\/?(?:[?#].*)?$/u);
+  return km ? 'km:' + km[1] : 'path:' + relativeIndexPath(value);
+};
 
 function isRelativeL1Index(entry, refs, renderer) {
   if (entry.index.origin !== 'git' || typeof entry.index.content !== 'string'
     || !refs.some(ref => ref.rule_set_id === entry.rule_set_id && ref.release_id === entry.release_id && ref.scope_level === 'L1')) return false;
-  for (const row of indexRows(entry.index.content, true, renderer === L1_RELATIVE_RENDERER)) if (row.header?.relativeReferences) return true;
+  for (const row of indexRows(entry.index.content, true, usesGitSyntax(renderer))) if (row.header?.relativeReferences) return true;
   return false;
 }
 
@@ -139,7 +145,7 @@ export function relativeL1Bindings(entries, refs, renderer = L1_RELATIVE_RENDERE
   for (const entry of entries || []) {
     if (!isRelativeL1Index(entry, refs, renderer)) continue;
     const expected = new Set();
-    for (const row of indexRows(entry.index.content, true, renderer === L1_RELATIVE_RENDERER)) {
+    for (const row of indexRows(entry.index.content, true, usesGitSyntax(renderer))) {
       if (row.relative) expected.add(relativeIndexPath(unquote(row.column.value)));
     }
     const references = new Set();
@@ -156,8 +162,16 @@ export function relativeL1Bindings(entries, refs, renderer = L1_RELATIVE_RENDERE
   return targets;
 }
 
-function currentRenderer(entries, refs, renderer = L1_RELATIVE_RENDERER) {
-  if (entries?.some(entry => isRelativeL1Index(entry, refs, renderer))) return renderer;
+function isRelativeL2Index(entry, refs) {
+  if (typeof entry.index.content !== 'string' || !refs?.some(ref => ref.rule_set_id === entry.rule_set_id
+    && ref.release_id === entry.release_id && ref.scope_level === 'L2')) return false;
+  for (const row of indexRows(entry.index.content, true, true)) if (row.header?.relativeReferences) return true;
+  return false;
+}
+
+function currentRenderer(entries, refs, renderer = L2_RELATIVE_RENDERER) {
+  if (renderer === L2_RELATIVE_RENDERER && entries?.some(entry => isRelativeL2Index(entry, refs))) return renderer;
+  if (entries?.some(entry => isRelativeL1Index(entry, refs, renderer))) return renderer === L2_RELATIVE_RENDERER ? L1_RELATIVE_RENDERER : renderer;
   if (entries?.some(entry => isJavaGitIndex(entry, refs))) return JAVA_INDEX_RENDERER;
   return null;
 }
@@ -244,29 +258,36 @@ export function renderAgentsIndexes(entries, localFiles, releaseRefs, { indexPla
     if (!index.content.trim()) warn('agents_index_empty', 'AGENTS.md 内容为空');
     const nativeL1 = usesRelativeL1Paths(renderer) && indexPlacement === RULESET_INDEX_PLACEMENT && isRelativeL1Index(entry, releaseRefs, renderer);
     const nativeJava = renderer && indexPlacement === RULESET_INDEX_PLACEMENT && isJavaGitIndex(entry, releaseRefs);
+    const localL2 = renderer === L2_RELATIVE_RENDERER && indexPlacement === RULESET_INDEX_PLACEMENT && isRelativeL2Index(entry, releaseRefs);
     const indexDirectory = destinations.get(entry.rule_set_id).slice(0, -'AGENTS.md'.length);
     let recognized = false;
-    const output = Array.from(indexRows(index.content, nativeL1 || nativeJava, nativeL1 && renderer === L1_RELATIVE_RENDERER), ({ raw, position, header, column, relative }) => {
+    const output = Array.from(indexRows(index.content, nativeL1 || nativeJava || localL2, (nativeL1 && usesGitSyntax(renderer)) || localL2), ({ raw, position, header, column, relative }) => {
       recognized ||= Boolean(header);
       if (!column || (nativeL1 && !relative)) return raw;
-      const reference = unquote(column.value);
-      const canonicalRef = nativeL1 ? relativeIndexPath(reference) : reference;
-      const candidates = entry.bindings.filter(binding => (nativeL1 ? relativeIndexPath(binding.reference) : binding.reference) === canonicalRef);
+      const rewriteL2 = localL2 && relative;
+      const reference = rewriteL2 ? unquote(column.value).replaceAll('\\|', '|') : unquote(column.value);
+      const keyFor = rewriteL2 ? l2ReferenceKey : nativeL1 ? relativeIndexPath : value => value;
+      const canonicalRef = keyFor(reference);
+      const candidates = entry.bindings.filter(binding => keyFor(binding.reference) === canonicalRef);
       const targets = new Set(candidates.map((binding) => localBySource.get(binding.bundle_relative_path)).filter(Boolean));
       if (!candidates.length || candidates.some((binding) => !localBySource.has(binding.bundle_relative_path)) || targets.size !== 1) {
         warn('agents_index_unmatched_reference', `引用无法唯一匹配本次下载文件：${reference}`, { path: reference, line: position + 1 });
         return raw;
       }
       const [localPath] = targets;
-      if (relative) {
+      if (relative && !rewriteL2) {
         if (localPath !== indexDirectory + canonicalRef) {
           warn('agents_index_unmatched_reference', `引用未指向索引同目录的已安装文件：${reference}`, { path: reference, line: position + 1 });
         }
         return raw;
       }
-      const target = `.mdp/rules/${localPath}`;
+      if (rewriteL2 && !localPath.startsWith(indexDirectory)) {
+        warn('agents_index_unmatched_reference', `引用未指向本规则集的已安装文件：${reference}`, { path: reference, line: position + 1 });
+        return raw;
+      }
+      const target = rewriteL2 ? localPath.slice(indexDirectory.length) : `.mdp/rules/${localPath}`;
       const replacement = column.value.startsWith('`') ? `\`${target}\``
-        : /^\[[^\]]*\]\([^)]+\)$/.test(column.value) ? column.value.replace(/\([^)]+\)$/, `(${target})`) : target;
+        : /^\[[^\]]*\]\([^)]+\)$/.test(column.value) ? column.value.replace(/\([^)]+\)$/, rewriteL2 ? () => `(${target})` : `(${target})`) : target;
       const cell = raw.slice(column.start, column.end);
       return raw.slice(0, column.start) + cell.replace(column.value, () => replacement) + raw.slice(column.end);
     }).join('');

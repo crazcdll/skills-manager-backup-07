@@ -49,6 +49,22 @@ test('changing content or confirmation cannot reuse confirmation', async () => {
   await rejects(validatePackage(tampered), 'PACKAGE_SCHEMA_INVALID');
 });
 
+test('confirmed packages accept current metadata or the complete valid legacy pair without rewriting the payload', async () => {
+  const pkg = (fields) => mutateContent(c => {
+    const rule = c.rules[0];
+    rule.metadata = { ruleTitle:rule.title, ruleType:rule.rule_type, description:rule.title, level:'L2', ruleVersion:'0.0.1', language:[], framework:[], severity:[], ...fields };
+  });
+  for (const shape of [{}, {category:['business'], status:['closed']}]) {
+    const files = await pkg(shape), before = structuredClone(files);
+    const { content } = await validatePackage(files);
+    assert.deepEqual(Object.hasOwn(content.rules[0].metadata,'category'), Object.hasOwn(shape,'category'));
+    assert.deepEqual(files, before);
+  }
+  for (const shape of [{category:['business']}, {status:['closed']}, {category:[],status:['open']}, {category:['business'],status:['unknown']}]) {
+    await rejects(validatePackage(await pkg(shape)), 'PACKAGE_SCHEMA_INVALID');
+  }
+});
+
 test('unsupported updates and invented identity fields fail closed', async () => {
   for (const change of [(m) => { m.operation = 'replace'; }, (m) => { m.rule_set.rule_set_id = 'fake'; }, (m) => { m.scope_level = 'L1'; }]) {
     const files = await minimalPackage(); const manifest = json(files, 'manifest.json'); change(manifest); files.set('manifest.json', utf8(canonical(manifest)));
@@ -81,6 +97,17 @@ test('index must bind actual source references, cover documents, and contain no 
   const files = await minimalPackage(); files.set('AGENTS.md', utf8(new TextDecoder().decode(files.get('AGENTS.md')).replace('rules/errors.md', 'rules/missing.md')));
   await rejects(validatePackage(await resealFixture(files)), 'PACKAGE_INDEX_INVALID');
   await rejects(validatePackage(await mutateContent((c) => { c.agents_index.bindings[0].document_ref = 'not_found'; })), 'PACKAGE_INDEX_INVALID');
+});
+
+test('two-column packages validate real relative references and reject unmatched or empty cells', async () => {
+  const table = '| 规则文件 | 触发条件 |\n| --- | --- |\n';
+  const validate = async (row) => {
+    const files = await minimalPackage();
+    files.set('AGENTS.md', utf8(table + row));
+    return validatePackage(await resealFixture(files));
+  };
+  await validate('| rules/errors.md | 处理异常时 |\n');
+  for (const row of ['| rules/other.md | 处理异常时 |', '| rules/errors.md |  |', '|  | 处理异常时 |', '']) await rejects(validate(row), 'PACKAGE_INDEX_INVALID');
 });
 
 test('source bytes and source manifest have a single binding', async () => {

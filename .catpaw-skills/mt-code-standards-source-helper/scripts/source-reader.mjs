@@ -2,13 +2,11 @@ import { spawnSync } from 'node:child_process';
 import { posix } from 'node:path';
 import { LIMITS, PackageContractError, safeRelativePath, utf8, sha256 } from './package-contract.mjs';
 import { buildSourceUnits, parseHistoryTree } from './source-units.mjs';
-import { readGitRawSource } from './code-source.mjs';
+import { readGitRawSource, validGitBranchRef } from './code-source.mjs';
 import { extractPublicErrorMessage } from './upstream-error-message.mjs';
 const fail = (code, path, message) => { throw new PackageContractError(code, path, message); };
-const HEAD = /^refs\/heads\/[A-Za-z0-9][A-Za-z0-9._/-]*$/u;
 const MIS = /^[a-z][a-z0-9._-]{0,63}$/u;
-const validRef = (ref) => HEAD.test(ref) && !ref.includes('..') && !ref.includes('//') && !ref.includes('@{') && !ref.endsWith('.') && !ref.endsWith('/') && !ref.split('/').some((part) => part.endsWith('.lock') || part.startsWith('.'));
-export function parseSourceUrl(value, { selection_type = 'file', branch = null, path: selectedPath = null } = {}) {
+export function parseSourceUrl(value, { selection_type, branch = null, path: selectedPath = null } = {}, { frozen = false } = {}) {
   const input = typeof value === 'string' && /^git@git\.sankuai\.com:/u.test(value) ? value.replace(/^git@git\.sankuai\.com:/u, 'ssh://git@git.sankuai.com/') : value;
   let url; try { url = new URL(input); } catch { fail('SOURCE_URL_INVALID', '/source_url', '请提供有效的 Git 或学城地址。'); }
   const ssh = url.protocol === 'ssh:' && url.hostname === 'git.sankuai.com' && url.username === 'git';
@@ -18,12 +16,12 @@ export function parseSourceUrl(value, { selection_type = 'file', branch = null, 
     if (!id) fail('SOURCE_URL_INVALID', '/source_url', '无法识别学城文档 ID。');
     return { type: 'km', content_id: id, canonical_url: `https://km.sankuai.com/${url.pathname.startsWith('/md/') ? 'md' : 'collabpage'}/${id}` };
   }
-  if (!['file', 'directory'].includes(selection_type)) fail('SOURCE_SCOPE_INVALID', '/selection_type', '来源范围必须明确为文件或目录。');
-  let project, repository, selected;
+  if (selection_type !== undefined && !['file', 'directory'].includes(selection_type)) fail('SOURCE_SCOPE_INVALID', '/selection_type', '来源范围必须明确为文件或目录。');
+  let project, repository, selected, linkType;
   if (url.hostname === 'dev.sankuai.com') {
-    const match = url.pathname.match(/^\/code\/repo-detail\/([^/]+)\/([^/]+)\/file\/(?:detail|list)\/?$/u);
+    const match = url.pathname.match(/^\/code\/repo-detail\/([^/]+)\/([^/]+)\/file\/(detail|list)\/?$/u);
     if (!match) fail('SOURCE_URL_INVALID', '/source_url', '请提供代码平台的文件或目录地址。');
-    [, project, repository] = match; selected = url.searchParams.get('path');
+    [, project, repository] = match; selected = url.searchParams.get('path'); linkType = match[3] === 'detail' ? 'file' : 'directory';
   } else if (['git.sankuai.com', 'code.sankuai.com'].includes(url.hostname)) {
     const match = url.pathname.match(/^\/(?:projects\/([^/]+)\/repos\/([^/]+)(?:\/browse)?|([^/]+)\/([^/]+))\/?$/u);
     if (!match) fail('SOURCE_URL_INVALID', '/source_url', '无法识别 Git 仓库位置。');
@@ -34,15 +32,17 @@ export function parseSourceUrl(value, { selection_type = 'file', branch = null, 
   const queryBranch = url.searchParams.get('branch'); const fullRef = (value) => value.startsWith('refs/') ? value : `refs/heads/${value}`;
   if (branch && queryBranch && fullRef(branch) !== fullRef(queryBranch)) fail('SOURCE_SCOPE_MISMATCH', '/source_url/branch', '显式分支与来源链接中的分支不一致。');
   branch ||= queryBranch;
-  if (selectedPath && selected && selectedPath !== selected) fail('SOURCE_SCOPE_MISMATCH', '/source_url/path', '显式路径与来源链接中的路径不一致。');
-  selected ||= selectedPath;
+  const narrower = selected && selectedPath && selected !== selectedPath && linkType === 'directory' && selectedPath.startsWith(selected + '/');
+  if (selectedPath && selected && selectedPath !== selected && !narrower) fail('SOURCE_SCOPE_MISMATCH', '/source_url/path', '显式路径与来源链接中的路径不一致。');
+  if (!frozen && !narrower && selection_type && linkType && selection_type !== linkType) fail('SOURCE_SCOPE_MISMATCH', '/selection_type', '链接类型与指定范围不一致；若只取目录内一个文件，请提供该文件路径。');
+  selection_type ??= narrower ? 'file' : linkType || 'file';
+  selected = selectedPath || selected;
   if (!selected) fail('SOURCE_SCOPE_REQUIRED', '/source_url', '请明确本次读取的文件或目录路径。');
   safeRelativePath(selected, '/source_url/path');
-  if (!branch) fail('SOURCE_BRANCH_REQUIRED', '/source_url/branch', '请明确分支，工具不会自动选择默认分支。');
-  const ref = branch.startsWith('refs/') ? branch : `refs/heads/${branch}`;
-  if (!validRef(ref)) fail('SOURCE_BRANCH_INVALID', '/source_url/branch', '分支名称不符合要求。');
+  const ref = branch ? fullRef(branch) : null;
+  if (ref && !validGitBranchRef(ref)) fail('SOURCE_BRANCH_INVALID', '/source_url/branch', '分支名称不符合要求。');
   return { type: 'git', project, repository, selected_path: selected, selection_type, requested_ref: ref,
-    canonical_url: `https://git.sankuai.com/${encodeURIComponent(project).replace('%7E', '~')}/${repository}`,
+    ref_origin: ref ? 'explicit' : 'remote_default', canonical_url: `https://git.sankuai.com/${encodeURIComponent(project).replace('%7E', '~')}/${repository}`,
     ssh_url: `ssh://git@git.sankuai.com/${project}/${repository}.git`,
     root_path: selection_type === 'directory' ? selected : posix.dirname(selected) === '.' ? '' : posix.dirname(selected) };
 }

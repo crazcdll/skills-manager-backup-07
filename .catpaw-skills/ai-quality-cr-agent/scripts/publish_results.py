@@ -364,7 +364,7 @@ def load_issues(issues_files):
     deduped.sort(key=lambda x: SEVERITY_ORDER.get(x["severity"], 99))
     return deduped
 
-def soft_gate_issues(args, issues):
+def soft_gate_issues(args, issues, write_gate_report=True):
     """软门禁：对每条 issue 运行 issue_io 的 schema 校验（同款规则，不 import CLI）。
 
     设计原则（与强卡门禁的区别）：
@@ -419,15 +419,16 @@ def soft_gate_issues(args, issues):
                                                   "summary": (it.get("summary") or "")[:120]})
                 log(f"⚠️ 软门禁降级 {loc} → P2/ADDED: {reason}")
                 kept.append(it)
-    try:
-        with open(f"/tmp/cr_gate_{args.pr_id}.json", "w", encoding="utf-8") as f:
-            json.dump(gate_report, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        log(f"⚠️ 门禁报告落盘失败（不影响发布）: {e}")
+    if write_gate_report:
+        try:
+            with open(f"/tmp/cr_gate_{args.pr_id}.json", "w", encoding="utf-8") as f:
+                json.dump(gate_report, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            log(f"⚠️ 门禁报告落盘失败（不影响发布）: {e}")
     if gate_report["downgraded"] or gate_report["dropped"] or gate_report["warned"]:
         log(f"📊 软门禁: {gate_report['passed']}/{gate_report['total']} 通过，"
             f"{len(gate_report['downgraded'])} 降级，{len(gate_report['dropped'])} 丢弃，"
-            f"{len(gate_report['warned'])} 警告 → /tmp/cr_gate_{args.pr_id}.json")
+            f"{len(gate_report['warned'])} 警告")
     return kept
 
 
@@ -4376,8 +4377,71 @@ def normalize_args(args, _parser=None):
     return args
 
 
+def workspace_export(args, issues, counts, conclusion, doc_md, km_url):
+    """写入 collect 按 X_AI_SESSIONID 读取的评测产物，两份文件都写入才算成功。"""
+    result = {"ok": False, "issues_path": "", "report_path": "", "error": ""}
+    efs_dir = os.environ.get("1024_USER_EFS_DIR", "").strip()
+    if not efs_dir:
+        result["error"] = "1024_USER_EFS_DIR not set"
+        return result
+    session_id = os.environ.get("X_AI_SESSIONID", "")
+    if not re.fullmatch(r"[A-Za-z0-9_.:@-]{1,64}", session_id) or session_id in (".", ".."):
+        result["error"] = "X_AI_SESSIONID missing or invalid"
+        return result
+    out_dir = os.path.join(efs_dir, "output", session_id)
+    try:
+        os.makedirs(out_dir, exist_ok=True)
+    except OSError as e:
+        log(f"⚠️ 工作区导出目录创建失败: {e}")
+        result["error"] = f"mkdir failed: {e}"
+        return result
+
+    # issues.json：软门禁后的最终 issue 列表（与发布口径一致）
+    issues_path = os.path.join(out_dir, "issues.json")
+    issues_payload = {
+        "schema": "aicr-issues-export/v1",
+        "pr": {
+            "org": args.org, "repo": args.repo, "pr_id": args.pr_id,
+            "pr_url": args.pr_url, "pr_title": args.pr_title,
+        },
+        "conclusion": conclusion,
+        "counts": counts,
+        "km_url": km_url,
+        "cr_mode": args.cr_mode,
+        "run_id": getattr(args, "run_id", ""),
+        "exported_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "issues": issues,
+    }
+    try:
+        with open(issues_path, "w", encoding="utf-8") as f:
+            json.dump(issues_payload, f, ensure_ascii=False, indent=2)
+        result["issues_path"] = issues_path
+        log(f"✅ 工作区导出: issues.json → {issues_path}（{len(issues)} 条）")
+    except OSError as e:
+        log(f"⚠️ issues.json 写入失败: {e}")
+        result["error"] = f"issues.json write failed: {e}"
+
+    # report.md：本轮 CR 完整报告（与学城文档同源 markdown）
+    report_path = os.path.join(out_dir, "report.md")
+    report_md = doc_md
+    if not report_md:
+        report_md = f"# {document_title(args)}\n\n(本轮无学城文档内容)\n\n结论: {conclusion}\n"
+    try:
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write(report_md)
+        result["report_path"] = report_path
+        log(f"✅ 工作区导出: report.md → {report_path}（{len(report_md)} chars）")
+    except OSError as e:
+        log(f"⚠️ report.md 写入失败: {e}")
+        result["error"] = (result["error"] + "; " if result["error"] else "") + f"report.md write failed: {e}"
+
+    result["ok"] = bool(result["issues_path"] and result["report_path"])
+    return result
+
+
 def main(argv=None):
     args = parse_args(argv)
+    evaluation = os.environ.get("AICR_EVALUATION_MODE") == "1"
     output = {}
 
     log("=" * 60)
@@ -4421,7 +4485,7 @@ def main(argv=None):
 
     issues = load_issues(args.issues_file)
     # 软门禁：issue_io 逐条校验，不阻塞发布；结果落盘供追溯，不合规条目降级处理
-    issues = soft_gate_issues(args, issues)
+    issues = soft_gate_issues(args, issues, write_gate_report=not evaluation)
     # ── #18 输入完整性门禁:显式传入的 issues 产物全部缺失/不可解析时,
     # 审查尚未发生(而非"审查通过"),结论不得按通过口径发布。
     # 合法的空数组 [] / 空 findings 属于"审查发生且无发现",不拦。 ──
@@ -4484,7 +4548,9 @@ def main(argv=None):
     elif extan_note or extan_gate_reason != "外部专项审查全部完成":
         log(f"⚠️ 外部专项审查: {extan_gate_reason}")
 
-    if args.dry_run:
+    if evaluation:
+        log("评测模式：将审查结果写入会话工作区")
+    elif args.dry_run:
         log("🧪 DRY-RUN 模式：Step 7/8/9 一律不执行，产物落盘 /tmp/cr_dryrun/")
     else:
         # 3 秒缓冲：给上游 code-cli 的登录态/连接池一点预热时间即可，
@@ -4504,19 +4570,22 @@ def main(argv=None):
         log(f"🧭 快照计划: {_plan.get('note', '')}（行内 {_plan['inline_ok']}"
             f" / 全局兜底 {_plan['global_fallback']}）")
         doc_md = assemble_citadel_doc(args, issues, counts, conclusion)
-        inline_comments, inline_fallbacks = assemble_inline_comments(issues, cr_mode=args.cr_mode)
     elif args.findings_file and os.path.isfile(args.findings_file):
         # 兼容旧用法
         doc_md = read_text_file(args.findings_file, "")
-        inline_comments = []
-        inline_fallbacks = []
     else:
         doc_md = assemble_citadel_doc(args, issues, counts, conclusion)
-        inline_comments = []
-        inline_fallbacks = []
 
     output["counts"] = counts
     output["conclusion"] = conclusion
+
+    if evaluation:
+        export = workspace_export(args, issues, counts, conclusion, doc_md, km_url="")
+        output["workspace_export"] = export
+        print(json.dumps(output, ensure_ascii=False))
+        return 0 if export["ok"] else 1
+
+    inline_comments, inline_fallbacks = assemble_inline_comments(issues, cr_mode=args.cr_mode)
 
     # Step 6: 创建学城文档
     log("▶ Step 6: 创建学城 CR 文档...")

@@ -1,8 +1,8 @@
 skill-manifest-version: 1
-skill-id: 1acda686f298b5d8ba8b76ce0b94f5d33ff8891e9a9c9ceff672ddba117d356b
+skill-id: ba9b49b2e326df683e3e9f2ccdf64f821ef86371f965ac46f4c9c71b5f1dda39
 
 files:
-  8deebbe43165a080cca28df3dd1008fc33bc9f2292e94ba86664d30500bfc133  SKILL.md
+  4bbfb416ddb638233e3f00beae6468a7cd0124e80324d7cfa634bf5154980e16  SKILL.md
   082787dc2c1c28f539ddfe032861a88dc6fb1dc444a28af0eb660845b1ec07b1  references/component-crash-chart/CHANGELOG.md
   e6e1a0ef06d29aa637d6708ebe6c13d21f323a6b706b6c1aef88fa51d1d11ad4  references/component-crash-chart/README.md
   a40bcdd51e48d89341a5c1db1171d20a69f9d06b8a9b699f659dabccaa95c865  references/component-crash-chart/SKILL.md
@@ -22,6 +22,7 @@ files:
   10c10570752d8b28fd78ff0a59e0b86ce9beee225526e09a32c3bd196e5a5b27  references/crash-wave-analysis/SKILL.md
   e370eccf66055f9c36f7faecb1e9dd10670ae887587773af6e6a809ae26576d9  references/dashboard-patrol/SKILL.md
   42ca23ef051a611c310e0b346fc28ccddd988e0849bab0983dd72b1c706e2743  references/general-metric-analysis/SKILL.md
+  e58e0e08a354005d749d1f5b56319b4c69dba50ed96864a44639659a73c132ad  references/mrn-arch-compare/SKILL.md
   9d6a4daba75726b5edafcf93ed64a453b0a2a00853b44c9fada07d2a897cca6d  references/owl-web-error-analysis/SKILL.md
   064790a275c88624c745c963e61de578e0e1bfc347f52062c1bf22cf1c023b60  references/raptorfe-allquery/SKILL.md
   c7f2ad5a8ecf57e73ef5d1350d064970f80aae69b9b39c64ec8cbad5ebc32030  references/raptorfe-dashboard-create/SKILL.md

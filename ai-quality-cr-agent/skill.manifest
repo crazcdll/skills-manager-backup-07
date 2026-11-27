@@ -1,9 +1,9 @@
 skill-manifest-version: 1
-skill-id: 6faee08ed1314db2d1f87823015bafb442bd3cb436d61700750dca1d462f2c16
+skill-id: e67db82b436032b8ecf0570d5be57e61b8b97f73992ace846625330043f1dcac
 
 files:
   de0527093bcbe08b6554428586c8fa241c511c96359d6633f2e3770b76c2d479  .skillignore
-  36c48784b3c6c8a585db1fde7edfd28b5b9b84a7806280165f8addb8444e3da7  SKILL.md
+  15bb77d9d5d994dd5c79005d607c2281aad346a3da5bf675c77f7c9b7faa72ee  SKILL.md
   8310a6fe872d2c95231037508b2ff2140677bc910b570b06cd7832fad5f018a7  external-analyzer-operations.md
   339be0df9b4be7b0bbeccd2dc76568c25fad7455d9f0b8f17b72eca8435dc298  references/checklists/coding-standards-checklist.md
   9d620048729f1d651e82c21c77b37359ba1c739046ae286174c2fe1a31ec2c7a  references/checklists/coe-rules.md
@@ -77,7 +77,7 @@ files:
   3a6168b28f20a09e14c3a9bbb8a561d823a044b738b8be45c97017c8d09acb8e  scripts/get_pr_diff.py
   66ea9573289204471e0c288d026ccd0cf4639f317357bddd4ccb54eb7740fc59  scripts/issue_io.py
   a39bce072f58dba6d39771e96287f61e4fc790bd6c7cf6592ece7b87312f30fe  scripts/line_anchor.py
-  e506fa9d2677e4a0e0df2b385de0ad7023438a35940440ff2390f7d8ee44b168  scripts/publish_results.py
+  6f9790aec87210d557c51ab1cf0335b911be1b7b4ce989d5d43d64498482c1e4  scripts/publish_results.py
   82e15d0d3721d18ead812b567f9c096b9aed2808d616ed792a92e9c98118d984  scripts/repo_search.py
   07be1f05facd1dc0df846c0a90d666bf487072d06048cd2ba67087083c69741f  scripts/repo_search_json.py
   2769b341e2565995011dcf82a75fee4949ca9c48da764c795855ba2c0f029831  scripts/rule_id.py

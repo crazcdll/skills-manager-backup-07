@@ -30,7 +30,7 @@
 | ruleName | string | 可选 | 规则名称（如"并发处理规约"） |
 | ruleFile | string | 可选 | 完整规则文件路径（如 checklists/mt-java-coding-standards/JAVA-04-并发处理规范.md） |
 | rule_sources | array | FE 必填 | 原样保留全部命中来源；纯上下文填 `[]`。每项必填 `source_type`、`scope_level`、`file`；平台/fallback 必须保留 `upstream_rule_id`，L3 无明确 ID 时允许省略 |
-| anomalyType | string | ✅ | 异常类型：bug/risk/smell/style；4-C 额外允许：`custom`（自定义规范）/`team`（团队约定）——V84 起 4-C 独立路补充枚举，merge 去重键兼容（同位置 4-A style 与 4-C custom 不合并，各自保留） |
+| anomalyType | string | ✅ | 异常类型：bug/risk/smell/style；4-C 额外允许：`custom`（自定义规范）/`team`（团队约定）——4-C 独立路补充枚举，merge 去重键兼容（同位置 4-A style 与 4-C custom 不合并，各自保留） |
 | summary | string | ✅ | 一句话摘要（≤50字），用于快速浏览 |
 | lineType | string | ✅ | 行号类型：added（新增行）/removed（删除行）/context（上下文行）|
 | fix_type | string | P0/P1 | REPLACE（替换行）/ INSERT（插入）/ DELETE（删除）/ REFACTOR（重构，需说明范围）|

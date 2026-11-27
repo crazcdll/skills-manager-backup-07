@@ -1,16 +1,16 @@
 ---
 name: infra-raptor
 display_name: Raptor大前端Skill合集
-description: 'Raptor大前端技能合集，支持：①自然语言查询大前端指标（Crash/ANR率、RCF分数、性能指标、移动端/Web/小程序自定义指标等）；②Crash/ANR/FOOM告警深度分析（多维度分布、DAU偏差、5条以上堆栈深度分析、根因推断）；③大前端性能告警自动分析（多维下钻、趋势对比图）；④Crash组件趋势图（小时级/N天/多版本/同比）；⑤自定义监控大盘创建（自然语言描述指标或粘贴Raptor链接，自动完成大盘/Tab/图表配置；支持 0-7 全部图表类型、参考线、环比、维度对比、灰度大盘配置、跨Tab复制，以及老Raptor大盘一键导入）；⑥RCF指标波动分析（R/C/F子指标贡献度计算、多维度下钻、根因定位）；⑦自定义大盘巡检（发送大盘链接自动读取所有图表、批量查询最近7天数据、异常检测、生成数据报告、异常指标多维下钻）；⑧按uuid（deviceId）查异常日志（输入设备uuid+排查诉求，检索该设备最近7天的崩溃/ANR/异常退出/捕获异常/卡顿/业务JS异常并按时间线汇总成报告，注意区别于uuid↔userid等ID互转/万能钥匙能力）。覆盖美团/外卖/点评，Android/iOS/HarmonyOS。直接转发任意告警消息即可自动分析。支持境内与境外双环境：用户提到海外/境外环境，或使用 raptor.mws.keetapp.com 域名时，自动将 CLI 命令字切换为 raptorfeov。触发词：导入旧大盘、老大盘导入、迁移老大盘、灰度大盘配置、灰度配置、复制Tab配置、图表参考线、环比配置。'
+description: 'Raptor大前端技能合集，支持：①自然语言查询大前端指标（Crash/ANR率、RCF分数、性能指标、移动端/Web/小程序自定义指标等）；②Crash/ANR/FOOM告警深度分析（多维度分布、DAU偏差、5条以上堆栈深度分析、根因推断）；③大前端性能告警自动分析（多维下钻、趋势对比图）；④Crash组件趋势图（小时级/N天/多版本/同比）；⑤自定义监控大盘创建（自然语言描述指标或粘贴Raptor链接，自动完成大盘/Tab/图表配置；支持 0-7 全部图表类型、参考线、环比、维度对比、灰度大盘配置、跨Tab复制，以及老Raptor大盘一键导入）；⑥RCF指标波动分析（R/C/F子指标贡献度计算、多维度下钻、根因定位）；⑦自定义大盘巡检（发送大盘链接自动读取所有图表、批量查询最近7天数据、异常检测、生成数据报告、异常指标多维下钻）；⑧按uuid（deviceId）查异常日志（输入设备uuid+排查诉求，检索该设备最近7天的崩溃/ANR/异常退出/捕获异常/卡顿/业务JS异常并按时间线汇总成报告，注意区别于uuid↔userid等ID互转/万能钥匙能力）；⑨MRN包新老架构性能对比（按包名查询arch_type=new/old下C/F/R分数、RCF总分、秒开率、PV，输出对比表与胜率，附看板链接）。覆盖美团/外卖/点评，Android/iOS/HarmonyOS。直接转发任意告警消息即可自动分析。支持境内与境外双环境：用户提到海外/境外环境，或使用 raptor.mws.keetapp.com 域名时，自动将 CLI 命令字切换为 raptorfeov。触发词：导入旧大盘、老大盘导入、迁移老大盘、灰度大盘配置、灰度配置、复制Tab配置、图表参考线、环比配置、对比MRN新老架构、MRN新老架构性能对比、MRN新架构RCF对比。'
 tags: 终端基础技术,Raptor,大前端,Crash,性能指标,告警,前端开发,境外
-version: 0.11.0
+version: 0.12.0
 created: 2026-03-27
-updated: 2026-11-20
+updated: 2026-11-26
 
 metadata:
   skillhub.creator: "xuzhen"
   skillhub.updater: "huangwenqing05"
-  skillhub.version: "V51"
+  skillhub.version: "V52"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "18310"
   skillhub.high_sensitive: "false"
@@ -85,6 +85,7 @@ npm install -g @mtfe/raptorfe-cli --registry=http://r.npm.sankuai.com
 | 用户意图 | 子能力 | 使用说明 | 路径 |
 |---|---|---|---|
 | 查询 Crash 率/ANR/Foom/watchdog、RCF/R/C/F 分数、MSC 容器、Metrics、移动端端到端/自定义/web/小程序等各类 Raptor 大前端指标 | Raptor 大前端全量指标查询 | 直接提问，例如：「查一下美团 Android 最近 7 天的 Crash 率」 | [references/raptorfe-allquery/SKILL.md] |
+| 对比 MRN 包新老架构性能数据（同一 bundle 在 arch_type=new/old 下的 C/F/R 分数、RCF 总分、秒开率、PV），或发送 arch-compare 看板链接要求查数据 | MRN 新老架构性能对比 | 直接描述，例如：「对比 MRN rn_hotel_rn-hotel-mainlist 包新老架构性能数据」 | [references/mrn-arch-compare/SKILL.md] |
 | 分析大前端监控告警、定位指标波动根因、多维下钻、输出趋势对比报告 | 大前端告警自动分析 | 转发大前端监控 PERF 告警消息给 🦞 自动分析 | [references/raptorperf-alert-analyzer/SKILL.md] |
 | 收到 Crash/ANR/FOOM/Watchdog **告警推送消息**（含告警标题、聚类信息等格式化告警文本），分析 crash 堆栈、定位根因、给出修复建议。**注意：若用户是主动发送 Raptor 链接或主动描述分析诉求，不走本路由** | Crash 告警分析（已统一迁移至 infra-app-stability/root-cause） | 转发 Crash/ANR/FOOM 告警消息给 🦞 自动分析 | [skills-market/infra-app-stability/references/root-cause/SKILL.md] |
 | 查看组件 Crash 趋势图、小时级/N天趋势/多版本对比/同比观测 | Crash 组件波动分析看板 | 直接提问，例如：「画一下 logan 组件最近 7 天的 Crash 趋势图」 | [references/component-crash-chart/SKILL.md] |
@@ -130,6 +131,7 @@ npm install -g @mtfe/raptorfe-cli --registry=http://r.npm.sankuai.com
 | 主动描述「分析 Crash/ANR/FOOM 趋势/波动」，无告警文本 | `crash-wave-analysis` |
 | 发送 `raptor.mws.sankuai.com/ffp/...` 或性能大盘**链接** + 分析诉求 | `rcf-raptor-anylisize` |
 | 主动描述「分析 RCF/R/C/F 分数波动/劣化」，无告警文本 | `rcf-raptor-anylisize` |
+| 主动描述「对比 MRN xx 包新老架构性能/RCF/新旧架构数据」，或发送 `raptor.mws.sankuai.com/mrn-dashboard/layout/arch-compare...` 链接 + 查数据诉求 | `mrn-arch-compare`（新老架构对比查询；若是波动根因分析则仍走 rcf-raptor-anylisize） |
 | 发送 `raptor.mws.sankuai.com` **链接** + 要求**新建大盘** | `raptorfe-dashboard-create` |
 | 用户提到「导入老 Raptor 大盘 / 迁移旧大盘 / 老大盘转新平台」，或提供老大盘数字 ID（如 116218） | `raptorfe-dashboard-create`（方式三：`dashboard import`，必走 dry-run 预览） |
 | 用户提到「配置灰度大盘 / 灰度筛选器 / 设置版本监控范围」，或要求把一个 Tab 的图表/筛选器复制到另一个 Tab | `raptorfe-dashboard-create`（gray-config / copy-config 章节） |

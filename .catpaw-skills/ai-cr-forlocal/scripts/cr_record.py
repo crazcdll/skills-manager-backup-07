@@ -13,20 +13,15 @@ AI 只需调这一条命令，传业务参数即可。
 
 用法:
   python3 cr_record.py \
-    --pr-url "https://dev.sankuai.com/code/repo-detail/fun/scp-dzbiz-process-server/pr/1278/overview" \
-    --repo "fun/scp-dzbiz-process-server" \
-    --pr-title "放心美履约保障" \
-    --author-mis "wb_luanchaoshun" \
+    --pr-url "https://dev.sankuai.com/code/repo-detail/<org>/<repo>/pr/0/overview?branch=<branch>" \
+    --repo "<org>/<repo>" \
+    --pr-title "<标题>" \
+    --author-mis "<MIS>" \
     --conclusion "🟠需修复" \
-    --p0 1 --p1 4 --p2 6 --p3 2 \
-    --doc-url "https://km.sankuai.com/collabpage/2776473886" \
-    --operator-mis "mengmuzi" \
-    --source-branch "feature/fangxinmei" \
-    --target-branch "master" \
-    --no-sdd --alignment "N/A" \
-    --skill-version "ai-pr-code-review-testn" \
-    --org-id "103461" \
-    --table-id "2757772610"
+    --p0 <n> --p1 <n> --p2 <n> --p3 <n> \
+    --doc-url "<学城文档 URL>" \
+    --operator-mis "<MIS>" \
+    --source-branch "<branch>" --target-branch "master"
 """
 import argparse
 import datetime
@@ -44,8 +39,7 @@ DB_HOST = "spt.sankuai.com"
 DB_PATH = "/api/v1/aicr/submit-task"
 DB_TIMEOUT = 20
 
-DEFAULT_TABLE_ID = "2751197605"
-DEFAULT_ORG_PATH = "美团/核心本地商业/业务研发平台/业务系统平台部/供应链商品平台/服务零售组"
+DEFAULT_TABLE_ID = "2751197605"  # 降级多维表格兜底，可由 cr-config.yaml table_id 覆盖
 
 MAX_RETRIES = 4
 RETRY_INTERVAL = 2  # seconds
@@ -201,6 +195,35 @@ def _build_custom_rules_data(issues):
                                          "confirm_reason", "possible_risk", "confirm_suggestion"))
 
 
+def _resolve_ones_fields(args):
+    """解析 ONES 四字段（供 overview + 顶层 payload 共用）。
+
+    id/url 由上游显式传参；name/type 缺省从 /tmp/cr_ones_db_info.json
+    （prep 1B `ones workitem-detail` 产出）自动补；ones_id 非纯数字一律判
+    无效（项目内键如 FEVUO-xxx 的尾号为项目内序号，非全局 ID，误用会关联
+    到无关工作项）。
+    返回 (ones_id_int, ones_url, ones_type, ones_name)。
+    """
+    ones_id = (getattr(args, "ones_id", None) or "").strip()
+    ones_url = (getattr(args, "ones_url", None) or "").strip()
+    ones_type = (getattr(args, "ones_type", None) or "").strip()
+    ones_name = (getattr(args, "ones_name", None) or "").strip()
+    if not (ones_type and ones_name) or not ones_id:
+        try:
+            with open("/tmp/cr_ones_db_info.json", "r", encoding="utf-8") as f:
+                dbinfo = json.load(f)
+            ones_type = ones_type or str(dbinfo.get("onesType", "") or "")
+            ones_name = ones_name or str(dbinfo.get("onesName", "") or "")
+            if not ones_id:
+                ones_id = str(dbinfo.get("onesId", "") or "")
+            if not ones_url:
+                ones_url = str(dbinfo.get("onesUrl", "") or "")
+        except Exception:
+            pass
+    ones_id_int = int(ones_id) if (ones_id.isdigit() and len(ones_id) < 15) else None
+    return ones_id_int, ones_url, ones_type, ones_name
+
+
 def _build_cr_result_json(args, issues):
     """构造 cr_result_json —— 与 ai-quality-cr-agent publish_results.py 的 build_cr_result 对齐。
 
@@ -256,6 +279,14 @@ def _build_cr_result_json(args, issues):
         "commit_count": None,
         "skill_version": getattr(args, "skill_version", ""),
     }
+    # ONES 工作项关联（与 agent 版对齐；id 无效时四键置 None，后端不更新列）
+    ov_id, ov_url, ov_type, ov_name = _resolve_ones_fields(args)
+    overview.update({
+        "ones_id": ov_id,
+        "ones_type": ov_type if ov_id is not None else None,
+        "ones_url": ov_url if ov_id is not None else None,
+        "ones_name": ov_name if ov_id is not None else None,
+    })
 
     cr_result = {
         "pr_id": 0,                     # 本地模式无 PR，置 0 对齐结构
@@ -319,16 +350,25 @@ def write_db(args):
         except IOError:
             pass
 
-    # 构造 payload
+    # 构造 payload（trigger_source/trigger_event 可选覆盖；ones 四字段随报）
+    ones_id_int, ones_url, ones_type, ones_name = _resolve_ones_fields(args)
     payload = {
         "pr_url": args.pr_url,
         "author_mis": args.author_mis,
         "source_branch": args.source_branch,
         "target_branch": args.target_branch,
-        "trigger_source": "forlocal",
-        "trigger_event": "sdlc",
+        "trigger_source": (getattr(args, "trigger_source", None) or "").strip() or "forlocal",
+        "trigger_event": (getattr(args, "trigger_event", None) or "").strip() or "sdlc",
         "cr_result_json": json.dumps(cr_result, ensure_ascii=False),
     }
+    if ones_id_int is not None:
+        payload["ones_id"] = ones_id_int
+        if ones_url:
+            payload["ones_url"] = ones_url
+        if ones_type:
+            payload["ones_type"] = ones_type
+        if ones_name:
+            payload["ones_name"] = ones_name
     if cr_report:
         payload["cr_report"] = cr_report
 
@@ -546,6 +586,13 @@ def parse_args():
     p.add_argument("--org-id", default="", help="组织架构 orgId（纯数字）")
     p.add_argument("--table-id", default="", help="多维表格 ID")
     p.add_argument("--remark", default="", help="备注（默认填 skill-version）")
+    # ONES 工作项关联 + 触发源覆盖
+    p.add_argument("--ones-id", default="", help="ONES 工作项全局 ID（纯数字）")
+    p.add_argument("--ones-url", default="", help="ONES 工作项链接")
+    p.add_argument("--ones-type", default="", help="ONES 工作项类型（缺省自动补齐）")
+    p.add_argument("--ones-name", default="", help="ONES 工作项标题（缺省自动补齐）")
+    p.add_argument("--trigger-source", default="", help="触发来源覆盖（默认 forlocal；ADC 触发传 adc）")
+    p.add_argument("--trigger-event", default="", help="触发事件覆盖（默认 sdlc）")
 
     # DB 连接
     p.add_argument("--host", default=DB_HOST, help=f"DB 主机（默认 {DB_HOST}）")

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # get_org_info.sh - 获取员工姓名 + 组织架构路径
 # 用法: bash get_org_info.sh <misId>
-# 输出: authorName=孟木子 orgPath=服务零售组
+# 输出: authorName=<姓名> orgPath=<组织路径>
 
 set -euo pipefail
 

@@ -12,7 +12,7 @@ skill-dependencies:
 metadata:
   skillhub.creator: "mengmuzi"
   skillhub.updater: "mengmuzi"
-  skillhub.version: "V88"
+  skillhub.version: "V90"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "24320"
   skillhub.high_sensitive: "false"
@@ -73,7 +73,11 @@ metadata:
 - **本地仓库路径**(必须)
 - **分支名**(必须)
 - **base 分支**(可选,默认 `master`)
-- **ONES 需求 ID**(可选)
+- **ONES 需求 ID**(可选,两种形态,入口参数 `--ones` 或 `--ones-id`(同一参数别名)：
+  - 纯数字全局 ID(推荐)：prep 1B 走 `ones workitem-detail` 自动补齐名称/类型，关联信息落 `/tmp/cr_ones_db_info.json`，DB 上报随报关联四字段(id 无效时不上报，后端不更新列)
+  - 项目内键如 `FEVUO-xxx`：仅作 4-D 审查上下文，不建联(尾号为项目内序号，非全局 ID，误用会关联到无关工作项))
+- **ones_url**(可选,显式传参随报)
+- **trigger_source**(可选：ADC 触发传 `adc`，默认 `forlocal` 不变；DB 落 cr_task.trigger_source 列，trigger_event 保持 sdlc 默认)
 - 无需 PR、无需推送到远端,直接读本地 git 变更
 
 ### ⚠️ 推荐模型
@@ -152,9 +156,10 @@ bash "$SKILL_ROOT/tools/cr-cli.sh" prep \
  "diff_lines": "3583",           // diff 行数
  "substantive_files": "57",      // 实质变更文件数
  "empty_reason": "",             // 非空=diff 空,流程提前结束
- "ones_id": "FEVUO-2019-xxx",    // 分支名提取
+ "ones_id": "FEVUO-2019-xxx",    // 分支名提取；--ones 传纯数字全局 ID 时为全局 ID
+ "ones_db_info": "ready|absent", // 建联信息标记：ready=/tmp/cr_ones_db_info.json 存在（cr_record 自动补齐 name/type/url）；absent=无
  "ones_status": "ok|failed|no-cli|skipped", // failed=4-D 降级双源
- "operator_mis": "mengmuzi",     // 触发用户>git校验>config>unknown
+ "operator_mis": "<mis>",          // 触发用户>git校验>config>unknown
  "custom_rules": "none|N",  // 3A2: .mdp/rules + .catpaw/rules 预筛后保留的规则文件数(none=4-C 无 CU 输入)
  "l2_rules": "none|N",      // 3A3: 平台L2规则拉取结果(none=4-C 无 L2 输入;none(skill-missing)/none(fetch-failed)/none(no-team-rules)/none(no-remote)/none(disabled)/none(arg-error) 标注降级原因;数字=拉取成功规则数)
  "source_context_files": "12",     // 1A3: 变更文件完整源码包文件数

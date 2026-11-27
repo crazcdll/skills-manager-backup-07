@@ -47,6 +47,29 @@ def _skill_version():
         return "latest"
 
 SKILL_VERSION = _skill_version()
+
+
+def _cr_config():
+    """读 cr-config.yaml；yaml 模块缺失时降级正则解析；失败返回空 dict"""
+    try:
+        text = (Path(__file__).resolve().parent.parent / "cr-config.yaml").read_text(encoding="utf-8")
+    except Exception:
+        return {}
+    try:
+        import yaml as _yaml
+        return _yaml.safe_load(text) or {}
+    except ImportError:
+        # 无 yaml 模块时简单解析顶层 key: value（本文件无嵌套需求键）
+        import re as _re
+        cfg = {}
+        for m in _re.finditer(r'^([a-z_]+):\s*"?([^"\n#]*)', text, _re.M):
+            cfg[m.group(1)] = m.group(2).strip()
+        return cfg
+
+
+def _cr_config_str(key):
+    return str(_cr_config().get(key, "") or "")
+
 # DB 写入：由 scripts/cr_record.py 承载（复用 ai-pr-code-review-testn 生产脚本，
 # 路径 A=spt.sankuai.com/api/aicr/submit-task（原版 forlocal 同源），路径 B=多维表格 2751197605 降级）
 DB_WRITE_URL = os.environ.get("AI_CR_DB_WRITE_URL", "https://spt.sankuai.com/api/aicr/submit-task")  # 兼容保留
@@ -569,8 +592,8 @@ def step_db_write(args, issues, counts, conclusion, km_url):
         *( [] if getattr(args, "is_sdd", False) else ["--no-sdd"] ),
         "--alignment", getattr(args, "alignment_rate", None) or "N/A",
         "--skill-version", f"ai-cr-forlocal {SKILL_VERSION}",
-        "--org-id", "103461",
-        "--table-id", "2751197605",
+        "--org-id", _cr_config_str("org_id"),
+        "--table-id", _cr_config_str("table_id") or "2751197605",
         "--no-proxy",
     ]
     # cr_result_json 对齐字段（agent 版 build_cr_result 同构）
@@ -584,6 +607,13 @@ def step_db_write(args, issues, counts, conclusion, km_url):
         cmd += ["--overview-text", args.overview]
     if issues_file:
         cmd += ["--issues-file", issues_file]
+    # ONES 工作项关联 + 触发源覆盖（仅显式传参才透传，存量行为不变）
+    if getattr(args, "ones_id", ""):
+        cmd += ["--ones-id", args.ones_id]
+    if getattr(args, "ones_url", ""):
+        cmd += ["--ones-url", args.ones_url]
+    if getattr(args, "trigger_source", ""):
+        cmd += ["--trigger-source", args.trigger_source]
     # DB 写入异步化：不阻塞 publish 主流程（学城文档已产出，DB 只是运营统计）
     # 后台跑，日志落 /tmp/cr_db_write_async.log，publish 结束后可查
     import subprocess as _sp
@@ -676,6 +706,10 @@ def parse_args():
     parser.add_argument("--repo", required=True, help="仓库名")
     parser.add_argument("--base-branch", default="", help="基准分支（DB 上报 target_branch）")
     parser.add_argument("--branch", required=True, help="分支名")
+    # ONES 工作项关联（可选）+ 触发源覆盖（ADC 触发传 adc）
+    parser.add_argument("--ones-id", default="", help="ONES 工作项全局 ID（纯数字，透传 cr_record.py）")
+    parser.add_argument("--ones-url", default="", help="ONES 工作项链接（透传 cr_record.py）")
+    parser.add_argument("--trigger-source", default="", help="触发来源覆盖，默认 forlocal；ADC 触发传 adc（透传 cr_record.py）")
     parser.add_argument("--operator-mis", default="", help="操作者 MIS")
     parser.add_argument("--citadel-parent-id", default="", help="学城父目录 ID")
     parser.add_argument(

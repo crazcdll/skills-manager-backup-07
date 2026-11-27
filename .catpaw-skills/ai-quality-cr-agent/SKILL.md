@@ -8,8 +8,8 @@ skill-dependencies:
 
 metadata:
   skillhub.creator: "mengmuzi"
-  skillhub.updater: "mengmuzi"
-  skillhub.version: "V138"
+  skillhub.updater: "zengjiantao"
+  skillhub.version: "V140"
   skillhub.source: "FRIDAY Skillhub"
   skillhub.skill_id: "72066"
   skillhub.high_sensitive: "false"

@@ -69,7 +69,7 @@ while [[ $# -gt 0 ]]; do
     --repo)    REPO_PATH="$2"; shift 2 ;;
     --branch)  BRANCH="$2";  shift 2 ;;
     --base)    BASE="$2";    shift 2 ;;
-    --ones)    ONES_ID="$2"; shift 2 ;;
+    --ones|--ones-id)  ONES_ID="$2"; shift 2 ;;   # 纯数字=全局ID(建联)；FEVUO/ONES-xxx=仅审查上下文(见 prep 1B)；--ones-id 为对外 SOP 别名
     --operator-mis) OPERATOR_MIS="$2"; shift 2 ;;
     --issues-file) ISSUES_FILE="$2"; shift 2 ;;
     --overview) OVERVIEW="$2"; shift 2 ;;
@@ -87,7 +87,7 @@ prep)
   setopt null_glob 2>/dev/null || true
   rm -f /tmp/local_cr_diff.txt /tmp/local_cr_diff_slim.txt /tmp/cr_slim.log /tmp/local_cr_files.txt /tmp/cr_matched_rules.json 2>/dev/null
   rm -f /tmp/cr_changed_symbols.json /tmp/cr_signal_rules.json 2>/dev/null
-  rm -f /tmp/cr_signals_*.md /tmp/cr_ones_context.json /tmp/cr_ones_err.log 2>/dev/null
+  rm -f /tmp/cr_signals_*.md /tmp/cr_ones_context.json /tmp/cr_ones_err.log /tmp/cr_ones_db_info.json /tmp/cr_ones_detail.json 2>/dev/null
   rm -f /tmp/cr_route_plan.json /tmp/cr_route_plan.log 2>/dev/null
   rm -f /tmp/cr_route_4a_*.md /tmp/cr_route_4b_*.md 2>/dev/null
   rm -f /tmp/cr_suspects_*.json 2>/dev/null
@@ -337,19 +337,86 @@ PYEOF
   emit source_context_files "$SOURCE_COUNT"
 
 
-  # ── 1B ONES 上下文（提取 ID + 拉取，10s 兜底）──
+  # ── 1B ONES 上下文（分道路：显式数字ID→workitem-detail 建联；项目内键→旧链路仅上下文）──
+  # 项目内键（FEVUO/ONES-xxx）尾号为项目内序号，非全局 ID，不用于建联
+  # 建联信息落 /tmp/cr_ones_db_info.json（仅显式数字传参才产出）
+  rm -f /tmp/cr_ones_db_info.json /tmp/cr_ones_detail.json 2>/dev/null
   ST_ONES=skipped; ONES_EVER=""
-  ONES_EVER=$(echo "$BRANCH" | grep -oE '(FEVUO|ONES)-[0-9]+' | head -1)
-  if [ -n "$ONES_EVER" ] && command -v ee-ones >/dev/null 2>&1; then
-    if run_to 10 ee-ones issue info "$ONES_EVER" > /tmp/cr_ones_context.json 2>/tmp/cr_ones_err.log; then
-      ST_ONES=ok
+
+  # 道路1：显式数字全局 ID（--ones 传入）
+  ONES_EXPLICIT="${ONES_ID:-}"
+  if [ -n "$ONES_EXPLICIT" ] && [[ "$ONES_EXPLICIT" =~ ^[0-9]+$ ]]; then
+    if command -v ones >/dev/null 2>&1; then
+      if run_to 10 ones workitem-detail -i "$ONES_EXPLICIT" --json > /tmp/cr_ones_detail.json 2>/tmp/cr_ones_err.log; then
+        python3 - "$ONES_EXPLICIT" <<'PYE' 2>/dev/null
+import json, sys
+try:
+    d = json.load(open('/tmp/cr_ones_detail.json'))
+    wid = d.get('workItem', d) if isinstance(d, dict) else {}
+    name = (((wid.get("name") or {}).get("value")) or "").strip()
+    wtype = str(wid.get("type") or "").strip()
+    db_id = ""
+    raw = wid.get("id")
+    if isinstance(raw, dict):
+        raw = ((raw.get("value") or "")).strip()
+    else:
+        raw = str(raw or "").strip()
+    if raw.isdigit():
+        db_id = raw
+    if not db_id and sys.argv[1].isdigit():
+        db_id = sys.argv[1]
+    if db_id and name:
+        json.dump({"onesId": db_id, "onesType": wtype, "onesName": name},
+                  open('/tmp/cr_ones_db_info.json', 'w'), ensure_ascii=False)
+except Exception:
+    pass
+PYE
+        ST_ONES=ok; ONES_EVER="$ONES_EXPLICIT"
+        # 审查上下文复用（尽力而为，失败不影响状态）
+        python3 - <<'PYE' 2>/dev/null
+import json
+try:
+    d = json.load(open('/tmp/cr_ones_detail.json'))
+    wid = d.get('workItem', d) if isinstance(d, dict) else {}
+    desc = wid.get("description")
+    desc = (desc.get("value") or "") if isinstance(desc, dict) else str(desc or "")
+    out = {"title": ((wid.get("name") or {}).get("value") or ""),
+           "type": wid.get("type") or "",
+           "description": desc}
+    json.dump(out, open('/tmp/cr_ones_context.json', 'w'), ensure_ascii=False)
+except Exception:
+    pass
+PYE
+      else
+        ST_ONES=failed; log "⚠️ ONES workitem-detail 拉取失败，建联跳过（4-D 降级双源）"
+      fi
     else
-      ST_ONES=failed; log "⚠️ ONES 拉取失败（无权限/超时），4-D 降级双源"
+      ST_ONES="no-cli"; log "⚠️ ones CLI 不可用，建联跳过"
     fi
-  elif [ -n "$ONES_EVER" ]; then
-    ST_ONES="no-cli"
+  elif [ -n "$ONES_EXPLICIT" ]; then
+    ST_ONES=skipped; log "⚠️ --ones 非纯数字全局 ID，不建联，仅作上下文参考"
+  fi
+
+  # 道路2：分支名提取项目内键 → 旧链路仅作审查上下文，不建联
+  if [ -z "$ONES_EVER" ]; then
+    ONES_EVER=$(echo "$BRANCH" | grep -oE '(FEVUO|ONES)-[0-9]+' | head -1)
+    if [ -n "$ONES_EVER" ] && command -v ee-ones >/dev/null 2>&1; then
+      if run_to 10 ee-ones issue info "$ONES_EVER" > /tmp/cr_ones_context.json 2>/tmp/cr_ones_err.log; then
+        ST_ONES=ok
+      else
+        ST_ONES=failed; log "⚠️ ONES 拉取失败（无权限/超时），4-D 降级双源"
+      fi
+    elif [ -n "$ONES_EVER" ]; then
+      ST_ONES="no-cli"
+    fi
   fi
   emit ones_id "${ONES_EVER:-}"; emit ones_status "$ST_ONES"
+  # 建联信息存在性标记（仅显式数字传参才产出，供 publish 判断）
+  if [ -s /tmp/cr_ones_db_info.json ]; then
+    emit ones_db_info "ready"
+  else
+    emit ones_db_info "absent"
+  fi
 
   # ── 1D 业务上下文合成（Layer 3 落盘，供 4-A-P0 / 4-D 消费）──
   # /tmp/cr_business_context.md = 领域知识库 + ONES 语义 + 白盒测试点（各源如有则拼）
@@ -598,7 +665,7 @@ PROBE_PY
 
   # ── 3A2 自定义规则探测+预合并（.mdp/rules + .catpaw/rules → 4-C 消费）──
   # 此前 .mdp/rules 的读取完全靠主 Agent 自觉（SKILL.md 文字），prep 管道零探测——
-  # 木子真跑时主 Agent 自由发挥读了 3 个文件。现在固化：探测+脚本预筛+合并落盘。
+  # 固化流程：探测+脚本预筛+合并落盘。
   CR_CUSTOM_OUT="/tmp/cr_custom_rules_${REPO_NAME}.md"
   CU_COUNT=0
   {
@@ -872,6 +939,9 @@ publish)
   fi
   ARGS=(--repo "${REPO_FULL:-$REPO_NAME}" --branch "${BRANCH:-}" --issues-file "$ISSUES_FILE")
   [ -n "$OPERATOR_MIS" ] && ARGS+=(--operator-mis "$OPERATOR_MIS")
+  # ONES 建联（prep 已落 /tmp/cr_ones_db_info.json 时 cr_record 可自动补齐；
+  # 此处透传兜底两再用：prep 未落 db_info（如 prep 缺 --ones）时显式传参仍能建联）
+  [ -n "$ONES_ID" ] && ARGS+=(--ones-id "$ONES_ID")
   [ -n "$BASE" ] && ARGS+=(--base-branch "$BASE")
   [ -n "$OVERVIEW" ] && ARGS+=(--overview "$OVERVIEW")
   [ -n "$CONCLUSION" ] && ARGS+=(--conclusion-override "$CONCLUSION")
@@ -921,7 +991,7 @@ clean)
   # ── 1. /tmp 中间产物清理（无条件执行）──
   rm -f /tmp/local_cr_diff.txt /tmp/local_cr_diff_slim.txt /tmp/cr_slim.log /tmp/local_cr_files.txt /tmp/cr_matched_rules.json 2>/dev/null
   rm -f /tmp/cr_changed_symbols.json /tmp/cr_signal_rules.json 2>/dev/null
-  rm -f /tmp/cr_signals_*.md /tmp/cr_ones_context.json /tmp/cr_ones_err.log 2>/dev/null
+  rm -f /tmp/cr_signals_*.md /tmp/cr_ones_context.json /tmp/cr_ones_err.log /tmp/cr_ones_db_info.json /tmp/cr_ones_detail.json 2>/dev/null
   rm -f /tmp/cr_route_plan.json /tmp/cr_route_plan.log 2>/dev/null
   rm -f /tmp/cr_route_4a_*.md /tmp/cr_route_4b_*.md 2>/dev/null
   rm -f /tmp/cr_suspects_*.json 2>/dev/null
@@ -973,7 +1043,7 @@ clean)
 
 *)
   echo "用法: bash cr-cli.sh <prep|publish|clean> [参数]"
-  echo "  prep    --repo <路径> [--branch b] [--base master] [--ones ID] [--operator-mis mis]"
+  echo "  prep    --repo <路径> [--branch b] [--base master] [--ones|--ones-id ID] [--operator-mis mis]"
   echo "  publish --repo <路径> --issues-file <step4.json> [--operator-mis mis] [--overview 文案] [-- 透传 publish_results_local.py 参数]"
   echo "  clean   [--repo <路径>]（--repo 指定时同时清理仓库内 .gitnexus/ 与 .claude/skills/gitnexus/）"
   [ -n "$CMD" ] && exit 1 || exit 0

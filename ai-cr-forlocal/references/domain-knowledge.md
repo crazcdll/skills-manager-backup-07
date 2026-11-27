@@ -5,7 +5,7 @@
 >   - [01.多套ID体系介绍](https://km.sankuai.com/collabpage/1744576703)
 >   - [03.ID体系定义](https://km.sankuai.com/collabpage/2457026694)
 >   - [平台技术部双平台不一致COE分析](https://km.sankuai.com/page/1305288396）（2021~2023年 31 个 COE，50% 是 ShopId 问题）
-> 维护人：孟木子 | 最后更新：2026-03-17
+> 最后更新：2026-03-17
 
 ---
 

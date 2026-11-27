@@ -4,6 +4,9 @@
 # 多维表格 ID（登记 CR 记录用，降级路径）
 table_id: "2751197605"
 
+# DB 上报组织（cr_task.org_id）：跨团队复用时按需配置，留空则不上报固定组织
+org_id: ""
+
 # 学城 CR 结果文档父目录 ID
 citadel_parent_id: "2752508777"
 
